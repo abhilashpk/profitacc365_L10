@@ -1,0 +1,94 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Currency;
+
+use App\Models\Currency;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Config;
+
+class CurrencyRepository extends AbstractValidator implements CurrencyInterface {
+	
+	protected $currency;
+	
+	protected static $rules = [
+		/* 'code' => 'required|unique:currency',
+		'name' => 'required|unique:currency', */
+	];
+	
+	public function __construct(Currency $currency) {
+		$this->currency = $currency;
+		
+	}
+	
+	public function all()
+	{
+		return $this->currency->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->currency->where('id', $id)->first();
+	}
+	
+	
+	public function create($attributes)
+	{
+		if($this->isValid($attributes)) { 
+			
+			$this->currency->code = $attributes['code'];
+			$this->currency->name = $attributes['name'];
+			$this->currency->rate = $attributes['rate'];
+			$this->currency->fracode = $attributes['fracode'];
+			$this->currency->decimal_place = $attributes['decimal_place'];
+			$this->currency->decimal_name = $attributes['decimal_name'];
+			$this->currency->status = 1;
+			$this->currency->fill($attributes)->save();
+			return true;
+		}
+		
+		//throw new ValidationException('currency validation error!', $this->getErrors());
+	}
+	
+	public function update($id, $attributes)
+	{
+		$this->currency = $this->find($id);
+		$this->currency->fill($attributes)->save();
+		return true;
+	}
+	
+	
+	public function delete($id)
+	{
+		$this->currency = $this->currency->find($id);
+		$this->currency->delete();
+	}
+	
+	public function currencyList()
+	{
+		//check admin session and apply return $this->currency->where('parent_id',0)->where('status', 1)->get();
+		return $this->currency->where('status', 1)->get();
+	}
+	
+	public function activeCurrencyList()
+	{
+		return $this->currency->select('id','code','name')->where('status', 1)->orderBy('id', 'DESC')->get()->toArray();
+	}
+	
+	public function check_currency_code($code, $id = null) {
+		
+		if($id)
+			return $this->currency->where('code',$code)->where('id', '!=', $id)->count();
+		else
+			return $this->currency->where('code',$code)->count();
+	}
+		
+	public function check_currency_name($name, $id = null) {
+		
+		if($id)
+			return $this->currency->where('name',$name)->where('id', '!=', $id)->count();
+		else
+			return $this->currency->where('name',$name)->count();
+	}
+	
+}

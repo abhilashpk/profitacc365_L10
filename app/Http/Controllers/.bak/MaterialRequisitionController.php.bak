@@ -1,0 +1,663 @@
+<?php
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+use App\Repositories\Itemmaster\ItemmasterInterface;
+use App\Repositories\Jobmaster\JobmasterInterface;
+use App\Repositories\AccountMaster\AccountMasterInterface;
+use App\Repositories\VoucherNo\VoucherNoInterface;
+use App\Repositories\MaterialRequisition\MaterialRequisitionInterface;
+use App\Repositories\AccountSetting\AccountSettingInterface;
+use App\Repositories\PurchaseOrder\PurchaseOrderInterface;
+use App\Repositories\SupplierDo\SupplierDoInterface;
+use App\Repositories\Forms\FormsInterface;
+
+use App\Repositories\Location\LocationInterface;
+
+use App\Http\Requests;
+use Input;
+use Session;
+use Response;
+use DB;
+use Excel;
+use App;
+use Auth;
+class MaterialRequisitionController extends Controller
+{
+	protected $itemmaster;
+	protected $accountmaster;
+	protected $voucherno;
+	protected $accountsetting;
+	protected $forms;
+
+	protected $jobmaster;
+	protected $formData;
+	protected $purchase_order;
+	protected $supplierdo;
+	protected $material_requisition;
+	protected $mod_purchase_enquiry;
+	protected $location;
+	
+	public function __construct(MaterialRequisitionInterface $material_requisition, JobmasterInterface $jobmaster, SupplierDOInterface $supplierdo, PurchaseOrderInterface $purchase_order,ItemmasterInterface $itemmaster, AccountMasterInterface $accountmaster, VoucherNoInterface $voucherno,FormsInterface $forms, AccountSettingInterface $accountsetting,LocationInterface $location) {
+		
+		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
+		
+		$this->middleware('auth');
+		$this->itemmaster = $itemmaster;
+		$this->accountmaster = $accountmaster;
+		$this->voucherno = $voucherno;
+		$this->purchase_order = $purchase_order;
+		$this->supplierdo = $supplierdo;
+		$this->jobmaster = $jobmaster;
+		$this->voucherno = $voucherno;
+		$this->forms = $forms;
+		$this->formData = $this->forms->getFormData('MR');
+		$this->material_requisition = $material_requisition;
+		$this->accountsetting = $accountsetting;
+		$this->location = $location;
+		//$this->mod_purchase_enquiry = DB::table('parameter2')->where('keyname', 'mod_purchase_enquiry')->where('status',1)->select('is_active')->first(); //print_r($this->mod_purchase_enquiry);exit();
+	}
+	
+	public function index() {
+		
+		$data = array();
+		$matrec = [];//$this->material_requisition->materialReqList();
+		//print_r($this->material_requisition->materialReqList());exit();
+		$salesman = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('name','ASC')->get();
+		//$jobname = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('name','ASC')->get();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$mod_purchase_enquiry= $this->mod_purchase_enquiry = DB::table('parameter2')->where('keyname', 'mod_purchase_enquiry')->where('status',1)->select('is_active')->first(); //
+		$items = $this->itemmaster->activeItemmasterList();
+		//print_r($this->mod_purchase_enquiry);exit();
+
+		    
+			//print_r($headingName);exit();
+
+			//print_r($matrec);exit();
+		return view('body.materialrequisition.index',compact('mod_purchase_enquiry'))
+					->withMatrec($matrec)
+					->withSalesman($salesman)
+					->withJobs($jobs)
+					->withItems($items)
+					->withModpurenq($mod_purchase_enquiry->is_active)
+					->withData($data);
+	}
+	
+	
+	public function ajaxPaging(Request $request)
+	{
+		$columns = array( 
+                            0 => 'voucher_no',
+							1 => 'voucher_date',
+							2 => 'supplier',
+                            3 => 'jobname',
+                            4 => 'net_amount',
+                            5=>'approved_user'
+                        );
+						
+		$totalData = $this->material_requisition->materialReqListCount();
+            
+        $totalFiltered = $totalData; 
+
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'material_requisition.id';//$columns[$request->input('order.0.column')];
+        $dir = 'desc';//$request->input('order.0.dir');
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+        
+		$invoices = $this->material_requisition->materialReqList('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->material_requisition->materialReqList('count', $start, $limit, $order, $dir, $search);
+		$prints = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','MR')
+							->select('report_view_detail.name','report_view_detail.id','report_view_detail.print_name')
+							->get();
+		
+        $data = array();
+        if(!empty($invoices))
+        {
+           
+			foreach ($invoices as $row)
+            {
+                $edit =  '"'.url('material_requisition/edit/'.$row->id).'"';
+                $delete =  'funDelete("'.$row->id.'")';
+				$print = url('material_requisition/print/'.$row->id);
+				$view =  url('material_requisition/views/'.$row->id);
+				$opts = '';					
+				foreach($prints as $doc) {
+					$opts .= "<li role='presentation'><a href='{$print}/".$doc->id."' target='_blank' role='menuitem'>".$doc->name."</a></li>";
+				}
+				
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['supplier'] = $row->supplier;
+				$nestedData['jobname'] = $row->code;
+				$nestedData['net_amount'] = number_format($row->net_amount,2);
+				$nestedData['approved_user'] = ($row->approval_status==1)?$row->approved_user:'';
+				$nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
+												<span class='glyphicon glyphicon-pencil'></span></button></p>";
+												
+				$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+											<span class='glyphicon glyphicon-trash'></span>";
+				
+				$nestedData['view'] = "<p><a href='{$view}' class='btn btn-info btn-xs' target='_blank'><i class='fa fa-fw fa-eye'></i></a></p>";								
+				 //$nestedData['print'] = "<p><a href='{$print}' class='btn btn-primary btn-xs' target='_blank'><span class='fa fa-fw fa-print'></span></a></p>";
+				 $nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>"; 
+											
+                $data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	
+	public function add(Request $request, $id = null, $doctype = null) {
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		//echo '<pre>';print_r($itemmaster);exit;
+		$jobs = $this->jobmaster->activeJobmasterList();
+		
+		$location = $this->location->locationList();
+		$res = $this->voucherno->getVoucherNo('MR'); //echo '<pre>';print_r($res);exit;
+		$settings = $this->accountsetting->getAccountPeriod();//
+		$mod_purchase_enquiry= $this->mod_purchase_enquiry = DB::table('parameter2')->where('keyname', 'mod_purchase_enquiry')->where('status',1)->select('is_active')->first();
+		$location = $this->location->locationList();
+		if($id) {
+		    
+			$ids = explode(',', $id); //
+		    
+			$ocrow = $getItemLocation = $itemlocedit = [];
+			if($doctype=='PO') {
+		
+				$docRow = $this->purchase_order->findPOdata($ids);
+		       // echo '<pre>';print_r($docRow);exit;
+				$docItems = $this->purchase_order->getPOitems($ids);
+				//echo '<pre>';print_r($docItems);exit;
+				$ocrow = $this->purchase_order->getOtherCost($ids[0]);
+			}  else if($doctype=='SDO') {
+				$docRow = $this->supplierdo->findSDOdata($ids[0]);
+				$docItems = $this->supplierdo->getSDOitems($ids);
+				$ocrow = $this->supplierdo->getOtherCost($ids[0]);
+				
+				$getItemLocation = $this->itemmaster->getItemLocation($id,'SDO');
+				$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($id,'SDO') ); //echo '<pre>';print_r($getItemLocation); print_r($itemlocedit); exit;
+			}
+			$total = 0; $discount = 0; $nettotal = 0; $vat_total = 0;
+			foreach($docItems as $item) {
+				$total += $item->total_price;
+				$discount += $item->discount;
+				$vat_total += $item->vat_amount;
+			}
+			 $nettotal = $total - $discount + $vat_total;
+			  return view('body.materialrequisition.addsdo',compact('mod_purchase_enquiry'))
+			                     ->withItems($itemmaster)
+								 ->withSettings($settings)
+								 ->withItems($itemmaster)
+								 ->withJobs($jobs)
+								 ->withDocrow($docRow)
+								 ->withDocitems($docItems)
+								 ->withLocation($location)
+								 ->withPordid($id)
+								 ->withTotal($total)
+								 ->withDiscount($discount)
+								 ->withVattotal($vat_total)
+								 ->withDoctype($doctype)
+								 ->withDocitems($docItems)
+			                     ->withPordid($id)
+			                     ->withTotal($total)
+			                     ->withVoucherno($res)
+								 ->withFormdata($this->formData)
+								 ->withLocation($location)
+								 ->withData($data);
+		}	  
+
+		return view('body.materialrequisition.add',compact('mod_purchase_enquiry'))
+					->withItems($itemmaster)
+					->withSettings($settings)
+					->withVoucherno($res)
+					->withFormdata($this->formData)
+					->withLocation($location)
+					->withJobs($jobs)
+					->withData($data);
+	}
+	
+	public function save($id = null) {
+		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($this->material_requisition->create(Input::all()));exit;
+		$this->material_requisition->create(Input::all());
+		Session::flash('message', 'Material requisition added successfully.');
+		return redirect('material_requisition');
+	}
+	
+	
+	public function edit($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$orderrow = $this->material_requisition->findPOdata($id);
+		$orditems = $this->material_requisition->getItems($id);
+		$mod_purchase_enquiry= $this->mod_purchase_enquiry = DB::table('parameter2')->where('keyname', 'mod_purchase_enquiry')->where('status',1)->select('is_active')->first();
+		$location = $this->location->locationList();
+		//echo '<pre>';print_r($orderrow);exit;
+		return view('body.materialrequisition.edit',compact('mod_purchase_enquiry'))
+					->withItems($itemmaster)
+					->withOrditems($orditems)
+					->withOrderrow($orderrow)
+					->withFormdata($this->formData)
+					->withLocation($location)
+					->withData($data);
+
+	}
+	
+	
+	public function update($id)
+	{
+		$this->material_requisition->update($id, Input::all());
+		Session::flash('message', 'Material Requisition updated successfully');
+		return redirect('material_requisition');
+	}
+	
+	public function getViews($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$orderrow = $this->material_requisition->findPOdata($id);
+		$orditems = $this->material_requisition->getItems($id);
+		$mod_purchase_enquiry= $this->mod_purchase_enquiry = DB::table('parameter2')->where('keyname', 'mod_purchase_enquiry')->where('status',1)->select('is_active')->first();
+		$location = $this->location->locationList();
+		//echo '<pre>';print_r($orderrow);exit;
+		return view('body.materialrequisition.viewapproval')
+					->withItems($itemmaster)
+					->withOrditems($orditems)
+					->withOrderrow($orderrow)
+					->withFormdata($this->formData)
+					->withLocation($location)
+					->withData($data);
+
+	}
+		public function getApproval($id)
+	{
+		DB::table('material_requisition')->where('id',$id)->update(['approval_status' => 1,'approved_by'=>Auth::User()->id,'approved_at'=>date('Y-m-d H:i:s')]);
+		Session::flash('message', 'Material Requisition approved successfully.');
+		return redirect('material_requisition');
+	}
+		public function getReject($id)
+	{
+		DB::table('material_requisition')->where('id',$id)->update(['approval_status' => 2,'approved_by'=>Auth::User()->id,'approved_at'=>date('Y-m-d H:i:s')]);
+		Session::flash('message', 'Material Requisition rejected successfully.');
+		return redirect('material_requisition');
+	}
+	
+	public function getEnquiry($supplier_id, $url)
+	{
+		$data = array();
+		$enquiry = $this->material_requisition->getSupplierEnquiry($supplier_id);//print_r($quotations);exit;
+		return view('body.materialrequisition.enquiry')
+					->withEnqs($enquiry)
+					->withUrl($url)
+					->withData($data);
+	}
+	public function destroy($id)
+	{
+		DB::table('material_requisition')->where('id',$id)->update(['deleted_at' => date('Y-m-d H:i:s')]);
+		Session::flash('message', 'Material Requisition deleted successfully.');
+		return redirect('material_requisition');
+	}
+	// public function setSessionVal()
+	// {
+	// 	print_r(Input::all());exit;
+	// 	Session::put('voucher_id', Input::get('vchr_id'));
+	// 	Session::put('voucher_no', Input::get('vchr_no'));
+	// 	Session::put('reference_no', Input::get('ref_no'));
+	// 	Session::put('voucher_date', Input::get('vchr_dt'));
+	// 	Session::put('lpo_date', Input::get('lpo_dt'));
+	// 	Session::put('sales_acnt', Input::get('sales_ac'));
+	// 	Session::put('acnt_master', Input::get('ac_mstr'));
+	// 	Session::put('lpo_no', Input::get('ref_no'));
+	// 	Session::put('dpt_id', Input::get('dpt_id'));
+
+	// }
+	
+	public function getPrint($id,$rid=null)
+	{
+	    
+	    $viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first(); 
+			//echo '<pre>';print_r($viewfile);exit;
+		if(isset($viewfile) && $viewfile->print_name=='') {
+		$attributes['document_id'] = $id;
+		$result = $this->material_requisition->getInvoice($attributes);
+		$titles = ['main_head' => 'Material Requisition','subhead' => 'Material Requisition'];
+		return view('body.materialrequisition.print')
+					->withDetails($result['details'])
+					->withTitles($titles)
+					->withItems($result['items']);
+		//echo '<pre>';print_r($result);exit;
+		}
+		
+		else {
+					
+			$path = app_path() . '/stimulsoft/helper.php';
+			if(isset($viewfile))
+				return view('body.salesinvoice.viewer')->withPath($path)->withView($viewfile->print_name);
+		}
+	}
+		
+	
+	public function getItemDetails($id) {
+		$data = array();
+		$items = $this->material_requisition->getMRitems(array($id));
+		return view('body.purchaseorder.itemdetails')
+					->withItems($items)
+					->withData($data);
+	}
+	
+	protected function makeArrGroup($result,$cur)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		$arr = array();
+		foreach($childs as $child) {
+			$pending_qty = $pending_amt = $net_amount = 0;
+			foreach($child as $row) {
+			    $pending_qty = ($row->balance_quantity==0)?$row->quantity:$row->balance_quantity;
+				$unit_price = ($cur=='')?$row->unit_price:($row->unit_price / $row->currency_rate);
+				
+			    $pending_amt += $pending_qty * $unit_price;
+				$net_amount = $pending_amt;
+				$voucher_no = $row->voucher_no;
+				$suppname = $row->master_name;
+				$jobcode = $row->jobcode;
+				$salesman = $row->salesman;
+				$jobname = $row->jobname;
+			}
+			$arr[] = ['voucher_no' => $voucher_no,'jobname' => $jobname,'jobcode' => $jobcode, 'master_name' => $suppname, 'total' => $pending_amt,'net_amount' => $net_amount,'salesman'=>$salesman];
+			
+		}
+
+		return $arr;
+	}
+	
+	public function getSearch()
+	{
+	    //echo '<pre>';print_r(Input::all());exit;
+		$data = array();$curcode = '';
+		if(Input::get('currency_id')!='') {
+			$cur = DB::table('currency')->where('id',Input::get('currency_id'))->select('code')->first();
+			$curcode = ' in '.$cur->code;
+		}
+		
+		$reports = $this->material_requisition->getReport(Input::all());
+		
+		if(Input::get('search_type')=="summary")
+			$voucher_head = 'Material Requisition Summary'.$curcode;
+		elseif(Input::get('search_type')=="summary_pending") {
+
+			$voucher_head = 'Material Requisition Pending Summary'.$curcode;
+			$reports = $this->makeArrGroup($reports,$curcode);
+
+		} elseif(Input::get('search_type')=="detail") {
+			$voucher_head = 'Material Requisition Detail'.$curcode;
+			$reports = $this->makeTree($reports);
+		} else {
+		    if(Input::get('search_type')=="detail_pending"){
+			$voucher_head = 'Material Requisition Pending Detail'.$curcode;
+		    }
+		    else{
+		       $voucher_head = 'Material Requisition Quantity Detail'.$curcode; 
+		    }
+			
+			$reports = $this->makeTree($reports);
+		}
+		//echo '<pre>';print_r($reports);exit;
+		return view('body.materialrequisition.preprint')
+					->withReports($reports)
+					->withVoucherhead($voucher_head)
+					->withType(Input::get('search_type'))
+					->withFromdate(Input::get('date_from'))
+					->withTodate(Input::get('date_to'))
+					->withI(0)
+					->withSettings($this->acsettings)
+					->withCur($curcode)
+					->withItemid(Input::get('item_id'))
+					->withCurid(Input::get('currency_id'))
+					->withSalesman(Input::get('salesman'))
+					->withData($data);
+	}
+	
+	public function getSearchBkp()
+	{
+		$data = array();
+		
+		$reports = $this->material_requisition->getReport(Input::all());
+		
+		if(Input::get('search_type')=="summary") {
+			$voucher_head = 'Material Requisition Summary';
+		}
+		elseif(Input::get('search_type')=="summary_pending") {
+
+			$voucher_head = 'Material Requisition Pending Summary';
+			$reports = $this->makeArrGroup($reports,$curcode);
+			//$reports = $this->makeArrGroup($reports);
+
+		} elseif(Input::get('search_type')=="detail") {
+			$voucher_head = 'Material Requisition Detail';
+			//$reports = $this->makeTree($reports);
+		} elseif(Input::get('search_type')=="detail_pending") {
+			$voucher_head = 'Material Requisition Pending Detail';
+			//$reports = $this->makeTree($reports);
+		}
+		
+		echo '<pre>';print_r($reports);exit;
+		return view('body.materialrequisition.preprint')
+					->withReports($reports)
+					->withVoucherhead($voucher_head)
+					->withType(Input::get('search_type'))
+					->withFromdate(Input::get('date_from'))
+					->withTodate(Input::get('date_to'))
+					->withSalesman(Input::get('salesman'))
+					->withJobname(Input::get('jobaname'))
+					->withI(0)
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	protected function makeTree($reports)
+	{
+		$childs = array();
+		foreach($reports as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		return $childs;
+	}
+
+	
+
+	
+	
+	public function dataExport()
+	{
+		$data = array();
+		//echo '<pre>';print_r(Input::all());exit;
+		$reports = $this->material_requisition->getReport(Input::all());
+		
+		$datareport[] = ['','','',strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+		$curcode = '';
+		if(Input::get('search_type')=="summary")
+			$voucher_head = 'Material Requisition Summary';
+		elseif(Input::get('search_type')=="summary_pending") {
+			$voucher_head = 'Material Requisition Pending Summary';
+			$reports = $this->makeArrGroup($reports,$curcode);
+		} elseif(Input::get('search_type')=="detail") {
+			$voucher_head = 'Material Requisition Detail'.$curcode;
+			//$reports = $this->makeTree($reports);
+		} elseif(Input::get('search_type')=="detail_pending"){
+			$voucher_head = 'Material Requisition Pending Detail'.$curcode;
+			//$reports = $this->makeTree($reports);
+		}
+		else {
+			$voucher_head = 'Material Requisition Quantity Detail'.$curcode;
+			//$reports = $this->makeTree($reports);
+			
+		}
+		
+		$datareport[] = ['','','',strtoupper($voucher_head), '','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		 
+		
+		if(Input::get('search_type')=='summary') {
+			
+			$datareport[] = ['SI.No.','MR.No', 'Job No','Job Name','Engineer','Total','Net Amount'];
+			$i = $net_total = 0;
+			
+			foreach ($reports as $row) {
+					$i++;
+					$datareport[] = [ 'si' => $i,
+									  'po' => $row->voucher_no,
+									  'jobcode' => $row->jocode,
+									  'name' => $row->jobname,
+									  'salesman' => $row->salesman,
+									  'description' => $row->total,
+									  'total' => $row->net_amount
+									];
+									
+				  $net_total += $row->net_amount;
+			}
+			$datareport[] = ['','','','','','',''];
+			$datareport[] = ['','','','','','Total:',number_format($net_total,2)];
+		} else if(Input::get('search_type')=='summary_pending') {
+			
+			$datareport[] = ['SI.No.','MR.No', 'Job No','Job Name','Engineer','Total','Net Amount'];
+			$i=$net_total=0;
+			foreach ($reports as $row) {
+					$i++;
+					$datareport[] = [ 'si' => $i,
+									  'po' => $row['voucher_no'],
+									  'jobno' => $row['jobcode'],
+									  'supplier' => $row['jobname'],
+									  'salesman' => $row['salesman'],
+									  'gross' => number_format($row['total'],2),
+									  'total' => number_format($row['net_amount'],2)
+									];
+									$net_total += $row['net_amount'];
+			}
+			$datareport[] = ['','','','','','',''];
+			$datareport[] = ['','','','','','Total:',number_format($net_total,2)];
+			
+		} else if(Input::get('search_type')=='detail' ) {
+			
+			$datareport[] = ['SI.No.','MR#', 'Job No', 'Job Name','Engineer','Item Code','Description','MR.Qty','Rate','Total Amt.'];
+			$i=0;
+			foreach ($reports as $row) {
+				$i++;
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'jobno' => $row['jobcode'],
+								  'supplier' => $row['jobname'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => number_format($row['unit_price'],2),
+								  'net_amount' => number_format($row['net_amount'],2)
+								];
+			}
+		} else if( Input::get('search_type')=='detail_pending') {
+			
+			$datareport[] = ['SI.No.','MR#', 'Job No', 'Job Name','Engineer','Item Code','Description','MR.Qty','Rate','Total Amt.','Inv.Qty','Pending Qty','Rate','Total Amt.'];
+			$i=$inv_qty=$pending_qty=$pending_amt=0;
+			foreach ($reports as $row) {
+				$i++;
+				$inv_qty = ($row['balance_quantity']==0)?0:$row['quantity']- $row['balance_quantity'];
+					$pending_qty = ($row['balance_quantity']==0)?$row['quantity']:$row['balance_quantity'];
+						$pending_amt = $pending_qty * $row['unit_price'];
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'jobno' => $row['jobcode'],
+								  'supplier' => $row['jobname'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => number_format($row['unit_price'],2),
+								  'net_amount' => number_format($row['net_amount'],2),
+								   'inv_qty' => $inv_qty,
+								    'pending' => $pending_qty,
+								    'unit_pric' => number_format($row['unit_price'],2),
+								    'pending_amount' => number_format($pending_amt,2)
+								  
+								];
+			}
+		} 
+		
+		
+		
+		
+		else if(Input::get('search_type')=='qty_report')  {
+			
+			$datareport[] = ['SI.No.','MR#', 'MR.Ref#', 'Job No', 'Supplier','Item Code','Description','Ordered','Processed','Balance'];
+			$i=$inv_qty=$pending_qty=0;
+			foreach ($reports as $row) {
+				$i++;
+					$inv_qty = ($row['balance_quantity']==0)?0:$row['quantity']- $row['balance_quantity'];
+					$pending_qty = ($row['balance_quantity']==0)?$row['quantity']:$row['balance_quantity'];
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'jobno' => $row['jobcode'],
+								  'supplier' => $row['master_name'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'processed' => $inv_qty,
+								  'bal' => $pending_qty
+								];
+			}
+		} 
+		
+		
+		//echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+			
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('Profit Acc 365')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		       
+		});
+        //echo '<pre>';print_r($datareport);exit;
+		})->download('xlsx');
+		
+	}
+	
+}
+

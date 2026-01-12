@@ -1,0 +1,1247 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Repositories\Area\AreaInterface;
+use App\Repositories\Itemmaster\ItemmasterInterface;
+use App\Repositories\Terms\TermsInterface;
+use App\Repositories\Jobmaster\JobmasterInterface;
+use App\Repositories\AccountMaster\AccountMasterInterface;
+use App\Repositories\Currency\CurrencyInterface;
+use App\Repositories\VoucherNo\VoucherNoInterface;
+use App\Repositories\SalesOrder\SalesOrderInterface;
+use App\Repositories\Salesman\SalesmanInterface;
+use App\Repositories\QuotationSales\QuotationSalesInterface;
+use App\Repositories\AccountSetting\AccountSettingInterface;
+use App\Repositories\Country\CountryInterface;
+use App\Repositories\Acgroup\AcgroupInterface;
+use App\Repositories\Forms\FormsInterface;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests;
+use Session;
+use Response;
+use Excel;
+use Auth;
+use App;
+use DB;
+use PDF;
+use Mail;
+
+class JobOrderController extends Controller
+{
+
+	protected $itemmaster;
+	protected $terms;
+	protected $jobmaster;
+	protected $accountmaster;
+	protected $currency;
+	protected $voucherno;
+	protected $sales_order;
+	protected $salesman;
+	protected $quotation_sales;
+	protected $country;
+	protected $group;
+	protected $area;
+	protected $accountsetting;
+	protected $forms;
+	protected $formData;
+	protected $matservice;
+	
+	public function __construct(SalesOrderInterface $sales_order, AreaInterface $area, QuotationSalesInterface $quotation_sales, ItemmasterInterface $itemmaster, TermsInterface $terms, JobmasterInterface $jobmaster, AccountMasterInterface $accountmaster, CurrencyInterface $currency, VoucherNoInterface $voucherno, SalesmanInterface $salesman, CountryInterface $country,AcgroupInterface $group, AccountSettingInterface $accountsetting,FormsInterface $forms) {
+		
+		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
+		
+		$this->middleware('auth');
+		$this->itemmaster = $itemmaster;
+		$this->terms = $terms;
+		$this->jobmaster = $jobmaster;
+		$this->accountmaster = $accountmaster;
+		$this->currency = $currency;
+		$this->voucherno = $voucherno;
+		$this->sales_order = $sales_order;
+		$this->salesman = $salesman;
+		$this->quotation_sales = $quotation_sales;
+		$this->country = $country;
+		$this->group = $group;
+		$this->area = $area;
+		$this->accountsetting = $accountsetting;
+		$this->forms = $forms;
+		$this->formData = ($this->acsettings->advanced_workshop==1) ? $this->forms->getFormData('JOA') : $this->forms->getFormData('JO');
+		
+		$this->matservice = DB::table('parameter2')->where('keyname', 'mod_material_service')->where('status',1)->select('is_active')->first();
+	}
+	
+    public function index() { 
+		
+		$data = array();
+		$quotations = [];//$this->sales_order->quotationSalesList();//echo '<pre>';print_r($quotations);exit;
+		$salesmans = $this->salesman->getSalesmanList();
+		$jobmasters = $this->jobmaster->activeJobmasterList();
+		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		->select('id','master_name')->get(); 
+		return view('body.joborder.index')
+					->withQuotations($quotations)
+					->withJobmasters($jobmasters)
+					->withSalesman($salesmans)
+					->withCus($cus)
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	
+	public function ajaxPaging(Request $request)
+	{
+		$columns = array( 
+                            0 =>'sales_order.id', 
+                            1 =>'voucher_no',
+                            2=> 'voucher_date',
+                            3=> 'customer',
+							4=> 'reg_no',
+							5=> 'technician',
+							6=>'chasis_no'
+                        );
+						
+		$totalData = $this->sales_order->jobOrderListCount();
+            
+        $totalFiltered = $totalData; 
+
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'sales_order.id';//$columns[$request->input('order.0.column')];
+        $dir = 'desc';//$request->input('order.0.dir');
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+        
+		$invoices = $this->sales_order->jobOrderList('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->sales_order->jobOrderList('count', $start, $limit, $order, $dir, $search);
+		
+		$prints = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','JO')
+							->select('report_view_detail.name','report_view_detail.id')
+							->get();
+							
+		$technicians = DB::table('salesman')->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')->select('id','name')->orderBy('name','ASC')->get();
+		
+        $data = array();
+        if(!empty($invoices))
+        {
+           
+			foreach ($invoices as $row)
+            {
+                //$edit =  '"'.url('job_order/edit/'.$row->id).'"';
+                $delete =  'funDelete("'.$row->id.'","'.$row->is_editable.'")';//$delete =  'funDelete("'.$row->id.'")';
+				$print = url('job_order/print/'.$row->id);
+				$edit =  url('job_order/edit/'.$row->id);
+				$docs =  url('job_order/docs/'.$row->id);
+				$viewonly =  url('job_order/viewonly/'.$row->id);
+				
+                $nestedData['id'] = $i = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['customer'] = ($row->customer=='CASH CUSTOMERS') ? (($row->customer_name!='')?$row->customer.'('.$row->customer_name.')':$row->customer) : $row->customer;
+				$nestedData['vehicle'] = $row->vehicle;
+				$nestedData['reg_no'] = $row->reg_no;
+				$nestedData['chasis_no'] = $row->chasis_no;
+               /* $nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
+												<span class='glyphicon glyphicon-pencil'></span></button></p>";*/
+				$nestedData['viewonly'] = "<p><a href='{$viewonly}' class='btn btn-info btn-xs' target='_blank'><i class='glyphicon glyphicon-eye-open'></i></a></p>";
+																
+				$nestedData['edit'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-shield'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												<li role='presentation'><a href='{$edit}' role='menuitem'>Edit</a></li>
+												<li role='presentation'><a href='{$docs}' role='menuitem' target='_blank'>Docs</a></li>
+											</ul>
+										</div>";
+												
+				$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+												<span class='glyphicon glyphicon-trash'></span>";
+				
+				$opts = '';					
+				foreach($prints as $doc) {
+					$opts .= "<li role='presentation'><a href='{$print}/".$doc->id."' target='_blank' role='menuitem'>".$doc->name."</a></li>";
+				}
+				$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>";
+										
+				//$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";
+				
+				$seloption = "<select class='form-control techn' id='tech_{$i}'><option>Select Technician</option>";
+				foreach($technicians as $val) {
+					$sel = ($row->salesman_id==$val->id)?'selected':'';
+					$seloption .= "<option value='{$val->id}' {$sel}>{$val->name}</option>";
+				}
+				$nestedData['technician'] = $seloption .= "</select>";
+				
+                $data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	
+	public function add($id = null, $doctype=null) {
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$res = $this->voucherno->getVoucherNo('JO');
+		//$vno = $res->no;
+		$lastid = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		//echo '<pre>';print_r($res);exit;
+		$footertxt = DB::table('header_footer')->where('doc','JO')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','JO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+							
+		$pkgs = DB::table('package_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		//echo '<pre>';print_r($this->formData);exit;
+		if($id) {
+			$ids = explode(',', $id);
+			if($doctype=='JO') {
+				$quoteRow = $this->sales_order->findPOdata($ids[0]);
+				$quoteItems = $this->sales_order->getSOItems($ids);
+				$jobdesc = $this->sales_order->getjobDescription($ids);
+				$seritems = null;
+			}
+			else{
+			$quoteRow = $this->quotation_sales->findQuoteData($ids[0]);
+			$jobdesc = $this->quotation_sales->getjobDescription($ids);
+
+			
+			
+			if($this->matservice->is_active==1) {
+				$quoteItems = $this->quotation_sales->getItems($ids,'itm');
+				$seritems = $this->quotation_sales->getItems($ids,'ser');
+			} else {
+				$seritems = null;
+				$quoteItems = $this->quotation_sales->getItems($ids);
+			}
+		}
+			$total = 0; $vat_amount = 0; $nettotal = 0;
+			foreach($quoteItems as $item) {
+				if($item->balance_quantity==0)
+					$quantity = $item->quantity;
+				else
+					$quantity = $item->balance_quantity;
+				
+				$total 		+= ($quantity * $item->unit_price) - $item->discount;
+				$vat_amount += ($total * $item->vat) / 100;
+			}
+			$photos = DB::table('quot_fotos')->where('quot_id',$id)->get(); 
+			$nettotal = $total + $vat_amount;
+			$view = ($this->matservice->is_active==1)?'addquotems':'addquote'; 
+		//	echo '<pre>';print_r($view);exit;
+			return view('body.joborder.'.$view)
+						->withItems($itemmaster)
+						->withTerms($terms)
+						->withJobs($jobs)
+						->withCurrency($currency)
+						->withQuoterow($quoteRow)
+						->withVoucherno($res)
+						->withQuoteitems($quoteItems)
+						->withQuoteid($id)
+						->withTotal($total)
+						->withVatamount($vat_amount)
+						->withNettotal($nettotal)
+						->withJoborderno(Session::get('voucher_no'))
+						->withReferenceno(Session::get('reference_no'))
+						->withVoucherdt(Session::get('voucher_date'))
+						->withLpodt(Session::get('lpo_date'))
+						->withVatdata($this->vatdata)
+						->withSettings($this->acsettings)
+						->withSearch(false)
+						->withFormdata($this->formData)
+						->withJobdesc($jobdesc)
+						->withSeritems($seritems)
+						->withJobtype($jobtype)
+						->withPhotos($photos)
+						->withData($data);
+		}
+		
+		$view = ($this->matservice->is_active==1)?'addms': (($this->acsettings->advanced_workshop==1)? 'addadv' : 'add');
+	/*	if($view=='add' && Session::get('mod_jo_to_je')==1) {
+		    $view = 'add-jo';
+		}*/
+
+	//echo '<pre>';print_r($view);exit;
+		return view('body.joborder.'.$view)
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withVoucherno($res)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withSearch(false)
+					->withPrintid($lastid)
+					->withFormdata($this->formData)
+					->withJobtype($jobtype)
+					->withPrint($print)
+					->withPackages($pkgs)
+					->withFooter(isset($footertxt)?$footertxt->description:'')
+					->withData($data);
+	}
+	
+	public function save(Request $request) { //echo '<pre>';print_r($request->all());exit;
+	
+		if( $this->validate(
+			$request, 
+			[
+			 'voucher_no' => 'required|unique:sales_order,voucher_no,NULL,id,deleted_at,NULL',
+			 //'job_type' => 'required',
+			 'customer_name' => 'required','customer_id' => 'required',
+			 //'vehicle_name' => 'required','vehicle_id' => 'required',
+			 /* 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required' */
+			],
+			['voucher_no' => 'Voucher no should be unique.',
+			 //'job_type.required' => 'Job type is required.',
+			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
+			 //'vehicle_name.required' => 'Vehicle Name is required.','vehicle_id.required' => 'Vehicle name is invalid.',
+			 /* 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.' */
+			]
+		)) {
+			return redirect('job_order/add')->withInput()->withErrors();
+		}
+		
+		$id=$this->sales_order->create($request->all());
+		
+		if($id) {
+			
+			########## email script #############
+			if($request->get('email')!==null) {
+	 
+				$result = DB::select("SELECT sales_order.voucher_no,sales_order.reference_no,sales_order.voucher_date,sales_order.total,sales_order.vat_amount,sales_order.discount,sales_order.net_total,sales_order.subtotal,sales_order.kilometer,sales_order.fuel_level,sales_order.is_warning,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.id AS termsid,terms.file,terms.description AS terms,salesman.name AS salesman,sales_order_item.item_name,sales_order_item.quantity,sales_order_item.unit_price,sales_order_item.vat,sales_order_item.vat_amount,sales_order_item.line_total,sales_order_item.discount,sales_order_item.tax_include,sales_order_item.item_total,sales_order.items_inside,sales_order.remarks,sales_order.signature,itemmaster.item_code,units.unit_name,footer.description AS footer,vehicle.name AS vehicle_name,vehicle.reg_no,vehicle.make,vehicle.color,vehicle.engine_no,vehicle.chasis_no,vehicle.model,vehicle.year,vehicle.plate_type,vehicle.issue_plate,vehicle.code_plate,vehicle.color_code FROM sales_order LEFT JOIN account_master ON(account_master.id=sales_order.customer_id) LEFT JOIN terms ON(terms.id=sales_order.terms_id) LEFT JOIN salesman ON(salesman.id=sales_order.salesman_id) LEFT JOIN sales_order_item ON(sales_order_item.sales_order_id=sales_order.id) LEFT JOIN itemmaster ON(itemmaster.id=sales_order_item.item_id) LEFT JOIN units ON(units.id=sales_order_item.unit_id) LEFT JOIN header_footer footer ON(footer.id=sales_order.footer_id) LEFT JOIN vehicle ON(vehicle.id=sales_order.vehicle_id) WHERE sales_order.status=1 AND sales_order.deleted_at='0000-00-00 00:00:00' AND sales_order.id=".$id);//$this->sales_order->getOrder($attributes);
+				$photos = DB::select("SELECT * FROM job_photos WHERE job_order_id=".$id);
+				$company = DB::select("SELECT * FROM company WHERE id=1");
+				$titles = ['main_head' => 'Job Order','subhead' => 'Job Order'];
+				$data = array('details'=> $result, 'titles' => $titles, 'photos' => $photos,'company'=>$company);
+				$file_name=$result[0]->file;
+				$file_id=$result[0]->termsid;
+				//$path=asset('uploads\file/'.$file_name);
+				//echo '<pre>';print_r($path);exit;
+				//return view('body.joborder.emailprint')->withDetails($result)->withTitles($titles)->withPhotos($photos)->withCompany($company);
+				//$pdf = pdf::loadView('body.joborder.emailprint', $data);
+				$mailmessage = 'Job order is placed successfully. Copy of job order is attached here, please find it. Thanking you';
+				$emails = explode(',', $request->get('email'));
+				
+				if($emails[0]!='') {
+					//$data = array('name'=> $request->get('customer_name'), 'mailmessage' => $mailmessage );
+			
+					try{
+						//Mail::send('body.joborder.email', $data,function($message) use ($emails,$pdf) {
+							Mail::send('body.joborder.emailprint', $data,function($message) use ($emails,$file_id,$file_name) {
+							$message->from(env('MAIL_USERNAME'));	
+							$message->to($emails[0],$request->get('customer_name'));
+							
+							if(count($emails) > 1) {
+								foreach($emails as $k => $row) {
+									if($k!=0)
+										$cc[] = $row;
+								}
+								$message->cc($cc);
+							}
+							
+							$message->subject('Job Order');
+							
+                             if($file_id!=''){
+							$message->attach(public_path('uploads\file/'.$file_name));
+							 }
+						});
+						
+					}catch(JWTException $exception){
+						$this->serverstatuscode = "0";
+						$this->serverstatusdes = $exception->getMessage();
+						echo '<pre>';print_r($this->serverstatusdes);exit;
+					}
+				}
+			}
+			
+			Session::flash('message', 'Job Order added successfully.');
+		} else
+			Session::flash('error', 'Something went wrong, Order failed to add!');
+		
+		return redirect('job_order/add');
+	}
+	
+	public function destroy($id)
+	{
+		$this->sales_order->delete($id);
+		//check accountmaster name is already in use.........
+		// code here ********************************
+		Session::flash('message', 'Job Order deleted successfully.');
+		return redirect('job_order');
+	}
+	
+	public function checkRefNo(Request $request) {
+
+		$check = $this->sales_order->check_reference_no($request->get('reference_no'), $request->get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	
+	public function edit($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->sales_order->findPOdata($id);
+		$jobdesc = $this->sales_order->getjobDescription($id);
+		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','JO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+							
+		if($this->matservice->is_active==1) {
+			$orditems = $this->sales_order->getItems($id,'itm');
+			$seritems = $this->sales_order->getItems($id,'ser');
+			$view = 'editms';
+		} else {
+			$seritems = null;
+			$orditems = $this->sales_order->getItems($id);
+			$view = 'edit';
+		}
+		
+		$photos = DB::table('job_photos')->where('job_order_id',$id)->get(); 
+		/*$val = '';
+		foreach($photos as $row) {
+			$val .= ($val=='')?$row->photo:','.$row->photo;
+		}*/
+		
+		return view('body.joborder.'.$view)
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withFormdata($this->formData)
+					->withJobdesc($jobdesc)
+					->withSeritems($seritems)
+					->withJobtype($jobtype)
+					->withPrint($print)
+					->withPhotos($photos)
+					->withData($data);
+
+	}
+	
+	public function update(Request $request)
+	{
+		$id = $request->input('sales_order_id');
+		if( $this->validate(
+			$request, 
+			[//'reference_no' => 'required',
+			 'customer_name' => 'required','customer_id' => 'required',
+			 //'vehicle_name' => 'required','vehicle_id' => 'required',
+			 /* 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required' */
+			],
+			[//'reference_no.required' => 'Reference no. is required.',
+			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
+			 //'vehicle_name.required' => 'Vehicle Name is required.','vehicle_id.required' => 'Vehicle name is invalid.',
+			 /* 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.' */
+			]
+		)) {
+			//echo '<pre>';print_r($request->flash());exit;
+			return redirect('job_order/edit/'.$id)->withInput()->withErrors();
+		}
+		
+		$this->sales_order->update($id, $request->all());
+		Session::flash('message', 'Job Order updated successfully');
+		return redirect('job_order');
+	}
+	
+	
+		public function viewonly($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->sales_order->findPOdata($id);
+		$jobdesc = $this->sales_order->getjobDescription($id);
+		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','JO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+							
+		if($this->matservice->is_active==1) {
+			$orditems = $this->sales_order->getItems($id,'itm');
+			$seritems = $this->sales_order->getItems($id,'ser');
+			$view = 'editms';
+		} else {
+			$seritems = null;
+			$orditems = $this->sales_order->getItems($id);
+			$view = 'edit';
+		}
+		
+		$photos = DB::table('job_photos')->where('job_order_id',$id)->get(); 
+		/*$val = '';
+		foreach($photos as $row) {
+			$val .= ($val=='')?$row->photo:','.$row->photo;
+		}*/
+		
+		return view('body.joborder.viewonly')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withFormdata($this->formData)
+					->withJobdesc($jobdesc)
+					->withSeritems($seritems)
+					->withJobtype($jobtype)
+					->withPrint($print)
+					->withPhotos($photos)
+					->withData($data);
+
+	}
+	
+	
+	public function ajax_getcode($category)
+	{
+		$group = $this->group->getGroupCode($category);
+		$row = $this->accountmaster->getGroupCode($category);
+		if($row)
+			$no = intval(preg_replace('/[^0-9]+/', '', $row->account_id), 10);
+		else 
+			$no = 0;
+		
+		$no++;
+		
+		return json_encode(array(
+							'code' => strtoupper($group->code).''.$no,
+							'category' => $group->category
+							));
+		//return $code = strtoupper($group->code).''.$no;
+		//return $group->account_id;
+
+	}
+	
+		
+	public function getCustomer()
+	{
+		$data = array();
+		$customers = $this->accountmaster->getCustomerList();//print_r($customers);exit;
+		$country = $this->country->activeCountryList();
+		$area = $this->area->activeAreaList();
+		$cus_code = json_decode($this->ajax_getcode($category='CUSTOMER'));
+		return view('body.salesorder.customer')//customer
+					->withCustomers($customers)
+					->withArea($area)
+					->withCusid($cus_code->code)
+					->withCategory($cus_code->category)
+					->withCountry($country)
+					->withData($data);
+	}
+	
+	
+	public function getVehicle($id)
+	{
+		$data = array();
+		$vehicles = DB::table('vehicle')->where('customer_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('*')->get();
+		return view('body.joborder.vehicle')
+					->withVehicles($vehicles)
+					->withData($data);
+	}
+	
+	public function getAllVehicle()
+	{
+		$data = array();
+		$vehicles = DB::table('vehicle')
+		            ->leftJoin('account_master','account_master.id','=','vehicle.customer_id')
+		            ->where('vehicle.status',1)->where('vehicle.deleted_at','0000-00-00 00:00:00')
+		            //->where('account_master.status',1)->where('account_master.deleted_at','0000-00-00 00:00:00')
+		            ->select('vehicle.*','account_master.id AS cust_id','account_master.master_name')->get();
+		return view('body.joborder.vehicle')
+					->withVehicles($vehicles)
+					->withData($data);
+	}
+	
+	public function getSalesman()
+	{
+		$data = array();
+		$salesmans = $this->salesman->getSalesmanList();
+		return view('body.salesorder.salesman')
+					->withSalesmans($salesmans)
+					->withData($data);
+	}
+	
+	public function getItem($num)
+	{
+		$data = array();
+		$itemmaster = $this->itemmaster->getActiveItemmasterList();
+		return view('body.salesorder.item')
+					->withItems($itemmaster)
+					->withNum($num)
+					->withData($data);
+	}
+	
+	public function getOrder($customer_id, $url)
+	{
+		$data = array();
+		$orders = $this->sales_order->getCustomerJobOrder($customer_id, $this->acsettings->advanced_workshop);
+		return view('body.joborder.order')
+					->withOrders($orders)
+					->withUrl($url)
+					->withData($data);
+	}
+	public function getJobOrder()
+	{
+		$data = array();
+		$orders = $this->sales_order->getSOdata();
+		//echo '<pre>';print_r($orders);exit;
+		return view('body.joborder.orders')
+					->withOrders($orders)
+					->withData($data);
+	}
+	
+	
+	private function splitItems($items)
+	{
+		$ar = [];
+		foreach($items as $val) {
+			if($val->item_type==0)
+				$ar['items'][] = $val;
+			else
+				$ar['service'][] = $val;
+			
+		}
+		return $ar;
+	}
+	
+	public function getPrint($id,$rid=null)
+	{
+		$viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first(); 
+		
+		if($viewfile->print_name=='') {
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = ($fc)?1:'';
+			$result = $this->sales_order->getOrder($attributes);
+			$titles = ['main_head' => 'Job Order','subhead' => 'Job Order'];
+			
+			$jobdesc = DB::table('joborder_details')->where('joborder_id',$id)
+							->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+							->select('description','comment')->orderBy('id','ASC')->get();
+			//split item and service
+			$items = null;
+			if($this->matservice->is_active==1) {
+				$items = $this->splitItems($result['items']);
+			}
+			//echo '<pre>';print_r($items);exit;
+			return view('body.joborder.print') //print newprint
+						->withDetails($result['details'])
+						->withTitles($titles)
+						->withFc($attributes['is_fc'])
+						->withEstitems($items)
+						->withJobdesc($jobdesc)
+						->withItems($result['items']);
+		
+		} else {
+			$path = app_path() . '/stimulsoft/helper.php';
+			
+			if(env('STIMULSOFT_VER')==2)
+			        return view('body.reports')->withPath($path)->withView($viewfile->print_name);
+			   else
+			       return view('body.joborder.viewer')->withPath($path)->withView($viewfile->print_name);
+			        
+			
+		}
+		
+	}
+	
+	public function setSessionVal(Request $request)
+	{
+		Session::put('voucher_no', $request->get('vchr_no'));
+		Session::put('reference_no', $request->get('ref_no'));
+		Session::put('voucher_date', $request->get('vchr_dt'));
+		Session::put('lpo_date', $request->get('lpo_dt'));
+	}
+	
+	protected function makeTree($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		return $childs;
+	}
+
+	protected function makeArrGroup($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		$arr = array();
+		foreach($childs as $child) {
+			$pending_qty = $pending_amt = $vat_amount = $net_amount = $discount = 0;
+			foreach($child as $row) {
+			    $pending_qty = ($row->balance_quantity==0)?$row->quantity:$row->balance_quantity;
+			    $pending_amt += $pending_qty * $row->unit_price;
+				$vat = ($row->quantity > 0) ?($row->unit_vat / $row->quantity):0;
+				$vat_amount += $vat * $pending_qty;
+				$net_amount = $vat_amount + $pending_amt;
+				$voucher_no = $row->voucher_no;
+				$refno = $row->reference_no;
+				$suppname = $row->master_name;
+				$salesman = $row->salesman;
+				$discount = $row->discount;
+				$vehicle = $row->reg_no.' '.$row->issue_plate.' '.$row->code_plate;
+			}
+			$arr[] = ['voucher_no' => $voucher_no,'reference_no' => $refno, 'master_name' => $suppname, 'discount' => $discount, 
+					  'total' => $pending_amt,'vat_amount' => $vat_amount, 'net_total' => $net_amount, 'salesman' => $salesman,'vehicle' => $vehicle];
+			
+		}
+
+		return $arr;
+	}
+
+	public function getSearch(Request $request)
+	{
+		$data = array();
+	//	echo '<pre>';print_r($request->all());exit;
+	$pending=($request->get('pending'))?$request->get('pending'):0;
+		$reports = $this->sales_order->getPendingReportJob($request->all());//echo '<pre>';print_r($reports);exit;
+		
+		if($request->get('search_type')=="summary" && $pending==0)
+			$voucher_head = 'Job Order Summary';
+		elseif($request->get('search_type')=="summary" && $pending==1) {
+			$voucher_head = 'Job Order Pending Summary';
+			$reports = $this->makeArrGroup($reports);
+		} elseif($request->get('search_type')=="detail" && $pending==0) {
+			$voucher_head = 'Job Order Detail';
+			$reports = $this->makeTree($reports);
+		} else {
+		    if($request->get('search_type')=="detail" && $pending==1){
+			$voucher_head = 'Job Order Pending Detail';
+		    }
+		    else{
+		       $voucher_head = 'Job Order Quantity Detail'; 
+		        
+		    }
+			$reports = $this->makeTree($reports);
+		}
+		if($request->get('job_id')!==null)
+				$job_id = implode(',', $request->get('job_id'));
+			else
+				$job_id = '';
+		//echo '<pre>';print_r($reports);exit;
+		return view('body.joborder.preprint')
+					->withReports($reports)
+					->withVoucherhead($voucher_head)
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withSalesman($request->get('salesman'))
+					->withJobids(json_encode($request->get('job_id')))
+					->withCustomerid($request->get('customer_id'))
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	
+	public function dataExport(Request $request)
+	{
+		$data = array();
+		$datareport[] = ['','','','',strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		$request->merge(['type' => 'export']);
+		$request->merge(['job_id' => json_decode($request->get('job_id'))]);
+		$reports = $this->sales_order->getPendingReportJob($request->all());
+		
+		if($request->get('search_type')=="summary")
+			$voucher_head = 'Job Order Summary';
+		elseif($request->get('search_type')=="summary_pending") {
+			$voucher_head = 'Job Order Pending Summary';
+			$reports = $this->makeArrGroup($reports);
+		} elseif($request->get('search_type')=="detail") {
+			$voucher_head = 'Job Order Detail';
+		} elseif($request->get('search_type')=="detail_pending")  {
+			$voucher_head = 'Job Order Pending Detail';
+		}else{
+		    $voucher_head = 'Job Order Quantity Detail';
+		}
+		$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		 //echo '<pre>';print_r($reports);exit;
+		
+		if($request->get('search_type')=='detail' ) {
+			
+			$datareport[] = ['JO#','JO.Ref#', 'Vehicle No', 'Customer','Technician','Item Code','Description','JO.Qty','Rate','Total Amt.','Vat Amt','Net Amt.'];
+			$i=$net_amount=0;
+			foreach ($reports as $row) {
+				$i++;
+				$net_amount = $row->unit_vat + $row->line_total;
+				$datareport[] = [ 'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'vehicle' => $row['reg_no'].' '.$row['issue_plate'].' '.$row['code_plate'],
+								  'supplier' => $row['master_name'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => number_format($row['unit_price'],2),
+								  'total_amt' => number_format($row['line_total'],2),
+								  'vat_amt' => number_format($row['unit_vat'],2),
+								  'net_amount' => number_format($net_amount,2)
+								];
+			}
+		} 	else if( $request->get('search_type')=='detail_pending') {
+			
+			$datareport[] = ['JO#','JO.Ref#', 'Vehicle No', 'Customer','Technician','Item Code','Description','JO.Qty','Rate','Total Amt.','Inv.Qty','Pending_qty','Rate','Total Amt'];
+			$i=$total_amt=$inv_qty=$pending_qty=$pending_amt=0;
+			foreach ($reports as $row) {
+				$i++;
+					$total_amt = $row['quantity'] * $row['unit_price'];
+				$inv_qty = ($row['balance_quantity']==0)?0:$row['quantity'] - $row['balance_quantity'];
+				$pending_qty = ($row['balance_quantity']==0)?$row['quantity']:$row['balance_quantity'];
+				$pending_amt = $pending_qty * $row['unit_price'];
+				$datareport[] = [ 'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'vehicle' => $row['reg_no'].' '.$row['issue_plate'].' '.$row['code_plate'],
+								  'supplier' => $row['master_name'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => number_format($row['unit_price'],2),
+								  'total_amt' => number_format($total_amt,2),
+								    'inv_qty' => $inv_qty,
+								    'pending_qty' => $pending_qty,
+								  'unit_amt' => number_format($row['unit_price'],2),
+								  'pend_amount' => number_format($pending_amt,2)
+								];
+			}
+		} 
+		else if( $request->get('search_type')=='qty_report') {
+			
+			$datareport[] = ['SI.No.','SO.#', 'SO.Ref#', 'Job No.', 'Customer','Salesman','Item Code','Description','Ordered','Processed','Balance'];
+			$i=$total_amt=$inv_qty=$pending_qty=$pending_amt=0;
+			foreach ($reports as $row) {
+				$i++;
+				$total_amt = $row['quantity'] * $row['unit_price'];
+				$inv_qty = ($row['balance_quantity']==0)?0:$row['quantity'] - $row['balance_quantity'];
+				$pending_qty = ($row['balance_quantity']==0)?$row['quantity']:$row['balance_quantity'];
+				$pending_amt = $pending_qty * $row['unit_price'];
+			
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'jobno' => $row['jobcode'],
+								  'supplier' => $row['master_name'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								   'inv_qty' => $inv_qty,
+								   'pending_qty' => $pending_qty,
+								  
+								];
+			}
+		} 
+		
+		
+		else {
+			
+			$datareport[] = ['JO#','JO.Ref#', 'Vehicle No', 'Customer','Technician','Gross Amt.','Discount','Total Amt.','VAT Amt.','Net Total'];
+			$i=0;
+			$total=0;$gross=0;$vat=$total_amt=$discount=0;	
+		    $tot=0;$gs=0;$vt=$tam=$tot_amt=$dis=0;
+			foreach ($reports as $row) {
+					$i++;
+					$total_amt=$row['total']-$row['discount'];
+					$datareport[] = [ 'po' => $row['voucher_no'],
+									  'ref' => $row['reference_no'],
+									  'vehicle' => $row['reg_no'].' '.$row['issue_plate'].' '.$row['code_plate'],
+									  'supplier' => $row['master_name'],
+									  'salesman' => $row['salesman'],
+									  'gross' => number_format($row['total'],2),
+									  'disc' => number_format($row['discount'],2),
+									  'tot_amt' => number_format($total_amt,2),
+									  'vat' => number_format($row['vat_amount'],2),
+									  'total' => number_format($row['net_total'],2)
+									  
+									];
+									$total+= $row['net_total'];
+							        $tot=number_format($total,2) ;
+									$gross+= $row['total'];
+							        $gs=number_format($gross,2) ;
+									$vat+= $row['vat_amount'];
+							        $vt=number_format($vat,2) ;
+							        $tot_amt+=$total_amt;
+							        $tam=number_format($tot_amt,2);
+							        $discount+=$row['discount'];
+							        $dis=number_format($discount,2);
+			}
+			$datareport[] = ['','','','','','',''];			
+		    $datareport[] = ['','','','','Total:',$gs,$dis,$tam,$vt,$tot];
+		}
+		 //echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('NumakPro ERP')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		});
+
+		})->download('xlsx');
+		
+	}
+	
+	public function getvehSearch(Request $request)
+	{
+		$data = array();
+		
+		$vehicle_data = $this->jobmaster->getVehicleDetails($request->all());
+		//echo '<pre>';print_r($request->all());exit;
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$res = $this->voucherno->getVoucherNo('SO');
+		$vno = $res->no;//echo '<pre>';print_r($currency);exit;
+		return view('body.joborder.add')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withVoucherno($vno)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withVehicledata($vehicle_data)
+					->withSearch(true)
+					->withData($data);
+		
+	}
+	
+	public function getVehicleForm()
+	{
+		$data = array();
+		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=3); //echo '<pre>';print_r($vouchers);exit;
+		return view('body.joborder.vehicleform')
+					->withVouchers($vouchers)
+					->withData($data);
+	}
+	
+	public function ajaxCreate(Request $request)
+	{
+		
+		DB::beginTransaction();
+		try { 
+			$attributes = $request->all();
+			
+			//check vehicle no unique....
+			//$check = DB::table('vehicle')->where('reg_no', $attributes['reg_no'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+			if($attributes['chasis_no']!='') {
+				$check = DB::table('vehicle')->where('chasis_no', $attributes['chasis_no'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+				if($check > 0)
+					return ['status' => 'VCLERR'];
+			}
+			
+			$id = DB::table('vehicle')
+						->insertGetId([ 'customer_id' => $attributes['customer_id'],
+										'name'   => $attributes['name'],
+										'reg_no' => $attributes['reg_no'],
+										'make'  => $attributes['make'],
+										//'color'  => $attributes['color'],
+										'engine_no' => $attributes['engine_no'],
+										'chasis_no' => $attributes['chasis_no'],
+										'owner' => $attributes['owner'],
+										'km_done' => $attributes['km_done'],
+										'status' => 1,
+										'is_cashsale' => $attributes['is_cashsale'],
+										'customer_name' => $attributes['customer_name'],
+										'phone' => $attributes['phone_no'],
+										'model' => $attributes['model'],
+										'issue_plate' => $attributes['issue_plate'],
+										'code_plate' => $attributes['code_plate'],
+										'color_code' => $attributes['color_code'],
+										'plate_type' => $attributes['plate_type']
+									]);
+									
+			DB::commit();
+			return ['status' => 'OK', 'cid' => $attributes['customer_id'], 'vid' => $id];
+			
+		} catch(\Exception $e) {
+				
+			DB::rollback();
+			return ['status' => -1];
+		}
+	}
+	
+	
+	public function ajax_getcode_cat($category)
+	{
+		$group = $this->group->getGroupCode($category);
+		if($group) {
+			$row = $this->accountmaster->getGroupCode($category);
+			if($row)
+				$no = intval(preg_replace('/[^0-9]+/', '', $row->account_id), 10);
+			else 
+				$no = 0;
+			
+			$no++;
+			return json_encode(array(
+								'code' => strtoupper($group->code).''.$no,
+								'category' => $group->category
+							));
+		} else
+			return json_encode(array());
+		//return $code = strtoupper($group->code).''.$no;
+
+	}
+	
+	public function uploadSubmit(Request $request)
+	{	
+	    
+		$res = $this->sales_order->ajax_upload($request->photos);
+		return response()->json(array('file_name' => $res), 200);
+	}
+	
+	public function setTechnician() {
+		//echo '<pre>';print_r($request->get('id'));exit;
+		DB::table('sales_order')->where('id',$request->get('id'))->update(['salesman_id' => $request->get('tech')]);
+		
+	}
+	
+	public function getFileform($type=null) {
+		return view('body.joborder.fileform')
+					->withType($type)
+					->withNo($request->get('no'));
+				
+	}
+	
+	
+	public function getTechnicianJob($type) {
+		
+		//Getting Salesman/Technician id...
+		if(Auth::user()->roles[0]->name=='Technician') {
+		    $srec = DB::table('salesman')->where('name',Auth::user()->name)->select('id')->first();
+		    if($srec)
+		        Session::put('technician_id',$srec->id);
+		}
+		
+		$orders = $this->sales_order->TechnicianOrderList($type);
+		$orderItems = $this->FilterById( $this->sales_order->TechnicianOrderListItems($type) );
+		$vehicles = $this->FilterById( $this->sales_order->VehicleDetails($type) );
+		$images = $this->FilterById( $this->sales_order->getJobImages($type) );
+		$technician = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+		$prints = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','JO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.name','report_view_detail.id')
+							->first();
+							
+		//echo '<pre>';print_r($vehicles);exit;
+		return view('body.joborder.techorders')
+					->withOrders($orders)
+					->withOrditems($orderItems)
+					->withPrint($prints)
+					->withVehicles($vehicles)
+					->withImages($images)
+					->withTechnician($technician)
+					->withType($type);
+	}
+	
+	public function updateStatus(Request $request) {
+		
+		//echo '<pre>';print_r($request->all());
+		$inputs = $request->all();
+		$i = $inputs['submit'][0];
+		$type = $inputs['type'][$i];
+		if($type=='Assigned')
+			DB::table('sales_order')->where('id',$inputs['id'][$i])->update(['start_time' => $inputs['datetime'][$i] ]);
+		else if($type=='Working')
+			DB::table('sales_order')->where('id',$inputs['id'][$i])->update(['end_time' => $inputs['datetime'][$i] ]);
+		else if($type=='Completed' || $type=='Approved')
+			DB::table('sales_order')->where('id',$inputs['id'][$i])->update(['doc_status' => $inputs['status'][$i] ]);
+		
+		Session::flash('message', 'Job order status updated successfully.');
+		return redirect('job_order/'.$type);
+	}
+	
+	public function SearchJob($search, $type) {
+		
+		$orders = $this->sales_order->TechnicianOrderList($type,$search);
+		$orderItems = $this->FilterById( $this->sales_order->TechnicianOrderListItems($type) );
+		$vehicles = $this->FilterById( $this->sales_order->VehicleDetails($type) );
+		$images = $this->FilterById( $this->sales_order->getJobImages($type) );
+		$prints = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','JO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.name','report_view_detail.id')
+							->first();
+							
+		//echo '<pre>';print_r($orders);
+		return view('body.joborder.joblist')
+					->withOrders($orders)
+					->withOrditems($orderItems)
+					->withVehicles($vehicles)
+					->withImages($images)
+					->withPrint($prints)
+					->withType($type);
+	}
+	
+	public function SearchJobTech($techid, $type) {
+		
+		$orders = $this->sales_order->TechnicianOrderListById($techid,$type);
+		$orderItems = $this->FilterById( $this->sales_order->TechnicianOrderListItems($type) );
+		$vehicles = $this->FilterById( $this->sales_order->VehicleDetails($type) );
+		$images = $this->FilterById( $this->sales_order->getJobImages($type) );
+		$prints = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','JO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.name','report_view_detail.id')
+							->first();
+							
+		//echo '<pre>';print_r($orders);
+		return view('body.joborder.joblist')
+					->withOrders($orders)
+					->withOrditems($orderItems)
+					->withVehicles($vehicles)
+					->withImages($images)
+					->withPrint($prints)
+					->withType($type);
+	}
+		
+	public function getVehicleData($id) {
+		
+		$result = DB::table('vehicle')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('customer_id',$id)->select('id','reg_no','issue_plate','code_plate')->get();
+		return $result;
+	}	
+	
+	public function getVehicleJob($id) {
+		
+		$result = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('vehicle_id',$id)->select('id','code','name')->get();
+		return $result;
+	}
+	
+	private function FilterById($result) {
+		
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item->id][] = $item;
+		
+		return $childs;
+		
+	}
+	
+	public function getReport() {
+		
+		
+		return view('body.joborder.jobreport');
+		
+	}
+	
+	public function getJobSearch()
+	{
+		$is_techn = false;
+		//Getting Salesman/Technician id...
+		if(Auth::user()->roles[0]->name=='Technician') {
+		    $srec = DB::table('salesman')->where('name',Auth::user()->name)->select('id')->first();
+		    if($srec) {
+		        Session::put('technician_id',$srec->id);
+				$is_techn = true;
+			}
+		}
+		
+		if($request->get('search_type')=="Pending")
+			$voucher_head = 'Job Order Pending';
+		elseif($request->get('search_type')=="Completed") {
+			$voucher_head = 'Job Order Completed';
+			//$reports = $this->makeArrGroup($reports);
+		} 
+		
+		$reports = $this->sales_order->TechnicianOrderReport($request->all());
+		
+		//echo '<pre>';print_r($reports);exit;
+		return view('body.joborder.report')
+					->withReports($reports)
+					->withIstechn($is_techn)
+					->withVoucherhead($voucher_head)
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'));
+					
+	}
+	
+	public function getDocs($id) {
+	    
+	    $docs = DB::table('job_photos')->where('job_order_id',$id)->get();
+	    $job = $this->sales_order->find($id);
+	    
+	    return view('body.joborder.docsview')
+					->withJobdata($job)
+					->withDocs($docs);
+					
+	}
+	
+}
+
+

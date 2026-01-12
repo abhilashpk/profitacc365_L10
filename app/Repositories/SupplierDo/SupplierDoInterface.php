@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\SupplierDo;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface SupplierDoInterface extends RepositoryInterface {
+	
+}
+

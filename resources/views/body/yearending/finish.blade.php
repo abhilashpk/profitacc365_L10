@@ -1,0 +1,126 @@
+@extends('layouts/default')
+
+    {{-- Page title --}}
+    @section('title')
+         
+        @parent
+    @stop
+
+{{-- page level styles --}}
+@section('header_styles')
+    <!--page level css -->
+    <link rel="stylesheet" type="text/css" href="{{asset('assets/vendors/iCheck/css/all.css')}}" />
+    <link rel="stylesheet" type="text/css" href="{{asset('assets/vendors/bootstrap-fileinput/css/fileinput.min.css')}}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{{asset('assets/css/formelements.css')}}">
+        <!--end of page level css-->
+		
+	<link rel="stylesheet" type="text/css" href="{{asset('assets/vendors/datatables/css/buttons.bootstrap.css')}}">
+	<link rel="stylesheet" type="text/css" href="{{asset('assets/vendors/datatables/css/colReorder.bootstrap.css')}}"/>
+    <link rel="stylesheet" type="text/css" href="{{asset('assets/vendors/datatables/css/dataTables.bootstrap.css')}}"/>
+    <link rel="stylesheet" type="text/css" href="{{asset('assets/vendors/datatables/css/rowReorder.bootstrap.css')}}"/>
+    <link rel="stylesheet" type="text/css" href="{{asset('assets/vendors/datatables/css/scroller.bootstrap.css')}}">
+	<link rel="stylesheet" type="text/css" href="{{asset('assets/vendors/datatablesmark.js/css/datatables.mark.min.css')}}"/>
+    <link rel="stylesheet" type="text/css" href="{{asset('assets/css/custom.css')}}">
+	<link rel="stylesheet" type="text/css" href="{{asset('assets/css/custom_css/responsive_datatables.css')}}">
+@stop
+
+{{-- Page content --}}
+@section('content')
+    <!-- Content Header (Page header) -->
+        <section class="content-header">
+            <!--section starts-->
+            <h1>
+                Year Ending Wizard
+            </h1>
+            <ol class="breadcrumb">
+                <li>
+                    <a href="">
+                        <i class="fa fa-fw fa-shield"></i> Administration
+                    </a>
+                </li>
+                <li>
+                    <a href="#">Year Ending Wizard</a>
+                </li>
+                
+            </ol>
+			
+        </section>
+		
+        <!--section ends-->
+				
+        <section class="content">
+            <div class="row">
+            <div class="col-lg-12">
+                <div class="panel panel-info">
+					
+                                <div class="panel-heading">
+                                    <h3 class="panel-title">
+                                        <i class="fa fa-fw fa-folder"></i> Finish
+                                    </h3>
+                                    <span class="pull-right">
+										<i class="fa fa-fw fa-chevron-up clickable"></i>
+										<i class="fa fa-fw fa-times removepanel clickable"></i>
+
+									</span>
+                                </div>
+								<div class="panel-body">
+									<form role="form" class="form-horizontal" method="POST" name="frmProfit" id="frmProfit" action="{{url('year_ending/step4_submit')}}">
+										<input type="hidden" name="_token" value="{{ csrf_token() }}">
+										
+										<br/>
+										<div class="form-group">
+											<label for="input-text" class="col-sm-4 control-label"></label>
+											<div class="col-sm-8">
+												<div class="box-body">
+												<p><b>Finish the Process</b></p>
+												</div>
+											</div>
+										</div>
+										
+										@if(Session::has('message'))
+										<div class="alert alert-success">
+											<p>{{ Session::get('message') }}</p>
+										</div>
+										@endif
+		
+										
+									</form>
+								</div>
+								
+				</div>
+            </div>
+        </div>
+        
+       
+            <!--main content-->
+            <!-- row -->
+        @include('layouts.right_sidebar')
+        <!-- right side bar end -->
+        </section>
+@stop
+
+{{-- page level scripts --}}
+@section('footer_scripts')
+    <!-- begining of page level js -->
+<script type="text/javascript" src="{{asset('assets/vendors/bootstrapvalidator/js/bootstrapValidator.min.js')}}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/iCheck/js/icheck.js')}}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/bootstrap-fileinput/js/fileinput.min.js')}}"></script>
+<!-- end of page level js -->
+
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/jquery.dataTables.js') }}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/dataTables.bootstrap.js') }}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/dataTables.buttons.js') }}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/dataTables.colReorder.js') }}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/dataTables.responsive.js')}}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/dataTables.rowReorder.js')}}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/buttons.colVis.js') }}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/buttons.html5.js') }}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/buttons.bootstrap.js') }}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/buttons.print.js') }}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/datatables/js/dataTables.scroller.js')}}"></script>
+
+<script>
+
+</script>
+
+@stop

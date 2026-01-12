@@ -1,0 +1,1198 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Repositories\Itemmaster\ItemmasterInterface;
+use App\Repositories\Jobmaster\JobmasterInterface;
+use App\Repositories\AccountMaster\AccountMasterInterface;
+use App\Repositories\Currency\CurrencyInterface;
+use App\Repositories\VoucherNo\VoucherNoInterface;
+use App\Repositories\PurchaseOrder\PurchaseOrderInterface;
+use App\Repositories\SupplierDo\SupplierDoInterface;
+use App\Repositories\PurchaseReturn\PurchaseReturnInterface;
+use App\Repositories\AccountSetting\AccountSettingInterface;
+use App\Repositories\PurchaseInvoice\PurchaseInvoiceInterface;
+use App\Repositories\Location\LocationInterface;
+use App\Repositories\Forms\FormsInterface;
+use App\Repositories\UpdateUtility;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests;
+use Session;
+use Response;
+use Excel;
+use Auth;
+use App;
+use DB;
+use PDF;
+use Mail;
+
+class PurchaseReturnController extends Controller
+{
+
+	protected $itemmaster;
+	protected $jobmaster;
+	protected $accountmaster;
+	protected $currency;
+	protected $voucherno;
+	protected $purchase_order;
+	protected $supplierdo;
+	protected $purchase_return;
+	protected $accountsetting;
+	protected $purchase_invoice;
+	protected $location;
+	protected $forms;
+	protected $formData;
+	protected $mod_autocost;
+	
+	public function __construct(PurchaseReturnInterface $purchase_return, PurchaseInvoiceInterface $purchase_invoice,SupplierDOInterface $supplierdo, PurchaseOrderInterface $purchase_order, ItemmasterInterface $itemmaster, JobmasterInterface $jobmaster, AccountMasterInterface $accountmaster, CurrencyInterface $currency, VoucherNoInterface $voucherno, AccountSettingInterface $accountsetting,LocationInterface $location, FormsInterface $forms) {
+		
+		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
+		
+		$this->middleware('auth');
+		$this->itemmaster = $itemmaster;
+		$this->jobmaster = $jobmaster;
+		$this->accountmaster = $accountmaster;
+		$this->currency = $currency;
+		$this->voucherno = $voucherno;
+		$this->purchase_order = $purchase_order;
+		$this->supplierdo = $supplierdo;
+		$this->purchase_return = $purchase_return;
+		$this->accountsetting = $accountsetting;
+		$this->purchase_invoice = $purchase_invoice;
+		$this->location = $location;
+		$this->forms = $forms;
+		$this->formData = $this->forms->getFormData('PR');
+		
+		$this->mod_autocost = DB::table('parameter2')->where('keyname', 'mod_autocost_refresh')->where('status',1)->select('is_active')->first();
+		$this->mod_mpqty = DB::table('parameter2')->where('keyname', 'mod_mp_qty')->where('status',1)->select('is_active')->first();
+		$this->objUtility = new UpdateUtility();
+		
+	}
+	
+    public function index() {
+		
+		//Session::put('cost_accounting', 0);
+		$data = array();
+		$orders = [];//$this->purchase_return->purchaseReturnList();
+		$suppliers =[];
+		
+		$item = [];//	$this->itemmaster->activeItemmasterList();
+		$group=[];//$this->itemmaster->activeGroupList();
+		$subgroup=[];
+		$category=[];
+		$subcategory =[];
+	
+        $item = DB::table('itemmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		
+		$category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$sup =DB::table('account_master')->where('category','SUPPLIER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','master_name')->get(); 
+		$jobs = $this->jobmaster->activeJobmasterList();
+		return view('body.purchasereturn.index')
+		        ->withCategory($category)
+		           ->withSubcategory($subcategory)
+		            ->withGroup($group)
+		          ->withSubgroup($subgroup)
+		           ->withItem($item)
+		           ->withSup($sup)
+		              ->withSupplier($suppliers)
+		            ->withType('')
+					->withOrders($orders)
+					->withJobs($jobs)
+					->withData($data)
+					->withSettings($this->acsettings);
+	}
+	
+	
+	public function ajaxPaging(Request $request)
+	{
+		$columns = array( 
+                            0 =>'purchase_return.id', 
+                            1 =>'voucher_no',
+							2 =>'voucher_date',
+                            3 => 'invoice_no',
+                            4 => 'supplier',
+                            5 => 'net_amount'
+                        );
+						
+		$totalData = $this->purchase_return->purchaseReturnListCount();
+            
+        $totalFiltered = $totalData; 
+
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'purchase_return.id';//$columns[$request->input('order.0.column')];
+        $dir = 'desc';//$request->input('order.0.dir');
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+        
+		$invoices = $this->purchase_return->purchaseReturnList('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->purchase_return->purchaseReturnList('count', $start, $limit, $order, $dir, $search);
+		
+		$prints = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','PR')
+							->select('report_view_detail.name','report_view_detail.id')
+							->get();
+							
+        $data = array();
+        if(!empty($invoices))
+        {
+           
+			foreach ($invoices as $row)
+            {
+                $edit =  '"'.url('purchase_return/edit/'.$row->id).'"';
+                $delete =  'funDelete("'.$row->id.'")';
+				$print = url('purchase_return/print/'.$row->id);
+				$viewonly =  url('purchase_return/viewonly/'.$row->id);
+				
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['invoice_no'] = $row->purchase_invoice_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['supplier'] = ($row->supplier=='CASH CUSTOMERS') ? (($row->supplier_name!='')?$row->supplier.'('.$row->supplier_name.')':$row->supplier) : $row->supplier;
+				$nestedData['net_amount'] = $row->net_amount;
+                $nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
+												<span class='glyphicon glyphicon-pencil'></span></button></p>";
+												
+				$nestedData['viewonly'] = "<p><a href='{$viewonly}' class='btn btn-info btn-xs' target='_blank'><i class='glyphicon glyphicon-eye-open'></i></a></p>";
+				$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+												<span class='glyphicon glyphicon-trash'></span>";
+				
+				$opts = '';					
+				foreach($prints as $doc) {
+					$opts .= "<li role='presentation'><a href='{$print}/".$doc->id."' target='_blank' role='menuitem'>".$doc->name."</a></li>";
+				}
+				
+				if($row->is_fc==1) {		
+					$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>";/*<a href='{$print}/FC' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a>";
+										
+					/* $nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a>
+											<a href='{$print}/FC' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a></p>"; */
+				} else {
+					$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>";
+					
+					//$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";
+				}
+											
+                $data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	
+	public function add($vno=null) {
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$vouchers = $this->accountsetting->getAccountSettingsPR($vid=2);//echo '<pre>';print_r($vouchers);exit;
+		$location = $this->location->locationList();
+		$lastid = DB::table('purchase_return')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$footertxt = DB::table('header_footer')->where('doc','PR')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','PR')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+							
+		//CHECK DEPARTMENT.......
+		if(Session::get('department')==1) { //if active...
+			$deptid = Auth::user()->department_id;
+			if($deptid!=0)
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			else {
+				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$deptid = $departments[0]->id;
+			}
+			$is_dept = true;
+		} else {
+			$is_dept = false;
+			$departments = [];
+			$deptid = '';
+		}
+			
+		if($vno) {
+			
+			$itemmaster = $this->itemmaster->activeItemmasterList();
+			$jobs = $this->jobmaster->activeJobmasterList();
+			$currency = $this->currency->activeCurrencyList();
+			$orderrow = $this->purchase_invoice->findSDOdata($vno);
+			$pitems = $this->purchase_invoice->getSDOitems($vno);
+			
+			$getItemLocation = $this->itemmaster->getItemLocation($orderrow->id,'PI');
+			$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($orderrow->id,'PI') );
+		
+			//echo '<pre>';print_r($getItemLocation); print_r($itemlocedit); exit;
+			$total = 0; $discount = 0; $nettotal = 0; $vat_total = 0;
+			foreach($pitems as $item) {
+				$total += $item->total_price;
+				$discount += $item->discount;
+				$vat_total += $item->vat_amount;
+			}
+			$nettotal = $total - $discount + $vat_total;
+			
+			//MAY25 BATCH ENTRY.....	
+    		$batch_res = $batchs = $batch_items = null;
+    		$batch_res = DB::table('batch_log')->whereNull('batch_log.deleted_at')
+    		                    ->Join('item_batch AS IB', function($join) {
+                            		$join->on('IB.id','=','batch_log.batch_id');
+                            	})
+                            	->where('batch_log.document_type', 'PI')
+                            	->where('batch_log.document_id', $orderrow->id)
+                            	->whereNull('IB.deleted_at')
+                            	->select('IB.*','batch_log.doc_row_id','batch_log.log_id','batch_log.id AS batch_log_id')
+                            	->orderBy('batch_log.doc_row_id','ASC')->get();
+                            	
+            $batchs = $this->batchGrouping($batch_res);
+    
+    		foreach($batchs as $key => $batchrow) {
+    		    $batchArr = $mfgArr = $expArr = $qtyArr = $idArr = '';
+        		foreach($batchrow as $ky => $batch) {
+        		    $idArr = ($idArr=='')?$batch->id:$idArr.','.$batch->id;
+        		    $batchArr = ($batchArr=='')?$batch->batch_no:$batchArr.','.$batch->batch_no;
+        		    $mfgArr = ($mfgArr=='')?date('d-m-Y',strtotime($batch->mfg_date)):$mfgArr.','.date('d-m-Y',strtotime($batch->mfg_date));
+        		    $expArr = ($expArr=='')?date('d-m-Y',strtotime($batch->exp_date)):$expArr.','.date('d-m-Y',strtotime($batch->exp_date));
+        		    $qtyArr = ($qtyArr=='')?$batch->quantity:$qtyArr.','.$batch->quantity;
+        		}
+        		$batch_items[$key] = ['ids' => $idArr, 'batches' => $batchArr, 'mfgs' => $mfgArr, 'exps' => $expArr, 'qtys' => $qtyArr];
+    	    }
+    	   // echo '<pre>';print_r($batch_items);exit;
+			return view('body.purchasereturn.addpi')
+						->withItems($itemmaster)
+						->withJobs($jobs)
+						->withCurrency($currency)
+						->withOrderrow($orderrow)
+						->withPitems($pitems)
+						->withPiid($orderrow->id)
+						->withPino($vno)
+						->withTotal($total)
+						->withDiscount($discount)
+						->withNettotal($nettotal)
+						->withVouchers($vouchers)
+						->withVattotal($vat_total)
+						->withVoucherid(Session::get('pr_voucher_id'))
+						->withVoucherno(Session::get('pr_voucher_no'))
+						->withAcmaster(Session::get('pr_ac_master'))
+						->withStockac(Session::get('pr_stock_ac'))
+						->withVatdata($this->vatdata)
+						->withSettings($this->acsettings)
+						->withLocation($location)
+						->withItemloc($getItemLocation)
+						->withItemlocedit($itemlocedit)
+						->withFormdata($this->formData)
+						->withIsdept($is_dept)
+						->withDepartments($departments)
+						->withDeptid($deptid)
+						->withIsmpqty($this->mod_mpqty->is_active)
+						->withBatchitems($batch_items);
+		}
+		return view('body.purchasereturn.add')
+					->withItems($itemmaster)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withVouchers($vouchers)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withLocation($location)
+					->withPrintid($lastid)
+					->withFormdata($this->formData)
+					->withPrint($print)
+					->withIsdept($is_dept)
+					->withDepartments($departments)
+					->withDeptid($deptid)
+					->withFooter(isset($footertxt)?$footertxt->description:'')
+					->withIsmpqty($this->mod_mpqty->is_active)
+					->withData($data);
+	}
+	
+	//MAY25
+	protected function batchGrouping($result) {
+	    
+	    $childs = array();
+		foreach($result as $item)
+		    $childs[$item->doc_row_id][] = $item;
+			
+		return $childs;
+	}
+	
+	private function makeTreeArr($result) {
+		
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item->invoice_id][] = $item;
+		
+		return $childs;
+	}
+	
+	public function save(Request $request) {
+		
+		//echo '<pre>';print_r($request->all());exit;
+		$this->validate(
+			$request, 
+			['purchase_invoice_id' => 'required',
+			 'reference_no' => ($this->formData['reference_no']==1)?'required':'nullable', 
+			 'supplier_name' => 'required','supplier_id' => 'required',
+			 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required'
+			],
+			['purchase_invoice_id' => 'Purchase Invoice no. is required.',
+			 'reference_no' => 'Reference no. is required.',
+			 'supplier_name.required' => 'Supplier Name is required.','supplier_id.required' => 'Supplier name is invalid.',
+			 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.'
+			]
+		);
+		
+		if($this->purchase_return->create($request->all())) {
+			//AUTO COST REFRESH CHECK ENABLE OR NOT
+			if($this->mod_autocost->is_active==1) {
+				$this->objUtility->reEvalItemCostQuantity($request->get('item_id'),$this->acsettings);
+			}
+			$attributes=$request->all();
+			#### mail
+			if($attributes['send_email']==1) {
+					
+					$vid=$attributes['voucher_no'];
+					$amount=$attributes['net_amount'];
+					$data['words'] = $this->number_to_word($amount);
+					$data['purchaseitems'] = DB::table('purchase_return')
+					->where('purchase_return.voucher_no',$vid)
+					->join('purchase_return_item AS PRI', function($join) {
+						$join->on('PRI.purchase_return_id','=','purchase_return.id');
+							})
+					->leftjoin('users', function($join) {
+						$join->on('users.id','=','purchase_return.created_by');
+								})				 
+					->join('itemmaster AS IM', function($join) {
+								$join->on('IM.id','=','PRI.item_id');
+								})
+					->join('units AS U', function($join) {
+							$join->on('U.id','=','PRI.unit_id');
+							})
+						
+					->where('PRI.status', 1)
+					->where('PRI.deleted_at', '0000-00-00 00:00:00')		 
+					->select('purchase_return.voucher_no','purchase_return.total','purchase_return.vat_amount','purchase_return.net_amount','purchase_return.created_at','PRI.*','IM.item_code','U.unit_name','users.name')
+					->orderBY('PRI.id','ASC')->get();
+				
+						//echo '<pre>';print_r($data['salesitems']);exit;
+						//$pdfnew = PDF::loadView('body.salesinvoice.pdfupdateprintnw',$data);
+						//return view('body.salesinvoice.pdfupdateprintnw')->withSalesitems($data['salesitems'])->withWords($data['words']);
+
+						$email='numaktech@gmail.com ';
+						$no=$data['purchaseitems'][0]->voucher_no;
+						$body='Purchase Return created with voucher no: %s';
+							$text= sprintf($body,$no);						
+							try{
+									Mail::send(['html'=>'body.purchasereturn.emailadd'], $data,function($message) use ($email,$text) {
+									$message->from(env('MAIL_USERNAME'));	
+									$message->to($email);
+									$message->subject($text);
+									});
+								
+								}catch(JWTException $exception){
+								$this->serverstatuscode = "0";
+								$this->serverstatusdes = $exception->getMessage();
+								echo '<pre>';print_r($this->serverstatusdes);exit;
+							}
+			}
+   			#### End 
+			Session::flash('message', 'Purchase Return added successfully.');
+		} else
+			Session::flash('error', 'Something went wrong, Return failed to add!');
+		
+		return redirect('purchase_return/add');
+	}
+	
+	public function destroy($id)
+	{
+		
+		if( $this->purchase_return->check_order($id) ) {
+			$this->purchase_return->delete($id);
+			
+			//AUTO COST REFRESH CHECK ENABLE OR NOT
+			if($this->mod_autocost->is_active==1) {
+				$arritems = [];
+				$items = DB::table('purchase_return_item')->where('purchase_return_id',$id)->select('item_id')->get();
+				foreach($items as $rw) {
+					$arritems[] = $rw->item_id;
+				}
+				$this->objUtility->reEvalItemCostQuantity($arritems,$this->acsettings);
+			}
+				
+			Session::flash('message', 'Purchase return deleted successfully.');
+		} else {
+			Session::flash('error', 'Purchase return is already in use, you can\'t delete this!');
+		}
+		
+		return redirect('purchase_return');
+	}
+	
+		
+	public function edit($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$vouchers = $this->accountsetting->getAccountSettingsPR($vid=2);
+		
+		$orderrow = $this->purchase_return->findPRdata($id);
+		$orditems = $this->purchase_return->getItems($id);
+		
+		$location = $this->location->locationList();
+		$getItemLocation = $this->itemmaster->getItemLocation($id,'PR');
+		$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($id,'PR') );
+		
+		$lastid = DB::table('purchase_return')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','PR')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+		//echo '<pre>';print_r($itemlocedit); exit;					
+		return view('body.purchasereturn.edit')
+					->withItems($itemmaster)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVouchers($vouchers)
+					->withSettings($this->acsettings)
+					->withVatdata($this->vatdata)
+					->withLocation($location)
+					->withItemloc($getItemLocation)
+					->withItemlocedit($itemlocedit)
+					->withFormdata($this->formData)
+					->withPrint($print)
+					->withPrintid($lastid)
+					->withIsmpqty($this->mod_mpqty->is_active)
+					->withData($data); 
+					
+
+	}
+	
+		
+	public function update(Request $request)
+	{
+		$id = $request->input('purchase_return_id');
+		$this->validate(
+			$request, 
+			['purchase_invoice_id' => 'required',
+			 'reference_no' => ($this->formData['reference_no']==1)?'required':'nullable', 
+			 'supplier_name' => 'required','supplier_id' => 'required',
+			 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required'
+			],
+			['purchase_invoice_id' => 'Purchase Invoice no. is required.',
+			 'reference_no' => 'Reference no. is required.',
+			 'supplier_name.required' => 'Supplier Name is required.','supplier_id.required' => 'Supplier name is invalid.',
+			 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.'
+			]
+		);
+		
+		if( $this->purchase_return->update($id, $request->all()) ) {
+			//AUTO COST REFRESH CHECK ENABLE OR NOT
+			if($this->mod_autocost->is_active==1) {
+				$this->objUtility->reEvalItemCostQuantity($request->get('item_id'),$this->acsettings);
+			}
+
+             #### mail
+			$attributes=$request->all();
+			if(isset($attributes['send_email']) && $attributes['send_email']==1) {
+			$amount=$attributes['net_amount'];
+			$data['words'] = $this->number_to_word($amount);
+			$data['purchaseitems'] = DB::table('purchase_return')
+			->where('purchase_return.id',$id)
+			->join('purchase_return_item AS PRI', function($join) {
+				$join->on('PRI.purchase_return_id','=','purchase_return.id');
+					 })
+			->leftjoin('users', function($join) {
+				$join->on('users.id','=','purchase_return.modify_by');
+						 })				 
+			 ->join('itemmaster AS IM', function($join) {
+						$join->on('IM.id','=','PRI.item_id');
+						})
+			->join('units AS U', function($join) {
+					$join->on('U.id','=','PRI.unit_id');
+					 })
+				 
+			->where('PRI.status', 1)
+			->where('PRI.deleted_at', '0000-00-00 00:00:00')		 
+			->select('purchase_return.voucher_no','purchase_return.total','purchase_return.vat_amount','purchase_return.net_amount','purchase_return.modify_at','PRI.*','IM.item_code','U.unit_name','users.name')
+			->orderBY('PRI.id','ASC')->get();
+			
+					   //echo '<pre>';print_r($data['salesitems']);exit;
+					   //$pdfnew = PDF::loadView('body.salesinvoice.pdfupdateprintnw',$data);
+					   //return view('body.salesinvoice.pdfupdateprintnw')->withSalesitems($data['salesitems'])->withWords($data['words']);
+	
+					   $email='numaktech@gmail.com ';
+					   $no=$data['purchaseitems'][0]->voucher_no;
+					   $body='Purchase Return modified with voucher no: %s';
+						$text= sprintf($body,$no);						
+						   try{
+								   Mail::send(['html'=>'body.purchasereturn.emailupdate'], $data,function($message) use ($email,$text) {
+								   $message->from(env('MAIL_USERNAME'));	
+								   $message->to($email);
+								   $message->subject($text);
+								   });
+							   
+							   }catch(JWTException $exception){
+							   $this->serverstatuscode = "0";
+							   $this->serverstatusdes = $exception->getMessage();
+							   echo '<pre>';print_r($this->serverstatusdes);exit;
+						   }
+					   
+	
+			}
+	
+	   #### End 
+
+			Session::flash('message', 'Purchase return updated successfully');
+		} else
+			Session::flash('error', 'Something went wrong, Purchase return failed to update!');
+		
+		return redirect('purchase_return');
+	}
+	
+		public function viewonly($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$vouchers = $this->accountsetting->getAccountSettingsPR($vid=2);
+		
+		$orderrow = $this->purchase_return->findPRdata($id);
+		$orditems = $this->purchase_return->getItems($id);
+		
+		$location = $this->location->locationList();
+		$getItemLocation = $this->itemmaster->getItemLocation($id,'PR');
+		$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($id,'PR') );
+		
+		$lastid = DB::table('purchase_return')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','PR')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+		//echo '<pre>';print_r($itemlocedit); exit;					
+		return view('body.purchasereturn.viewonly')
+					->withItems($itemmaster)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVouchers($vouchers)
+					->withSettings($this->acsettings)
+					->withVatdata($this->vatdata)
+					->withLocation($location)
+					->withItemloc($getItemLocation)
+					->withItemlocedit($itemlocedit)
+					->withFormdata($this->formData)
+					->withPrint($print)
+					->withPrintid($lastid)
+					->withIsmpqty($this->mod_mpqty->is_active)
+					->withData($data); 
+					
+
+	}
+	
+	
+	public function show($id) { 
+
+		$data = array();
+		$acmasterrow = $this->accountmaster->accountMasterView($id);
+		//echo '<pre>';print_r($acmasterrow);exit;
+		return view('body.accountmaster.view')
+					->withMasterrow($acmasterrow)
+					->withData($data);
+	}
+	
+	public function getSupplier()
+	{
+		$data = array();
+		$suppliers = $this->accountmaster->getSupplierList();//echo '<pre>';print_r($suppliers);exit;
+		return view('body.purchaseinvoice.supplier')
+					->withSuppliers($suppliers)
+					->withData($data);
+	}
+	
+		public function getJob($id)
+	    {
+		$data = array();
+	
+			$data = DB::table('purchase_return')->where('purchase_return.supplier_id',$id)
+			                    ->join('jobmaster', 'jobmaster.id', '=', 'purchase_return.job_id')
+			                   ->where('purchase_return.status',1)->where('purchase_return.deleted_at','0000-00-00 00:00:00')
+			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
+			return $data;
+		}
+	
+	public function checkRefNo(Request $request) {
+
+		$check = $this->purchase_return->check_reference_no($request->get('reference_no'), $request->get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	
+	public function setSessionVal()
+	{
+		Session::put('pr_voucher_id', $request->get('vchr_id'));
+		Session::put('pr_voucher_no', $request->get('vchr_no'));
+		Session::put('pr_stock_ac', $request->get('acnt'));
+		Session::put('pr_ac_master', $request->get('ac_mstr'));
+	}
+	
+	public function getPrint($id,$rid=null)
+	{
+		$viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first(); 
+		if($viewfile->print_name=='') {
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = ($fc)?1:'';
+			$result = $this->purchase_return->getOrder($attributes);
+			$titles = ['main_head' => 'Purchase Invoice','subhead' => 'Purchase Return'];
+			return view('body.purchasereturn.print')
+						->withDetails($result['details'])
+						->withTitles($titles)
+						->withFc($attributes['is_fc'])
+						->withItems($result['items']);
+			//echo '<pre>';print_r($result);exit;
+		} else {
+			$path = app_path() . '/stimulsoft/helper.php';
+			if(env('STIMULSOFT_VER')==2)
+		        return view('body.reports')->withPath($path)->withView($viewfile->print_name);
+		   else
+		        return view('body.purchasereturn.viewer')->withPath($path)->withView($viewfile->print_name);
+		        
+			//return view('body.purchasereturn.viewer')->withPath($path)->withView($viewfile->print_name);
+		}
+	}
+	
+	
+	public function getVoucher($id) {
+		
+		 $row = $this->accountsetting->getCrVoucherByID($id);
+		 if($row->voucher_no != '' || $row->voucher_no != null) {
+			 if($row->is_prefix==0)
+				 $voucher = $row->voucher_no;
+			 else {
+				 $no = (int)$row->voucher_no;
+				 $voucher = $row->prefix.''.$no;
+			 }
+		 }
+		 return $result = array('voucher_no' => $voucher, 
+								'account_id' => $row->account_id, 
+								'account_name' => $row->master_name, 
+								'id' => $row->id,
+								'caccount_id' => $row->caccount_id,
+								'caccount_name' => $row->cmaster_name,
+								'cid'	=> $row->cid,
+								'cash_voucher' => $row->is_cash_voucher,
+								'default_account' => $row->default_account,
+								'cash_account' => $row->default_account_id
+								);//print_r($ob);
+
+	}
+	
+	
+	public function checkVchrNo(Request $request) { 
+
+		$check = $this->purchase_return->check_voucher_no($request->get('voucher_no'),$request->get('deptid'), $request->get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	public function getCustomer()
+	{
+		$data = array();
+		$suppliers = $this->accountmaster->getSupplierList();
+		return view('body.purchasereturn.multiselect')
+		            ->withSuppliers($suppliers) 
+					
+					->withType('CUST')
+					->withData($data);
+					
+		
+		
+	}
+	protected function makeTreeSup($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+		//echo '<pre>';print_r( $item);exit;
+		//$childs[$item->supplier_id][] = $item;
+		
+			$childs[$item['supplier_id']][] = $item;
+			//$childs[$item->cid][] = $item;
+		return $childs;
+		
+	}
+	protected function makeTree($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		return $childs;
+	}
+	protected function groupbyItemwise($result)
+	{
+		$childs = array();
+		foreach($result as $items)
+			foreach($result as $item)
+				$childs[$item->item_id][] = $item;
+		
+		return $childs;
+	}
+	protected function makeTreeVoucher($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+	//	echo '<pre>';print_r($item->voucher_name);exit;
+			$childs[$item->voucher_no][] = $item;
+		
+		return $childs;
+	}
+	public function getSearch(Request $request)
+	{
+		// $data = array();
+		
+		// $reports = $this->purchase_return->getReport($request->all());
+		
+		// if($request->get('search_type')=="summary")
+		// 	$voucher_head = 'Purchase Return Summary';
+		// elseif($request->get('search_type')=="detail") {
+		// 	$voucher_head = 'Purchase Return Detail';
+		// 	$reports = $this->makeTree($reports);
+		// }
+		$data = array();
+		$dname = '';
+		$supid = $itemid = '';
+		$voucher_head  = '';
+		//echo '<pre>';print_r($request->get('search_type'));exit;
+		$report = $this->purchase_return->getReport($request->all());
+		//echo '<pre>';print_r($reports);exit;
+		if(Session::get('department')==1) {
+			if($request->get('department_id')!='') {
+				$rec = DB::table('department')->where('id', $request->get('department_id'))->select('name')->first();
+				$dname = $rec->name;
+			}
+		}
+		
+		if($request->get('search_type')=="summary")
+		{
+			$voucher_head = 'Purchase Return Summary';
+			$reports = $this->purchase_return->getReport($request->all());
+			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
+			//$reports = ($report);
+		//	echo '<pre>';print_r($reports);exit;
+            
+		}
+		//elseif($request->get('search_type')=="purchase_register") {
+			//$voucher_head = 'Purchase Register Summary';
+			//$reports = $this->makeTree($reports);
+		//} 
+		else if($request->get('search_type')=="detail") {
+			$voucher_head = 'Purchase Return Detail';
+			$report = $this->purchase_return->getReport($request->all());
+			$reports = $this->makeTreeVoucher($report);
+		//	echo '<pre>';print_r($report);exit;
+			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
+			//$reports = $this->groupbyVoucherNo($reports);
+		} else if($request->get('search_type')=="item") {
+			$voucher_head = 'Purchase Return by Itemwise';
+			$report = $this->purchase_return->getReport($request->all());
+			$reports = $this->groupbyItemwise($report);
+			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
+			//echo '<pre>';print_r($reports);exit;
+			if($request->get('item_id')!==null)
+				$itemid = implode(',', $request->get('item_id'));
+			else
+				$itemid = '';
+		
+		//else if($request->get('search_type')=="tax_code") {
+			//$voucher_head = 'Purchase Invoice by Tax Code';
+			//$reports = $this->makeTreeTC($reports);
+		//}
+	}else if($request->get('search_type')=='supplier') {
+	//	echo '<pre>';print_r($reports);exit;
+			$voucher_head = 'Purchase Return by supplierwise';
+			$report = $this->purchase_return->getReport($request->all());
+		    $reports = $this->makeTreeSup($report);
+			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
+			if($request->get('supplier_id')!==null)
+				$supid = implode(',', $request->get('supplier_id'));
+			else
+				$supid = '';
+		}
+	//	echo '<pre>';print_r($reports);exit;
+		return view('body.purchasereturn.preprint')
+					->withReports($reports)
+					
+					->withVoucherhead($voucher_head)
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withI(0)
+					->withSupplier($supid)
+					->withItem($itemid)
+					->withTitles($titles)
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	
+	public function dataExport(Request $request)
+	{
+		$data = array();
+		$datareport[] = ['','','','',strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		$request->merge(['type' => 'export']);
+		// $reports = $this->purchase_return->getReport($request->all());
+		
+		// if($request->get('search_type')=="summary")
+		// 	$voucher_head = 'Purchase Return Summary';
+		// elseif($request->get('search_type')=="detail") {
+		// 	$voucher_head = 'Purchase Return Detail';
+		// 	//$reports = $this->makeTree($reports);
+		// }
+		if($request->get('search_type')=="summary")
+		{
+			$voucher_head = 'Purchase Return Summary';
+			$reports = $this->purchase_return->getReport($request->all());
+		
+			//$reports = ($report);
+			//echo '<pre>';print_r($reports);exit;
+            
+		}
+		//elseif($request->get('search_type')=="purchase_register") {
+			//$voucher_head = 'Purchase Register Summary';
+			//$reports = $this->makeTree($reports);
+		//} 
+		else if($request->get('search_type')=="detail") {
+			$voucher_head = 'Purchase Return Detail';
+			$reports = $this->purchase_return->getReport($request->all());
+			//$reports = $this->makeTreeVoucher($report);
+		
+			//$reports = $this->groupbyVoucherNo($reports);
+		} else if($request->get('search_type')=="item") {
+			$voucher_head = 'Purchase Return by Itemwise';
+			$reports = $this->purchase_return->getReport($request->all());
+		//	$reports = $this->groupbyItemwise($report);
+		
+			// echo '<pre>';print_r($request->get('item_id'));exit;
+			// if($request->get('item_id')!==null)
+			// 	$itemid = implode(',', $request->get('item_id'));
+			// else
+			// 	$itemid = '';
+		
+		//else if($request->get('search_type')=="tax_code") {
+			//$voucher_head = 'Purchase Invoice by Tax Code';
+			//$reports = $this->makeTreeTC($reports);
+		//}
+	}else if($request->get('search_type')=='supplier') {
+	//	echo '<pre>';print_r($reports);exit;
+			$voucher_head = 'Purchase Return by supplierwise';
+			$reports = $this->purchase_return->getReport($request->all());
+			//echo '<pre>';print_r($report);exit;
+		   // $reports = $this->makeTreeSup($report);
+		     
+			if($request->get('supplier_id')!==null)
+				$supid = implode(',', $request->get('supplier_id'));
+			else
+				$supid = '';
+		}
+		$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		//echo '<pre>';print_r($reports);exit;
+		if($request->get('search_type')=='detail') {
+			
+			$datareport[] = ['SI.No.','PR#', 'PR.Ref#', 'Supplier','Item Code','Item Name','PR.Qty','Rate','Total Amt.','Vat Amt','Net Amt.'];
+			$i=0;
+			$up=0;$net=0;
+			foreach ($reports as $row) {
+				$i++;
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'supplier' => $row['master_name'],
+								  'item_code' => $row['item_code'],
+								  'item_name' => $row['item_name'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => number_format($row['unit_price'],2),
+								   'total_amt' => number_format($row['quantity']*$row['unit_price'],2),
+								   'vat_amt' => number_format($row['unit_vat'],2),
+								  'net_amount' => number_format($row['unit_vat']+$row['total_price'],2)
+								];
+							//	$up += number_format($row['unit_price'],2);
+							//	$net += number_format($row['unit_vat']+$row['total_price'],2);
+			}
+
+			//$datareport[] = ['','','','','','',''];			
+		//	$datareport[] = ['','','','','','','Total:',$up,$net];
+			
+		} else {
+			
+			$datareport[] = ['SI.No.','PR#','Vchr.Date','PR.Ref#', 'Supplier','Gross Amt.','Discount','Total Amt','VAT Amt.','Net Total'];
+			$i=0;
+			$total=0;$gross=0;$vat=$amt=$net_amt=0;	
+		    $tot=0;$gs=0;$vt=$namt=0;
+			foreach ($reports as $row) {
+					$i++;
+					$amt=$row['total']-$row['discount'];
+					$datareport[] = [ 'si' => $i,
+									  'po' => $row['voucher_no'],
+									  'vdate' => date('d-m-Y',strtotime($row['voucher_date'])),
+									  'ref' => $row['reference_no'],
+									  'supplier' => $row['master_name'],
+									  'gross' => number_format($row['total'],2),
+									  'dis' => number_format($row['discount'],2),
+									  'amt' => number_format($amt,2),
+									  'vat' => number_format($row['vat_amount'],2),
+									  'total' => number_format($row['net_amount'],2)
+									];
+									$total+= $row['net_amount'];
+							        $tot=number_format($total,2) ;
+									$gross+= $row['total'];
+							        $gs=number_format($gross,2) ;
+									$vat+= $row['vat_amount'];
+							        $vt=number_format($vat,2) ;
+							        $net_amt+=$amt;
+							        $namt=number_format($net_amt,2) ;
+			}
+
+			$datareport[] = ['','','','','','',''];			
+		    $datareport[] = ['','','','','Total:',$gs,'',$namt,$vt,$tot];
+		}
+		
+		// echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('NumakPro ERP')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		});
+
+		})->download('xlsx');
+		
+	}
+	public function getItems()
+	{
+		$data = array();
+	
+		$item = $this->itemmaster->activeItemmasterList();
+		//echo '<pre>';print_r($item);exit;
+		//$group= $this->group->groupList();
+		//echo '<pre>';print_r($group);exit;
+		//$subgroup= $this->group->subgroupList();
+	//	echo '<pre>';print_r($subgroup);exit;
+		//$category= $this->category->categoryList();
+		//echo '<pre>';print_r($category);exit;
+		 $category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		 $subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		 $group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		 //echo '<pre>';print_r($group);exit;
+		 $subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		
+		return view('body.purchasereturn.multiselect')
+		                ->withCategory($category)
+		               ->withSubcategory($subcategory)
+		                ->withGroup($group)
+		                ->withSubgroup($subgroup)
+					->withItem($item)
+					->withType('ITEM')
+					->withData($data);
+
+	}
+
+	private function number_to_word( $num = '' )
+	{
+		$num    = ( string ) ( ( int ) $num );
+	   
+		if( ( int ) ( $num ) && ctype_digit( $num ) )
+		{
+			$words  = array( );
+		   
+			$num    = str_replace( array( ',' , ' ' ) , '' , trim( $num ) );
+		   
+			$list1  = array('','one','two','three','four','five','six','seven',
+				'eight','nine','ten','eleven','twelve','thirteen','fourteen',
+				'fifteen','sixteen','seventeen','eighteen','nineteen');
+		   
+			$list2  = array('','ten','twenty','thirty','forty','fifty','sixty',
+				'seventy','eighty','ninety','hundred');
+		   
+			$list3  = array('','thousand','million','billion','trillion',
+				'quadrillion','quintillion','sextillion','septillion',
+				'octillion','nonillion','decillion','undecillion',
+				'duodecillion','tredecillion','quattuordecillion',
+				'quindecillion','sexdecillion','septendecillion',
+				'octodecillion','novemdecillion','vigintillion');
+		   
+			$num_length = strlen( $num );
+			$levels = ( int ) ( ( $num_length + 2 ) / 3 );
+			$max_length = $levels * 3;
+			$num    = substr( '00'.$num , -$max_length );
+			$num_levels = str_split( $num , 3 );
+		   
+			foreach( $num_levels as $num_part )
+			{
+				$levels--;
+				$hundreds   = ( int ) ( $num_part / 100 );
+				$hundreds   = ( $hundreds ? ' ' . $list1[$hundreds] . ' Hundred' . ( $hundreds == 1 ? '' : 's' ) . ' ' : '' );
+				$tens       = ( int ) ( $num_part % 100 );
+				$singles    = '';
+			   
+				if( $tens < 20 )
+				{
+					$tens   = ( $tens ? ' ' . $list1[$tens] . ' ' : '' );
+				}
+				else
+				{
+					$tens   = ( int ) ( $tens / 10 );
+					$tens   = ' ' . $list2[$tens] . ' ';
+					$singles    = ( int ) ( $num_part % 10 );
+					$singles    = ' ' . $list1[$singles] . ' ';
+				}
+				$words[]    = $hundreds . $tens . $singles . ( ( $levels && ( int ) ( $num_part ) ) ? ' ' . $list3[$levels] . ' ' : '' );
+			}
+		   
+			$commas = count( $words );
+		   
+			if( $commas > 1 )
+			{
+				$commas = $commas - 1;
+			}
+		   
+			$words  = implode( ', ' , $words );
+		   
+			//Some Finishing Touch
+			//Replacing multiples of spaces with one space
+			$words  = trim( str_replace( ' ,' , ',' , $this->trim_all( ucwords( $words ) ) ) , ', ' );
+			if( $commas )
+			{
+				$words  = $this->str_replace_last( ',' , ' and' , $words );
+			}
+		   
+			return $words;
+		}
+		else if( ! ( ( int ) $num ) )
+		{
+			return 'Zero';
+		}
+		return '';
+	}
+	private function trim_all( $str , $what = NULL , $with = ' ' )
+	{
+		if( $what === NULL )
+		{
+			//  Character      Decimal      Use
+			//  "\0"            0           Null Character
+			//  "\t"            9           Tab
+			//  "\n"           10           New line
+			//  "\x0B"         11           Vertical Tab
+			//  "\r"           13           New Line in Mac
+			//  " "            32           Space
+		   
+			$what   = "\x00-\x20";    //all white-spaces and control chars
+		}
+	   
+		return trim( preg_replace( "/[".$what."]+/" , $with , $str ) , $what );
+	}
+	
+	private function str_replace_last( $search , $replace , $str ) {
+		if( ( $pos = strrpos( $str , $search ) ) !== false ) {
+			$search_length  = strlen( $search );
+			$str    = substr_replace( $str , $replace , $pos , $search_length );
+		}
+		return $str;
+	}
+	
+	
+	public function getDeptVoucher($id) {
+		
+		$depts = $this->accountsetting->getAccountSettingsPR($vid=2,$id); 
+		//echo '<pre>';print_r($depts);exit;
+		foreach($depts as $row) {
+			
+			 if($row->voucher_no != '' || $row->voucher_no != null) {
+				 if($row->is_prefix==0)
+					 $voucher = $row->voucher_no;
+				 else {
+					 $no = (int)$row->voucher_no;
+					 $voucher = $row->prefix.''.$no;
+				 }
+			 }
+			
+			  $result[] = array('voucher_name' => $row->voucher_name,
+								'voucher_id' => $row->id,
+								'voucher_no' => $voucher,
+								'account_id' => $row->acode, 
+								'account_name' => $row->account, 
+								'id' => $row->acid );
+								//'cash_voucher' => $row->is_cash_voucher,
+								//'cash_account' => $row->default_account_id,
+								//'default_account' => $row->default_account );
+		}
+		
+		return $result;
+	}
+}
+
+

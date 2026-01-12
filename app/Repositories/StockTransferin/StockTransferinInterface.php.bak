@@ -1,0 +1,9 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\StockTransferin;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface StockTransferinInterface extends RepositoryInterface {
+	
+}

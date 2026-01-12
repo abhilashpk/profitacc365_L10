@@ -1,0 +1,185 @@
+@extends('layouts/default')
+
+    {{-- Page title --}}
+    @section('title')
+        Invoice
+    @parent
+@stop
+
+{{-- page level styles --}}
+@section('header_styles')
+    <!--page level css -->
+    <link rel="stylesheet" type="text/css" href="{{asset('assets/css/custom.css')}}">
+   <!-- <link rel="stylesheet" type="text/css" href="{{asset('assets/css/custom_css/invoice.css')}}">-->
+	<link rel="stylesheet" type="text/css" href="{{asset('assets/css/custom_css/bootstrap.css')}}">
+    <!--end of page level css-->
+@stop
+
+{{-- Page content --}}
+@section('content')
+    <!-- Content Header (Page header) -->
+        <section class="content-header">
+            <!--section starts-->
+            <h1>
+                 Customer Receipt
+            </h1>
+            <ol class="breadcrumb">
+                <li>
+                    <a href="">
+                        <i class="fa fa-fw fa-retweet"></i> Transaction
+                    </a>
+                </li>
+                <li>
+                    <a href="">Vouchers Entry</a>
+                </li>
+				<li>
+                    <a href="">Customer Receipt</a>
+                </li>
+                <li class="active">
+                   Print
+                </li>
+            </ol>
+        </section>
+        <!-- Main content -->
+        <section class="content p-l-r-15" id="cost-job">
+            <div class="panel">
+                
+                <div class="panel-body">
+                    <div class="row">
+                        <div class="col-md-12">
+							<table border="0" style="width:100%;">
+								<tr><td align="center" colspan="3">
+										<!--<img src="{{asset('assets/'.Session::get('logo').'')}}" width="100%" /><br/>-->
+									<!--	<b style="font-size:15px;">Ph: {{Session::get('phone')}}, {{Session::get('address')}}</b><br/>
+										<b style="font-size:15px;">TRN No: {{Session::get('vatno')}}</b>-->
+										<b style="font-size:15px;">@include('main.print_head')</b><br/>
+									</td>
+								</tr>
+								<tr>
+									<td width="40%">
+									</td><td align="center"><h5><u><b>{{$voucherhead}}</b></u></h5></td>
+									<td width="40%" align="left"></td>
+								</tr>
+								<tr>
+									<td width="40%" align="center"></h6>
+									</td><td align="center"></td>
+									<td width="40%" align="right"><p>RV. No: {{$details->voucher_no}}</p><p>Date: {{date('d-m-Y',strtotime($details->voucher_date))}}</p></td>
+								</tr>
+							</table><br/>
+                        </div>
+						<?php
+							$name = '';
+							if(sizeof($invoicerow) > 1) {
+								$name = $invoicerow[1]->master_name;
+								
+								foreach($invoicerow as $invrow) {
+									$refnos = '';
+									if($invrow->entry_type=='Dr') {
+										$refnos = $invrow->reference;
+										break;
+									}
+								}
+							}
+						?>
+                        <div class="col-md-12">
+							<div style="text-align:center;"><h5><p>Received with thanks from Ms./Mr. <b>{{$name}}</b> the sum of <b>Dhs. {{$amtwords}}</b> against invoice nos: {{$refnos}}.</p></h5></div>
+							<br/><b>Mode of Receipt:</b>
+							<table class="table" border="1">
+								<thead>
+									<th>Account Name</th>
+									<th >Description</th>
+									<th >Reference</th>
+									<th class="text-right">Debit</th>
+									<th class="text-right">Credit</th>
+								</thead>
+								<body>
+								@php $dramount = $cramount = 0; @endphp
+								@foreach($invoicerow as $row)
+									<tr>
+										<td>{{$row->master_name}}</td>
+										<td >{{$row->description}}</td>
+										<td>{{$row->reference}}</td>
+										<td class="text-right">@if($row->entry_type=='Dr'){{number_format($row->amount,2)}} @php $dramount += $row->amount; @endphp @endif</td>
+										<td class="text-right">@if($row->entry_type=='Cr'){{number_format($row->amount,2)}} @php $cramount += $row->amount; @endphp @endif</td>
+									</tr>
+								@endforeach
+									<tr>
+										<td colspan="3"><b>Total:</b></td>
+										<td class="text-right"><b>{{number_format($dramount,2)}}</b></td>
+										<td class="text-right"><b>{{number_format($cramount,2)}}</b></td>
+									</tr>
+								</body>
+							</table>
+							
+							<!--<table class="table" border="1">
+								<thead>
+									<th>Debit Account</th>
+									<th class="text-right">Amount</th>
+									<th class="text-right">Cheque No.</th>
+									<th class="text-right">Cheque Date</th>
+									<th class="text-right">Drawn on</th>
+								</thead>
+								<body>
+									<tr>
+										<td>{{$invoicerow[0]->master_name}}</td>
+										<td class="text-right">{{number_format($invoicerow[0]->amount,2)}}</td>
+										<td class="text-right">{{$invoicerow[0]->cheque_no}}</td>
+										<td class="text-right">
+										<?php if($invoicerow[0]->cheque_no!='')
+												echo date('d-m-Y',strtotime($invoicerow[0]->cheque_date)); ?></td>
+										<td class="text-right">{{$invoicerow[0]->name}}</td>
+									</tr>
+								</body>
+							</table>-->
+							<br/>Description: {{$details->tr_description}}
+							<br/><br/><br/>
+							
+							<table border="0" style="width:100%;">
+								<tr><td width="40%" align="left"><b>Received by:</b></td>
+									<td align="left"><b>Accountant:</b></td>
+									<td width="20%" align="left"><b>Approved by:</b></td>
+								</tr>
+							</table><br/>
+                        </div>
+						
+						
+							
+                    </div>
+                    <div class="btn-section">
+                        <div class="col-md-12 col-sm-12 col-xs-12">
+                                <span class="pull-right">
+                                           
+                                             <button type="button" onclick="javascript:window.print();"
+                                                     class="btn btn-responsive button-alignment btn-primary"
+                                                     data-toggle="button">
+                                                <span style="color:#fff;">
+                                                    <i class="fa fa-fw fa-print"></i>
+                                                Print
+                                            </span>
+                                </button>
+								
+								<button type="button" onclick="javascript:window.close();"
+                                                     class="btn btn-responsive button-alignment btn-primary"
+                                                     data-toggle="button">
+                                                <span style="color:#fff;">
+                                                    <i class="fa fa-fw fa-times"></i>
+                                                Close 
+                                            </span>
+                                </button>
+                                </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- row -->
+        @include('layouts.right_sidebar')
+        <!-- right side bar end -->
+        </section>
+@stop
+
+{{-- page level scripts --}}
+@section('footer_scripts')
+    <!-- begining of page level js -->
+<script type="text/javascript" src="{{asset('assets/js/custom_js/invoice.js')}}"></script>
+    <!-- end of page level js -->
+@stop

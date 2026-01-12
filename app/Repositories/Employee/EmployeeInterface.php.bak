@@ -1,0 +1,9 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Employee;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface EmployeeInterface extends RepositoryInterface {
+	
+}

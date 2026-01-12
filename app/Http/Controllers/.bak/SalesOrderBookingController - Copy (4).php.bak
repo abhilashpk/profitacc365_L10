@@ -1,0 +1,1482 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Repositories\Area\AreaInterface;
+use App\Repositories\Itemmaster\ItemmasterInterface;
+use App\Repositories\Terms\TermsInterface;
+use App\Repositories\Jobmaster\JobmasterInterface;
+use App\Repositories\AccountMaster\AccountMasterInterface;
+use App\Repositories\Currency\CurrencyInterface;
+use App\Repositories\VoucherNo\VoucherNoInterface;
+use App\Repositories\SalesOrder\SalesOrderInterface;
+use App\Repositories\Salesman\SalesmanInterface;
+use App\Repositories\QuotationSales\QuotationSalesInterface;
+use App\Repositories\AccountSetting\AccountSettingInterface;
+use App\Repositories\Country\CountryInterface;
+use App\Repositories\Acgroup\AcgroupInterface;
+use App\Repositories\Forms\FormsInterface;
+use App\Repositories\Location\LocationInterface;
+use App\Repositories\GoodsIssued\GoodsIssuedInterface;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests;
+use Session;
+use Response;
+use Input;
+use Excel;
+use App;
+use DB;
+use Mail;
+use PDF;
+
+class SalesOrderBookingController extends Controller
+{
+
+	protected $itemmaster;
+	protected $terms;
+	protected $jobmaster;
+	protected $accountmaster;
+	protected $currency;
+	protected $voucherno;
+	protected $sales_order;
+	protected $salesman;
+	protected $quotation_sales;
+	protected $country;
+	protected $group;
+	protected $area;
+	protected $forms;
+	protected $formData;
+	protected $location;
+	protected $accountsetting;
+	protected $goods_issued;
+	
+	public function __construct(GoodsIssuedInterface $goods_issued,AccountSettingInterface $accountsetting,SalesOrderInterface $sales_order, AreaInterface $area, QuotationSalesInterface $quotation_sales, ItemmasterInterface $itemmaster, TermsInterface $terms, JobmasterInterface $jobmaster, AccountMasterInterface $accountmaster, CurrencyInterface $currency, VoucherNoInterface $voucherno, SalesmanInterface $salesman, CountryInterface $country,AcgroupInterface $group,FormsInterface $forms,LocationInterface $location) {
+		
+		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
+		
+		$this->middleware('auth');
+		$this->itemmaster = $itemmaster;
+		$this->terms = $terms;
+		$this->jobmaster = $jobmaster;
+		$this->accountmaster = $accountmaster;
+		$this->currency = $currency;
+		$this->voucherno = $voucherno;
+		$this->sales_order = $sales_order;
+		$this->salesman = $salesman;
+		$this->quotation_sales = $quotation_sales;
+		$this->country = $country;
+		$this->group = $group;
+		$this->area = $area;
+		$this->forms = $forms;
+		$this->formData = $this->forms->getFormData('SO');
+		$this->location = $location;
+		$this->accountsetting = $accountsetting;
+		$this->goods_issued = $goods_issued;
+	}
+	
+    public function index() {
+		
+		$data = array();
+		$quotations = [];//$this->sales_order->quotationSalesList();
+		$salesmans = $this->salesman->getSalesmanList();
+		//$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->select('id','code')->get();
+		$custs = [];//DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CUSTOMER')->select('id','master_name')->get();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		return view('body.salesorderbooking.index')
+					->withQuotations($quotations)
+					->withSalesman($salesmans)
+					->withJobs($jobs)
+					->withCusts($custs)
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	
+	public function ajaxPaging(Request $request)
+	{
+		if($this->acsettings->doc_approve==1) {
+		    $columns = array( 
+                            0 =>'sales_order.id', 
+                            1 =>'voucher_no',
+                            2=> 'customer',
+                            3=> 'voucher_date',
+                            4=> 'net_total',
+							5=> 'status'
+                        );
+		} else {
+		    $columns = array( 
+                            0 =>'sales_order.id', 
+                            1 =>'voucher_no',
+                            2=> 'customer',
+                            3=> 'voucher_date',
+                            4=> 'net_total',
+							5=> 'reference_no'
+                        );
+		}
+						
+		$totalData = $this->sales_order->salesOrderListCount();
+            
+        $totalFiltered = $totalData; 
+
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'sales_order.id';
+        $dir = 'desc';
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+        
+		$invoices = $this->sales_order->salesOrderList('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->sales_order->salesOrderList('count', $start, $limit, $order, $dir, $search);
+		
+		$prints = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','SO')
+							->select('report_view_detail.name','report_view_detail.id')
+							->get();
+							
+        $data = array();
+        if(!empty($invoices))
+        {
+           
+			foreach ($invoices as $row)
+            {
+                $edit =  '"'.url('sales_order_booking/edit/'.$row->id).'"';
+                $transfer =  '"'.url('sales_order_booking/transfer/'.$row->id).'"';
+                $delete =  'funDelete("'.$row->id.'","'.$row->is_editable.'")';
+				$print = url('sales_order_booking/print/'.$row->id);
+				
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['customer'] = ($row->customer=='CASH CUSTOMERS') ? (($row->customer_name!='')?$row->customer.'('.$row->customer_name.')':$row->customer) : $row->customer;
+				$nestedData['net_total'] = $row->net_total;
+				$nestedData['reference_no'] = $row->reference_no;
+                $nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
+												<span class='glyphicon glyphicon-pencil'></span></button></p>";
+												
+				$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+												<span class='glyphicon glyphicon-trash'></span>";
+				
+				$nestedData['siview'] = ($row->is_transfer==0)?"<p><button class='btn btn-primary btn-xs' target='_blank' onClick='location.href={$transfer}'>
+												Transfer</button></p>":"";
+												
+				$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+				
+				$opts = '';					
+				foreach($prints as $doc) {
+					$opts .= "<li role='presentation'><a href='{$print}/".$doc->id."' target='_blank' role='menuitem'>".$doc->name."</a></li>";
+				}
+				
+				if(in_array($row->doc_status, $apr))	 {
+					if($row->is_fc==1) {								
+						$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a>
+												<a href='{$print}/FC' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a></p>";
+					} else {
+						//$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";
+						$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>";
+					}
+				} else {
+					$nestedData['print'] = "";
+				}	
+				
+				$data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	public function listing() {
+		
+		$serItem = DB::table('itemmaster')->where('class_id',2)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','description')->get();
+		return view('body.salesorderbooking.list')
+					->withServitem($serItem)
+					->withSettings($this->acsettings);
+	}
+	
+	public function ajaxPagingList(Request $request)
+	{
+		$columns = array( 
+						0 =>'sales_order.id', 
+						1 =>'voucher_no',
+						2=> 'customer',
+						3=> 'voucher_date',
+						4=> 'duedate'
+					);
+		
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'sales_order.id';
+        $dir = 'desc';
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+		
+        $totalData =  $this->sales_order->salesOrderPendingList('count', $start, $limit, $order, $dir, $search);
+		$totalFiltered = $totalData; 
+		$invoices = $this->sales_order->salesOrderPendingList('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->sales_order->salesOrderPendingList('count', $start, $limit, $order, $dir, $search);
+							
+        $data = array();
+        if(!empty($invoices))
+        {
+			foreach ($invoices as $row)
+            {
+                $view =  url('sales_order_booking/view/'.$row->id);
+				
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['customer'] = ($row->customer=='CASH CUSTOMERS') ? (($row->customer_name!='')?$row->customer.'('.$row->customer_name.')':$row->customer) : $row->customer;
+				$nestedData['due_date'] = ($row->next_due!='0000-00-00')?date('d-m-Y', strtotime($row->next_due)):'';
+				$nestedData['view'] = "<p><a href='{$view}' target='_blank' class='btn btn-primary btn-xs'><i class='fa fa-fw fa-eye'></i></a></p>";
+			
+				$data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	public function ajaxPagingListCom(Request $request)
+	{
+		$columns = array( 
+						0 =>'sales_order.id', 
+						1 =>'voucher_no',
+						2=> 'customer',
+						3=> 'voucher_date',
+						4=> 'delivery',
+						5=> 'duedate'
+					);
+		
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'sales_order.id';
+        $dir = 'desc';
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+		
+        $totalData =  $this->sales_order->salesOrderPendingListCom('count', $start, $limit, $order, $dir, $search);
+		$totalFiltered = $totalData; 
+		$invoices = $this->sales_order->salesOrderPendingListCom('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->sales_order->salesOrderPendingListCom('count', $start, $limit, $order, $dir, $search);
+							
+        $data = array();
+        if(!empty($invoices))
+        {
+			foreach ($invoices as $row)
+            {
+                $view =  url('sales_order_booking/view/'.$row->id);
+				
+				if($row->kilometer==0) {
+					$delivery = 'No';
+				} else if($row->kilometer==1) {
+					$delivery = 'Delivery Only';
+					$delivery .= ($row->less_description!='')?'<br/>Location: '.$row->less_description:'';
+				} else if($row->kilometer==2) { 
+					$delivery = 'Delivery with Installation';
+					$delivery .= ($row->less_description!='')?'<br/>Location: '.$row->less_description:'';
+					$delivery .= ($row->less_description2!='')?'<br/>'.$row->less_description2:'';
+				}
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['customer'] = ($row->customer=='CASH CUSTOMERS') ? (($row->customer_name!='')?$row->customer.'('.$row->customer_name.')':$row->customer) : $row->customer;
+				$nestedData['due_date'] = ($row->next_due!='0000-00-00')?date('d-m-Y', strtotime($row->next_due)):'';
+				$nestedData['view'] = "<p><a href='{$view}' target='_blank' class='btn btn-primary btn-xs'><i class='fa fa-fw fa-eye'></i></a></p>";
+				$nestedData['delivery'] = $delivery;
+				$data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	public function add($id = null) {
+
+		$data = array(); //echo '<pre>';print_r($this->formData);exit;
+		
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$res = $this->voucherno->getVoucherNo('SO'); //echo '<pre>';print_r($res);exit;
+		//$vno = $res->no;
+		$row = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+		$location = $this->location->locationList();
+		if($row && in_array($row->doc_status, $apr))
+			$lastid = $row->id;
+		else
+			$lastid = null;
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','SO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+							
+		if($id) {
+			$ids = explode(',', $id);
+			$quoteRow = $this->quotation_sales->findQuoteData($ids[0]);
+			$quoteItems = $this->quotation_sales->getQSItems($ids);//echo '<pre>';print_r($quoteRow);exit;
+			
+			$total = 0; $vat_amount = 0; $nettotal = 0;
+			foreach($quoteItems as $item) {
+				if($item->balance_quantity==0)
+					$quantity = $item->quantity;
+				else
+					$quantity = $item->balance_quantity;
+				
+				$total 		+= ($quantity * $item->unit_price) - $item->discount;
+				$vat_amount += ($total * $item->vat) / 100;
+			}
+			$nettotal = $total + $vat_amount;
+			return view('body.salesorderbooking.addquote')
+						->withItems($itemmaster)
+						->withTerms($terms)
+						->withJobs($jobs)
+						->withCurrency($currency)
+						->withQuoterow($quoteRow)
+						->withVoucherno($res)
+						->withQuoteitems($quoteItems)
+						->withQuoteid($id)
+						->withTotal($total)
+						->withVatamount($vat_amount)
+						->withNettotal($nettotal)
+						//->withVoucherno(Session::get('voucher_no'))
+						->withReferenceno(Session::get('reference_no'))
+						->withVoucherdt(Session::get('voucher_date'))
+						->withLpodt(Session::get('lpo_date'))
+						->withVatdata($this->vatdata)
+						->withSettings($this->acsettings)
+						->withFormdata($this->formData)
+						->withLocation($location)
+						->withData($data);
+		}
+		
+		$crmtem = DB::table('crm_template')->where('doc_type','SOB')->where('deleted_at',null)->get();//echo '<pre>';print_r($crmtem);exit;
+					
+		return view('body.salesorderbooking.add')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withVoucherno($res)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withPrintid($lastid)
+					->withFormdata($this->formData)
+					->withPrint($print)
+					->withLocation($location)
+					->withCrm($crmtem)
+					->withData($data);
+	}
+	
+	public function save(Request $request) { //echo '<pre>';print_r(Input::all());exit;
+	
+		if( $this->validate(
+			$request, 
+			[//'voucher_no' => 'required|unique:sales_order',
+			 'customer_name' => 'required','customer_id' => 'required',
+			 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required'
+			],
+			[//'voucher_no' => 'Voucher no should be unique.',
+			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
+			 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.'
+			]
+		)) {
+
+			//echo '<pre>';print_r($request->flash());exit;
+			//return redirect('sales_order/add')->withInput()->withErrors();
+		}
+		
+		if($this->sales_order->create(Input::all()))
+			Session::flash('message', 'Sales Order booking added successfully.');
+		else
+			Session::flash('error', 'Something went wrong, Order failed to add!');
+		
+		return redirect('sales_order_booking/add');
+	}
+	
+	public function destroy($id)
+	{
+		$this->sales_order->delete($id);
+		//check accountmaster name is already in use.........
+		// code here ********************************
+		Session::flash('message', 'Sales Order deleted successfully.');
+		return redirect('sales_order_booking');
+	}
+	
+	public function checkRefNo() {
+
+		$check = $this->sales_order->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	
+	public function edit($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->sales_order->findPOdata($id);
+		$orditems = $this->sales_order->getItems($id);
+		$location = $this->location->locationList();
+		
+		$crmtem = DB::table('crm_template')
+					->leftJoin('crm_info', function($join) use($id){
+							$join->on('crm_info.temp_id','=','crm_template.id');
+							$join->where('crm_info.doc_id','=',$id);
+					})
+					->where('crm_template.doc_type','SOB')
+					->where('crm_template.deleted_at',null)->get();
+		//echo '<pre>';print_r($crmtem);exit;
+		
+		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+		if(in_array($orderrow->doc_status, $apr))
+			$isprint = true;
+		else
+			$isprint = null;
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','SO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+		
+		$photos = DB::table('job_photos')->where('job_order_id',$id)->get(); 
+		/* $val = '';
+		foreach($photos as $row) {
+			$val .= ($val=='')?$row->photo:','.$row->photo;
+		} */
+		
+		return view('body.salesorderbooking.edit') //editsp  edit
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withFormdata($this->formData)
+					->withIsprint($isprint)
+					->withPrint($print)
+					->withLocation($location)
+					->withPhotos($photos)
+					->withCrm($crmtem)
+					->withData($data);
+
+	}
+	
+	public function update(Request $request)
+	{
+		$id = $request->input('sales_order_id');
+		if( $this->validate(
+			$request, 
+			[//'reference_no' => 'required',
+			 'customer_name' => 'required','customer_id' => 'required',
+			 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required'
+			],
+			[//'reference_no.required' => 'Reference no. is required.',
+			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
+			 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.'
+			]
+		)) {
+		
+			return redirect('sales_order_booking/edit/'.$id)->withInput()->withErrors();
+		}
+		
+		$this->sales_order->update($id, Input::all());
+		
+		########## email script #############
+		if($this->acsettings->doc_approve==1 && Input::get('doc_status')==1 && Input::get('chkmail')==1) {
+					
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = '';
+			$result = $this->sales_order->getOrder($attributes);
+			$titles = ['main_head' => 'Sales Order','subhead' => 'Sales Order'];
+			$data = array('details'=> $result['details'], 'titles' => $titles, 'fc' => $attributes['is_fc'], 'items' => $result['items']);
+			$pdf = PDF::loadView('body.salesorder.pdfprint', $data);
+			
+			$mailmessage = Input::get('email_message');
+			$emails = explode(',', Input::get('email'));
+			
+			if($emails[0]!='') {
+				$data = array('name'=> Input::get('customer_name'), 'mailmessage' => $mailmessage );
+				try{
+					Mail::send('body.salesorder.email', $data, function($message) use ($emails,$pdf) {
+						$message->to($emails[0]);
+						
+						if(count($emails) > 1) {
+							foreach($emails as $k => $row) {
+								if($k!=0)
+									$cc[] = $row;
+							}
+							$message->cc($cc);
+						}
+						
+						$message->subject('Sales Order');
+						$message->attachData($pdf->output(), "sales_order.pdf");
+					});
+					
+				}catch(JWTException $exception){
+					$this->serverstatuscode = "0";
+					$this->serverstatusdes = $exception->getMessage();
+					
+				}
+			}
+		}
+		
+		Session::flash('message', 'Sales order booking updated successfully');
+		return redirect('sales_order_booking');
+	}
+	
+	public function Transfer($id) {
+		
+		//CHECK INVOICE ALEADY PROCESSED OR NOT...
+		$sirow = DB::table('sales_invoice')->where('document_type','SO')->where('document_id',$id)->select('id')->first();
+		if($sirow) {
+			return redirect('sales_invoice/edit/'.$sirow->id.'/SO/'.$id);
+		} else {
+			$so = DB::table('sales_order')->where('id',$id)->select('customer_id')->first();
+			$vchr = DB::table('account_setting')
+								->join('account_master','account_master.id','=','account_setting.cr_account_master_id')
+								->where('account_setting.voucher_type_id',3)
+								->where('account_setting.is_cash_voucher',0)->where('account_setting.status',1)->where('account_setting.deleted_at','0000-00-00 00:00:00')
+								->select('account_setting.id','account_setting.voucher_no','account_setting.cr_account_master_id','account_master.master_name')->first();
+								
+			Session::put('voucher_id',$vchr->id);
+			Session::put('voucher_no',$vchr->voucher_no);
+			Session::put('acnt_master',$so->customer_id);
+			Session::put('sales_acnt',$vchr->master_name);
+			
+			return redirect('sales_invoice/add/'.$id.'/SO');
+		}
+	}
+	
+	public function view($id) { 
+
+		$data = array();
+		$orderrow = $this->sales_order->findPOdata($id);
+		$orditems = $this->sales_order->getItems($id);
+		$subitems = [];
+		$locations = DB::table('location')->where('is_default',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+		//echo '<pre>';print_r($orditems);exit;
+		foreach($orditems as $ik => $orow) {
+
+			$template[$ik] = DB::table('item_template')->where('item_template.item_id', $orow->item_id)
+							->where('item_template.deleted_at',null)
+							->leftJoin('units','units.id','=','item_template.unit_id')
+							->select('item_template.*','units.unit_name')
+							->orderBy('item_template.order_no','ASC')->get();
+			$row = DB::table('so_joborder')->where('id', $orow->pay_pcntg_desc)->first();
+			$jdata = json_decode($row->job_value); 
+			$jobdata[$ik] = $jdata->jobvals;
+			$jobqty[$ik] = $row->updated_qty;
+			$jobqtysub[$ik] = $row->updated_subqty;
+			
+			foreach($jdata->jobvals as $k => $trow) {
+				if($trow->input_type=="item") {
+					$items[$ik][$k] = DB::table('itemmaster')->where('id',$trow->input_value)->select('id','description AS text')->first();
+					
+					if(isset($trow->dmond)) {
+						foreach($trow->dmond as $j => $dm) {
+							$subitems[$ik][$k][$j] = DB::table('itemmaster')->where('id',$dm->dm_tem)->select('id','description AS text')->first();
+						}
+					}
+					
+					$giitem[$ik] = DB::table('sales_order_gi')
+								->join('goods_issued_item','goods_issued_item.goods_issued_id','=','sales_order_gi.gi_id')
+								->where('sales_order_gi.row_id',$orow->id)
+								->where('goods_issued_item.item_id',$trow->input_value)
+								->where('goods_issued_item.status',1)
+								->where('goods_issued_item.deleted_at','0000-00-00 00:00:00')
+								->select('goods_issued_item.quantity','goods_issued_item.id')
+								->select('goods_issued_item.quantity')
+								->first();
+				}
+			}
+			
+			
+		}
+		
+		$photos = DB::table('job_photos')->where('job_order_id',$id)->get(); 
+		//$ar=unserialize($jobqtysub);
+	//echo '<pre>';print_r($ar);exit;//print_r($jobdata);print_r($items);exit;
+		return view('body.salesorderbooking.view') 
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withTemplate($template)
+					->withJobdata($jobdata)
+					->withItems($items)
+					->withGitems($giitem)
+					->withPhotos($photos)
+					->withJobqty($jobqty)
+					->withJobqtysub($jobqtysub)
+					->withSubitems($subitems)
+					->withLocations($locations)
+					->withData($data);
+					
+
+	}
+	
+	
+	public function submit(Request $request) {
+		//echo '<pre>';print_r($request->all());exit;
+		
+		$input = $request->all(); 
+		DB::beginTransaction();
+		try {
+		
+				if($request->get('status')==1) {
+					$edit = false;
+					$total = $net_amount = 0;
+					
+					//UPDATE QTY IN JOB VALS..
+					DB::table('so_joborder')->where('id', $request->get('jobval_id'))
+								->update(['updated_qty' => isset($input['quantity'])?serialize($input['quantity']):'',
+										  'updated_subqty' => (isset($input['subquantity']))?serialize($input['subquantity']):'']);
+					
+					//GET GI WITH SAME DATE DETAILS...
+					$sorow = DB::table('sales_order_gi')
+									->join('goods_issued','goods_issued.id','=','sales_order_gi.gi_id')
+									->where('sales_order_gi.so_id',$request->get('id'))
+									->where('goods_issued.voucher_date',date('Y-m-d'))
+									->select('sales_order_gi.gi_id','goods_issued.*')
+									->first(); //echo '<pre>';print_r($sorow);exit;
+									
+					if($sorow) {
+						//GET EACH ITEM ROW ID ASSOCIATED WITH GI
+						$girow = DB::table('sales_order_gi')
+								->join('goods_issued','goods_issued.id','=','sales_order_gi.gi_id')
+								->where('sales_order_gi.row_id',$request->get('irow'))
+								->select('sales_order_gi.gi_id','goods_issued.*')
+								->first();
+								
+						if($girow) {  //GOES TO UPDATE CURRENT ROW ID WITH GI
+							$edit = true;
+							Input::merge(['goods_issued_id' => $girow->id]);
+							Input::merge(['curno' => $girow->voucher_no]);
+							Input::merge(['voucher_id' => $girow->voucher_id]);
+							Input::merge(['voucher_no' => $girow->voucher_no]);
+							Input::merge(['voucher_date' => $girow->voucher_date]);
+							Input::merge(['job_id' => $girow->job_id]);
+							Input::merge(['account_master_id' => $girow->account_master_id]);
+							Input::merge(['job_account_id' => $girow->job_account_id]);
+							Input::merge(['job_account_id_old' => $girow->job_account_id]);
+							Input::merge(['remove_item' => '']);
+							$gi_id = $girow->gi_id;
+							
+							$gitms = DB::table('goods_issued_item')->where('goods_issued_id',$girow->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('*')->get();
+							foreach($gitms as $itm) {
+								$orditmid[] = $itm->id;
+								$items[] = $itm->item_id;
+								$itemscode[] = $itm->item_name;
+								$itemsname[] = $itm->item_name;
+								$itemsqty[] = ($input['item_id'][0]==$itm->item_id)?$input['quantity'][0]:$itm->quantity;
+								$unitid[] = $itm->unit_id;
+								$itemscost[] = $itm->unit_price;
+								$actcost[] = $itm->unit_price;
+								$itmt[] = $itm->total_price;
+								$lnt[] = $itm->total_price;
+								$txcod[] = $tinc[] = $hdu[] = $pkng[] = $vat[] = $vtln[] = $vtamt[] = $vtds[] = $itemsloc[] = 0;
+								$total += $itm->total_price;
+								$net_amount += $itm->total_price;
+							}
+						} else {
+							//ADD NEW ITEMS INTO SAME DATE OF GI
+							$edit = true;
+							Input::merge(['goods_issued_id' => $sorow->id]);
+							Input::merge(['curno' => $sorow->voucher_no]);
+							Input::merge(['voucher_id' => $sorow->voucher_id]);
+							Input::merge(['voucher_no' => $sorow->voucher_no]);
+							Input::merge(['voucher_date' => $sorow->voucher_date]);
+							Input::merge(['job_id' => $sorow->job_id]);
+							Input::merge(['account_master_id' => $sorow->account_master_id]);
+							Input::merge(['job_account_id' => $sorow->job_account_id]);
+							Input::merge(['job_account_id_old' => $sorow->job_account_id]);
+							Input::merge(['remove_item' => '']);
+							
+							$gitms = DB::table('goods_issued_item')->where('goods_issued_id',$sorow->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('*')->get();
+							foreach($gitms as $itm) { //FETCH EXISTING GI ITEMS AND BINDING
+								$orditmid[] = $itm->id;
+								$items[] = $itm->item_id;
+								$itemscode[] = $itm->item_name;
+								$itemsname[] = $itm->item_name;
+								$itemsqty[] = $itm->quantity;
+								$unitid[] = $itm->unit_id;
+								$itemscost[] = $itm->unit_price;
+								$actcost[] = $itm->unit_price;
+								$itmt[] = $itm->total_price;
+								$lnt[] = $itm->total_price;
+								$txcod[] = $tinc[] = $hdu[] = $pkng[] = $vat[] = $vtln[] = $vtamt[] = $vtds[] = $itemsloc[] = 0;
+								$total += $itm->total_price;
+								$net_amount += $itm->total_price;
+							}
+							
+							foreach($input['item_id'] as $ik => $val) {
+								$items[] = $val;
+								$irow = DB::table('item_unit')->where('itemmaster_id',$val)->select('unit_id','opn_cost','cost_avg')->first();
+								$itemscode[] = $input['item_name'][$ik];
+								$itemsname[] = $input['item_name'][$ik];
+								$itemsqty[] = $input['quantity'][$ik];
+								$unitid[] = $irow->unit_id;
+								$txcod[] = $tinc[] = $hdu[] = $pkng[] = $vat[] = $vtln[] = $vtamt[] = $vtds[] = $itemsloc[] = 0;
+								$itemscost[] = $irow->cost_avg;
+								$actcost[] = $irow->cost_avg;
+								$itmt[] = $input['quantity'][$ik] * $irow->cost_avg;
+								$lnt[] = $input['quantity'][$ik] * $irow->cost_avg;
+								$total += $input['quantity'][$ik] * $irow->cost_avg;
+								$net_amount += $input['quantity'][$ik] * $irow->cost_avg;
+								$orditmid[] = '';
+								
+								//DMOUND ITEMS.....
+								if(isset($input['subitem_id'][$ik])) {
+									foreach($input['subitem_id'][$ik] as $sik => $sval) {
+										$items[] = $sval;
+										$irow = DB::table('item_unit')->where('itemmaster_id',$sval)->select('unit_id','opn_cost','cost_avg')->first();
+										$itemscode[] = $input['subitem_name'][$ik][$sik];
+										$itemsname[] = $input['subitem_name'][$ik][$sik];
+										$itemsqty[] = $input['subquantity'][$ik][$sik];
+										$unitid[] = $irow->unit_id;
+										$txcod[] = $tinc[] = $hdu[] = $pkng[] = $vat[] = $vtln[] = $vtamt[] = $vtds[] = $itemsloc[] = 0;
+										$itemscost[] = $irow->cost_avg;
+										$actcost[] = $irow->cost_avg;
+										$itmt[] = $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+										$lnt[] = $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+										$total += $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+										$net_amount += $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+										$orditmid[] = '';
+									}
+								}
+							}
+							
+							$gi_id = $sorow->gi_id;
+						}		
+								
+						
+					} else { //NOT IN SAME DATE GI
+						
+						$girow = DB::table('sales_order_gi')
+								->join('goods_issued','goods_issued.id','=','sales_order_gi.gi_id')
+								->where('sales_order_gi.row_id',$request->get('irow'))
+								->select('sales_order_gi.gi_id','goods_issued.*')
+								->first();
+								
+						if($girow) { //ITEM ROW ID IS HERE AND UPDATE WITH NEWLY ENTERED VALUES
+							$edit = true;
+							Input::merge(['goods_issued_id' => $girow->id]);
+							Input::merge(['curno' => $girow->voucher_no]);
+							Input::merge(['voucher_id' => $girow->voucher_id]);
+							Input::merge(['voucher_no' => $girow->voucher_no]);
+							Input::merge(['voucher_date' => $girow->voucher_date]);
+							Input::merge(['job_id' => $girow->job_id]);
+							Input::merge(['account_master_id' => $girow->account_master_id]);
+							Input::merge(['job_account_id' => $girow->job_account_id]);
+							Input::merge(['job_account_id_old' => $girow->job_account_id]);
+							Input::merge(['remove_item' => '']);
+							$gi_id = $girow->gi_id;
+							
+							foreach($input['item_id'] as $ik => $val) {
+								$items[] = $val;
+								$irow = DB::table('item_unit')->where('itemmaster_id',$val)->select('unit_id','opn_cost','cost_avg')->first();
+								$itemscode[] = $input['item_name'][$ik];
+								$itemsname[] = $input['item_name'][$ik];
+								$itemsqty[] = $input['quantity'][$ik];
+								$unitid[] = $irow->unit_id;
+								$txcod[] = $tinc[] = $hdu[] = $pkng[] = $vat[] = $vtln[] = $vtamt[] = $vtds[] = $itemsloc[] = 0;
+								$itemscost[] = $irow->cost_avg;
+								$actcost[] = $irow->cost_avg;
+								$itmt[] = $input['quantity'][$ik] * $irow->cost_avg;
+								$lnt[] = $input['quantity'][$ik] * $irow->cost_avg;
+								$total += $input['quantity'][$ik] * $irow->cost_avg;
+								$net_amount += $input['quantity'][$ik] * $irow->cost_avg;
+								$orditmid[] = '';
+								
+								//DMOUND ITEMS.....
+								if(isset($input['subitem_id'][$ik])) {
+									foreach($input['subitem_id'][$ik] as $sik => $sval) {
+										$items[] = $sval;
+										$irow = DB::table('item_unit')->where('itemmaster_id',$sval)->select('unit_id','opn_cost','cost_avg')->first();
+										$itemscode[] = $input['subitem_name'][$ik][$sik];
+										$itemsname[] = $input['subitem_name'][$ik][$sik];
+										$itemsqty[] = $input['subquantity'][$ik][$sik];
+										$unitid[] = $irow->unit_id;
+										$txcod[] = $tinc[] = $hdu[] = $pkng[] = $vat[] = $vtln[] = $vtamt[] = $vtds[] = $itemsloc[] = 0;
+										$itemscost[] = $irow->cost_avg;
+										$actcost[] = $irow->cost_avg;
+										$itmt[] = $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+										$lnt[] = $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+										$total += $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+										$net_amount += $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+										$orditmid[] = '';
+									}
+								}
+							}
+							
+						} else
+							$edit = false;
+					
+					}
+					
+					if($edit==false) {
+						//GOODS ISSUED NOTE BOOKING
+						$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=13,false,'');
+						//echo '<pre>';print_r($vouchers);exit;
+						Input::merge(['curno' => $vouchers[0]->voucher_no]);
+						Input::merge(['voucher_id' => $vouchers[0]->id]);
+						Input::merge(['voucher_no' => $vouchers[0]->voucher_no]);
+						Input::merge(['voucher_date' => date('Y-m-d')]);
+						Input::merge(['voucher_type' => 'GI']);
+						Input::merge(['autoincrement' => 1]);
+						Input::merge(['job_id' => $request->get('jobid')]);
+						Input::merge(['stock_account' => $vouchers[0]->master_name]);
+						Input::merge(['account_master_id' => $vouchers[0]->cr_account_master_id]);
+						Input::merge(['job_account' => $vouchers[0]->dr_master_name]);
+						Input::merge(['job_account_id' => $vouchers[0]->dr_account_master_id]);
+						
+						foreach($input['item_id'] as $ik => $val) {
+							$items[] = $val;
+							$irow = DB::table('item_unit')->where('itemmaster_id',$val)->select('unit_id','opn_cost','cost_avg')->first();
+							$itemscode[] = $input['item_name'][$ik];
+							$itemsname[] = $input['item_name'][$ik];
+							$itemsqty[] = $input['quantity'][$ik];
+							$unitid[] = $irow->unit_id;
+							$txcod[] = $tinc[] = $hdu[] = $pkng[] = $vat[] = $vtln[] = $vtamt[] = $vtds[] = $itemsloc[] = 0;
+							$itemscost[] = $irow->cost_avg;
+							$actcost[] = $irow->cost_avg;
+							$itmt[] = $input['quantity'][$ik] * $irow->cost_avg;
+							$lnt[] = $input['quantity'][$ik] * $irow->cost_avg;
+							$total += $input['quantity'][$ik] * $irow->cost_avg;
+							$net_amount += $input['quantity'][$ik] * $irow->cost_avg;
+							$orditmid[] = '';
+							
+							//DMOUND ITEMS.....
+							if(isset($input['subitem_id'][$ik])) {
+								foreach($input['subitem_id'][$ik] as $sik => $sval) {
+									$items[] = $sval;
+									$irow = DB::table('item_unit')->where('itemmaster_id',$sval)->select('unit_id','opn_cost','cost_avg')->first();
+									$itemscode[] = $input['subitem_name'][$ik][$sik];
+									$itemsname[] = $input['subitem_name'][$ik][$sik];
+									$itemsqty[] = $input['subquantity'][$ik][$sik];
+									$unitid[] = $irow->unit_id;
+									$txcod[] = $tinc[] = $hdu[] = $pkng[] = $vat[] = $vtln[] = $vtamt[] = $vtds[] = $itemsloc[] = 0;
+									$itemscost[] = $irow->cost_avg;
+									$actcost[] = $irow->cost_avg;
+									$itmt[] = $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+									$lnt[] = $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+									$total += $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+									$net_amount += $input['subquantity'][$ik][$sik] * $irow->cost_avg;
+									$orditmid[] = '';
+								}
+							}
+						}
+					} 
+					
+					Input::merge(['description' => '']);
+					Input::merge(['num' => '']);
+					Input::merge(['posts_length' => '']);
+					Input::merge(['prefix' => '']);
+					Input::merge(['jobname' => '']);
+					
+					//echo '<pre>';print_r($input);exit;  
+					
+					
+					Input::merge(['order_item_id' => $orditmid]);
+					Input::merge(['item_id' => $items]);
+					Input::merge(['item_code' => $itemscode]);
+					Input::merge(['item_name' => $itemsname]);
+					Input::merge(['unit_id' => $unitid]);
+					Input::merge(['quantity' => $itemsqty]);
+					Input::merge(['cost' => $itemscost]);
+					Input::merge(['actcost' => $actcost]);
+					Input::merge(['tax_code' => $txcod]);
+					Input::merge(['tax_include' => $tinc]);
+					Input::merge(['hidunit' => $hdu]);
+					Input::merge(['packing' => $pkng]);
+					Input::merge(['vatdiv' => $vat]);
+					Input::merge(['line_vat' => $vtln]);
+					Input::merge(['vatline_amt' => $vtamt]);
+					Input::merge(['line_discount' => $vtds]);
+					Input::merge(['item_total' => $itmt]);
+					Input::merge(['line_total' => $lnt]);
+					Input::merge(['conloc_id' => $itemsloc]);
+					Input::merge(['conloc_qty' => $itemsqty]);
+					
+					Input::merge(['total' => $total]);
+					Input::merge(['total_fc' => 0]);
+					Input::merge(['discount' => 0]);
+					Input::merge(['discount_fc' => 0]);
+					Input::merge(['net_amount' => $net_amount]);
+					Input::merge(['net_amount_fc' => '']);
+					//echo  $edit;exit;
+					//echo '<pre>';print_r(Input::all());exit;  so_joborder
+					if($edit==true) {
+						$this->goods_issued->update($gi_id, Input::all());
+						$sog = DB::table('sales_order_gi')->where('row_id',$input['irow'])->first();
+						if(!$sog) {
+							DB::table('sales_order_gi')
+									->insert([
+										'row_id' => $input['irow'],
+										'gi_id'  => $gi_id,
+										'so_id'	 => $input['id']
+									]);
+						}
+					} else {
+						$id = $this->goods_issued->create(Input::all());
+					
+						DB::table('sales_order_gi')
+								->insert([
+									'row_id' => $input['irow'],
+									'gi_id'  => $id,
+									'so_id'	 => $input['id']
+								]);
+					}
+					
+					DB::table('sales_order_item')->where('id',$input['irow'])->update(['discount' => $request->get('status'),'tax_code' => isset($input['location'])?$input['location']:'' ]);
+					
+					$row1 = DB::table('sales_order_item')->where('sales_order_id', $request->get('id'))->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+					$row2 = DB::table('sales_order_item')->where('sales_order_id', $request->get('id'))->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('discount',1)->count();
+					if($row1==$row2) {
+						DB::table('sales_order')->where('id',$request->get('id'))->update(['is_warning' => 1]);
+					}
+					
+				} else {
+					
+					DB::table('sales_order_item')->where('id',$request->get('irow'))->update(['discount' => 0]);
+					DB::table('sales_order')->where('id',$request->get('id'))->update(['is_warning' => 0]);
+					$girow = DB::table('sales_order_gi')->where('row_id',$request->get('irow'))->select('gi_id')->first();
+					if($girow) {
+						$dbrow = DB::table('goods_issued_item')->where('goods_issued_id',$girow->gi_id)->where('item_id',$input['item_id'][0])->select('id')->first();
+						$attr['remove_item'] = $dbrow->id;
+						$attr['goods_issued_id'] = $girow->gi_id;
+						$this->goods_issued->removeItems($attr);
+						
+						$cnt = DB::table('goods_issued_item')->where('goods_issued_id',$girow->gi_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+						if($cnt==0)
+							$this->goods_issued->delete($girow->gi_id);
+						
+						DB::table('sales_order_gi')->where('row_id',$request->get('irow'))->delete();
+					}
+					
+					
+				}
+				
+			DB::commit();
+			Session::flash('message', 'Sales order updated successfully');
+			return redirect('sales_order_booking/view/'.$request->get('id'));
+				
+		} catch(\Exception $e) {
+		
+			DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
+			Session::flash('error', 'Settlement faied.');
+			return redirect('sales_order_booking/view/'.$request->get('id'));
+		}
+	}
+	
+	public function ajax_getcode($category)
+	{
+		$group = $this->group->getGroupCode($category);
+		$row = $this->accountmaster->getGroupCode($category);
+		if($row)
+			$no = intval(preg_replace('/[^0-9]+/', '', $row->account_id), 10);
+		else 
+			$no = 0;
+		
+		$no++;
+		
+		return json_encode(array(
+							'code' => strtoupper($group->code).''.$no,
+							'category' => $group->category
+							));
+		//return $code = strtoupper($group->code).''.$no;
+		//return $group->account_id;
+
+	}
+	
+	public function show($id) { 
+
+		$data = array();
+		$acmasterrow = $this->accountmaster->accountMasterView($id);
+		//echo '<pre>';print_r($acmasterrow);exit;
+		return view('body.accountmaster.view')
+					->withMasterrow($acmasterrow)
+					->withData($data);
+	}
+	
+	public function getCustomer($deptid=null)
+	{
+		$data = array();
+		$customers = $this->accountmaster->getCustomerList($deptid);//
+		//print_r($customers);exit;
+		$country = $this->country->activeCountryList();
+		$area = $this->area->activeAreaList();
+		$cus_code = json_decode($this->ajax_getcode($category='CUSTOMER'));
+		return view('body.salesorderbooking.customer')//customer
+					->withCustomers($customers)
+					->withArea($area)
+					->withCusid($cus_code->code)
+					->withCategory($cus_code->category)
+					->withCountry($country)
+					->withDeptid($deptid)
+					->withData($data);
+	}
+	
+	public function getSalesman()
+	{
+		$data = array();
+		$salesmans = $this->salesman->getSalesmanList();
+		return view('body.salesorderbooking.salesman')
+					->withSalesmans($salesmans)
+					->withData($data);
+	}
+	
+	public function getItem($num)
+	{
+		$data = array();
+		$itemmaster = $this->itemmaster->getActiveItemmasterList();
+		return view('body.salesorderbooking.item')
+					->withItems($itemmaster)
+					->withNum($num)
+					->withData($data);
+	}
+	
+	public function getOrder($customer_id, $url)
+	{
+		$data = array();
+		$orders = $this->sales_order->getCustomerOrder($customer_id);
+		return view('body.salesorder.order')
+					->withOrders($orders)
+					->withUrl($url)
+					->withData($data);
+	}
+	
+	public function getPrint($id,$rid=null)
+	{
+		//$viewfile = DB::table('report_view')->where('code', 'SO')->where('status',1)->select('view_name')->first();
+		$viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first();
+		if($viewfile->print_name=='') {
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = ($fc)?1:'';
+			$result = $this->sales_order->getOrder($attributes);
+			$titles = ['main_head' => 'Sales Order','subhead' => 'Sales Order'];
+			return view('body.salesorder.print') //printsp print
+						->withDetails($result['details'])
+						->withTitles($titles)
+						->withFc($attributes['is_fc'])
+						->withItems($result['items']);
+		} else {
+			$path = app_path() . '/stimulsoft/helper.php';
+			return view('body.salesorder.viewer')->withPath($path)->withView($viewfile->print_name);
+		}
+		
+	}
+	
+	public function setSessionVal()
+	{
+		Session::put('voucher_no', Input::get('vchr_no'));
+		Session::put('reference_no', Input::get('ref_no'));
+		Session::put('voucher_date', Input::get('vchr_dt'));
+		Session::put('lpo_date', Input::get('lpo_dt'));
+	}
+	
+	protected function makeTree($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		return $childs;
+	}
+
+	protected function makeArrGroup($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		$arr = array();
+		foreach($childs as $child) {
+			$pending_qty = $pending_amt = $vat_amount = $net_amount = $discount = 0;
+			foreach($child as $row) {
+			    $pending_qty = ($row->balance_quantity==0)?$row->quantity:$row->balance_quantity;
+			    $pending_amt += $pending_qty * $row->unit_price;
+				$vat = $row->unit_vat / $row->quantity;
+				$vat_amount += $vat * $pending_qty;
+				$net_amount = $vat_amount + $pending_amt;
+				$voucher_no = $row->voucher_no;
+				$refno = $row->reference_no;
+				$suppname = $row->master_name;
+				$salesman = $row->salesman;
+				$discount = $row->discount;
+				$jobcode = $row->jobcode;
+			}
+			$arr[] = ['voucher_no' => $voucher_no,'reference_no' => $refno, 'master_name' => $suppname, 'discount' => $discount, 
+					  'total' => $pending_amt,'vat_amount' => $vat_amount, 'net_total' => $net_amount, 'salesman' => $salesman,
+					  'jobcode' => $jobcode];
+			
+		}
+
+		return $arr;
+	}
+
+	public function getSearch()
+	{
+		$data = array();
+		
+		$reports = $this->sales_order->getPendingReport(Input::all());//echo '<pre>';print_r($reports);exit;
+		
+		if(Input::get('search_type')=="summary")
+			$voucher_head = 'Sales Order Summary';
+		elseif(Input::get('search_type')=="summary_pending") {
+			$voucher_head = 'Sales Order Pending Summary';
+			$reports = $this->makeArrGroup($reports);
+		} elseif(Input::get('search_type')=="detail") {
+			$voucher_head = 'Sales Order Detail';
+			$reports = $this->makeTree($reports);
+		} elseif(Input::get('search_type')=="jobwise") {
+			$voucher_head = 'Sales Order - Jobwise';
+		} elseif(Input::get('search_type')=="customer_wise") {
+			$voucher_head = 'Sales Order - Customer Wise';
+		} elseif(Input::get('search_type')=="detail_pending") {
+			$voucher_head = 'Sales Order Pending Detail';
+			$reports = $this->makeTree($reports);
+		}
+		
+		//echo '<pre>';print_r($reports);exit;
+		return view('body.salesorder.preprint') //preprint
+					->withReports($reports)
+					->withVoucherhead($voucher_head)
+					->withType(Input::get('search_type'))
+					->withFromdate(Input::get('date_from'))
+					->withTodate(Input::get('date_to'))
+					->withJobids(json_encode(Input::get('job_id')))
+					->withSalesman(Input::get('salesman'))
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	
+	public function dataExport()
+	{
+		$data = array();
+		$datareport[] = ['','','','',strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		Input::merge(['type' => 'export']);
+		Input::merge(['job_id' => json_decode(Input::get('job_id'))]);
+		$reports = $this->sales_order->getPendingReport(Input::all());
+		
+		if(Input::get('search_type')=="summary")
+			$voucher_head = 'Sales Order Summary';
+		elseif(Input::get('search_type')=="summary_pending") {
+			$voucher_head = 'Sales Order Pending Summary';
+			$reports = $this->makeArrGroup($reports);
+		} elseif(Input::get('search_type')=="detail") {
+			$voucher_head = 'Sales Order Detail';
+		} else {
+			$voucher_head = 'Sales Order Pending Detail';
+		}
+		
+		$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		 //echo '<pre>';print_r($reports);exit;
+		
+		if(Input::get('search_type')=='detail' || Input::get('search_type')=='detail_pending') {
+			
+			$datareport[] = ['SI.No.','SO.#', 'SO.Ref#', 'Job No', 'Customer','Salesman','Item Code','Description','SO.Qty','Rate','Total Amt.'];
+			$i=0;
+			foreach ($reports as $row) {
+				$i++;
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'jobcode' => $row['jobcode'],
+								  'supplier' => $row['master_name'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => number_format($row['unit_price'],2),
+								  'net_amount' => number_format($row['net_total'],2)
+								];
+			}
+		} else {
+			
+			$datareport[] = ['SI.No.','SO.#', 'SO.Ref#', 'Job No', 'Customer','Salesman','Gross Amt.','VAT Amt.','Net Total'];
+			$i=0;
+			$total=0;$gross=0;$vat=0;	
+		    $tot=0;$gs=0;$vt=0;
+			foreach ($reports as $row) {
+					$i++;
+					$datareport[] = [ 'si' => $i,
+									  'po' => $row['voucher_no'],
+									  'ref' => $row['reference_no'],
+									  'jobcode' => $row['jobcode'],
+									  'supplier' => $row['master_name'],
+									  'salesman' => $row['salesman'],
+									  'gross' => number_format($row['total'],2),
+									  'vat' => number_format($row['vat_amount'],2),
+									  'total' => number_format($row['net_total'],2)
+									];
+									$total+= $row['net_total'];
+							        $tot=number_format($total,2) ;
+									$gross+= $row['total'];
+							        $gs=number_format($gross,2) ;
+									$vat+= $row['vat_amount'];
+							        $vt=number_format($vat,2) ;
+									
+			}
+			$datareport[] = ['','','','','','',''];			
+		    $datareport[] = ['','','','','','Total:',$gs,$vt,$tot];
+		}
+		 //echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('NumakPro ERP')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		});
+
+		})->download('xlsx');
+		
+	}
+	
+	public function getNewCustomer($deptid=null)
+	{
+		$data = array();
+		$customers = $this->accountmaster->getCustomerList($deptid);//print_r($customers);exit;
+		$country = $this->country->activeCountryList();
+		$area = $this->area->activeAreaList();
+		$cus_code = json_decode($this->ajax_getcode($category='CUSTOMER'));
+		return view('body.salesorder.newcustomer')//customer
+					->withCustomers($customers)
+					->withArea($area)
+					->withCusid($cus_code->code)
+					->withCategory($cus_code->category)
+					->withCountry($country)
+					->withDeptid($deptid)
+					->withData($data);
+	}
+	
+	public function getItemDetails($id) 
+	{
+		$data = array();
+		$items = $this->sales_order->getItems(array($id));
+		return view('body.salesorder.itemdetails')
+					->withItems($items)
+					->withData($data);
+	}
+	
+	public function editForce($id) { 
+
+		DB::table('sales_order')->where('id',$id)->update(['is_transfer' => 0, 'is_editable' => 0, 'is_warning' => 0]);
+		DB::table('sales_order_item')->where('sales_order_id',$id)->update(['is_transfer' => 0,'discount' => 0]);
+			
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->sales_order->findPOdata($id);
+		$orditems = $this->sales_order->getItems($id);
+		$location = $this->location->locationList();
+		
+		$crmtem = DB::table('crm_template')
+					->leftJoin('crm_info', function($join) use($id){
+							$join->on('crm_info.temp_id','=','crm_template.id');
+							$join->where('crm_info.doc_id','=',$id);
+					})
+					->where('crm_template.doc_type','SOB')
+					->where('crm_template.deleted_at',null)->get();
+		//echo '<pre>';print_r($crmtem);exit;
+		
+		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+		if(in_array($orderrow->doc_status, $apr))
+			$isprint = true;
+		else
+			$isprint = null;
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','SO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+		
+		$photos = DB::table('job_photos')->where('job_order_id',$id)->get();
+							
+		//echo '<pre>';print_r($cngetItemLocation); print_r($cnitemlocedit); exit;
+		return view('body.salesorderbooking.edit') //editsp  edit
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withFormdata($this->formData)
+					->withIsprint($isprint)
+					->withPrint($print)
+					->withLocation($location)
+					->withPhotos($photos)
+					->withCrm($crmtem)
+					->withData($data);
+
+	}
+	
+	public function assignDriver() {
+		
+		$driver = DB::table('rental_driver')->where('deleted_at',null)->get();
+		
+		return view('body.salesorderbooking.assign') //editsp  edit
+					->withDriver($driver);
+		
+	}
+	
+	
+	public function ajaxPagingOrderList(Request $request)
+	{
+		$columns = array( 
+						0 =>'sales_order.id', 
+						1 =>'voucher_no',
+						2=> 'voucher_date',
+						3=> 'customer',
+						4=> 'delivery'
+					);
+		
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'sales_order.id';
+        $dir = 'desc';
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+		
+        $totalData =  $this->sales_order->salesOrderListDelivery('count', $start, $limit, $order, $dir, $search);
+		$totalFiltered = $totalData; 
+		$invoices = $this->sales_order->salesOrderListDelivery('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->sales_order->salesOrderListDelivery('count', $start, $limit, $order, $dir, $search);
+							
+        $data = array();
+        if(!empty($invoices))
+        {
+			foreach ($invoices as $row)
+            {
+                $view =  url('sales_order_booking/view/'.$row->id);
+				
+				if($row->kilometer==0) {
+					$delivery = 'No';
+				} else if($row->kilometer==1) {
+					$delivery = 'Delivery Only';
+					$delivery .= ($row->less_description!='')?'<br/>Location: '.$row->less_description:'';
+				} else if($row->kilometer==2) { 
+					$delivery = 'Delivery with Installation';
+					$delivery .= ($row->less_description!='')?'<br/>Location: '.$row->less_description:'';
+					$delivery .= ($row->less_description2!='')?'<br/>'.$row->less_description2:'';
+				}
+				$nestedData['opt'] = "<input type='checkbox' name='ordid[]' class='chk-orderid' value='{$row->id}'/>";
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['customer'] = ($row->customer=='CASH CUSTOMERS') ? (($row->customer_name!='')?$row->customer.'('.$row->customer_name.')':$row->customer) : $row->customer;
+				$nestedData['due_date'] = ($row->next_due!='0000-00-00')?date('d-m-Y', strtotime($row->next_due)):'';
+				$nestedData['view'] = "<p><a href='{$view}' target='_blank' class='btn btn-primary btn-xs'><i class='fa fa-fw fa-eye'></i></a></p>";
+				$nestedData['delivery'] = $delivery;
+				$data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	public function driverAssign(Request $request) {
+		
+		//echo '<pre>';print_r($request->all());
+		if($request->get('ordid')!==null) {
+			foreach(Input::get('ordid') as $id) {
+				
+				DB::table('sales_order')->where('id', $id)->update(['job_type' => 1]);
+				
+				DB::table('order_assign')->insert(['driver_id' => Input::get('driver_id'), 'order_id' => $id, 'assign_date' => date('Y-m-d',strtotime(Input::get('assign_date'))), 'tr_status' => 0 ]);
+			}
+			
+			Session::flash('success', 'Orders assigned to driver successfully.');
+			return redirect('sales_order_booking/assign');
+		} else {
+			Session::flash('error', 'Please select atleast one order!');
+			return redirect('sales_order_booking/assign');
+		}
+			
+	}
+	
+}
+

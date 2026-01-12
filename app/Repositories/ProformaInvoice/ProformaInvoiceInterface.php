@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\ProformaInvoice;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface ProformaInvoiceInterface extends RepositoryInterface {
+	
+}
+

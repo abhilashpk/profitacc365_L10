@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Quotation;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface QuotationInterface extends RepositoryInterface {
+	
+}
+

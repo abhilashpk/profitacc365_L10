@@ -1,0 +1,491 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Repositories\Itemmaster\ItemmasterInterface;
+use App\Repositories\Jobmaster\JobmasterInterface;
+use App\Repositories\AccountMaster\AccountMasterInterface;
+use App\Repositories\VoucherNo\VoucherNoInterface;
+use App\Repositories\GoodsReturn\GoodsReturnInterface;
+use App\Repositories\AccountSetting\AccountSettingInterface;
+use App\Repositories\UpdateUtility;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests;
+use Session;
+use Response;
+use Excel;
+use App;
+use Auth;
+use DB;
+
+class GoodsReturnController extends Controller
+{
+
+	protected $itemmaster;
+	protected $jobmaster;
+	protected $accountmaster;
+	protected $voucherno;
+	protected $goods_return;
+	protected $accountsetting;
+	protected $mod_autocost;
+	
+	public function __construct(GoodsReturnInterface $goods_return, ItemmasterInterface $itemmaster, JobmasterInterface $jobmaster, AccountMasterInterface $accountmaster, VoucherNoInterface $voucherno, AccountSettingInterface $accountsetting) {
+		
+		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
+		
+		$this->middleware('auth');
+		$this->itemmaster = $itemmaster;
+		$this->jobmaster = $jobmaster;
+		$this->accountmaster = $accountmaster;
+		$this->voucherno = $voucherno;
+		$this->goods_return = $goods_return;
+		$this->accountsetting = $accountsetting;
+		
+		$this->mod_autocost = DB::table('parameter2')->where('keyname', 'mod_autocost_refresh')->where('status',1)->select('is_active')->first();
+		$this->objUtility = new UpdateUtility();
+	}
+	
+    public function index() {
+		
+		//Session::put('cost_accounting', 0);
+		$data = array();
+		$orders = [];//$this->goods_return->purchaseReturnList();
+		$job = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+	    	if(Session::get('department')==1) {
+			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$is_dept = true;
+		} else {
+			$departments = []; $is_dept = false;
+		}
+		return view('body.goodsreturn.index')
+		->withJob($job)
+		->withType('')
+					->withOrders($orders)
+					->withSettings($this->acsettings)
+					->withDepartments($departments)
+					->withData($data);
+	}
+	
+	
+	public function ajaxPaging(Request $request)
+	{
+		$columns = array( 
+                            0 => 'voucher_no',
+							1 => 'voucher_date',
+                            2 => 'jobname',
+                            3 => 'net_amount'
+                        );
+						
+		$totalData = $this->goods_return->goodsReturnListCount();
+            
+        $totalFiltered = $totalData; 
+
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'goods_return.id';//$columns[$request->input('order.0.column')];
+        $dir = 'desc';//$request->input('order.0.dir');
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+        
+		$invoices = $this->goods_return->goodsReturnList('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->goods_return->goodsReturnList('count', $start, $limit, $order, $dir, $search);
+		
+        $data = array();
+        if(!empty($invoices))
+        {
+           
+			foreach ($invoices as $row)
+            {
+                $edit =  '"'.url('goods_return/edit/'.$row->id).'"';
+                $delete =  'funDelete("'.$row->id.'")';
+				$print = url('goods_return/print/'.$row->id);
+				$viewonly =  url('goods_return/viewonly/'.$row->id);
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['jobname'] = $row->jobname;
+				$nestedData['net_amount'] = number_format($row->net_amount,2);
+				
+				$nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
+												<span class='glyphicon glyphicon-pencil'></span></button></p>";
+				$nestedData['viewonly'] = "<p><a href='{$viewonly}' class='btn btn-info btn-xs' target='_blank'><i class='glyphicon glyphicon-eye-open'></i></a></p>";
+																		
+												
+				$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+											<span class='glyphicon glyphicon-trash'></span>";
+												
+				 $nestedData['print'] = "<p><a href='{$print}' class='btn btn-primary btn-xs' target='_blank'><span class='fa fa-fw fa-print'></span></a></p>";
+											
+                $data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	
+	public function add($vno=null) {
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		//echo '<pre>';print_r($itemmaster);exit;
+		$res = $this->voucherno->getVoucherNo('GR');
+		$vno = $res->no;
+		//$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=14);//echo '<pre>';print_r($vouchers);exit;
+		$settings = $this->accountsetting->getAccountPeriod();
+		
+		//CHECK DEPARTMENT.......
+		if(Session::get('department')==1) { //if active...
+			$deptid = Auth::user()->department_id;
+			if($deptid!=0)
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			else {
+				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$deptid = $departments[0]->id;
+			}
+			$is_dept = true;
+		} else {
+			$is_dept = false;
+			$departments = [];
+			$deptid = '';
+		}
+		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=14,$is_dept,$deptid); //echo '<pre>';print_r($vouchers);exit;
+		
+		return view('body.goodsreturn.add')
+					->withItems($itemmaster)
+					->withVoucherno($vno)
+					->withVoucherno($res)
+					->withSettings($settings)
+					->withVouchers($vouchers)
+					->withIsdept($is_dept)
+					->withDepartments($departments)
+					->withDeptid($deptid)
+					->withData($data);
+	}
+	
+		
+	public function save(Request $request, $id = null) {
+		
+		$this->goods_return->create($request->all());//exit;
+		//AUTO COST REFRESH CHECK ENABLE OR NOT
+		if($this->mod_autocost->is_active==1) {
+			$this->objUtility->reEvalItemCostQuantity($request->get('item_id'),$this->acsettings);
+		}
+		Session::flash('message', 'Goods Return added successfully.');
+		return redirect('goods_return');
+	}
+	
+	public function destroy($id)
+	{
+		$this->goods_return->delete($id);
+		//AUTO COST REFRESH CHECK ENABLE OR NOT
+		if($this->mod_autocost->is_active==1) {
+			$arritems = [];
+			$items = DB::table('goods_issued_item')->where('goods_issued_id',$id)->select('item_id')->get();
+			foreach($items as $rw) {
+				$arritems[] = $rw->item_id;
+			}
+			$this->objUtility->reEvalItemCostQuantity($arritems,$this->acsettings);
+		}
+		//check accountmaster name is already in use.........
+		// code here ********************************
+		Session::flash('message', 'Goods return deleted successfully.');
+		return redirect('goods_return');
+	}
+	
+	private function makeTreeArr($result) {
+		
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item->gr_id][] = $item;
+		
+		return $childs;
+	}
+		
+	public function edit($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$orderrow = $this->goods_return->findPOdata($id);
+		$orditems = $this->goods_return->getItems($id); //echo '<pre>';print_r($orderrow);exit;
+		
+		//CHECK DEPARTMENT.......
+		if(Session::get('department')==1) { //if active...
+			$deptid = Auth::user()->department_id;
+			if($deptid!=0)
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			else {
+				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$deptid = $departments[0]->id;
+			}
+			$is_dept = true;
+		} else {
+			$is_dept = false;
+			$departments = [];
+			$deptid = '';
+		}
+		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=14,$is_dept,$deptid);
+		
+		$getItemLocation = $this->itemmaster->getItemLocation($id,'GR');
+		$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($id,'GR') );
+		
+		return view('body.goodsreturn.edit')
+					->withItems($itemmaster)
+					->withOrditems($orditems)
+					->withOrderrow($orderrow)
+					->withVouchers($vouchers)
+					->withIsdept($is_dept)
+					->withDepartments($departments)
+					->withDeptid($deptid)
+					->withItemlocedit($itemlocedit)
+					->withItemloc($getItemLocation)
+					->withSettings($this->acsettings)
+					->withData($data);
+
+	}
+	
+
+	public function update($id, Request $request)
+	{
+		$this->goods_return->update($id, $request->all());
+		//AUTO COST REFRESH CHECK ENABLE OR NOT
+		if($this->mod_autocost->is_active==1) {
+			$this->objUtility->reEvalItemCostQuantity($request->get('item_id'),$this->acsettings);
+		}
+		Session::flash('message', 'Goods return updated successfully');
+		return redirect('goods_return');
+	}
+	
+	
+		public function viewonly($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$orderrow = $this->goods_return->findPOdata($id);
+		$orditems = $this->goods_return->getItems($id); //echo '<pre>';print_r($orderrow);exit;
+		
+		//CHECK DEPARTMENT.......
+		if(Session::get('department')==1) { //if active...
+			$deptid = Auth::user()->department_id;
+			if($deptid!=0)
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			else {
+				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$deptid = $departments[0]->id;
+			}
+			$is_dept = true;
+		} else {
+			$is_dept = false;
+			$departments = [];
+			$deptid = '';
+		}
+		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=14,$is_dept,$deptid);
+		
+		$getItemLocation = $this->itemmaster->getItemLocation($id,'GR');
+		$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($id,'GR') );
+		
+		return view('body.goodsreturn.viewonly')
+					->withItems($itemmaster)
+					->withOrditems($orditems)
+					->withOrderrow($orderrow)
+					->withVouchers($vouchers)
+					->withIsdept($is_dept)
+					->withDepartments($departments)
+					->withDeptid($deptid)
+					->withItemlocedit($itemlocedit)
+					->withItemloc($getItemLocation)
+					->withSettings($this->acsettings)
+					->withData($data);
+
+	}
+	
+	
+	public function show($id) { 
+
+		$data = array();
+		$acmasterrow = $this->accountmaster->accountMasterView($id);
+		//echo '<pre>';print_r($acmasterrow);exit;
+		return view('body.accountmaster.view')
+					->withMasterrow($acmasterrow)
+					->withData($data);
+	}
+	
+	public function getSupplier()
+	{
+		$data = array();
+		$suppliers = $this->accountmaster->getSupplierList();//echo '<pre>';print_r($suppliers);exit;
+		return view('body.purchaseinvoice.supplier')
+					->withSuppliers($suppliers)
+					->withData($data);
+	}
+	
+	public function checkRefNo(Request $request) {
+
+		$check = $this->goods_return->check_reference_no($request->get('reference_no'), $request->get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	
+	public function setSessionVal()
+	{
+		Session::put('pr_voucher_id', $request->get('vchr_id'));
+		Session::put('pr_voucher_no', $request->get('vchr_no'));
+		Session::put('pr_stock_ac', $request->get('acnt'));
+		Session::put('pr_ac_master', $request->get('ac_mstr'));
+	}
+	
+	public function getPrint($id)
+	{
+		$attributes['document_id'] = $id;
+		$result = $this->goods_return->getInvoice($attributes);
+		$titles = ['main_head' => 'Goods Return','subhead' => 'Goods Return'];
+		return view('body.goodsreturn.print')
+					->withDetails($result['details'])
+					->withTitles($titles)
+					->withItems($result['items']);
+		//echo '<pre>';print_r($result);exit;
+	}
+	protected function makeTree($result)
+	{
+		//echo '<pre>';print_r($result); exit();
+		$childs = array();
+		foreach($result as $item)
+		//echo '<pre>';print_r($item); exit();
+		$childs[$item->jobname][] = $item;
+		
+			
+		return $childs;
+	}
+	public function getSearch(Request $request)
+	{
+		$data = array();
+		
+		$report = $this->goods_return->getReport($request->all());
+		//echo '<pre>';print_r($report); exit();
+		if($request->get('search_type')=="summary") {
+			$voucher_head = 'Goods Return Summary';
+			$report = $this->goods_return->getReport($request->all());
+			$reports = $this->makeTree($report);
+			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
+		}else if($request->get('search_type')=="detail") {
+			$voucher_head = 'Goods Return Detail';
+			$report = $this->goods_return->getReport($request->all());
+			$reports = $this->makeTree($report);
+			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
+			
+		
+		}
+		
+		//echo '<pre>';print_r($reports);exit;
+		return view('body.goodsreturn.preprint')
+					->withReports($reports)
+					->withTitles($titles)
+					->withVoucherhead($voucher_head)
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withI(0)
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	
+	
+	public function dataExport(Request $request)
+	{
+		$data = array();
+		$reports = $this->goods_return->getReport($request->all());
+		
+		$datareport[] = ['','','',strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		if($request->get('search_type')=="summary")
+			$voucher_head = 'Goods Return Summary';
+		
+		$datareport[] = ['','','',strtoupper($voucher_head), '','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		// echo '<pre>';print_r($reports);exit;
+		
+		if($request->get('search_type')=='summary') {
+			
+			$datareport[] = ['SI.No.','GR.No', 'GR.Date', 'Job Code','Job Name','Quantity','Total Amount'];
+			$i = $net_total = 0;
+			
+			foreach ($reports as $row) {
+					$i++;
+					$datareport[] = [ 'si' => $i,
+									  'po' => $row->voucher_no,
+									  'vchr_dt' => date('d-m-Y',strtotime($row->voucher_date)),
+									  'jobcode' => $row->code,
+									  'name' => $row->jobname,
+									  'quantity' => $row->quantity,
+									  'total' => $row->net_amount
+									];
+									
+				  $net_total += $row->net_amount;
+			}
+			
+			$datareport[] = ['','','','','','Total:',number_format($net_total,2)];
+		}
+		
+		 //echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('Profit Acc 365')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		});
+
+		})->download('xlsx');
+		
+	}
+	
+	
+	public function getDeptVoucher($id) {
+		
+		$depts = $this->accountsetting->getVoucherByDeptGIR($vid=14, $id); 
+		
+		foreach($depts as $row) {
+			
+			 if($row->voucher_no != '' || $row->voucher_no != null) {
+				 if($row->is_prefix==0)
+					 $voucher = $row->voucher_no;
+				 else {
+					 $no = (int)$row->voucher_no;
+					 $voucher = $row->prefix.''.$no;
+				 }
+			 }
+			 
+			  $result[] = array('voucher_no' => $voucher, 
+								'dr_account_name' => ($row->master_name!='')?$row->master_name:'', 
+								'dr_id' => ($row->cr_account_master_id!='')?$row->cr_account_master_id:'',
+								'cr_account_name' => ($row->dr_master_name!='')?$row->dr_master_name:'', 
+								'cr_id' => ($row->dr_account_master_id!='')?$row->dr_account_master_id:'',
+								'voucher_name' => $row->voucher_name,
+								'voucher_id' => $row->voucher_id
+							);
+
+		}
+		
+		return $result;
+	}
+}
+
+

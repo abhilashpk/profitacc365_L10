@@ -1,0 +1,702 @@
+<?php
+declare(strict_types=1);
+ublic function update($id, $attributes)
+	{ //echo '<pre>';print_r($attributes);exit;
+		$this->sales_invoice = $this->find($id);
+		$line_total = $tax_total = $cost_value = $line_total_new = $tax_total_new = $item_total = $total = 0;//CHG
+		
+		DB::beginTransaction();
+		try {
+			
+			//check workshop version active...
+			if($this->module->is_active==1 && $this->sales_invoice->id) {
+				$this->setJobdetailsUpdate($attributes);
+			}
+			
+			$discount = (isset($attributes['discount']))?$attributes['discount']:0; $taxtype = '';
+			$lineTotal = $this->calculateTotalAmount($attributes);//CHG
+			if($this->sales_invoice->id && !empty( array_filter($attributes['item_id']))) {
+				foreach($attributes['item_id'] as $key => $value) { 
+					
+					if($attributes['order_item_id'][$key]!='') {
+						/*CHG*/
+						$deskey = $attributes['order_item_id'][$key];
+						$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['tax_code'][$key];//CHG
+						
+						if( isset($attributes['is_fc']) ) {
+							$tax        = ( ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100) * $attributes['currency_rate'];
+							$itemtotal = ( ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key] ) * $attributes['currency_rate'];
+							$taxtotal  = round($tax * $attributes['quantity'][$key], 2);
+							$linetotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) * $attributes['currency_rate'];
+							
+						} else {
+							
+							$linetotal = round($attributes['cost'][$key] * $attributes['quantity'][$key],2);
+							
+							if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+								
+								$tax        = 0;
+								$itemtotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key];
+								$taxtotal  = round($tax * $attributes['quantity'][$key], 2);
+								
+							} else if($attributes['tax_include'][$key]==1){
+								
+								$ln_total   = round($attributes['cost'][$key] * $attributes['quantity'][$key],2);
+								$taxtotal  = $ln_total *  $attributes['line_vat'][$key] / (100 +  $attributes['line_vat'][$key]);
+								$itemtotal = $ln_total - $taxtotal;
+								
+							} else {
+								
+								$tax        = ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100;
+								$itemtotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key];
+								$taxtotal  = round($tax * $attributes['quantity'][$key], 2);
+							}
+						}
+						
+						//********DISCOUNT Calculation.............
+						$discount = (isset($attributes['discount']))?$attributes['discount']:0;
+						$taxtype = 'tax_exclude';
+							
+						if($attributes['tax_include'][$key]==1 ) {
+							$vatPlus = 100 + $attributes['line_vat'][$key];
+							$total = $attributes['cost'][$key] * $attributes['quantity'][$key];
+							$taxtype = 'tax_include';
+						} else {
+							$vatPlus = 100;
+							$total = $attributes['line_total'][$key];
+							$taxtype = 'tax_exclude';
+						}
+						
+						if($discount > 0) {
+							$discountAmt = round( (($total / $lineTotal) * $discount),2 );
+							$amountTotal = $total - $discountAmt;
+							$vatLine = round( (($amountTotal * $attributes['line_vat'][$key]) / $vatPlus),2 );
+							$taxtotal = $vatLine; 
+						} 
+						
+						$tax_total += $taxtotal;
+						$line_total += $linetotal;
+						$item_total += $itemtotal;
+						
+						$vat = $attributes['line_vat'][$key];
+						
+						$salesInvoiceItem = SalesInvoiceItem::find($attributes['order_item_id'][$key]); 
+						$oldqty = $salesInvoiceItem->quantity;
+						$item_cost = $salesInvoiceItem->item_cost;
+						$items['item_name'] = $attributes['item_name'][$key];
+						$items['item_id'] = $value;
+						$items['unit_id'] = $attributes['unit_id'][$key];
+						$items['quantity'] = $attributes['quantity'][$key];
+						$items['unit_price'] = (isset($attributes['is_fc']))?$attributes['cost'][$key]*$attributes['currency_rate']:$attributes['cost'][$key];
+						$items['vat']		 = $attributes['line_vat'][$key];
+						$items['vat_amount'] = $taxtotal;
+						$items['discount'] = $attributes['line_discount'][$key];
+						$items['line_total'] = $linetotal;
+						$items['item_total'] = $itemtotal; 
+						$items['tax_code'] 	= $tax_code; 
+						$items['tax_include'] = $attributes['tax_include'][$key];
+						$exi_quantity = $salesInvoiceItem->quantity;
+						
+						$exi_item_id = $salesInvoiceItem->item_id;
+						$exi_unit_id = $salesInvoiceItem->unit_id;
+						$itemsobj = (object)['item_id' => $exi_item_id, 'unit_id' => $exi_unit_id];
+						
+						
+						$pay_pcntg = 100; $pay_amount = $line_total; $pay_pcntg_desc = '';
+						if(isset($attributes['per'][$key]) && $attributes['per'][$key]!='' && $attributes['per'][$key] > 0) {
+							$pay_pcntg = $attributes['per'][$key];
+							$pay_amount = ($linetotal * $pay_pcntg) / 100;
+							$pay_pcntg_desc = $attributes['perdesc'][$key];
+						}
+						$items['pay_pcntg'] = $pay_pcntg;
+						$items['pay_amount'] = $pay_amount;
+						$items['pay_pcntg_desc'] = $pay_pcntg_desc;
+						
+						//ASSEMBLY ITEMS............
+						if(isset($attributes['assembly_items'][$key]) && $attributes['assembly_items'][$key]!='') {
+							
+							$items['assembly_items'] 	= $attributes['assembly_items'][$key]; 
+							$items['assembly_items_qty'] 	= $attributes['assembly_items_qty'][$key];
+							if($attributes['assembly_items'][$key]!=$attributes['assembly_items_old'][$key]) {
+								//SET ALL ITEMS ARE DELETED...
+								$oldidarr = explode(',',$attributes['assembly_items_old'][$key]);
+								DB::table('item_log')->where('document_type','SI')->whereIn('item_id',$oldidarr)
+													 ->where('document_id',$this->sales_invoice->id)
+													 ->update(['status' => 0, 'deleted_at' => now()]);
+								
+								$this->setSalesLogAssemblyItem($attributes['assembly_items'][$key], $attributes['assembly_items_qty'][$key], $attributes);
+							}
+							
+						}
+						
+						//if(Session::get('cost_accounting')==1) {
+							if($oldqty!=$attributes['quantity'][$key]) {
+								$item = DB::table('item_unit')->where('itemmaster_id', $attributes['item_id'][$key])
+															  ->where('unit_id', $attributes['unit_id'][$key])
+															  ->first();
+								$cost_avg = ($item->cost_avg==0)?$item->last_purchase_cost:$item->cost_avg;
+								$item_cost = $cost_avg * $attributes['quantity'][$key] * $attributes['packing'][$key];
+							}
+						//}
+						
+						$items['item_cost'] = $item_cost;
+						
+						$salesInvoiceItem->update($items);
+						
+						$cost_value += $item_cost;
+						
+						
+						//################ Location Stock Entry ####################
+						//Item Location specific add....
+						$updated = false;
+						if(isset($attributes['locqty'][$key])) {
+							foreach($attributes['locqty'][$key] as $lk => $lq) {
+								if($lq!='') {
+									$updated = true;
+									$edit = DB::table('item_location_si')->where('id', $attributes['editid'][$key][$lk])->first();
+									$idloc = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
+																  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
+																  ->whereNull('deleted_at')->select('id')->first();
+																  //echo '<pre>';print_r($edit);exit;
+									if($edit) {
+										
+										if($edit->quantity < $lq) {
+											$balqty = $lq - $edit->quantity;
+											DB::table('item_location')->where('id', $idloc->id)->update(['quantity' => DB::raw('quantity - '.$balqty)]);
+										} else {
+											$balqty = $edit->quantity - $lq;
+											DB::table('item_location')->where('id', $idloc->id)->update(['quantity' => DB::raw('quantity + '.$balqty)]);
+										}
+										
+									} else {
+										
+										$itemLocationSI = new ItemLocationSI();
+										$itemLocationSI->location_id = $attributes['locid'][$key][$lk];
+										$itemLocationSI->item_id = $value;
+										$itemLocationSI->unit_id = $attributes['unit_id'][$key];
+										$itemLocationSI->quantity = $lq;
+										$itemLocationSI->status = 1;
+										$itemLocationSI->invoice_id = $attributes['order_item_id'][$key];
+										$itemLocationSI->save();
+									}
+									
+									DB::table('item_location_si')->where('id', $attributes['editid'][$key][$lk])->update(['quantity' => $lq]);
+
+								}
+							}
+						}
+						
+						//Item default location add...
+						if(isset($attributes['location_id']) && ($attributes['location_id']!='') && ($updated == false)) {
+								
+								$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['location_id'])
+																  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
+																  ->whereNull('deleted_at')->select('*')->first();
+								if($qtys) {
+									DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity - '.$attributes['quantity'][$key]) ]);
+									DB::table('item_location_si')->where('invoice_id', $attributes['order_item_id'][$key] )
+																 ->where('location_id', $qtys->location_id)
+																 ->where('item_id', $qtys->item_id)
+																 ->where('unit_id', $qtys->unit_id)
+																 ->update(['quantity' => DB::raw('quantity - '.$attributes['quantity'][$key]) ]);
+								} 
+								
+								$itemLocationSI = new ItemLocationSI();
+								$itemLocationSI->location_id = $attributes['location_id'];
+								$itemLocationSI->item_id = $value;
+								$itemLocationSI->unit_id = $attributes['unit_id'][$key];
+								$itemLocationSI->quantity = $attributes['quantity'][$key];
+								$itemLocationSI->status = 1;
+								$itemLocationSI->invoice_id = $attributes['order_item_id'][$key];
+								$itemLocationSI->save();
+							}
+							
+						//################ Location Stock Entry End ####################
+						
+						//stock update section............................
+						//if($attributes['document_type']!='CDO' && ($exi_quantity!=$attributes['quantity'][$key])) {
+						
+						//DEC 23 UPDATE...
+						//if( ($exi_quantity!=$attributes['quantity'][$key]) || ($value!=$itemsobj->item_id) || ($itemsobj->unit_id!=$attributes['unit_id'][$key]) ) {
+							$bquantity = $attributes['quantity'][$key] - $exi_quantity;
+							
+							  $sale_cost = $this->objUtility->updateItemQuantitySales($attributes, $key, $bquantity);//exit;
+									$CostAvg_log = $this->objUtility->updateLastPurchaseCostAndCostAvgonEdit($attributes, $key, 0);
+										$this->setSaleLog($attributes, $key, $this->sales_invoice->id, $CostAvg_log, $sale_cost, 'update', $itemsobj); //DEC 23 UPDATE...
+						
+						//} 
+						/* else if() { 
+							$bquantity = $attributes['quantity'][$key] - $exi_quantity;
+							
+							  $sale_cost = $this->objUtility->updateItemQuantitySales($attributes, $key, $bquantity);
+									$CostAvg_log = $this->objUtility->updateLastPurchaseCostAndCostAvgonEdit($attributes, $key, 0);
+										$this->setSaleLog($attributes, $key, $this->sales_invoice->id, $CostAvg_log, $sale_cost, 'update', $itemsobj);
+						} */
+							
+						//description update...
+						if(isset($attributes['desc_id'])) {
+							if(array_key_exists($deskey, $attributes['desc_id'])) {
+								foreach($attributes['desc_id'][$deskey] as $k => $v) {
+									if($v!='') {
+										$itemDescription = ItemDescription::find($v);
+										$desc['description'] = $attributes['itemdesc'][$deskey][$k];
+										$itemDescription->update($desc);
+									} else {
+										//new entry.........
+										$itemDescription = new ItemDescription();
+										$itemDescription->invoice_type = 'SI';
+										$itemDescription->item_detail_id = $deskey;
+										$itemDescription->description = $attributes['itemdesc'][$deskey][$k];
+										$itemDescription->status = 1;
+										$itemDescription->save();
+										
+									}
+								}
+							}
+							
+						} else {
+								
+								//new entry description.........
+								if(isset($attributes['itemdesc']) && isset($attributes['itemdesc'][$key])) {
+									foreach($attributes['itemdesc'][$key] as $descrow) {
+										if($descrow != '') {
+											$itemDescription = new ItemDescription();
+											$itemDescription->invoice_type = 'SI';
+											$itemDescription->item_detail_id = $deskey;
+											$itemDescription->description = $descrow;
+											$itemDescription->status = 1;
+											$itemDescription->save();
+										}
+									}
+								}
+						}
+						
+						//manage removed item description...
+						if(isset($attributes['remove_itemdesc']) && isset($attributes['remove_itemdesc'][$key]) && $attributes['remove_itemdesc'][$key]!='')
+						{
+							$arrids = explode(',', $attributes['remove_itemdesc'][$key]);
+							foreach($arrids as $row) {
+								DB::table('item_description')->where('id', $row)->update(['status' => 0,'deleted_at' => now()]);
+							}
+						}
+							
+					} else { 
+					
+						//new entry... CHG
+						$item_total_new = $tax_total_new = 0; $total = 0;
+						if($discount > 0) 
+							$total = $this->calculateTotalAmount($attributes);
+					
+						$vat = $attributes['line_vat'][$key];/*CHG*/
+						$salesInvoiceItem = new SalesInvoiceItem();
+						if($value!='') {
+						    
+						$arrResult 		= $this->setItemInputValue($attributes, $salesInvoiceItem, $key, $value, $total);
+						if($arrResult['line_total']) {
+							$line_total_new 		 += $arrResult['line_total'];
+							$tax_total_new      	 += $arrResult['tax_total'];
+							$item_total_new			 += $arrResult['item_total']; //CHG
+							$cost_value 			 += $arrResult['cost_value'];
+							
+							$line_total			     += $arrResult['line_total'];
+							$tax_total      	     += $arrResult['tax_total'];
+							$item_total 			 += $arrResult['item_total'];
+							$taxtype				  = $arrResult['type'];
+							
+							$salesInvoiceItem->status = 1;
+							$itemObj = $this->sales_invoice->salesInvoiceItemAdd()->save($salesInvoiceItem);
+							
+							//new entry description.........
+							if(isset($attributes['itemdesc'][$key])) {
+								foreach($attributes['itemdesc'][$key] as $descrow) {
+									if($descrow != '') {
+										$itemDescription = new ItemDescription();
+										$itemDescription->invoice_type = 'SI';
+										$itemDescription->item_detail_id = $itemObj->id;
+										$itemDescription->description = $descrow;
+										$itemDescription->status = 1;
+										$itemDescription->save();
+									}
+								}
+							}
+								
+							///new section........................
+							//stock update section............................
+							//if($attributes['document_type']!='CDO') {
+								$sale_cost = $this->objUtility->updateItemQuantitySales($attributes, $key);//exit;
+									$CostAvg_log = $this->objUtility->updateLastPurchaseCostAndCostAvg($attributes, $key, 0);
+										$this->setSaleLog($attributes, $key, $this->sales_invoice->id, $CostAvg_log, $sale_cost, 'add' );
+								
+							//}
+							
+							////////new section end....................
+						}
+						
+						//################ Location Stock Entry ####################
+						//Item Location specific add....
+						$updated = false;
+						if(isset($attributes['locqty'][$key])) {
+							foreach($attributes['locqty'][$key] as $lk => $lq) {
+								if($lq!='') {
+									$updated = true;
+									$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
+																  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
+																  ->whereNull('deleted_at')->select('id')->first();
+									if($qtys) {
+										DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity - '.$lq) ]);
+									} else {
+										$itemLocation = new ItemLocation();
+										$itemLocation->location_id = $attributes['locid'][$key][$lk];
+										$itemLocation->item_id = $value;
+										$itemLocation->unit_id = $attributes['unit_id'][$key];
+										$itemLocation->quantity = $lq;
+										$itemLocation->status = 1;
+										$itemLocation->save();
+									}
+									
+									$itemLocationSI = new ItemLocationSI();
+									$itemLocationSI->location_id = $attributes['locid'][$key][$lk];
+									$itemLocationSI->item_id = $value;
+									$itemLocationSI->unit_id = $attributes['unit_id'][$key];
+									$itemLocationSI->quantity = $lq;
+									$itemLocationSI->status = 1;
+									$itemLocationSI->invoice_id = $itemObj->id;
+									$itemLocationSI->save();
+								}
+							}
+						}
+						
+						//Item default location add...
+						if(isset($attributes['location_id']) && ($attributes['location_id']!='') && ($updated == false)) {
+								
+								$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['location_id'])
+																  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
+																  ->whereNull('deleted_at')->select('id')->first();
+								if($qtys) {
+									DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity - '.$attributes['quantity'][$key]) ]);
+								} else {
+										$itemLocation = new ItemLocation();
+										$itemLocation->location_id = $attributes['location_id'];
+										$itemLocation->item_id = $value;
+										$itemLocation->unit_id = $attributes['unit_id'][$key];
+										$itemLocation->quantity = $attributes['quantity'][$key];
+										$itemLocation->status = 1;
+										$itemLocation->save();
+									}
+									
+								$itemLocationSI = new ItemLocationSI();
+								$itemLocationSI->location_id = $attributes['location_id'];
+								$itemLocationSI->item_id = $value;
+								$itemLocationSI->unit_id = $attributes['unit_id'][$key];
+								$itemLocationSI->quantity = $attributes['quantity'][$key];
+								$itemLocationSI->status = 1;
+								$itemLocationSI->invoice_id = $itemObj->id;
+								$itemLocationSI->save();
+								
+							}
+							
+						//################ Location Stock Entry End ####################
+						
+						} else {
+							
+							//Item escription contents adding....
+							$salesInvoiceItem->sales_invoice_id = $this->sales_invoice->id;
+							$salesInvoiceItem->item_name  		= $attributes['item_name'][$key];
+							$salesInvoiceItem->status = 1;
+							$salesInvoiceItem->input_type = 1;
+							$this->sales_invoice->salesInvoiceItemAdd()->save($salesInvoiceItem);
+						}
+					}
+					
+				}
+			}
+			
+			//check workshop version active...
+			if($this->matservice->is_active==1 && $this->sales_invoice->id) {
+				$arrResult = $this->updateService($attributes);
+				
+				$line_total	+= $arrResult['line_total'];
+				$tax_total  += $arrResult['tax_total'];
+				$item_total += $arrResult['item_total'];
+				$taxtype				  = $arrResult['type'];//SEP25
+				$vat					  = $arrResult['vat'];//SEP25
+				
+				//manage removed service...
+				if($attributes['lbremove_item']!='')
+				{
+					$arrids = explode(',', $attributes['lbremove_item']);
+					$remline_total = $remtax_total = 0;
+					foreach($arrids as $row) {
+						DB::table('sales_invoice_item')->where('id', $row)->update(['status' => 0,'deleted_at' => now()]);
+					}
+				}
+			}
+			
+			//manage removed items...
+			if($attributes['remove_item']!='')
+			{
+				$arrids = explode(',', $attributes['remove_item']);
+				$remline_total = $remtax_total = 0;
+				foreach($arrids as $row) {
+					//delete item
+					DB::table('sales_invoice_item')->where('id', $row)->update(['status' => 0,'deleted_at' => now()]);
+					
+					$res = DB::table('sales_invoice_item')->where('id',$row)->first();
+					
+					$this->objUtility->updateLastPurchaseCostAndCostAvgonDelete($res, $attributes['sales_invoice_id']);
+					
+					//update item unit quantity..
+					DB::table('item_unit')->where('itemmaster_id', $res->item_id)->where('unit_id',$res->unit_id)
+										  ->update(['cur_quantity' => DB::raw('cur_quantity - '.($res->quantity*-1)),
+											        'issued_qty' => DB::raw('cur_quantity - '.($res->quantity*-1) )]);
+					
+					//remove from sale log table....
+					DB::table('item_sale_log')->where('document_type', 'SI')
+											  ->where('document_id', $res->sales_invoice_id)
+											  ->where('item_id', $res->item_id)
+											  ->where('unit_id', $res->unit_id)
+											  ->update(['deleted_at' => now()]);
+					
+					if(isset($attributes['location_id'])) {
+						DB::table('item_location')->where('item_id', $res->item_id)
+									->where('location_id', $attributes['location_id'])
+									->where('unit_id', $res->unit_id)
+									->update(['quantity' => DB::raw('quantity + '.$res->quantity) ]);
+									
+						DB::table('item_location_si')->where('item_id', $res->item_id)
+									->where('invoice_id', $row)
+									->where('location_id', $attributes['location_id'])
+									->where('unit_id', $res->unit_id)
+									->update(['status' => 1, 'deleted_at' => now() ]);
+					}
+				}
+			}
+			
+			if($this->setInputValue($attributes)) {
+				$this->sales_invoice->modify_at = now();
+				$this->sales_invoice->modify_by = Auth::User()->id;
+				$this->sales_invoice->fill($attributes)->save();
+			}
+			
+			$this->sales_invoice->voucher_date  = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+			$this->sales_invoice->fill($attributes)->save();
+			
+			/*CHG*/
+			$subtotal = $line_total - $discount;
+			if($taxtype=='tax_include' && $attributes['discount'] == 0) {
+			  
+			  $net_amount = $subtotal;
+			  $tax_total = ($subtotal * $vat) / (100 + $vat);
+			  $subtotal = $subtotal - $tax_total;
+			  
+			} elseif($taxtype=='tax_include' && $attributes['discount'] > 0) { 
+			
+			   $tax_total = ($subtotal * $vat) / (100 + $vat);
+			   $net_amount = $subtotal - $tax_total;
+			} else 
+				$net_amount = $subtotal + $tax_total;
+			/*CHG*/
+			
+			//VAT calculate from subtotal...
+			$net_total_pay = 0;
+			if(isset($attributes['vatfrm_subtotal'])) {
+				
+				$less_amount = (isset($attributes['less_amount']))?$attributes['less_amount']:0;
+				$previnv_amount = (isset($attributes['previnv_amount']))?$attributes['previnv_amount']:0;
+				$less_amount2 = (isset($attributes['less_amount2']))?$attributes['less_amount2']:0;
+				$less_amount3 = (isset($attributes['less_amount3']))?$attributes['less_amount3']:0;
+				$line_total = $attributes['total']; //CHNG SEP 17
+				$subtotal = $line_total - $less_amount - $less_amount2 - $less_amount3 - $previnv_amount;
+						
+				$tax_total = $attributes['vat'];
+				$net_amount = $net_total_pay = $attributes['net_amount'];
+			}
+					
+			if( isset($attributes['is_fc']) ) {
+				$total_fc 	   = $line_total / $attributes['currency_rate'];
+				$discount_fc   = $attributes['discount'] / $attributes['currency_rate'];
+				$vat_fc 	   = $attributes['vat_fc'] / $attributes['currency_rate'];
+				$tax_fc 	   = round($tax_total / $attributes['currency_rate'],2);
+				$net_amount_fc = $total_fc - $discount_fc + $tax_fc;
+				$subtotal_fc	   = $subtotal / $attributes['currency_rate']; //CHG
+				
+			} else 
+				$total_fc = $discount_fc = $tax_fc = $net_amount_fc = $vat_fc = $subtotal_fc = 0; //CHG
+			
+				//##################---RV UPDATE---#################
+				if($attributes['rv_entry_id']!='') {
+					if( isset($attributes['is_rv']) && $attributes['is_rv']==1 ) { 
+					
+						$rv_row = DB::table('receipt_voucher')->where('id', $attributes['rv_entry_id'])->first();
+									
+						if($rv_row) {
+							$entryar = DB::table('receipt_voucher_entry')
+													->where('receipt_voucher_id',$rv_row->id)->where('status',1)
+													->whereNull('deleted_at')
+													->select('id','entry_type')->get();
+							foreach($entryar as $row) {
+								DB::table('receipt_voucher_entry')
+												->where('id', $row->id)
+												->update([
+													'account_id' => ($row->entry_type=='Dr')?$attributes['rv_dr_account_id']:$attributes['dr_account_id'],
+													'description' => isset($attributes['description'])?$attributes['description']:$attributes[''],
+													'reference' => $attributes['voucher_no'],
+													'amount' => $attributes['rv_amount'],
+													'cheque_no' => (isset($attributes['cheque_no']))?$attributes['cheque_no']:'',
+													'cheque_date' => (isset($attributes['cheque_date']))?date('Y-m-d', strtotime($attributes['cheque_date'])):'',
+													'bank_id' => (isset($attributes['bank_id']))?$attributes['bank_id']:'',
+													'party_account_id' => (isset($attributes['cheque_no']))?$attributes['dr_account_id']:''
+												]);
+												
+								if($row->entry_type=='Dr')
+									$this->setAccountTransactionRVUpdate($attributes, $row->id, 'Dr');
+								else
+									$this->setAccountTransactionRVUpdate($attributes, $row->id, 'Cr');
+							}
+							
+							//update closing balance of debitor account
+							if($this->updateClosingBalance($attributes['rv_dr_account_id'], $attributes['rv_amount'], 'Dr')) {
+								//update closing balance of debitor account
+								$this->updateClosingBalance($attributes['dr_account_id'], $attributes['rv_amount'], 'Cr', $attributes['voucher_type']);
+							}
+							
+						}
+					} else {
+						
+						$rv_row = DB::table('receipt_voucher')->where('id', $attributes['rv_entry_id'])->first();
+									
+						if($rv_row) {
+							
+							DB::table('receipt_voucher')
+											->where('id', $attributes['rv_entry_id'])
+											->update([ 'status' => 0,
+													   'deleted_at' => date('Y-m-d')]);
+													   
+							$entryar = DB::table('receipt_voucher_entry')
+													->where('receipt_voucher_id',$rv_row->id)->where('status',1)
+													->whereNull('deleted_at')
+													->select('id','entry_type')->get();
+													   
+							foreach($entryar as $row) {
+								DB::table('receipt_voucher_entry')
+												->where('id', $row->id)
+												->update([
+													'status' => 0,
+													'deleted_at' => date('Y-m-d')
+												]);
+												
+								if($row->entry_type=='Dr')
+									$this->setAccountTransactionRVDelete($attributes, $row->id, 'Dr');
+								else
+									$this->setAccountTransactionRVDelete($attributes, $row->id, 'Cr');
+							}
+							
+							//update closing balance of debitor account
+							if($this->updateClosingBalance($attributes['rv_dr_account_id'], $attributes['rv_amount'], 'Dr')) {
+								//update closing balance of debitor account
+								$this->updateClosingBalance($attributes['dr_account_id'], $attributes['rv_amount'], 'Cr', $attributes['voucher_type']);
+							}
+								
+						}
+					}
+				} else {
+					
+					if( isset($attributes['is_rv']) && $attributes['is_rv']==1 ) { 
+					
+						$rv_id = DB::table('receipt_voucher')
+									->insertGetId([
+									 'voucher_type' => $attributes['voucher_type'],
+									 'voucher_id' => $attributes['rv_voucher'],
+									 'voucher_no' => $attributes['rv_voucher_no'],
+									 'voucher_date' => ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+									 'debit' => $attributes['rv_amount'],
+									 'credit' => $attributes['rv_amount'],
+									 'status' => 1,
+									 'created_at' => now(),
+									 'created_by' => Auth::User()->id,
+									 'sales_invoice_id' => $this->sales_invoice->id
+									]);
+									
+						if($rv_id) {
+							$ar = [1,2];
+							foreach($ar as $val) {
+								$rv_entry_id = DB::table('receipt_voucher_entry')
+												->insertGetId([
+													'receipt_voucher_id' => $rv_id,
+													'account_id' => ($val==1)?$attributes['rv_dr_account_id']:$attributes['dr_account_id'],
+													'description' => isset($attributes['description'])?$attributes['description']:$attributes[''],
+													'reference' => $attributes['voucher_no'],
+													'amount' => $attributes['rv_amount'],
+													'entry_type' => ($val==1)?'Dr':'Cr',
+													'cheque_no' => (isset($attributes['cheque_no']))?$attributes['cheque_no']:'',
+													'cheque_date' => (isset($attributes['cheque_date']))?date('Y-m-d', strtotime($attributes['cheque_date'])):'',
+													'bank_id' => (isset($attributes['bank_id']))?$attributes['bank_id']:'',
+													'status' => 1,
+													'party_account_id' => (isset($attributes['cheque_no']))?$attributes['dr_account_id']:''
+												]);
+												
+								if($val==1)
+									$this->setAccountTransactionRV($attributes, $rv_entry_id, 'Dr');
+								else
+									$this->setAccountTransactionRV($attributes, $rv_entry_id, 'Cr');
+							}
+							
+							//update closing balance of debitor account
+							if($this->updateClosingBalance($attributes['rv_dr_account_id'], $attributes['rv_amount'], 'Dr')) {
+								//update closing balance of debitor account
+								$this->updateClosingBalance($attributes['dr_account_id'], $attributes['rv_amount'], 'Cr', $attributes['voucher_type']);
+							}
+							
+							//cheque no insert...
+							if(isset($attributes['cheque_no']) && $attributes['cheque_no']!=''){
+								DB::table('cheque')->insert([ 'cheque_no' => $attributes['cheque_no'], 'bank_id' => $attributes['bank_id'] ]);
+							}
+							
+							//update voucher no........
+							DB::table('account_setting')
+									->where('voucher_type_id', $attributes['rv_voucher'])
+									->update(['voucher_no' => $attributes['rv_voucher_no'] + 1]);
+							
+						}
+					}
+					
+				}
+			//#############---END RV UPDATE---#################
+			
+			//update discount, total amount
+			DB::table('sales_invoice')
+						->where('id', $this->sales_invoice->id)
+						->update(['total'    	  => $line_total,
+								  'discount' 	  => $attributes['discount'],
+								  'vat_amount'	  => $tax_total,
+								  'net_total'	  => $net_amount,
+								  'total_fc' 	  => $total_fc,
+								  'discount_fc'   => $discount_fc,
+								  'vat_amount_fc' => $tax_fc,
+								  'net_total_fc'  => $net_amount_fc,
+								  'subtotal'	  => $subtotal, //CHG
+								  'subtotal_fc'	  => $subtotal_fc,
+								  //'advance' => $attributes['advance_pd'] + $attributes['advance'],
+								  'balance' => $attributes['balance'],
+								  'net_total_pay' => $net_total_pay,
+								  'doc_status' 	  => (isset($attributes['doc_status']))?$attributes['doc_status']:'',
+								  'comment'		  => (isset($attributes['comment']))?$attributes['comment']:(isset($attributes['comment_hd']))?$attributes['comment_hd']:''
+								  ]); //CHNG SEP 17
+			
+			//check whether Cost Accounting method or not.....
+			if(Session::get('cost_accounting')==1) {
+				$this->CostAccountingMethodUpdate($attributes, $subtotal, $tax_total, $net_amount, $this->sales_invoice->id, $taxtype, $cost_value);
+			} else {
+				$this->PurchaseAndSalesMethodUpdate($attributes, $subtotal, $tax_total, $net_amount, $this->sales_invoice->id, $taxtype);
+			}
+			
+			DB::commit();
+			return true;
+			
+		} catch(\Exception $e) {
+			
+			DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
+			return false;
+		}
+	}
+

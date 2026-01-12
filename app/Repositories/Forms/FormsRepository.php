@@ -1,0 +1,177 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Forms;
+
+use App\Models\Forms;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Config;
+use Illuminate\Support\Facades\DB;
+
+class FormsRepository extends AbstractValidator implements FormsInterface {
+	
+	protected $forms;
+	
+	protected static $rules = [
+		
+	];
+	
+	public function __construct(Forms $forms) {
+		$this->forms = $forms;
+		
+	}
+	
+	public function all()
+	{
+		return $this->forms->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->forms->where('id', $id)->first();
+	}
+	
+	public function create($attributes)
+	{
+		if($this->isValid($attributes)) { 
+			
+			$this->forms->code = $attributes['code'];
+			$this->forms->name = $attributes['name'];
+			$this->forms->status = 1;
+			$this->forms->fill($attributes)->save();
+			return true;
+		}
+		
+	}
+
+	public function updatereport($id=null, $attributes)
+	{	
+	
+	
+	    $group_id = $attributes['dailyid'];
+	
+		$rows = DB::table('account_group')->whereIn('account_group.id', $group_id)
+					->join('account_category', 'account_category.id', '=', 'account_group.category_id')
+					->join('account_category AS AC', 'AC.id', '=', 'account_category.parent_id')
+					->select('account_group.*','account_group.id AS gid')->get();
+					
+			foreach($rows as $row) {
+			    
+			 $counts =	DB::table('daily_settings')->where('group_id',$row->gid)->get();  
+			 	if($counts) {
+			 	  
+					DB::table('daily_settings')->where('id', $row->id)->update(['field_name' => $row->name,'active' => 0,'group_id' => $row->gid,'field_code'=> $row->code]);
+					DB::table('account_group')->where('id', $row->gid)->update(['check' => 0]);
+		
+		
+	}else 
+			{
+			    
+		       DB::table('account_group')->where('id', $row->gid)->update(['check' => 1]);
+
+				DB::table('daily_settings')
+							->insert([
+										'group_id' => $row->gid,
+										'active' => 1,
+									    'field_name'	=> $row->name ,
+										'field_code'=> $row->code 
+									]);
+								
+								
+							
+
+			}
+			 
+			 
+			    
+			    
+			}
+
+	
+	
+	
+	}
+	
+	public function update($id=null, $attributes)
+	{
+	//	echo '<pre>';print_r($attributes);exit;
+		$rows = $this->getForms($attributes['form_id']);//echo '<pre>';print_r($attributes);exit;
+		foreach($rows as $row) {
+			if(isset($attributes['para_name'])) {
+				//echo '<pre>';print_r($attributes['para_name']);
+				if(array_key_exists($row->id, $attributes['para_name'])) { 
+					DB::table('form_details')->where('id', $row->id)->update(['field_name' => $attributes['field_name'][$row->id],'active' => 1, 'list_ord'=> $attributes['list_ord'][$row->id]]);
+				} else { 
+					DB::table('form_details')->where('id', $row->id)->update(['field_name' => $attributes['field_name'][$row->id], 'active' => 0, 'list_ord'=> $attributes['list_ord'][$row->id]]);
+				}
+			} else 
+				DB::table('form_details')->where('id', $row->id)->update(['active' => 0]);
+		}
+		return true;
+		
+	}
+	
+	public function getForms($id)
+	{
+		return DB::table('form_details')->where('status', 1)->where('form_id',$id)->get();
+	}
+	
+	public function delete($id)
+	{
+		$this->forms = $this->forms->find($id);
+		$this->forms->delete();
+	}
+	
+	public function getForm($type)
+	{
+		return $this->forms->where('forms.code',$type)
+					->join('form_details AS FD', function($join){
+						  $join->on('FD.form_id','=','forms.id');
+					  })
+					->where('FD.status',1)
+					->select('forms.name','FD.*')
+					->orderBy('FD.list_ord')
+					->orderBy('FD.id')
+					->get();
+	}
+	
+	public function formsList()
+	{
+		//check admin session and apply return $this->forms->where('parent_id',0)->where('status', 1)->get();
+		return $this->forms->get();
+	}
+	
+	public function activeFormsList()
+	{
+		return $this->forms->select('id','code','name')->where('status', 1)->orderBy('id', 'ASC')->get();
+	}
+		
+	public function getFormData($code){
+		
+		$result = $this->forms->where('forms.code',$code)
+					->join('form_details AS FD', function($join){
+						  $join->on('FD.form_id','=','forms.id');
+					  })
+					->where('FD.status',1)
+					->select('FD.field_code','FD.active','FD.field_name')
+					->orderBy('FD.list_ord')
+					->orderBy('FD.id')
+					->get();
+		if($result)
+			return $this->makeArr($result);
+		else
+			return [];
+	}
+	
+	private function makeArr($result)
+	{
+		$newarr = array();
+		foreach($result as $row) {
+			$newarr[$row->field_code] = $row->active;
+			$newarr[$row->field_code.'_fn'] = $row->field_name;
+		}
+
+		return $newarr;
+	}
+}
+

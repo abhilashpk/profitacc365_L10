@@ -1,0 +1,88 @@
+/***Portlet custom css***/
+
+.portlet {
+    clear         : both;
+    margin-top    : 0;
+    margin-bottom : 10px;
+    padding       : 0;
+}
+.ui-sortable-handle:not(.notsort) {
+    cursor : move;
+}
+.portlet > .portlet-body {
+    /*background-color : #fff;*/
+    padding          : 10px;
+    /*border           : 1px solid #ccc;*/
+    border-top       : none;
+}
+.portlet > .portlet-title {
+    padding   : 10px 10px 4px 10px;
+    color     : #fff;
+    font-size : 16px;
+}
+.portlet-placeholder {
+    border           : 1px dotted #ccc;
+    background-color : #dcdcdc;
+    margin           : 0 1em 1em 0;
+    height           : 130px;
+}
+.sortable {
+    min-height : 50px;
+}
+ .bg-pr { background-color : #428bcac7; }
+ .portlet-info { color     : #fff; padding-left : 15px; font-size : 14px;}
+ .portlet-info a { color     : #fff;}
+ 
+  .bg-dng { background-color : #fb8678ba; }
+  
+  .bg-wrn { background-color : #ffb65fbf; }
+  
+  .bg-suc { background-color : #22d69dc7; }
+  
+  .bg-inf { background-color : #4fc1e9cf; }
+  
+   .bg-inf-new {
+		border: 1px solid #4fc1e9cf;
+		border-top: none;
+		background-color: #FFF;
+		padding: 10px;
+		color:#000;
+   }
+   
+   .bg-dng-new {
+		border: 1px solid #fb8678ba;
+		border-top: none;
+		background-color: #FFF;
+		padding: 10px;
+		color:#000;
+   }
+   
+   .bg-wrn-new {
+		border: 1px solid #ffb65fbf;
+		border-top: none;
+		background-color: #FFF;
+		padding: 10px;
+		color:#000;
+   }
+   
+   .bg-suc-new {
+		border: 1px solid #22d69dc7;
+		border-top: none;
+		background-color: #FFF;
+		padding: 10px;
+		color:#000;
+   }
+   
+   .bg-pr-new {
+		border: 1px solid #428bcac7;
+		border-top: none;
+		background-color: #FFF;
+		padding: 10px;
+		color:#000;
+   }
+   
+   .info-hd {
+	   color: #71a205;
+	   font-size: 15px;
+	   font-weight: bold;
+   }

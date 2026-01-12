@@ -1,0 +1,285 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Acgroup;
+
+use App\Models\Acgroup;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Image;
+use Config;
+use Illuminate\Support\Facades\DB;
+
+class AcgroupRepository extends AbstractValidator implements AcgroupInterface {
+	
+	protected $acgroup;
+	
+	protected static $rules = [
+		'category_id' => 'required',
+		'name' => 'required',//|unique:account_group
+		'code' => 'required|unique:account_group'
+	];
+	
+	public function __construct(Acgroup $acgroup) {
+		$this->acgroup = $acgroup;
+		
+	}
+	
+	public function all()
+	{
+		return $this->acgroup->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->acgroup->where('id', $id)->first();
+	}
+	
+	public function create($attributes)
+	{
+		if($this->isValid($attributes)) { 
+			$this->acgroup->category_id = $attributes['category_id'];
+			$this->acgroup->name = $attributes['name'];
+			$this->category = $attributes['category'];
+			//$this->acgroup->code = $attributes['code'];
+			$this->acgroup->status = 1;
+			$this->acgroup->fill($attributes)->save();
+			
+			if($this->acgroup->id) {
+				DB::table('account_group')->where('id', $this->acgroup->id)->update(['code' => 'GRP'.$this->acgroup->id]);
+			}
+			
+			return true;
+		}
+		
+		//throw new ValidationException('Acgroup validation error!', $this->getErrors());
+	}
+	
+	public function update($id, $attributes)
+	{
+		$this->acgroup = $this->find($id);
+		$this->acgroup->fill($attributes)->save();
+		DB::table('account_master')->where('account_group_id',$id)->update(['category' => $attributes['category']]);
+		return true;
+	}
+	
+	
+	public function delete($id)
+	{
+		$this->acgroup = $this->acgroup->find($id);
+		$this->acgroup->delete();
+	}
+	
+	public function activeAcgroupList()
+	{
+		return $this->acgroup->select('id','acgroup_name','parent_id')->where('status', 1)->orderBy('acgroup_name', 'ASC')->get()->toArray();
+	}
+	
+	public function accountType()
+	{
+		return $this->acgroup->where('parent_id',0)->where('status',1)->get();
+	}
+	
+	public function acgroupList()
+	{
+		$query = $this->acgroup->where('account_group.id','!=',0);
+		
+		return $query->join('account_category AS ac', function($join) {
+							$join->on('ac.id','=','account_group.category_id');
+						} )
+					->join('account_category AS act', function($join) {
+							$join->on('act.id','=','ac.parent_id');
+						} )
+					->select('account_group.id','account_group.name','ac.name AS category_name','act.name AS acc_type')
+					->orderBy('ac.parent_id', 'ASC')
+					->get(); 
+	}
+	public function acgroupsetting()
+	{
+		$query = $this->acgroup->where('account_group.id','!=',0);
+		
+		return $query->join('account_category AS ac', function($join) {
+							$join->on('ac.id','=','account_group.category_id');
+						} )
+					->join('account_category AS act', function($join) {
+							$join->on('act.id','=','ac.parent_id');
+						} )
+					->select('account_group.*','account_group.id AS gid','ac.name AS category_name')
+					->orderBy('ac.parent_id', 'ASC')
+					->get(); 
+	}
+	public function allSubacgroupList($parent_id)
+	{
+		//check admin session and apply return $this->acgroup->where('parent_id',0)->where('status', 1)->get();
+		return $this->acgroup->where('parent_id',$parent_id)->select('id','name')->get()->toArray();
+	}
+	
+	public function acgroupView($id)
+	{
+		return $this->acgroup->where('id', $id)->join('acgroup');
+	}
+	
+	public function subacgroupList()
+	{
+		return $this->acgroup->where('parent_id',1)->get();
+	}
+		
+	public function check_group_name($name, $category_id, $id = null) {
+		
+		if($id)
+			return $this->acgroup->where('name',$name)->where('category_id', $category_id)->where('id', '!=', $id)->count();
+		else
+			return $this->acgroup->where('name',$name)->where('category_id', $category_id)->count();
+	}
+	
+	public function check_group_code($code) {
+		
+		return $this->acgroup->where('code',$code)->count();
+	}
+	
+	public function getGroupbyCategory($category_id)
+	{
+		return $this->acgroup->where('category_id', $category_id)->where('status',1)->select('id','name')->get();
+	}
+	
+	public function getGroupCode($category)
+	{
+		return $this->acgroup->where('category', $category)->first();
+	}
+	
+	public function getGroupCodeById($group_id)
+	{
+		//return $this->acgroup->where('id', $group_id)->first();
+		
+		return DB::table('account_group')->where('account_group.id', $group_id)
+					->join('account_category', 'account_category.id', '=', 'account_group.category_id')
+					->join('account_category AS AC', 'AC.id', '=', 'account_category.parent_id')
+					->select('account_group.code','account_group.category','AC.trtype')->first();
+					
+	}
+
+	public function updatereport($id=null, $attributes)
+	{	
+	
+	
+	    $group_id = $attributes['dailyid'];
+	
+		$rows = DB::table('account_group')->whereIn('account_group.id', $group_id)
+					->join('account_category', 'account_category.id', '=', 'account_group.category_id')
+					->join('account_category AS AC', 'AC.id', '=', 'account_category.parent_id')
+					->select('account_group.*','account_group.id AS gid')->get();
+				//	 $counts =	DB::table('daily_settings')->whereIn('group_id',$group_id)->get();
+				//	 echo '<pre>';print_r($counts);;exit;   
+					
+			foreach($rows as $row) {
+			    // echo '<pre>';print_r($row);
+			    
+			 $counts =	DB::table('daily_settings')->where('group_id',$row->gid)->get();  
+			 	if($counts) {
+			 	    
+			 	 $count_act =	DB::table('daily_settings')->where('group_id',$row->gid)->where('active',0)->get();  
+	 if ($count_act)
+	 {
+	   
+	       DB::table('daily_settings')->where('id', $row->id)->update(['field_name' => $row->name,'active' => 1,'group_id' => $row->gid,'field_code'=> $row->code,'status' => 1]);
+						DB::table('account_group')->where('id', $row->gid)->update(['check' => 1,'statu' => 1]); 
+						
+		  
+	     
+	 }else{
+	     
+	      $count =	DB::table('daily_settings')->where('group_id',$row->gid)->where('active',1)->get();  
+		if ($count)
+          {
+              //echo 'gvcbv<pre>';print_r($count);exit;   
+      	           DB::table('daily_settings')->where('id', $row->id)->update(['field_name' => $row->name,'active' => 1,'group_id' => $row->gid,'field_code'=> $row->code]);
+						DB::table('account_group')->where('id', $row->gid)->update(['check' => 1]); 
+			
+   }else { 
+       
+				 DB::table('daily_settings')->where('id', $row->id)->update(['field_name' => $row->name,'active' => 0,'group_id' => $row->gid,'field_code'=> $row->code]);
+						DB::table('account_group')->where('id', $row->gid)->update(['check' => 0]); 
+			
+				
+				
+				 	}	 
+   
+	     }
+		}else 
+			{
+			    
+		       DB::table('account_group')->where('id', $row->gid)->update(['check' => 1]);
+
+				DB::table('daily_settings')
+							->insert([
+										'group_id' => $row->gid,
+										'active' => 1,
+									    'field_name'	=> $row->name ,
+										'field_code'=> $row->code 
+									]);
+								
+								
+							
+
+			}
+			 
+			 
+			    
+			    
+			}
+
+	
+	
+	
+	}
+	public function updatereportold($id=null, $attributes)
+	{
+		
+		$group_id = $attributes['dailyid'];
+	
+		$rows = DB::table('account_group')->whereIn('account_group.id', $group_id)
+					->join('account_category', 'account_category.id', '=', 'account_group.category_id')
+					->join('account_category AS AC', 'AC.id', '=', 'account_category.parent_id')
+					->select('account_group.*','account_group.id AS gid','ac.name AS category_name')->get();
+		foreach($rows as $row) {
+		
+			$count =	DB::table('daily_settings')->where('group_id',$row->id)->get();
+			if ($count)
+			{
+			DB::table('daily_settings')->where('group_id', $row->id)->update(['group_id' =>$row->gid,'active' => 0, 'field_name'=> $row->name ,'field_code'=> $row->code ]);
+			DB::table('account_group')->where('id', $row->id)->update(['3' => 0]);
+			}else{
+
+                DB::table('account_group')->where('id', $row->id)->update(['check' => 1]);
+
+				DB::table('daily_settings')
+							->insert([
+										'group_id' => $row->id,
+										'active' => 1,
+									    'field_name'	=> $row->name ,
+										'field_code'=> $row->code 
+									]);
+
+			}
+		}
+		return true;
+		
+	}
+	
+	
+	public function check_group($id)
+	{
+		/* $count = DB::table('account_group')->where('category', '!=', '')->where('id',$id)->count();
+		if($count > 0)
+			return false;
+		else { */
+			$count = DB::table('account_master')->where('account_group_id', $id)->whereNull('deleted_at')->count();
+			if($count > 0)
+				return false;
+			else
+				return true;
+		//}
+			
+	}
+	
+}
+

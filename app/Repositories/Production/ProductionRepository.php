@@ -1,0 +1,930 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Production;
+
+use App\Models\Production;
+use App\Models\ProductionItem;
+use App\Models\ItemStock;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Config;
+use Illuminate\Support\Facades\DB;
+
+class ProductionRepository extends AbstractValidator implements ProductionInterface {
+	
+	protected $production;
+	
+	protected static $rules = [];
+	
+	public function __construct(Production $production) {
+		$this->production = $production;
+	}
+	
+	public function all()
+	{
+		return $this->production->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->production->where('id', $id)->first();
+	}
+	
+	//set input fields values
+	private function setInputValue($attributes)
+	{
+		$this->production->voucher_no    = $attributes['voucher_no'];
+		$this->production->reference_no  = $attributes['reference_no'];
+		$this->production->voucher_date  = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));//date('Y-m-d', strtotime($attributes['voucher_date']));
+		$this->production->lpo_date      = date('Y-m-d', strtotime($attributes['lpo_date']));
+		$this->production->customer_id   = $attributes['customer_id'];
+		$this->production->document_type = $attributes['document_type'];
+		$this->production->document_id   = $attributes['document_id'];
+		$this->production->description   = $attributes['description'];
+		$this->production->job_id 		  = $attributes['job_id'];
+		$this->production->terms_id 	  = $attributes['terms_id'];
+		$this->production->footer_id 	  = isset($attributes['footer_id'])?$attributes['footer_id']:'';
+		$this->production->is_fc 		  = isset($attributes['is_fc'])?1:0;
+		$this->production->currency_id   = (isset($attributes['currency_id']))?$attributes['currency_id']:'';
+		$this->production->currency_rate = (isset($attributes['currency_rate']))?$attributes['currency_rate']:'';
+		$this->production->salesman_id  = (isset($attributes['salesman_id']))?$attributes['salesman_id']:'';
+		$this->production->is_export		= isset($attributes['is_export'])?1:0;
+		$this->production->foot_description = (isset($attributes['foot_description']))?$attributes['foot_description']:'';
+		
+		return true;
+	}
+	
+	private function setItemInputValue($attributes, $productionItem, $key, $value,$lineTotal) 
+	{
+		$attributes['currency_rate'] = (isset($attributes['currency_rate']))?$attributes['currency_rate']:1;//EDT
+		$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['tax_code'][$key];
+		if( isset($attributes['is_fc']) ) {
+			$tax        = ( ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100) * $attributes['currency_rate'];
+			$item_total = ( ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key] ) * $attributes['currency_rate'];
+			$tax_total  = round($tax * $attributes['quantity'][$key],2);
+			$line_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]) * $attributes['currency_rate'];
+			
+		} else {
+			
+			$line_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]);
+			
+			//$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['tax_code'][$key];
+						
+			if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+				
+				$tax        = 0;
+				$item_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key];
+				$tax_total  = round($tax * $attributes['quantity'][$key],2);
+				
+			} else if($attributes['tax_include'][$key]==1){
+				
+				$ln_total   = $attributes['cost'][$key] * $attributes['quantity'][$key];
+				$tax_total  = $ln_total *  $attributes['line_vat'][$key] / (100 +  $attributes['line_vat'][$key]);
+				$item_total = $ln_total - $tax_total;
+				
+			} else {
+				
+				$tax        = ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100;
+				$item_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key];
+				$tax_total  = round($tax * $attributes['quantity'][$key],2);
+			}
+		}
+		
+		//********DISCOUNT Calculation.............
+		$discount = (isset($attributes['discount']))?$attributes['discount']:0;
+		$type = 'tax_exclude';
+			
+		if($attributes['tax_include'][$key]==1 ) {
+			$vatPlus = 100 + $attributes['line_vat'][$key];
+			$total = $attributes['cost'][$key] * $attributes['quantity'][$key];
+			$type = 'tax_include';
+		} else {
+			$vatPlus = 100;
+			$total = $attributes['line_total'][$key];
+			$type = 'tax_exclude';
+		}
+		
+		if($discount > 0) {
+			$discountAmt = round( (($total / $lineTotal) * $discount),2 );
+			$amountTotal = $total - $discountAmt;
+			$vatLine = round( (($amountTotal * $attributes['line_vat'][$key]) / $vatPlus),2 );
+			//$line_total = $amountTotal;
+			$tax_total = $vatLine; 
+		}  
+		
+		$productionItem->production_id = $this->production->id;
+		$productionItem->item_id    	= $value;
+		$productionItem->item_name  	= $attributes['item_name'][$key];
+		$productionItem->unit_id 		= $attributes['unit_id'][$key];
+		$productionItem->quantity   	= $attributes['quantity'][$key];
+		//$productionItem->balance_quantity  = $attributes['balance_quantity'][$key];
+		$productionItem->unit_price 	= (isset($attributes['is_fc']))?$attributes['cost'][$key]*$attributes['currency_rate']:$attributes['cost'][$key];
+		$productionItem->vat		    = $attributes['line_vat'][$key];
+		$productionItem->vat_amount 	= $tax_total;
+		$productionItem->discount   	= $attributes['line_discount'][$key];
+		$productionItem->line_total 	= $line_total;
+		$productionItem->tax_code 		= $tax_code;
+		$productionItem->tax_include 	= $attributes['tax_include'][$key];
+		$productionItem->item_total 	= $item_total;
+		
+		return array('line_total' => $line_total, 'tax_total' => $tax_total, 'type' => $type, 'item_total' => $item_total);
+	}
+	
+	private function setTransferStatusItem($attributes, $key, $doctype)
+	{
+		//if quantity partially deliverd, update pending quantity.
+		if($doctype=='SO') {
+			if(isset($attributes['sales_order_item_id'])) {
+				if(isset($attributes['actual_quantity']) && ($attributes['quantity'][$key] != $attributes['actual_quantity'][$key])) {
+					if( isset($attributes['sales_order_item_id'][$key]) ) {
+						$quantity 	 = $attributes['actual_quantity'][$key] - $attributes['quantity'][$key];
+						//update as partially delivered.
+						DB::table('sales_order_item')
+									->where('id', $attributes['sales_order_item_id'][$key])
+									->update(['balance_quantity' => $quantity, 'is_transfer' => 2]);
+					}
+				} else {
+						//update as completely delivered.
+						DB::table('sales_order_item')
+									->where('id', $attributes['sales_order_item_id'][$key])
+									->update(['balance_quantity' => 0, 'is_transfer' => 1]);
+				}
+			}
+		}
+		
+	}
+	
+	private function setTransferStatusQuote($attributes)
+	{
+		//update purchase order transfer status....
+		$idarr = explode(',',$attributes['document_id']);
+		if($idarr) {
+			foreach($idarr as $id) {
+				if($attributes['document_type']=='SO') {
+					DB::table('sales_order')->where('id', $id)->update(['is_editable' => 1]);
+					$row1 = DB::table('sales_order_item')->where('sales_order_id', $id)->count();
+					$row2 = DB::table('sales_order_item')->where('sales_order_id', $id)->where('is_transfer',1)->count();
+					if($row1==$row2) {
+						DB::table('sales_order')
+								->where('id', $id)
+								->update(['is_transfer' => 1]);
+					}
+				}
+				
+			}
+		}
+	}
+	
+	private function setSaleLog($attributes, $key, $document_id)
+	{
+		DB::table('item_sale_log')->insert(['document_type' => ($attributes['document_type']==0)?3:$attributes['document_type'],
+											'document_id'   => $document_id,
+											'item_id' 	  	=> $attributes['item_id'][$key],
+											'unit_id'    	=> $attributes['unit_id'][$key],
+											'quantity'   	=> $attributes['quantity'][$key],
+											'created_at' 	=> now(),
+											'created_by' 	=> 1]);
+		return true;
+	}
+	
+	private function updateItemQuantity($attributes, $key)
+	{
+		$item = DB::table('item_unit')->where('itemmaster_id', $attributes['item_id'][$key])
+									  ->where('unit_id', $attributes['unit_id'][$key])
+									  ->first();
+		if($item) {
+			DB::table('item_unit')
+					->where('id', $item->id)
+					->update([ 'cur_quantity' => $item->cur_quantity - $attributes['quantity'][$key] ]);
+			return true;		
+		}
+	}
+	
+	private function calculateTotalAmount($attributes) {
+		
+		$total = 0;
+		foreach($attributes['item_id'] as $key => $value){ 
+			
+			$total += $attributes['quantity'][$key] * $attributes['cost'][$key];
+		}
+		return $total;
+	}
+	
+	public function create($attributes)
+	{
+		if($this->isValid($attributes)) {
+			DB::beginTransaction();
+			try {
+				
+				if($this->setInputValue($attributes)) {
+					$this->production->status = 1;
+					$this->production->created_at = now();
+					$this->production->created_by = 1;
+					$this->production->fill($attributes)->save();
+				}
+				
+				//order items insert
+				if($this->production->id && !empty( array_filter($attributes['item_id']))) {
+					$line_total = 0; $tax_total = 0; $total = $item_total = 0;
+					
+					//calculate total amount....
+					$discount = (isset($attributes['discount']))?$attributes['discount']:0; $taxtype='tax_include';
+					if($discount > 0) 
+						$total = $this->calculateTotalAmount($attributes);
+					
+					foreach($attributes['item_id'] as $key => $value){ 
+						$productionItem = new ProductionItem();
+						$vat = $attributes['line_vat'][$key];
+						$arrResult 		= $this->setItemInputValue($attributes, $productionItem, $key, $value,$total);
+						//if($arrResult['line_total']) {
+							$line_total			   += $arrResult['line_total'];
+							$tax_total      	   += $arrResult['tax_total'];
+							$taxtype				  = $arrResult['type'];
+							$item_total				 += $arrResult['item_total'];
+							
+							$productionItem->status = 1;
+							$this->production->AddProductionItem()->save($productionItem);
+							
+							//update item transfer status...
+							$this->setTransferStatusItem($attributes, $key, $attributes['document_type']);
+							
+						//}
+					}
+					
+					/*CHG*/
+					$subtotal = $line_total - $discount;
+					if($taxtype=='tax_include' && $attributes['discount'] == 0) {
+					  
+					  $net_amount = $subtotal;
+					  $tax_total = ($subtotal * $vat) / (100 + $vat);
+					  $subtotal = $subtotal - $tax_total;
+					  
+					} elseif($taxtype=='tax_include' && $attributes['discount'] > 0) { 
+					
+					   $tax_total = ($subtotal * $vat) / (100 + $vat);
+					   $net_amount = $subtotal - $tax_total;
+					} else 
+						$net_amount = $subtotal + $tax_total;
+					/*CHG*/
+					
+					if( isset($attributes['is_fc']) ) {
+						$total_fc 	   = $line_total / $attributes['currency_rate'];
+						$discount_fc   = $attributes['discount'] / $attributes['currency_rate'];
+						$vat_fc 	   = $attributes['vat_fc'] / $attributes['currency_rate'];
+						$tax_fc 	   = $tax_total / $attributes['currency_rate'];
+						$net_amount_fc = $total_fc - $discount_fc + $tax_fc;
+						$subtotal_fc	   = $subtotal / $attributes['currency_rate'];
+					} else {
+						$total_fc = $discount_fc = $tax_fc = $net_amount_fc = $vat_fc = $subtotal_fc = 0;
+					}
+					
+					//update discount, total amount
+					DB::table('production')
+								->where('id', $this->production->id)
+								->update(['total'    	  => $line_total,
+										  'discount' 	  => (isset($attributes['discount']))?$attributes['discount']:0,
+										  'vat_amount'	  => $tax_total,
+										  'net_total'	  => $net_amount,
+										  'total_fc' 	  => $total_fc,
+										  'discount_fc'   => $discount_fc,
+										  'vat_amount_fc' => $tax_fc,
+										  'net_total_fc'  => $net_amount_fc,
+										  'subtotal'	  => $subtotal,
+										  'subtotal_fc'	  => $subtotal_fc ]);
+					
+					
+				}
+				
+				
+				//update purchase order transfer status....
+				if(isset($attributes['document_id'])) 
+					$this->setTransferStatusQuote($attributes);
+				
+				if( ($this->production->id) && ($attributes['curno'] <= $attributes['voucher_no']) ) { 
+					 DB::table('voucher_no')
+						->where('voucher_type', 'PrO')
+						->update(['no' => $attributes['voucher_no'] + 1]);
+						//->update(['no' => $this->production->id]);
+				}
+				
+				DB::commit();
+				return $this->production->id;//true;
+				
+			} catch(\Exception $e) { 
+			
+				DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
+				return false;
+			}
+		}
+		//throw new ValidationException('production validation error12!', $this->getErrors());
+	}
+	
+	public function update($id, $attributes)
+	{  
+		$this->production = $this->find($id);
+		$line_total = $tax_total = $line_total_new = $tax_total_new = $item_total = 0;
+		
+		DB::beginTransaction();
+		try {
+			$lineTotal = $this->calculateTotalAmount($attributes);
+			if($this->production->id && !empty( array_filter($attributes['item_id']))) {
+				foreach($attributes['item_id'] as $key => $value) { 
+					
+					if($attributes['order_item_id'][$key]!='') {
+						
+						$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['tax_code'][$key];
+						if( isset($attributes['is_fc']) ) {
+								$tax        = ( ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100) * $attributes['currency_rate'];
+								$itemtotal = ( ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key] ) * $attributes['currency_rate'];
+								$taxtotal  = round($tax * $attributes['quantity'][$key],2);
+								$linetotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) * $attributes['currency_rate'];
+								
+							} else {
+								
+								$linetotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]);
+								
+								if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+									
+									$tax        = 0;
+									$itemtotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key];
+									$taxtotal  = round($tax * $attributes['quantity'][$key],2);
+									
+								} else if($attributes['tax_include'][$key]==1){
+									
+									$ln_total   = $attributes['cost'][$key] * $attributes['quantity'][$key];
+									$taxtotal  = $ln_total *  $attributes['line_vat'][$key] / (100 +  $attributes['line_vat'][$key]);
+									$itemtotal = $ln_total - $taxtotal;
+									
+								} else {
+									
+									$tax        = ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100;
+									$itemtotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key];
+									$taxtotal  = round($tax * $attributes['quantity'][$key],2);
+								}
+							}
+							
+							//********DISCOUNT Calculation.............
+							$discount = (isset($attributes['discount']))?$attributes['discount']:0;
+							$taxtype = 'tax_exclude';
+								
+							if($attributes['tax_include'][$key]==1 ) {
+								$vatPlus = 100 + $attributes['line_vat'][$key];
+								$total = $attributes['cost'][$key] * $attributes['quantity'][$key];
+								$taxtype = 'tax_include';
+							} else {
+								$vatPlus = 100;
+								$total = $attributes['line_total'][$key];
+								$taxtype = 'tax_exclude';
+							}
+							
+							if($discount > 0) {
+								$discountAmt = round( (($total / $lineTotal) * $discount),2 );
+								$amountTotal = $total - $discountAmt;
+								$vatLine = round( (($amountTotal * $attributes['line_vat'][$key]) / $vatPlus),2 );
+								$taxtotal = $vatLine; 
+							} 
+							
+							$tax_total += $taxtotal;
+							$line_total += $linetotal;
+							$item_total += $itemtotal;
+							
+							$vat = $attributes['line_vat'][$key];
+						
+							$productionItem = ProductionItem::find($attributes['order_item_id'][$key]);
+							$items['item_name'] = $attributes['item_name'][$key];
+							$items['item_id'] = $value;
+							$items['unit_id'] = $attributes['unit_id'][$key];
+							$items['quantity'] = $attributes['quantity'][$key];
+							$items['unit_price'] = (isset($attributes['is_fc']))?$attributes['cost'][$key]*$attributes['currency_rate']:$attributes['cost'][$key];
+							$items['vat']		 = $attributes['line_vat'][$key];
+							$items['vat_amount'] = $taxtotal;
+							$items['discount'] = $attributes['line_discount'][$key];
+							$items['line_total'] = $linetotal;
+							$items['item_total'] = $itemtotal; //CHG
+							$items['tax_code'] 	= $tax_code;
+							$items['tax_include'] = $attributes['tax_include'][$key];
+							$productionItem->update($items);
+							
+						} else { //new entry...
+							$item_total_new = $tax_total_new = $item_total_new = 0;
+							if($discount > 0) 
+								$total = $this->calculateTotalAmount($attributes);
+							
+							$vat = $attributes['line_vat'][$key];
+							$productionItem = new ProductionItem();
+							$arrResult 		= $this->setItemInputValue($attributes, $productionItem, $key, $value,$total);
+							//echo '<pre>';print_r($arrResult);exit;
+							if($arrResult['line_total']) {
+								$line_total_new 		 += $arrResult['line_total'];
+								$tax_total_new      	 += $arrResult['tax_total'];
+								$item_total_new			 += $arrResult['item_total']; //CHG
+								
+								$line_total			     += $arrResult['line_total'];
+								$tax_total      	     += $arrResult['tax_total'];
+								$item_total 			 += $arrResult['item_total'];
+								$taxtype				  = $arrResult['type'];
+								
+								$productionItem->status = 1;
+								$this->production->AddProductionItem()->save($productionItem);
+							}
+						}
+						
+					}
+				}
+				
+				//manage removed items...
+				if($attributes['remove_item']!='')
+				{
+					$arrids = explode(',', $attributes['remove_item']);
+					$remline_total = $remtax_total = 0;
+					foreach($arrids as $row) {
+						DB::table('production_item')->where('id', $row)->update(['status' => 0]);
+					}
+				}
+				$this->production->fill($attributes)->save();
+				
+				/*CHG*/
+				$subtotal = $line_total - $discount;
+				if($taxtype=='tax_include' && $attributes['discount'] == 0) {
+				  
+				  $net_amount = $subtotal;
+				  $tax_total = ($subtotal * $vat) / (100 + $vat);
+				  $subtotal = $subtotal - $tax_total;
+				  
+				} elseif($taxtype=='tax_include' && $attributes['discount'] > 0) { 
+				
+				   $tax_total = ($subtotal * $vat) / (100 + $vat);
+				   $net_amount = $subtotal - $tax_total;
+				} else 
+					$net_amount = $subtotal + $tax_total;
+				/*CHG*/
+					
+				if( isset($attributes['is_fc']) ) {
+					$total_fc 	   = $line_total / $attributes['currency_rate'];
+					$discount_fc   = $attributes['discount'] / $attributes['currency_rate'];
+					$vat_fc 	   = $attributes['vat_fc'] / $attributes['currency_rate'];
+					$tax_fc 	   = $tax_total / $attributes['currency_rate'];
+					$net_amount_fc = $total_fc - $discount_fc + $tax_fc;
+					$subtotal_fc	   = $subtotal / $attributes['currency_rate']; //CHG
+				} else {
+					$total_fc = 0; $discount_fc = 0; $tax_fc = 0; $net_amount_fc = 0; $vat_fc = $subtotal_fc = 0;
+				}
+				
+				//update discount, total amount
+				DB::table('production')
+							->where('id', $this->production->id)
+							->update([
+									  'voucher_date' => ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+									  'total'    	  => $line_total,
+									  'discount' 	  => $attributes['discount'],
+									  'vat_amount'	  => $tax_total,
+									  'net_total'	  => $net_amount,
+									  'total_fc' 	  => $total_fc,
+									  'discount_fc'   => $discount_fc,
+									  'vat_amount_fc' => $tax_fc,
+									  'net_total_fc'  => $net_amount_fc,
+									  'subtotal'	  => $subtotal, //CHG
+									  'subtotal_fc'	  => $subtotal_fc,
+									  'doc_status' 	  => (isset($attributes['doc_status']))?$attributes['doc_status']:'',
+									  'comment'		  => (isset($attributes['comment']))?$attributes['comment']:((isset($attributes['comment_hd']))?$attributes['comment_hd']:''),
+									  'foot_description' => (isset($attributes['foot_description']))?$attributes['foot_description']:''
+									  ]); //CHG
+									  
+			DB::commit();
+			return true;
+			
+		} catch(\Exception $e) {
+			
+			DB::rollback();
+			return false;
+		}
+		
+	}
+	
+	
+	public function delete($id)
+	{
+		$this->production = $this->production->find($id);
+		DB::table('sales_order')->where('id',$this->production->document_id)->update(['is_transfer' => 0, 'is_editable' => 0]);
+		DB::table('production')->where('id', $id)
+									  ->update(['status' => 0, 'deleted_at' => now(),'deleted_by' => Auth::User()->id ]);	
+					
+		$this->production->delete();
+	}
+	
+	public function ProductionList2()
+	{
+		$query = $this->production->where('production.status',1);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','production.customer_id');
+						} )
+					->select('production.*','am.master_name AS customer')
+					->orderBY('production.id', 'DESC')
+					->get();
+	}
+	
+	public function ProductionListCount()
+	{
+		$query = $this->production->where('production.status',1);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','production.customer_id');
+						} )
+					->count();
+	}
+	
+	public function ProductionList($type,$start,$limit,$order,$dir,$search)
+	{
+		$query = $this->production->where('production.status',1)
+						->join('account_master AS am', function($join) {
+							$join->on('am.id','=','production.customer_id');
+						} )
+						->join('production_item','production_item.production_id','=','production.id');
+						
+				if($search) {
+					$query->where('production.voucher_no','LIKE',"%{$search}%")
+                          ->orWhere('am.master_name', 'LIKE',"%{$search}%");
+				}
+				
+				$query->select('production.*','am.master_name AS customer',DB::raw('SUM(production_item.quantity) AS qty'),'production_item.item_name')
+					->offset($start)
+                    ->limit($limit)
+					->groupBy('production_item.production_id')
+                    ->orderBy($order,$dir);
+					
+				if($type=='get')
+					return $query->get();
+				else
+					return $query->count();
+	}
+	
+	public function findOrderData($id)
+	{
+		$query = $this->production->where('production.id', $id)->where('production.is_transfer', 0);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','production.customer_id');
+						} )
+					->leftJoin('header_footer AS f',function($join) {
+						$join->on('f.id','=','production.footer_id');
+					})
+					->leftJoin('salesman AS S',function($join) {
+						$join->on('S.id','=','production.salesman_id');
+					})
+					->select('production.*','am.master_name AS customer','f.title AS footer','S.name AS salesman')
+					->first();
+		
+	}
+	
+	public function getItems($id)
+	{
+		
+		$query = $this->production->where('production.id',$id);
+		
+		return $query->join('production_item AS poi', function($join) {
+							$join->on('poi.production_id','=','production.id');
+						} )
+					  ->join('units AS u', function($join){
+						  $join->on('u.id','=','poi.unit_id');
+					  }) 
+					  ->join('itemmaster AS im', function($join){
+						  $join->on('im.id','=','poi.item_id');
+					  })
+					   ->join('item_unit AS iu', function($join){
+						  $join->on('iu.itemmaster_id','=','im.id');
+					  })
+					  ->where('poi.status',1)
+					  ->where('poi.deleted_at','0000-00-00 00:00:00')
+					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
+					  ->orderBY('poi.id')
+					  ->get();
+	}
+	
+	public function getDOItems($id)
+	{
+		
+		$query = $this->production->whereIn('production.id',$id);
+		
+		return $query->join('production_item AS poi', function($join) {
+							$join->on('poi.production_id','=','production.id');
+						} )
+					  ->join('units AS u', function($join){
+						  $join->on('u.id','=','poi.unit_id');
+					  }) 
+					  ->join('itemmaster AS im', function($join){
+						  $join->on('im.id','=','poi.item_id');
+					  })
+					   ->join('item_unit AS iu', function($join){
+						  $join->on('iu.itemmaster_id','=','im.id');
+					  })
+					  ->where('poi.status',1)
+					  ->whereIn('poi.is_transfer',[0,2])
+					  ->where('poi.deleted_at','0000-00-00 00:00:00')
+					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
+					  ->orderBY('poi.id')
+					  ->get();
+	}
+	
+	public function activeProductionList()
+	{
+		return $this->production->select('id','name')->where('status', 1)->orderBy('name', 'ASC')->get()->toArray();
+	}
+	
+	public function check_reference_no($refno, $id = null) { 
+		
+		if($id)
+			return $this->production->where('reference_no',$refno)->where('id', '!=', $id)->count();
+		else
+			return $this->production->where('reference_no',$refno)->count();
+	}
+		
+	public function getSDOitems($id)
+	{
+		$query = $this->production->where('production.id',$id);
+		
+		return $query->join('production_item AS poi', function($join) {
+							$join->on('poi.production_id','=','production.id');
+						} )
+					  ->join('units AS u', function($join){
+						  $join->on('u.id','=','poi.unit_id');
+					  }) 
+						->select('poi.*','u.unit_name')->get();
+		//return $this->itemmaster->where('status', 1)->orderBy('description','ASC')->select('id','item_code','description')->get();
+	}
+	
+	public function getCustomerOrder($customer_id)
+	{
+		return $this->production->where('production.status', 1)
+									 ->where('customer_id', $customer_id)
+									 ->where('is_transfer', 0)
+									 ->select('id','voucher_no','reference_no','description','voucher_date')
+									 ->get();
+		
+	}
+	
+	public function getOrderReport($attributes) 
+	{
+		$result = array();
+		
+		if($attributes['date_from']!=null && $attributes['date_to']!=null) {
+			$date_from = (isset($attributes['date_from']))?date('Y-m-d', strtotime($attributes['date_from'])):'';
+			$date_to = (isset($attributes['date_to']))?date('Y-m-d', strtotime($attributes['date_to'])):'';
+			
+			$result = $this->production->where('production.status',1)
+								    ->join('account_master AS AM', function($join) {
+									   $join->on('AM.id','=','production.customer_id');
+								   })
+								   ->leftJoin('jobmaster AS JM', function($join) {
+									   $join->on('JM.id','=','production.job_id');
+								   })
+								   ->whereBetween('voucher_date', array($date_from, $date_to))
+								   ->select('AM.master_name AS supplier','production.*','JM.name AS job')
+								   ->orderBY('id', 'ASC')
+								   ->get();
+		} else {
+			$result = $this->production->where('production.status',1)
+								   ->join('account_master AS AM', function($join) {
+									   $join->on('AM.id','=','production.customer_id');
+								   })
+								   ->leftJoin('jobmaster AS JM', function($join) {
+									   $join->on('JM.id','=','production.job_id');
+								   })
+								   ->select('AM.master_name AS supplier','production.*','JM.name AS job')
+								   ->orderBY('production.id', 'ASC')
+								   ->get();
+		}
+		
+		return $result; 
+	}
+	
+	public function getOrder($attributes)
+	{
+		$order = $this->production->where('production.id', $attributes['document_id'])
+								   ->join('account_master AS AM', function($join) {
+									   $join->on('AM.id','=','production.customer_id');
+								   })
+								   ->leftJoin('currency AS C', function($join) {
+									   $join->on('C.id','=','production.currency_id');
+								   })
+								   ->leftJoin('salesman AS SL', function($join) {
+									   $join->on('SL.id','=','production.salesman_id');
+								   })
+								   ->leftJoin('terms AS TR', function($join) {
+									   $join->on('TR.id','=','production.terms_id');
+								   })
+								   ->select('AM.account_id','AM.master_name AS supplier','production.*','AM.address','SL.name AS salesman',
+								   'AM.city','AM.state','AM.pin','AM.vat_no','AM.phone','C.name AS currency','TR.description AS terms')
+								   ->orderBY('production.id', 'ASC')
+								   ->first();
+								   
+		$items = $this->production->where('production.id', $attributes['document_id'])
+								   ->join('production_item AS PI', function($join) {
+									   $join->on('PI.production_id','=','production.id');
+								   })
+								   ->join('itemmaster AS IM', function($join) {
+									   $join->on('IM.id','=','PI.item_id');
+								   })
+								   ->join('units AS U', function($join) {
+									   $join->on('U.id','=','PI.unit_id');
+								   })
+								   ->where('PI.status',1)
+								   ->where('PI.deleted_at','0000-00-00 00:00:00')
+								   ->select('PI.*','production.id','IM.item_code','U.unit_name')
+								   ->get();
+								   
+		return $result = ['details' => $order, 'items' => $items];
+	}
+	
+	public function findPOdata($id)
+	{
+		$query = $this->production->where('production.id', $id);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','production.customer_id');
+						} )
+					->leftJoin('header_footer AS f',function($join) {
+						$join->on('f.id','=','production.footer_id');
+					})
+					->leftJoin('salesman AS S',function($join) {
+						$join->on('S.id','=','production.salesman_id');
+					})
+					->select('production.*','am.master_name AS customer','f.title AS footer','S.name AS salesman','am.email')
+					->orderBY('production.id', 'ASC')
+					->first();
+	}
+	
+	public function getPendingReport($attributes)
+	{
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		
+		switch($attributes['search_type']) {
+			case 'summary':
+				$query = $this->production
+								->join('production_item AS SOI', function($join) {
+									$join->on('SOI.production_id','=','production.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','production.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','production.salesman_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('production.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('production.salesman_id', $attributes['salesman']);
+						}
+							if(isset($attributes['customer_id']) && $attributes['customer_id']!='')
+				$query->whereIn('production.customer_id', $attributes['customer_id']);
+				
+		if(isset($attributes['job_id']) && $attributes['job_id']!='')
+				$query->whereIn('production.job_id', $attributes['job_id']);	
+						 
+				return $query->select('production.voucher_no','production.reference_no','production.total','production.vat_amount','S.name AS salesman',
+									  'SOI.quantity','SOI.balance_quantity','SOI.unit_price','AM.master_name','production.net_total','production.discount')
+								->groupBy('production.id')->get();
+				break;
+				
+			case 'summary_pending':
+				$query = $this->production->where('SOI.is_transfer','!=',1)
+								->join('production_item AS SOI', function($join) {
+									$join->on('SOI.production_id','=','production.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','production.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','production.salesman_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('production.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('production.salesman_id', $attributes['salesman']);
+						}
+						 
+				return $query->select('production.voucher_no','production.reference_no','production.total','production.vat_amount','production.discount',
+									  'SOI.quantity','SOI.balance_quantity','SOI.unit_price','AM.master_name','production.net_total','S.name AS salesman','SOI.vat_amount AS unit_vat')
+								->get();
+								
+				break;
+				
+			case 'detail':
+				$query = $this->production
+								->join('production_item AS SOI', function($join) {
+									$join->on('SOI.production_id','=','production.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','production.customer_id');
+								})
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','SOI.item_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','production.salesman_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('production.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('production.salesman_id', $attributes['salesman']);
+						}
+						
+				return $query->select('production.voucher_no','production.reference_no','IM.item_code','IM.description','S.name AS salesman','SOI.vat_amount AS unit_vat',
+									  'SOI.quantity','SOI.unit_price','SOI.line_total','AM.master_name','production.net_total','production.discount')
+								->get();
+				break;
+				
+			case 'detail_pending':
+				$query = $this->production->where('QSI.is_transfer','!=',1)
+								->join('production_item AS QSI', function($join) {
+									$join->on('QSI.production_id','=','production.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','production.customer_id');
+								})
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','QSI.item_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','production.salesman_id');
+								})
+								->where('QSI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('production.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('production.salesman_id', $attributes['salesman']);
+						}
+						
+				return $query->select('production.voucher_no','production.reference_no','IM.item_code','IM.description','production.total','production.vat_amount','production.discount',
+									  'QSI.quantity','QSI.balance_quantity','QSI.unit_price','QSI.line_total','AM.master_name','production.net_total','S.name AS salesman')
+								->get();
+				break;
+		}
+	}
+	
+	public function getItemDesc($id)
+	{
+		return DB::table('production')
+						->join('production_item AS QSI', function($join) {
+							$join->on('QSI.production_id', '=', 'production.id');
+						})
+						->join('item_description AS D', function($join) {
+							$join->on('D.item_detail_id', '=', 'QSI.id');
+						})
+						->where('production.id', $id)
+						->where('D.invoice_type','DO')
+						->where('QSI.status',1)
+						->where('QSI.deleted_at','0000-00-00 00:00:00')
+						->where('D.status',1)
+						->where('D.deleted_at','0000-00-00 00:00:00')
+						->select('D.*')
+						->get();
+	}
+	
+	public function check_voucher_no($refno, $id = null) { 
+		
+		if($id)
+			return $this->production->where('voucher_no',$refno)->where('id', '!=', $id)->count();
+		else
+			return $this->production->where('voucher_no',$refno)->count();
+	}
+
+	public function getPOitems($id)
+	{
+		$query = $this->production->whereIn('production.id',$id);
+		
+		return $query->join('production_item AS poi', function($join) {
+							$join->on('poi.production_id','=','production.id');
+						} )
+					  ->join('units AS u', function($join){
+						  $join->on('u.id','=','poi.unit_id');
+					  }) 
+					  ->join('itemmaster AS im', function($join){
+						  $join->on('im.id','=','poi.item_id');
+					  })
+					   ->join('item_unit AS iu', function($join){
+						  $join->on('iu.itemmaster_id','=','im.id');
+					  })
+					  ->where('poi.status',1)
+					  ->whereIn('poi.is_transfer',[0,2])
+					  ->where('poi.deleted_at', '0000-00-00 00:00:00')
+					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
+					  ->orderBY('poi.id')
+					  ->groupBy('poi.id')
+					  ->get();
+					  
+	}
+}
+

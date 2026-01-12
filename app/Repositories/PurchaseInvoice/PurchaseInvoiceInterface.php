@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\PurchaseInvoice;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface PurchaseInvoiceInterface extends RepositoryInterface {
+	
+}
+

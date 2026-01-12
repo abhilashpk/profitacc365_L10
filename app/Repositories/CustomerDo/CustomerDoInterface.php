@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\CustomerDo;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface CustomerDoInterface extends RepositoryInterface {
+	
+}
+

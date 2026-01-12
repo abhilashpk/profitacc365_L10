@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\PurchaseSplitReturn;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface PurchaseSplitReturnInterface extends RepositoryInterface {
+	
+}
+

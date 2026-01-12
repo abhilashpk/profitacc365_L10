@@ -1,0 +1,876 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Repositories\Company\CompanyInterface;
+use App\Repositories\ReceiptVoucher\ReceiptVoucherInterface;
+use App\Repositories\PaymentVoucher\PaymentVoucherInterface;
+use App\Repositories\Employee\EmployeeInterface;
+use App\Repositories\SalesOrder\SalesOrderInterface;
+use App\Repositories\Country\CountryInterface;
+use App\Repositories\Area\AreaInterface;
+use App\Repositories\Forms\FormsInterface;
+use App\Repositories\Salesman\SalesmanInterface;
+use App\Repositories\Terms\TermsInterface;
+use App\Repositories\PurchaseOrder\PurchaseOrderInterface;
+use App\Repositories\QuotationSales\QuotationSalesInterface;
+use App\Http\Requests;
+use Illuminate\Http\Request;
+use Session;
+use Auth;
+use DB;
+use Input;
+use App;
+
+class DashboardController extends Controller
+{
+    /**
+     * Create a new controller instance.
+     *
+     * @return void
+     */
+	protected $company;
+	protected $receipt_voucher;
+	protected $payment_voucher;
+	protected $cus_status;
+	protected $employee;
+	protected $sales_order;
+	protected $country;
+	protected $area;
+	protected $forms;
+	protected $formData;
+	protected $salesman;
+	protected $terms;
+	protected $purchase_order;
+	protected $quotation_sales;
+    public function __construct(CompanyInterface $company, ReceiptVoucherInterface $receipt_voucher,SalesOrderInterface $sales_order, PurchaseOrderInterface $purchase_order,QuotationSalesInterface $quotation_sales,PaymentVoucherInterface $payment_voucher, EmployeeInterface $employee,FormsInterface $forms,CountryInterface $country, AreaInterface $area,SalesmanInterface $salesman, TermsInterface $terms)
+    {
+        parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
+		
+		$this->middleware('auth');
+		$this->company = $company;
+		$this->receipt_voucher = $receipt_voucher;
+		$this->cus_status = DB::table('parameter2')->where('keyname', 'crm_customer')->where('status',1)->select('is_active')->first();
+		$this->sales_order = $sales_order;
+		$this->payment_voucher = $payment_voucher;
+		$this->employee = $employee;
+		$this->forms = $forms; 
+		$this->country = $country;
+		$this->area = $area;
+		$this->salesman = $salesman;
+		$this->terms = $terms;
+		$this->purchase_order = $purchase_order;
+		$this->quotation_sales = $quotation_sales;
+		$this->formData = $this->forms->getFormData('DCS');
+    }
+
+    public function index()
+    {	//echo Auth::user()->roles[0]->name;
+		// $user_id = Auth::user()->id;exit;
+		//date_default_timezone_set("Asia/Kolkata");
+		//echo Auth::user()->department_id;
+		//echo '<pre>';print_r(Auth::user());exit;
+		$Lbardata = []; 
+		//Session::put('cost_accounting', 0);
+		
+		//echo '<pre>';print_r($this->company_data);exit;
+		//$company = $this->company->getCompany();
+		if($this->company_data->active_status==1) {
+			$expdate = $this->calculateExpDays($this->company_data->activate_date);
+			if($expdate > $this->company_data->active_days) {
+				Session::flush();
+				return redirect('login');
+			}
+		}
+		
+		/* Session::put('company', $company->company_name);
+		Session::put('city', $company->city);
+		Session::put('state', $company->state);
+		Session::put('country', $company->country);
+		Session::put('address', $company->address);
+		Session::put('pin', $company->pin);
+		Session::put('phone', $company->phone);
+		Session::put('vatno', $company->vat_no);
+		Session::put('logo', $company->logo);
+		Session::put('email', $company->email);
+		$location = DB::table('location')->where('is_default',1)->select('id','code','name')->first();
+		Session::put('location', $location->name); */
+		
+		
+		$module = DB::table('parameter2')->where('keyname', 'mod_workshop')->where('status',1)->select('is_active')->first();
+		$hrmodule = DB::table('parameter2')->where('keyname', 'mod_hrbase')->where('status',1)->select('is_active')->first();
+		$MSmodule = DB::table('parameter2')->where('keyname', 'mod_maintenance')->where('status',1)->select('is_active')->first();
+		$REmodule = DB::table('parameter2')->where('keyname', 'mod_realestate')->where('status',1)->select('is_active')->first();
+		$parameter1 = DB::table('parameter1')->first();
+		$dbsettings=DB::table('dashboard_details')->select('code')->get();
+		$advdbsetting=DB::table('advdashboard_details')->select('code')->get();
+		$doc_warndays = $parameter1->doc_warndays;
+		$fromdate = date('Y-m-d');
+		$todate = date('Y-m-d', strtotime("+".$doc_warndays." days"));
+		$doc_count = DB::table('expiry_docs')
+								->join('employee AS E', function($join) {
+									$join->on('E.id','=','expiry_docs.employee_id');
+								})
+								->where('E.status',1)
+								->where('E.deleted_at','0000-00-00 00:00:00')
+								->whereBetween('expiry_docs.expiry_date', array($fromdate, $todate))
+								->count();
+								
+		$othrdoc_count = DB::table('document_master')
+								->where('status',1)
+								->where('deleted_at','0000-00-00 00:00:00')
+								->whereBetween('expiry_date', array($fromdate, $todate))
+								->count();
+		$pdcr_count=DB::table('pdc_received')->where('pdc_received.status',0)->where('pdc_received.deleted_at','0000-00-00 00:00:00')->count();	
+		$pdci_count=DB::table('pdc_issued')->where('pdc_issued.status',0)->where('pdc_issued.deleted_at','0000-00-00 00:00:00')->count();
+		$country = $this->country->activeCountryList();
+		$area = $this->area->activeAreaList();
+		$salesmanid = $this->salesman->activeSalesmanList();
+		$terms = $this->terms->activeTermsList();
+		##PENDING DOCS#########
+		$qtno = $sono = null;
+		if($parameter1->doc_approve==1 || $parameter1->adcd_dashboard==1) { //ADVANCED DASHBOARD....
+			$qtno = DB::table('quotation_sales')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('doc_status',0)->count();
+			$sono = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('doc_status',0)->count();
+			
+			$details = $this->company->getCrmDashboardData();
+			$view = 'adcddashboardset'; //crmdashboard, dashboard1, newdashboard1
+			
+			//GRAPH DATA HERE.....
+			$year = date('Y',strtotime($fromdate));
+			$xaxis = "['x', '".$year."-01-01', '".$year."-02-01', '".$year."-03-01', '".$year."-04-01', '".$year."-05-01', '".$year."-06-01', '".$year."-07-01', '".$year."-08-01', '".$year."-09-01', '".$year."-10-01', '".$year."-11-01', '".$year."-12-01']";
+			$xdata = ['x' => $xaxis];
+			
+			//-----GET SALE DATA--------
+			$result = $this->getSalesData();
+			
+			/* $acrows = DB::table('account_setting')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+											->where('voucher_type_id',3)->select('id','voucher_name','is_cash_voucher')->get();
+			$result = $this->get_sales_data($acrows); */	
+			
+			//-----GET PURCHASE DATA--------
+			$pur_result = $this->getPurchaseData();
+			/* $acrows = DB::table('account_setting')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+											->where('voucher_type_id',1)->select('id','voucher_name','is_cash_voucher')->get();
+			$pur_result = $this->get_purchase_data($acrows); */
+			
+			
+			
+			//TOP CUSTOMERS DATA HERE.....
+			$custdata = $this->get_customer_data();
+			
+			$supdata = $this->get_supplier_data();
+			
+			
+			//PDCR Lists....
+			$pdclist = $this->receipt_voucher->PDCReceivedList();
+			$pdcis = $this->payment_voucher->PDCIssuedList();
+			
+			
+			//TOP PRODUCT........
+			$products = $this->get_top_product();
+			
+			
+			//OUTSTANDING SALES...  
+			$sales = $this->get_sales_outstanding();
+			
+			
+			//OUTSTANDING PURCHASE...
+			$purchase = $this->get_purchase_outstanding();
+			//echo '<pre>';print_r($purchase);exit; 
+			
+			
+			//TOP SALESMAN....
+			$salesman = $this->get_top_salesman();
+		//	if($parameter1->vehicle_dashboard==1) {
+			//	$vehidata =$this->sales_order->getVehicleExpiryInfo();
+				
+		//	$vehidata =$this->getVehiExpinfo();
+	//	}
+			//GET EXPIRY DETAILS...
+			$expdata = $this->sortDocs($this->employee->getExpiryInfo());
+			
+		} else {
+			$result = $pur_result = $xdata = $custdata = $supdata = $pdclist = $pdcis = $products = $sales = $purchase = $salesman = $expdata = [];
+			$details = $this->company->getDashboardData();
+			$vehidata = $this->getVehiExpinfo();
+
+	//	echo '<pre>';print_r($parameter1);exit; 
+		if(isset($parameter1->vehicle_dashboard) && $parameter1->vehicle_dashboard==1) {
+		$vehidata =$this->sales_order->getVehicleExpiryInfo();
+		}
+		//	echo '<pre>';print_r($parameter1);exit; 
+			if(isset($parameter1->vehicle_dashboard) && $parameter1->vehicle_dashboard==1) {
+				$vehidata =$this->sales_order->getVehicleExpiryInfo();
+			}
+
+			if($hrmodule->is_active==1)
+				$view = 'hrdashboard';
+			else if($MSmodule->is_active==1)
+				$view = 'msdashboard';
+			else if($REmodule->is_active==1)
+				$view = 'redashboard';
+			else
+				$view = 'newestdashboard'; //dashboard, newdashboard
+				//$view = 'cargodashboard';
+				//$view = 'rentaldashboard';
+		}
+		
+		$arrEvnt = [];
+		
+if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth::user()->roles->first()->name === 'Salesman') {
+
+		    $srec = DB::table('salesman')->where('name',Auth::user()->name)->select('id')->first();
+		    if($srec)
+		        Session::put('salesman_id',$srec->id);
+		}
+
+		$pvlog = DB::table('payment_voucher')
+						->join('users','users.id','=','payment_voucher.modify_by')
+						->select('payment_voucher.voucher_no','payment_voucher.voucher_date','users.name','payment_voucher.modify_at')
+						->get();
+
+		$rvlog = DB::table('receipt_voucher')
+						->join('users','users.id','=','receipt_voucher.modify_by')
+						->select('receipt_voucher.voucher_no','receipt_voucher.voucher_date','users.name','receipt_voucher.modify_at')
+						->get();
+
+		$pilog = DB::table('purchase_invoice')
+						->join('users','users.id','=','purchase_invoice.modify_by')
+						->select('purchase_invoice.voucher_no','purchase_invoice.voucher_date','users.name','purchase_invoice.modify_at')
+						->get();
+
+		$silog = DB::table('sales_invoice')
+						->join('users','users.id','=','sales_invoice.modify_by')
+						->select('sales_invoice.voucher_no','sales_invoice.voucher_date','users.name','sales_invoice.modify_at')
+						->get();
+
+		$pvs = DB::table('payment_voucher')
+					->join('payment_voucher_entry AS PE', function($join) {
+						$join->on('PE.payment_voucher_id', '=', 'payment_voucher.id');
+					})
+					->join('account_master AS AM', function($join) {
+						$join->on('AM.id', '=', 'PE.account_id');
+					})
+					->where('payment_voucher.status',0)->where('payment_voucher.deleted_at','0000-00-00 00:00:00')
+					->select('payment_voucher.id','payment_voucher.voucher_no','payment_voucher.voucher_date',
+							'payment_voucher.debit AS amount',
+							DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+									JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+									WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+									AND payment_voucher_entry.entry_type='Dr' AND account_master.category='SUPPLIER' LIMIT 0,1) AS debitor"),
+							DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+									JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+									WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+									AND payment_voucher_entry.entry_type='Cr' LIMIT 0,1) AS creditor"),'payment_voucher.is_transfer')
+
+					
+					->groupBy('payment_voucher.id')->get();
+		//echo '<pre>';print_r($pvs);exit;			
+		//echo Session::get('salesman_id');
+	// 	if($this->cus_status->is_active==1) {
+						
+	// 	$events = DB::table('crm_followup')->where('crm_followup.status','<',4)->where('crm_followup.deleted_at','0000-00-00 00:00:00')->where('crm_followup.status','!=',1)
+	// 								->join('account_master','account_master.id', '=', 'crm_followup.customer_id')
+	// 								->whereBetween('crm_followup.next_date',[ date('Y').'-'.date('m').'-01', date('Y-m-t', strtotime(date('Y-m-d'))) ])
+	// 								->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
+	// 								->select('account_master.master_name','account_master.id','crm_followup.next_date')
+	// 								->get();
+	// 	foreach($events as $row) {
+	// 		$col = ["#4FC1E9","#ffb65f","#22d69d","#dcdcdc"]; $i = rand(0,3);
+	// 		$arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col[$i]];
+	// 	}
+	// 	}else{
+	// $events = DB::table('crm_followup')->where('crm_followup.status','<',4)->where('crm_followup.deleted_at','0000-00-00 00:00:00')
+	// 								->join('account_master','account_master.id', '=', 'crm_followup.customer_id')
+	// 								->whereBetween('crm_followup.next_date',[ date('Y').'-'.date('m').'-01', date('Y-m-t', strtotime(date('Y-m-d'))) ])
+	// 								->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
+	// 								->select('account_master.master_name','account_master.id','crm_followup.status','crm_followup.next_date')
+	// 								->get();
+	// 	foreach($events as $row) {
+		    
+	// 	    	if($row->status==1)
+	// 		{
+	// 		$col = ["#FF5733"];
+	// 	    $arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col];
+	// 	}elseif($row->status==2){
+		
+	// 		$col = ["#4FC1E9"];
+
+	// 		$arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col];
+	// 	}elseif($row->status==3){
+		
+	// 		$col = ["#DE3163"];
+
+	// 		$arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col];
+	// 	}
+	// 	//	$col = ["#4FC1E9","#ffb65f","#22d69d","#dcdcdc"]; $i = rand(0,3);
+	// 	//	$arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col[$i]];
+	// 	}
+	// 	}
+		
+		//$view = 'calendar';
+		//echo '<pre>';print_r($xdata );
+		//echo '<pre>';print_r($advdbsetting );exit;	
+	//echo $view;exit;
+	 $isalert=Session::get('is_alert');
+	 //echo '<pre>';print_r($isalert);exit;
+	Session::put('is_alert',true);
+	
+	 
+		return view($view)
+		         ->withIsalert($isalert)
+				->withSales($details['sales'])
+				->withItems($details['items'])
+				->withOrder($details['order'])
+				->withQuotation($details['quotation'])
+				->withPurchase($details['purchase'])
+				->withEmployee($details['employee'])
+				->withPayment($details['payment'])
+				->withReceipt($details['receipt'])
+				->withSorder($details['sorder'])
+				->withDorder($details['dorder'])
+				->withSalesret($details['salesret'])
+				->withPurchaseret($details['purchaseret'])
+				->withWorkshop($module->is_active)
+				->withDoccount($doc_count)
+				->withOthrdoccount($othrdoc_count)
+				->withQtno($qtno)
+				->withSono($sono)
+				->withDetails($details)
+				->withLinebar($result)
+				->withLinebarpur($pur_result)
+				->withXdata($xdata)
+				->withCustdat($custdata)
+				->withPdclist($pdclist)
+				->withPdcis($pdcis)
+				->withProducts($products)
+				->withSalesos($sales)
+				->withPurchaseos($purchase)
+				->withSalesman($salesman)
+				->withExpdocs($expdata)
+				->withParameter1($parameter1)
+			//	->withVehidata(isset($vehidata)?$vehidata:'')
+				->withSupdata($supdata)
+				->withPvlist($pvs)
+				->withHrmodule($hrmodule->is_active)
+				->withJsonevt(json_encode($arrEvnt))
+				->withPvlog($pvlog)
+				->withRvlog($rvlog)
+				->withPilog($pilog)
+				->withSilog($silog)
+				->withDbsettings($dbsettings)
+				->withAdvdbsetting($advdbsetting)
+				->withFormdata($this->formData)
+				->withCountry($country)
+				->withArea($area)
+				->withSalesmanid($salesmanid)
+				->withTerms($terms)
+				->withPdcrcount($pdcr_count)
+				->withPdcicount($pdci_count)
+				->withAccount($details['account']);
+				
+    }
+	
+	private function getDocType($type) {
+		
+		switch($type)
+		{
+			case 1:
+			return 'Passport';
+			break;
+			
+			case 2:
+			return 'Visa';
+			break;
+			
+			case 3:
+			return 'Labour Card';
+			break;
+			
+			case 4:
+			return 'Health Card';
+			break;
+			
+			case 5:
+			return 'ID Card';
+			break;
+			
+			case 6:
+			return 'Medical Exam';
+			break;
+			
+		}
+	}
+	
+	private function calculateExpDays($date) {
+		
+		$now = time();
+		$your_date = strtotime($date);
+		$datediff = $now - $your_date;
+
+		return round($datediff / (60 * 60 * 24));
+
+	}
+	
+	private function calculateDays($date) {
+		
+		$now = time();
+		$your_date = strtotime($date);
+		$datediff = $your_date - $now;
+
+		return round($datediff / (60 * 60 * 24));
+
+	}
+	
+	private function sortDocs($result) {
+		
+		$docarr = [];
+		foreach($result as $row) {
+			$doc_type = $this->getDocType($row->doc_type);
+			$days = $this->calculateDays($row->expiry_date);
+			
+			$docarr[] = ['code' => $row->code, 'name' => $row->name,'doc' => $doc_type,'expiry_date' => $row->expiry_date, 'days' => $days];
+		}
+		
+		return $docarr;
+	}
+	
+		
+	private function makeCustomeList($result) {
+		//$cash = "['Cash', 72, 53, 91, 72, 81, 114, 94, 109, 118, 112, 124, 143]";
+		$m = [1,2,3,4,5,6,7,8,9,10,11,12];
+		$arrRes = [];
+		foreach($result as $key => $rows) {
+			$json = "['".$key."'"; $i = 1;
+			foreach($rows as $row) {
+				if($row->month==$i) {
+					$json .= ",".$row->amount;
+				} else {
+					for($j=$i;$j<$row->month;$j++) {
+						$json .= ",0";
+					}
+					$json .= ",".$row->amount;
+				}
+				$i=$i+$row->month;
+			}
+			if(isset($row) && $row->month < 12)
+				$json .= ",0";
+			
+			$json .= "]";
+			$arrRes[] = $json;
+			
+		}
+		
+		return $arrRes;
+	}
+	
+	private function get_sales_data($results)
+	{
+		foreach($results as $row) {
+			$invdata[$row->voucher_name] = DB::table('sales_invoice')->where('voucher_id',$row->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+									->whereBetween('voucher_date', [$this->acsettings->from_date, $this->acsettings->to_date])
+									->select(DB::raw('SUM(net_total) AS amount'), DB::raw('MONTH(voucher_date) month'))
+									->groupBy('month')->get();
+		}
+		
+		$result = ($invdata)?$this->makeCustomeList($invdata):[];
+		
+		return $result;
+	}
+	
+	
+	private function get_purchase_data($results)
+	{
+		foreach($results as $row) {
+			$invdata[$row->voucher_name] = DB::table('purchase_invoice')->where('voucher_id',$row->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+									->whereBetween('voucher_date', [$this->acsettings->from_date, $this->acsettings->to_date])
+									->select(DB::raw('SUM(net_amount) AS amount'), DB::raw('MONTH(voucher_date) month'))
+									->groupBy('month')->get();
+		}
+		//echo '<pre>';print_r($invdata);exit;
+		$result = $this->makeCustomeList($invdata);
+		//echo '<pre>';print_r($result);exit;
+		return $result;
+	}
+	
+	private function get_customer_data() 
+	{
+		$custarr = DB::table('account_master')->where('status',1)->where('category','CUSTOMER')
+													->where('deleted_at','0000-00-00 00:00:00')
+													->whereNotIn('master_name',['CASH CUSTOMER','CASH CUSTOMERS'])
+													->select('master_name','cl_balance')->orderBy('cl_balance','DESC')
+													//->skip(0)->take(7)
+													->get();
+													
+		/* $amt = DB::table('account_master')->where('status',1)->where('category','CUSTOMER')
+													->where('deleted_at','0000-00-00 00:00:00')
+													->whereNotIn('master_name',['CASH CUSTOMER','CASH CUSTOMERS'])
+													->select(DB::raw('COUNT(id) AS nos'),DB::raw('SUM(cl_balance) AS amount'))
+													->orderBy('cl_balance','DESC')->first(); */
+		/* $custarr = [];
+		foreach($custs as $cust) {
+			
+			if($amt->amount > 0) {
+				$perc = ($cust->cl_balance / $amt->amount) * 100;
+				$custarr[] = ['name' => $cust->master_name, 'per' => round($perc)];
+			}
+		} */
+		
+		return $custarr;
+	}
+	
+	private function get_supplier_data() 
+	{
+		$suparr = DB::table('account_master')->where('status',1)->where('category','SUPPLIER')
+													->where('deleted_at','0000-00-00 00:00:00')
+													->select('master_name','cl_balance')->orderBy('cl_balance','DESC')
+													->get();
+													
+		return $suparr;
+	}
+	
+	
+	private function get_top_product() {
+		
+		$total = DB::table('item_unit')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+									->where('is_baseqty',1)->select(DB::raw('SUM(issued_qty) AS quantity'))->first();
+									
+		$items = DB::table('itemmaster')->join('item_unit AS IU', function($join) {
+								$join->on('IU.itemmaster_id','=','itemmaster.id');
+							})
+							->where('itemmaster.status',1)->where('itemmaster.deleted_at','0000-00-00 00:00:00')
+							->where('IU.is_baseqty',1)
+							->where('IU.status',1)->where('IU.deleted_at','0000-00-00 00:00:00')
+							->select('itemmaster.description','IU.issued_qty AS quantity')
+							->orderBy('IU.issued_qty','DESC')->skip(0)->take(5)->get();
+		$itemarr = [];							
+		foreach($items as $item) {
+			
+			if($total->quantity > 0) {
+				$perc = ($item->quantity / $total->quantity) * 100;
+				$itemarr[] = ['name' => $item->description, 'per' => round($perc)];
+			}
+		}
+		
+		return $itemarr;
+		
+		
+	}
+	
+	private function get_sales_outstanding() {
+		
+		$sales = DB::table('sales_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								->whereBetween('voucher_date', [$this->acsettings->from_date, $this->acsettings->to_date])
+								->select(DB::raw('SUM(net_total) AS net_total'),
+									DB::raw("(SELECT SUM(net_total) FROM sales_invoice 
+											  WHERE amount_transfer=0 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS unpaid"),
+									DB::raw("(SELECT SUM(net_total) FROM sales_invoice 
+											  WHERE amount_transfer=2 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS half_paid"),
+									DB::raw("(SELECT SUM(balance_amount) FROM sales_invoice 
+											  WHERE amount_transfer=2 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS balance")
+											  
+								)
+								->first();
+								
+		return $sales;
+	}
+	
+	private function get_purchase_outstanding() {
+		
+		$purchase = DB::table('purchase_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								->whereBetween('voucher_date', [$this->acsettings->from_date, $this->acsettings->to_date])
+								->select(DB::raw('SUM(net_amount) AS net_amount'),
+									DB::raw("(SELECT SUM(net_amount) FROM purchase_invoice 
+											  WHERE amount_transfer=0 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS unpaid"),
+									DB::raw("(SELECT SUM(net_amount) FROM purchase_invoice 
+											  WHERE amount_transfer=2 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS half_paid"),
+									DB::raw("(SELECT SUM(balance_amount) FROM purchase_invoice 
+											  WHERE amount_transfer=2 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS balance")
+											  
+								)
+								->first();
+								
+		return $purchase;
+	}
+	
+	
+	private function get_top_salesman() {
+
+	$salesman = DB::table('sales_invoice')->join('salesman AS S', function($join) {
+								$join->on('S.id','=','sales_invoice.salesman_id');
+							})
+							->where('sales_invoice.status',1)->where('sales_invoice.deleted_at','0000-00-00 00:00:00')
+							->where('S.status',1)->where('S.deleted_at','0000-00-00 00:00:00')
+							->whereBetween('sales_invoice.voucher_date', [$this->acsettings->from_date, $this->acsettings->to_date])
+							->select('S.name',DB::raw('COUNT(sales_invoice.id) AS sales_count'),
+								DB::raw("(SELECT COUNT(id) FROM sales_invoice 
+											  WHERE status=1 AND deleted_at='0000-00-00 00:00:00') AS count")
+							)
+							->groupBy('sales_invoice.salesman_id', 'S.name')->skip(0)->take(5)
+							->orderBy('sales_count','DESC')->get();
+		//echo '<pre>';print_r($salesman);exit;
+		$SMarr = [];
+		foreach($salesman as $row) {
+			
+			$perc = ($row->sales_count / $row->count) * 100;
+			$SMarr[] = ['name' => $row->name, 'per' => round($perc)];
+		}
+		
+		return $SMarr;
+	}
+	// public function getCrmInfo() {
+	// 	/* $date = date('Y-m', strtotime(Input::get('month')));
+	// 	$enddate = date('Y-m-t', strtotime($date)); */
+	// 	$arrEvnt = [];
+	// 	//Session::put('salesman_id',$srec->id);
+		
+	// 	 $events = DB::table('crm_followup')->where('crm_followup.status','<',4)->where('crm_followup.deleted_at','0000-00-00 00:00:00')
+	// 								->join('account_master','account_master.id', '=', 'crm_followup.customer_id')
+	// 								->whereBetween('crm_followup.next_date',[ Input::get('start'), Input::get('end') ])
+	// 								->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
+	// 								->where('crm_followup.is_open',0)
+	// 								->select('account_master.master_name','account_master.id','crm_followup.next_date')
+	// 								->get();
+	// 	foreach($events as $row) {
+	// 		$col = ["#4FC1E9","#ffb65f","#22d69d","#dcdcdc"]; $i = rand(0,3);
+	// 		$arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col[$i]];
+	// 	}
+		
+	// 	echo json_encode($arrEvnt);
+	// }
+	
+	public function getSettings() {
+
+		$data = [];
+		$result = DB::table('dashboard')->get(); //echo '<pre>';print_r($result);exit;
+		$details=DB::table('dashboard_details')->get();
+		
+		
+		return view('dbsettings')
+					->withDashboard($result)
+					->withDbdetails($details)
+					->withData($data);
+
+	}
+	public function settingUpdate() {
+		
+		if(Input::get('id')!='') {
+			
+			
+			DB::table('dashboard_details')->where('id', Input::get('id'))
+						->update([ 'code' => Input::get('file')
+						           //'position' => Input::get('pos')
+								 ]);
+		} else { 
+			DB::table('dashboard_details')
+						->insert([ 
+								   
+								   'code' => Input::get('file')
+								   //'position' => Input::get('pos')
+								 ]);
+			}
+		
+	}
+	public function settingDelete($id) {
+		
+		DB::table('dashboard_details')->where('id',$id)->delete();
+	}
+	public function getadvSettings() {
+
+		$data = [];
+		$result = DB::table('advance_dashboard')->get(); //echo '<pre>';print_r($result);exit;
+		$details=DB::table('advdashboard_details')->get();
+		
+		
+		return view('advdbsettings')
+					->withDashboard($result)
+					->withDbdetails($details)
+					->withData($data);
+
+	}
+	public function advsettingUpdate() {
+		
+		if(Input::get('id')!='') {
+			
+			
+			DB::table('advdashboard_details')->where('id', Input::get('id'))
+						->update([ 'code' => Input::get('file')
+						           
+								 ]);
+		} else { 
+			DB::table('advdashboard_details')
+						->insert([ 
+								   
+								   'code' => Input::get('file')
+								  
+								 ]);
+			}
+		
+	}
+	public function advsettingDelete($id) {
+		
+		DB::table('advdashboard_details')->where('id',$id)->delete();
+	}
+	
+	public function approvalAlert() {
+		$data = [];
+		$poresult = $this->purchase_order->getapprovalList(); 
+		$qsresult = $this->quotation_sales->getapprovalList();
+		$pvresult=$this->payment_voucher->getapprovalList();
+		//echo '<pre>';print_r($pvresult);exit;
+		
+		return view('approvalalert')
+					->withPoapproval($poresult)
+					->withQsapproval($qsresult)
+					->withPvapproval($pvresult)
+					->withName(Auth::user()->roles[0]->name)
+					->withData($data);
+	}
+	
+	
+	
+	public function getPdcrAlert() {
+		$data = [];
+		$result = $this->receipt_voucher->PDCReceivedList(); //echo '<pre>';print_r($result);exit;
+		return view('pdcralert')
+					->withPdcr($result)
+					->withData($data);
+	}
+	
+	public function getPdciAlert() {
+		$data = [];
+		$result = $this->payment_voucher->PDCIssuedList(); //echo '<pre>';print_r($result);exit;
+		return view('pdcialert')
+					->withPdci($result)
+					->withData($data);
+	}
+	
+	public function getDocExpinfo() {
+		$data = [];
+		$result = $this->getDocExpiryInfo(); //echo '<pre>';print_r($result);exit;
+		return view('docexpinfo')
+					->withDocs($result)
+					->withData($data);
+	}
+
+	public function getVehiExpinfo() {
+		$data = [];
+		
+		 $result =$this->sales_order->getVehicleExpiryInfo();
+	//	echo '<pre>';print_r($result);exit;
+		return view('vehicle_exp')
+					->withDocs($result)
+					->withData($data);
+	}
+	private function getDocExpiryInfo() {
+		
+		$fromdate = date('Y-m-d');
+		
+		$parameter1 = DB::table('parameter1')->first();
+		$doc_warndays = $parameter1->doc_warndays;
+		
+		$todate = date('Y-m-d', strtotime("+".$doc_warndays." days"));
+		
+		return DB::table('document_master')
+						->join('doc_department AS D', function($join) {
+							$join->on('D.id','=','document_master.department_id');
+						})
+						->where('document_master.status',1)
+						->where('document_master.deleted_at','0000-00-00 00:00:00')
+						->whereBetween('document_master.expiry_date', array($fromdate, $todate))
+						->select('document_master.name','document_master.code','D.department_name','document_master.expiry_date')
+						->get();
+	}
+	
+	private function getSalesData() {
+		
+		$date_from = $this->acsettings->from_date; $date_to = $this->acsettings->to_date;					
+		$invdata = DB::table('account_master')
+						->join('account_category', 'account_category.id', '=', 'account_master.account_category_id')
+						->join('account_transaction', 'account_transaction.account_master_id', '=', 'account_master.id')
+						->where('account_category.parent_id',4)//direct income
+						->where('account_master.status',1)
+						->where('account_master.cl_balance','!=',0)
+						->where('account_transaction.voucher_type','!=','OBD')
+						->where('account_transaction.status',1)
+						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->where( function ($query) use ($date_from, $date_to) {
+							$query->whereBetween('account_transaction.invoice_date', array($date_from, $date_to))
+								  ->orWhere('account_transaction.voucher_type','OB');
+						})
+						->select(DB::raw('SUM(account_transaction.amount) AS amount'), DB::raw('MONTH(invoice_date) month'))
+						->groupBy('month')->get();	
+		//echo '<pre>';print_r($invdata);exit;				
+		$result = ($invdata)?$this->dataSortByMonth($invdata,'Sales'):[];
+		//echo '<pre>';print_r($result);exit;
+		return $result;
+	}
+	
+	private function getPurchaseData() {
+		
+		$date_from = $this->acsettings->from_date; $date_to = $this->acsettings->to_date;					
+		$invdata = DB::table('account_master')
+						->join('account_category', 'account_category.id', '=', 'account_master.account_category_id')
+						->join('account_transaction', 'account_transaction.account_master_id', '=', 'account_master.id')
+						->where('account_category.parent_id',6)//direct expense
+						->where('account_master.status',1)
+						->where('account_master.cl_balance','!=',0)
+						->where('account_transaction.voucher_type','!=','OBD')
+						->where('account_transaction.status',1)
+						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->where( function ($query) use ($date_from, $date_to) {
+							$query->whereBetween('account_transaction.invoice_date', array($date_from, $date_to))
+								  ->orWhere('account_transaction.voucher_type','OB');
+						})
+						->select(DB::raw('SUM(account_transaction.amount) AS amount'), DB::raw('MONTH(invoice_date) month'))
+						->groupBy('month')->get();	
+		//echo '<pre>';print_r($invdata);exit;				
+		$result = ($invdata)?$this->dataSortByMonth($invdata,'Purchase'):[];
+		return $result;
+	}
+	
+	private function dataSortByMonth($result,$type) {
+		
+		$m = [1,2,3,4,5,6,7,8,9,10,11,12];
+		$arrRes = [];
+		//foreach($result as $key => $rows) {
+			$json = "['".$type."'"; $i = 1;
+			foreach($result as $row) {
+				if($row->month==$i) {
+					$json .= ",".$row->amount;
+					
+				} else {
+					for($j=$i;$j<$row->month;$j++) {
+						$json .= ",0";
+					}
+					$json .= ",".$row->amount;
+						
+				}
+				$i=$i+$row->month;
+			}
+			
+			if(isset($row) && $row->month < 12)
+				$json .= ",0";
+			
+			$json .= "]";
+			$arrRes[] = $json;
+			
+		//}
+		//echo '<pre>';print_r($arrRes);exit;
+		return $arrRes;
+	}
+
+	public function pvApprove($id) {
+
+		DB::table('payment_voucher')->where('id',$id)->update(['status'=>1]);
+		$pve = DB::table('payment_voucher_entry')->where('payment_voucher_id',$id)->select('id')->get();
+		foreach($pve as $pv) {
+
+			DB::table('account_transaction')->where('voucher_type','PV')->where('voucher_type_id',$pv->id)->update(['status'=>1]);
+		}
+
+		return redirect('dashboard');
+	}
+
+}

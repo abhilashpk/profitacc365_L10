@@ -1,0 +1,90 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Country;
+
+use App\Models\Country;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Config;
+
+class CountryRepository extends AbstractValidator implements CountryInterface {
+	
+	protected $country;
+	
+	protected static $rules = [
+		'code' => 'required|unique:country',
+		'name' => 'required|unique:country',
+	];
+	
+	public function __construct(Country $country) {
+		$this->country = $country;
+		
+	}
+	
+	public function all()
+	{
+		return $this->country->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->country->where('id', $id)->first();
+	}
+	
+	public function create($attributes)
+	{
+		if($this->isValid($attributes)) { 
+			
+			$this->country->code = $attributes['code'];
+			$this->country->name = $attributes['name'];
+			$this->country->status = 1;
+			$this->country->fill($attributes)->save();
+			return true;
+		}
+		
+		//throw new ValidationException('country validation error!', $this->getErrors());
+	}
+	
+	public function update($id, $attributes)
+	{
+		$this->country = $this->find($id);
+		$this->country->fill($attributes)->save();
+		return true;
+	}
+	
+	
+	public function delete($id)
+	{
+		$this->country = $this->country->find($id);
+		$this->country->delete();
+	}
+	
+	public function countryList()
+	{
+		//check admin session and apply return $this->country->where('parent_id',0)->where('status', 1)->get();
+		return $this->country->get();
+	}
+	
+	public function activeCountryList()
+	{
+		return $this->country->select('id','name')->where('status', 1)->orderBy('name', 'ASC')->get()->toArray();
+	}
+	
+	public function check_country_code($code, $id = null) {
+		
+		if($id)
+			return $this->country->where('code',$code)->where('id', '!=', $id)->count();
+		else
+			return $this->country->where('code',$code)->count();
+	}
+		
+	public function check_country_name($name, $id = null) {
+		
+		if($id)
+			return $this->country->where('name',$name)->where('id', '!=', $id)->count();
+		else
+			return $this->country->where('name',$name)->count();
+	}
+	
+}
+

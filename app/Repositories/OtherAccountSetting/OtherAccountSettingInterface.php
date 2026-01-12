@@ -1,0 +1,9 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\OtherAccountSetting;
+use App\Interfaces\RepositoryInterface;
+
+Interface OtherAccountSettingInterface extends RepositoryInterface {
+	
+}
+

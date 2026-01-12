@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Manufacture;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface ManufactureInterface extends RepositoryInterface {
+	
+}
+

@@ -1,0 +1,272 @@
+<?php
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests;
+use Input;
+use Session;
+use Response;
+use DB;
+use Excel;
+
+class MyOrderController extends Controller
+{
+	
+	public function index()
+	{
+		$data = array();
+		return view('body.myorder.index')
+					->withData($data);
+	}
+	
+	public function login() {
+		
+		if(Input::get('code')!='') {
+			$row = DB::table('rental_driver')->where('code', Input::get('code'))->where('deleted_at',null)->first();
+			if($row) {
+				Session::put('driver_id', $row->id);
+				Session::put('rental_driver', $row->driver_name);
+				return redirect('myorder/list');
+			} else {
+				Session::flash('error', 'Invalid login code!');
+				return redirect('myorder');
+			}
+		} else {
+			Session::flash('error', 'Please enter login code!');
+			return redirect('myorder');
+		}
+			
+	}
+	
+	public function dashboard() {
+		
+		$date_from = date('Y-m-d').' 00:00:00';
+		$date_to = date('Y-m-d').' 23:59:59';
+		
+		$arrasgn = DB::table('order_assign')
+						->where('driver_id', Session::get('driver_id'))
+						//->where('tr_status', 0)
+						->select( DB::raw('COUNT(*) as count') )
+						->get();
+
+		//echo '<pre>';print_r($arrasgn);exit;
+
+		$arr = DB::table('orders')->where('deleted_at','0000-00-00 00:00:00')
+						->where('driver_id', Session::get('driver_id'))
+						->whereBetween('tr_date', [$date_from, $date_to])
+						->whereIn('status', [1.5,2,3,4,5,6])
+						->groupBy('status')
+						->select( DB::raw('status, COUNT(*) as count') )
+						->get();
+						
+		$c=$delivered=$pending=0;
+		
+		$pkp = DB::table('orders')->where('deleted_at','0000-00-00 00:00:00')
+						->where('pickup_by', Session::get('driver_id'))
+						->where('is_picked', 1)
+						->where('ordtype', 1)
+						->select( DB::raw('COUNT(*) as count') )
+						->first();
+						
+		//echo '<pre>';print_r($pkp);exit;				
+						
+		foreach($arrasgn as $row1) {
+			$c += $row1->count;
+			$deliver = $row1->count;
+		}
+
+		foreach($arr as $row) {
+			$c += $row->count;
+
+			if($row->status==1)
+				$delivered = $row->count;
+			elseif($row->status==0)
+				$pending = $row->count;
+		}
+
+		
+		
+		$summary = ['all' => $c, 'delivered' => $delivered, 'pending' => $pending ];
+		//echo '<pre>';print_r($summary);exit;	
+		return view('body.myorder.dashboard')
+					->withSummary($summary);
+	}
+	
+	public function myList()
+	{
+		if(!Session::get('driver_id')) {
+			return redirect('myorder');
+		} else {
+			
+			$date_from = date('Y-m-d').' 00:00:00';
+			$date_to = date('Y-m-d').' 23:59:59';
+		
+			$orders = DB::table('sales_order')
+									->join('account_master', 'account_master.id', '=', 'sales_order.customer_id')
+									->join('order_assign', 'order_assign.order_id', '=', 'sales_order.id')
+									->where('order_assign.driver_id', Session::get('driver_id'))
+									//->whereBetween('orders.assign_date', [$date_from, $date_to])
+									->whereIn('order_assign.tr_status',[0])
+									->select('sales_order.*','account_master.master_name')
+									->get();
+									
+			return view('body.myorder.mylist')
+						->withOrders($orders);
+		}
+		
+	}
+	
+	public function setStatus() {
+		
+		DB::table('sales_order')->where('id',Input::get('id'))->update(['jctype' => Input::get('sts')]);
+	
+		DB::table('order_assign')->where('order_id', Input::get('id'))->update(['tr_status' => Input::get('sts')]); //->where('tr_status', 0)
+		
+	}
+	
+	public function report() {
+		
+		$date_from = date('Y-m-d').' 00:00:00';
+		$date_to = date('Y-m-d').' 23:59:59';
+		
+		$result = DB::table('orders')->where('orders.deleted_at','0000-00-00 00:00:00')
+								->join('customer', 'customer.id', '=', 'orders.customer_id')
+								->leftJoin('driver', 'driver.id', '=', 'orders.driver_id')
+								->where('orders.driver_id', Session::get('driver_id'))
+								->where('orders.status', 6)
+								->whereBetween('orders.delivered_date', [$date_from, $date_to])
+								->select('customer.name','orders.id','orders.order_no','orders.invoice_no','orders.customer_id','orders.recipient_name',
+									'orders.amount','orders.delivery_charge','orders.delivered_date','driver.first_name','driver.last_name','orders.order_datetime',
+									'orders.r_location','orders.r_phone','orders.r_address','orders.r_city','orders.r_region')
+								 ->orderBy('orders.id','ASC')
+								 ->get();
+		
+		$cancelled = DB::table('orders')->where('orders.deleted_at','0000-00-00 00:00:00')
+								->join('customer', 'customer.id', '=', 'orders.customer_id')
+								->leftJoin('driver', 'driver.id', '=', 'orders.driver_id')
+								->where('orders.driver_id', Session::get('driver_id'))
+								->where('orders.status', 5)
+								->whereBetween('orders.assign_date', [$date_from, $date_to])
+								->select('customer.name','orders.id','orders.order_no','orders.invoice_no','orders.customer_id','orders.recipient_name',
+									'orders.amount','orders.delivery_charge','orders.delivered_date','driver.first_name','driver.last_name','orders.order_datetime',
+									'orders.r_location','orders.r_phone','orders.r_address','orders.r_city','orders.r_region')
+								 ->orderBy('orders.id','ASC')
+								 ->get();
+								 
+		$pickedup = DB::table('orders')->where('orders.deleted_at','0000-00-00 00:00:00')
+								->leftJoin('customer', 'customer.id', '=', 'orders.customer_id')
+								->leftJoin('driver', 'driver.id', '=', 'orders.pickup_by')
+								->where('orders.pickup_by', Session::get('driver_id'))
+								->where('orders.is_picked', 0)
+								->where('orders.ordtype', 1)
+								->whereBetween('orders.pickup_datetime', [$date_from, $date_to])
+								->select('customer.name','orders.id','orders.order_no','orders.invoice_no','orders.customer_id','orders.recipient_name',
+									'orders.amount','orders.delivery_charge','orders.delivered_date','driver.first_name','driver.last_name','orders.order_datetime',
+									'orders.d_location','orders.r_phone','orders.pickup_datetime','orders.pickup_amount','orders.r_region')
+								 ->orderBy('orders.id','ASC')
+								 ->get();
+								 
+		//echo '<pre>';print_r($result);exit;
+		
+		return view('body.myorder.report')
+						->withReport($result)
+						->withCancelled($cancelled)
+						->withPickedup($pickedup);
+	}
+	
+	public function ajaxSearch() {
+		
+		$search = Input::get('key');
+		
+		$date_from = date('Y-m-d').' 00:00:00';
+		$date_to = date('Y-m-d').' 23:59:59';
+			
+		$qry = DB::table('orders')->join('customer', 'customer.id', '=', 'orders.customer_id')
+								->where('orders.driver_id', Session::get('driver_id'))
+								//->whereBetween('orders.assign_date', [$date_from, $date_to])
+								->whereIn('orders.status',[1])->where('orders.deleted_at','0000-00-00 00:00:00');
+		
+		if($search) {
+			$qry->where(function($qry) use($search){
+				$qry->where('orders.order_no','LIKE',"%{$search}%")
+				  ->orWhere('orders.r_phone', 'LIKE',"%{$search}%")
+				  ->orWhere('orders.r_location', 'LIKE',"%{$search}%")
+				  ->orWhere('orders.recipient_name', 'LIKE',"%{$search}%")
+				  ->orWhere('orders.reference_no', 'LIKE',"%{$search}%");
+			});
+		}
+		
+		$orders = $qry->select('orders.*','customer.name AS supplier')->get();
+		
+		$reason = DB::table('status_reason')->where('deleted_at','0000-00-00 00:00:00')->select('id','title')->get();
+		
+		return view('body.myorder.list')
+				->withOrders($orders)
+				->withReason($reason);
+					
+	}
+	
+	
+	public function getPickup()
+	{
+		if(!Session::get('driver_id')) {
+			return redirect('myorder');
+		} else {
+			
+			$orders = DB::table('orders')->where('orders.pickup_by', Session::get('driver_id'))
+									->join('customer', 'customer.id', '=', 'orders.customer_id')
+									->where('orders.is_picked', 1)->where('orders.ordtype', 1)
+									->where('orders.deleted_at','0000-00-00 00:00:00')
+									->select('orders.*','customer.name AS supplier')
+									->get();
+			//echo '<pre>';print_r($orders);exit;					
+			
+			return view('body.myorder.pickup')
+					->withOrders($orders);
+		}
+		
+	}
+	
+	
+	public function setPkpStatus() {
+		
+		if(Input::get('sts')==1)
+			DB::table('orders')->where('id',Input::get('id'))->update(['is_picked' => Input::get('sts'), 'pickup_datetime' => '0000-00-00 00:00:00']);
+		else
+			DB::table('orders')->where('id',Input::get('id'))->update(['is_picked' => Input::get('sts'), 'pickup_datetime' => date('Y-m-d H:i:s')]);
+		
+	}
+	
+	public function pendingList()
+	{
+		if(!Session::get('driver_id')) {
+			return redirect('myorder');
+		} else {
+			
+			$date_from = date('Y-m-d').' 00:00:00';
+			$date_to = date('Y-m-d').' 23:59:59';
+		
+			$orders = DB::table('orders')->where('orders.driver_id', Session::get('driver_id'))
+									->join('customer', 'customer.id', '=', 'orders.customer_id')
+									->leftJoin('order_assign', 'order_assign.order_id', '=', 'orders.id')
+									//->whereBetween('orders.assign_date', [$date_from, $date_to])
+									->whereIn('orders.status',[1.5])->where('orders.deleted_at','0000-00-00 00:00:00')
+									->where('order_assign.tr_status',1.5)
+									->select('orders.*','customer.name AS supplier','order_assign.reason_id')
+									->groupBy('order_assign.order_id')
+									->get();
+			//echo '<pre>';print_r($orders);exit;
+			return view('body.myorder.pending')
+					->withOrders($orders);
+		}
+		
+	}
+	
+	public function Logout() {
+		
+		Session::flush();
+		return redirect('myorder');
+	}
+}
+

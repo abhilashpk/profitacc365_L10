@@ -1,0 +1,3034 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\PaymentVoucher;
+
+use App\Models\PaymentVoucher;
+use App\Models\PaymentVoucherEntry;
+use App\Models\PaymentVoucherTr;
+use App\Models\OtherVoucherTr;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use App\Repositories\UpdateUtility;
+use App\Models\JournalEntry;
+use App\Models\Journal;
+
+use Config;
+use Illuminate\Support\Facades\DB;
+use Auth;
+
+class PaymentVoucherRepository extends AbstractValidator implements PaymentVoucherInterface {
+	
+	public $objUtility;
+	
+	protected $payment_voucher;
+	
+	protected static $rules = [];
+	
+	public function __construct(PaymentVoucher $payment_voucher) {
+		$this->payment_voucher = $payment_voucher;
+		$this->objUtility = new UpdateUtility(); 
+	}
+	
+	public function all()
+	{
+		return $this->payment_voucher->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->payment_voucher->where('id', $id)->first();
+	}
+	
+	public function SupplierPaymentList2()
+	{
+		return $query = $this->payment_voucher->where('payment_voucher.status',1)->where('payment_voucher.opening_balance_id',0)
+							->select('payment_voucher.id','payment_voucher.voucher_no','payment_voucher.voucher_date','payment_voucher.tr_description',
+									 'payment_voucher.debit AS amount','payment_voucher.from_jv','payment_voucher.voucher_type',
+									 DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+											   JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+											   WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+											   AND payment_voucher_entry.entry_type='Dr' LIMIT 0,1) AS debitor"),
+									 DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+											   JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+											   WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+											   AND payment_voucher_entry.entry_type='Cr' LIMIT 0,1) AS creditor"),'payment_voucher.is_transfer')
+									->orderBy('payment_voucher.id','DESC')
+									->get();
+		
+	}
+	
+	//set input fields values
+	private function setInputValue($attributes)
+	{
+	    //echo '<pre>';print_r($attributes);exit;
+		//echo $this->getVoucherType( $attributes['voucher_type'] );
+		if($attributes['voucher_type']==10) {
+			$voucher_type = ($attributes['chktype']!='')?$attributes['chktype']:$attributes['voucher_type'];
+		} else {
+			$voucher_type = $attributes['voucher_type'];
+		}
+		$this->payment_voucher->from_jv  = $attributes['from_jv'];
+		$this->payment_voucher->voucher_id  = $attributes['voucher'];
+		$this->payment_voucher->voucher_type  = $voucher_type;
+		$this->payment_voucher->voucher_date  = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+		$this->payment_voucher->voucher_no  = $attributes['voucher_no'];
+		$this->payment_voucher->depositor  = (isset($attributes['depositor']))?$attributes['depositor']:'';
+		$this->payment_voucher->supplier_name = isset($attributes['supplier_name'])?$attributes['supplier_name']:'';
+		$this->payment_voucher->trn_no = isset($attributes['trn_no'])?$attributes['trn_no']:'';
+		$this->payment_voucher->department_id  = (isset($attributes['department_id']))?$attributes['department_id']:'';
+		//MR12
+		$this->payment_voucher->is_fc = isset($attributes['is_fc'])?1:0;
+	//	$this->payment_voucher->currency_id = (isset($attributes['currency_id']))?$attributes['currency_id']:'';
+		$this->payment_voucher->currency_rate = (isset($attributes['currency_rate']))?$attributes['currency_rate']:'';
+		$this->payment_voucher->fc_amount = (isset($attributes['fc_amount']))?$attributes['fc_amount']:'';
+		$this->payment_voucher->purchase_invoice_id  = isset($attributes['purchase_invoice_id'][0])?$attributes['purchase_invoice_id'][0]:'';
+		if($attributes['from_jv']==1) {
+			$this->payment_voucher->tr_description  = '';
+			$this->payment_voucher->group_id = $attributes['group_id'][0];
+		} else
+			$this->payment_voucher->tr_description  = (isset($attributes['tr_description']) && $attributes['tr_description']!='')?$attributes['tr_description']:$attributes['description'];
+		
+		
+		return true;
+	}
+	
+	private function setEntryInputValue($attributes, $paymentVoucherEntry, $ar, $key) 
+	{
+		if($attributes['from_jv']==0) {
+			
+			$refno = '';
+			if(isset($attributes['line_amount']) && !empty( array_filter($attributes['line_amount']))) {
+					
+				foreach($attributes['tag'] as $k => $ky) { 
+					$refno .= ($refno=='')?$attributes['refno'][$ky]:','.$attributes['refno'][$ky]; //[$ky]
+				}
+			}
+				
+			if($ar==1) {
+				$account_id = $attributes['cr_account_id'];
+				$description = $attributes['supplier_account'];
+				$reference = ($refno=='')?(isset($attributes['is_onaccount'])?'Adv.':$refno):$refno;
+				$trtype = 'Cr';
+				$amount = $attributes['amount'];
+				$jobid = isset($attributes['job_id'])?$attributes['job_id']:'';
+				$department_id = isset($attributes['department_id'])?$attributes['department_id']:'';
+			} else if($ar==2) {
+				$account_id = $attributes['supplier_id'];
+				$description = $attributes['supplier_account'];
+				$reference = $attributes['refno'][$key];
+				$trtype = 'Dr';
+				$amount = $attributes['line_amount'][$key];
+				$jobid = isset($attributes['job_id'])?$attributes['job_id']:'';
+				$department_id = isset($attributes['department_id'])?$attributes['department_id']:'';
+			} else if($ar==3) {
+				$account_id = $attributes['dr_entry_ac_id'];
+				$description = $attributes['dr_entry_desc'];
+				$reference = $refno;
+				$trtype = 'Cr';
+				$amount = $attributes['dr_entry_amount'];
+				$jobid = '';
+				$department_id = '';
+			}  else if($ar==4) {
+				$account_id = $attributes['supplier_id'];
+				$description = $attributes['supplier_account'];
+				$reference = $refno;
+				$trtype = 'Dr';
+				$amount = $attributes['debit'];
+				$jobid = $attributes['job_id'];
+				$department_id = isset($attributes['department_id'])?$attributes['department_id']:'';
+			} else if($ar==5) {
+				$account_id = $attributes['supplier_id'];
+				$description = $attributes['supplier_account'];
+				$reference = $attributes['refno'][$key];
+				$trtype = 'Dr';
+				$amount = $attributes['line_amount'][$key];
+				$jobid = $attributes['job_id'];
+				$department_id = isset($attributes['department_id'])?$attributes['department_id']:'';
+			}
+			
+			$paymentVoucherEntry->payment_voucher_id = $this->payment_voucher->id;
+			$paymentVoucherEntry->account_id = $account_id;
+			$paymentVoucherEntry->description = $description;
+			$paymentVoucherEntry->reference = $reference;
+			$paymentVoucherEntry->entry_type = $trtype;
+			$paymentVoucherEntry->amount = $amount;
+			$paymentVoucherEntry->job_id = $jobid;
+			$paymentVoucherEntry->department_id = $department_id;
+			$paymentVoucherEntry->cheque_no = isset($attributes['cheque_no'])?$attributes['cheque_no']:'';
+			$paymentVoucherEntry->cheque_date = ($attributes['cheque_date']!='')?date('Y-m-d', strtotime($attributes['cheque_date'])):'';
+			$paymentVoucherEntry->bank_id = isset($attributes['bank_id'])?$attributes['bank_id']:'';
+			$paymentVoucherEntry->party_account_id = isset($attributes['supplier_id'])?$attributes['supplier_id']:'';
+			
+			if($ar==4) {
+				$paymentVoucherEntry->is_onaccount = isset($attributes['is_onaccount'])?1:0;
+				$paymentVoucherEntry->amount = isset($attributes['is_onaccount'])?$attributes['on_amount']:$amount;
+				$paymentVoucherEntry->reference = 'Adv.';
+			}
+			return true;
+			
+		} else { 
+		
+			$cr_amount = 0; $dr_amount = 0;
+			if($attributes['account_type'][$key]=='Dr')
+				$dr_amount = $attributes['line_amount'][$key];
+			else if($attributes['account_type'][$key]=='Cr')
+				$cr_amount = $attributes['line_amount'][$key];
+			
+			$paymentVoucherEntry->payment_voucher_id = $this->payment_voucher->id;
+			$paymentVoucherEntry->account_id = $attributes['account_id'][$key];
+			$paymentVoucherEntry->description = $attributes['description'][$key];
+			$paymentVoucherEntry->reference = $attributes['reference'][$key];
+			$paymentVoucherEntry->entry_type = $attributes['account_type'][$key];
+			$paymentVoucherEntry->amount = $attributes['line_amount'][$key];
+			$paymentVoucherEntry->job_id = isset($attributes['job_id'][$key])?$attributes['job_id'][$key]:'';
+			$paymentVoucherEntry->currency_id = isset($attributes['currency_id'][$key])?$attributes['currency_id'][$key]:'';
+			$paymentVoucherEntry->department_id  = isset($attributes['department'][$key])?$attributes['department'][$key]:'';
+		    /*if($attributes['group_id'][$key]=='BANK') {
+				$paymentVoucherEntry->cheque_no = isset($attributes['chq_no'])?$attributes['chq_no']:'';
+				$paymentVoucherEntry->cheque_date =  ($attributes['chq_date']!='')?date('Y-m-d', strtotime($attributes['chq_date'])):'';
+			} else {*/
+			$paymentVoucherEntry->cheque_no = isset($attributes['cheque_no'][$key])?$attributes['cheque_no'][$key]:'';
+			$paymentVoucherEntry->cheque_date =  (isset($attributes['cheque_date'][$key]) && $attributes['cheque_date'][$key]!='')?date('Y-m-d', strtotime($attributes['cheque_date'][$key])):'';
+			//} 
+			$paymentVoucherEntry->bank_id  = isset($attributes['bank_id'][$key])?$attributes['bank_id'][$key]:'';
+			$paymentVoucherEntry->party_account_id   = isset($attributes['partyac_id'][$key])?$attributes['partyac_id'][$key]:'';
+			
+			//check advance or not....
+			if($attributes['account_type'][$key]=='Dr') {
+				
+				if(strpos(strtoupper($attributes['description'][$key]), 'ADVANCE') !== false) {
+					$paymentVoucherEntry->is_onaccount = 1;
+					$paymentVoucherEntry->reference = ($attributes['reference'][$key]=='')?'Adv.':$attributes['reference'][$key];
+				} else {
+					$paymentVoucherEntry->is_onaccount = isset($attributes['is_onaccount'])?1:0;
+				}
+			}
+			
+			//$paymentVoucherEntry->fc_amount    		= $attributes['amount_fc'][$key];
+			//$paymentVoucherEntry->fc_id    		= $attributes['fc'][$key];
+			//$paymentVoucherEntry->currency_rate    		= $attributes['currency_rate'][$key];
+			
+			return array('dr_amount' => $dr_amount, 'cr_amount' => $cr_amount);
+		}	
+			
+	}
+	
+	private function updateClosingBalance($account_id, $amount, $type, $voucher_type=null)
+	{
+		
+		if($type=='Dr') {
+			if($voucher_type=='PDCI') {
+				DB::table('account_master')
+							->where('id', $account_id)
+							->update([//'cl_balance' => DB::raw('cl_balance - '.$amount),
+									  'pdc_amount' => DB::raw('pdc_amount + '.$amount)
+							]);
+			} else {
+				
+				$this->objUtility->tallyClosingBalance($account_id);
+			}
+		} else {
+			
+			$this->objUtility->tallyClosingBalance($account_id);
+			
+		}
+		
+		return true;
+	}
+	
+	private function updateClosingBalanceJV($account_id, $amount, $type)
+	{
+		
+		$this->objUtility->tallyClosingBalance($account_id);
+		
+		return true;
+	}
+	
+	private function setAccountTransactionUpdate($attributes, $payment_voucher_id, $key)
+	{
+		
+		DB::table('account_transaction')
+				->where('voucher_type', 'PV')
+				->where('voucher_type_id', $payment_voucher_id)
+				->update([ 'account_master_id' => $attributes['account_id'][$key],
+							'transaction_type'  => $attributes['account_type'][$key],
+							'amount'   			=> $attributes['line_amount'][$key],
+							'modify_at' 		=> now(),
+							'modify_by' 		=> Auth::User()->id,
+							'description' 		=> $attributes['description'][$key],
+							'reference'			=> $attributes['voucher_no'],
+							'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+							'reference_from'	=> $attributes['reference'][$key],
+							'department_id'		=> isset($attributes['department'][$key])?$attributes['department'][$key]:''
+							]);
+		
+		return true;
+	}
+	
+	private function setAccountTransactionDelete($attributes, $payment_voucher_id)
+	{
+		
+		DB::table('account_transaction')
+				->where('voucher_type', 'PV')
+				->where('voucher_type_id', $payment_voucher_id)
+				->update([ 'status' 		=> 0,
+						   'deleted_at' 	=> now(),
+						   'deleted_by'		=> Auth::User()->id ]);
+		
+		return true;
+	}
+	
+	private function setTransactionStatus($attributes, $key, $pv_entry_id) //May 15
+	{
+		if($attributes['from_jv']==0) {
+			//if amount partially transfered, update pending amount.
+			if(isset($attributes['actual_amount']) && ($attributes['line_amount'][$key] != $attributes['actual_amount'][$key])) {
+				if( isset($attributes['purchase_invoice_id'][$key]) ) {
+					if($attributes['bill_type'][$key]=='PI') {
+						$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+						//update as partially paid.
+						DB::table('purchase_invoice')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);//'is_editable' => 1
+					} else if($attributes['bill_type'][$key]=='OB') {
+						$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+						//update as partially paid.
+						DB::table('opening_balance_tr')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+					} else if($attributes['bill_type'][$key]=='PIN') {
+						$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+						//update as partially paid.
+						DB::table('journal')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => $balance_amount, 'is_transfer' => 2]);
+									
+					} else if($attributes['bill_type'][$key]=='OC') {
+						$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+						//update as partially paid.
+						DB::table('pi_other_cost')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => $balance_amount, 'is_transfer' => 2]);
+					
+					} elseif($attributes['bill_type'][$key]=='OT') { //May 15......
+					
+						$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+						//update as partially paid.
+						DB::table('other_voucher_tr')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+					} else if($attributes['bill_type'][$key]=='PS') {
+						$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+						//update as partially paid.
+						DB::table('purchase_split')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);//'is_editable' => 1	
+					} 
+				}
+			} else {
+					//update as completely paid.
+					if($attributes['bill_type'][$key]=='PI')  {
+						DB::table('purchase_invoice')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => 0, 'amount_transfer' => 1]);//'is_editable' => 1
+					} else if($attributes['bill_type'][$key]=='OB') {
+						DB::table('opening_balance_tr')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => 0, 'amount_transfer' => 1]);
+									
+					} else if($attributes['bill_type'][$key]=='PIN') {
+						DB::table('journal')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => 0, 'is_transfer' => 1]);
+									
+					} else if($attributes['bill_type'][$key]=='OC') {
+						DB::table('pi_other_cost')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => 0, 'is_transfer' => 1]);
+									
+					} else if($attributes['bill_type'][$key]=='OT') { //May 15......
+						DB::table('other_voucher_tr')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => 0, 'amount_transfer' => 1]);
+					} else if($attributes['bill_type'][$key]=='PS')  {
+						DB::table('purchase_split')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => 0, 'amount_transfer' => 1]);//'is_editable' => 1
+					} //....May 15
+			}
+			
+		} else if($attributes['from_jv']==1) {
+			
+			if($attributes['group_id'][$key]=='CUSTOMER') { //customer type............
+				//if amount partially transfered, update pending amount.
+
+				if( isset($attributes['inv_id'][$key]) ) {
+						
+						if($attributes['bill_type'][$key]=='SI') {
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('sales_invoice')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);//'is_editable' => 1
+							
+							//check if bll is cleared or not...
+							$bal = DB::table('sales_invoice')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('sales_invoice')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+						} else if($attributes['bill_type'][$key]=='OB') {
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('opening_balance_tr')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('opening_balance_tr')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('opening_balance_tr')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+							
+							
+						} else if($attributes['bill_type'][$key]=='SIN') {
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('journal')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => $balance_amount, 'is_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('journal')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('journal')->where('id', $attributes['inv_id'][$key])->update(['is_transfer' => 1]);
+							}
+							
+						} else if($attributes['bill_type'][$key]=='OT') { //May 15......
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('other_voucher_tr')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('other_voucher_tr')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('other_voucher_tr')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+						}//......May 15
+						
+						
+						//May 15.....
+						if($attributes['account_type'][$key]=='Dr' && $attributes['inv_id'][$key]=='') {
+							
+							$otherVchrTr = new OtherVoucherTr;
+							$otherVchrTr->voucher_type = 'PV';
+							$otherVchrTr->voucher_id = $pv_entry_id;
+							$otherVchrTr->tr_type = 'Dr';
+							$otherVchrTr->tr_date = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+							$otherVchrTr->reference_no = $attributes['reference'][$key];
+							$otherVchrTr->amount = $attributes['line_amount'][$key];
+							$otherVchrTr->account_master_id = $attributes['account_id'][$key];
+							$otherVchrTr->status = 1; 
+							$otherVchrTr->save();
+									
+						}
+						//......May 15
+					}
+				
+				
+			} else if($attributes['group_id'][$key]=='SUPPLIER') { //supplier type............
+				//if amount partially transfered, update pending amount.
+				
+					if( isset($attributes['inv_id'][$key]) ) {
+						if($attributes['bill_type'][$key]=='PI') {
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('purchase_invoice')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);// 'is_editable' => 1
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('purchase_invoice')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('purchase_invoice')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+							
+						} else if($attributes['bill_type'][$key]=='OB') {
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('opening_balance_tr')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('opening_balance_tr')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('opening_balance_tr')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+										
+						} else if($attributes['bill_type'][$key]=='PIN') {
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('journal')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => $balance_amount, 'is_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('journal')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('journal')->where('id', $attributes['inv_id'][$key])->update(['is_transfer' => 1]);
+							}
+							
+						} else if($attributes['bill_type'][$key]=='OC') {
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('pi_other_cost')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => $balance_amount, 'is_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('pi_other_cost')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('pi_other_cost')->where('id', $attributes['inv_id'][$key])->update(['is_transfer' => 1]);
+							}
+							
+						} else if($attributes['bill_type'][$key]=='OT') { //May 15.....
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('other_voucher_tr')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('other_voucher_tr')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('other_voucher_tr')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+							
+						} //......May 15
+						
+						
+						//May 15.....
+						if($attributes['account_type'][$key]=='Cr' && $attributes['inv_id'][$key]=='') {
+							
+							$otherVchrTr = new OtherVoucherTr;
+							$otherVchrTr->voucher_type = 'PV';
+							$otherVchrTr->voucher_id = $pv_entry_id;
+							$otherVchrTr->tr_type = 'Cr';
+							$otherVchrTr->tr_date = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+							$otherVchrTr->reference_no = $attributes['reference'][$key];
+							$otherVchrTr->amount = $attributes['line_amount'][$key];
+							$otherVchrTr->account_master_id = $attributes['account_id'][$key];
+							$otherVchrTr->status = 1; 
+							$otherVchrTr->save();
+									
+						}
+						//......May 15
+					}
+				
+			}
+		}
+	}
+	
+	private function setTransactionStatusUpdate($attributes, $key, $pv_entry_id) //May 15
+	{
+		if($attributes['from_jv']==0) {
+			//if amount partially transfered, update pending amount.
+			if(isset($attributes['actual_amount']) && ($attributes['line_amount'][$key] != $attributes['actual_amount'][$key])) {
+				if( isset($attributes['purchase_invoice_id'][$key]) ) {
+					if($attributes['bill_type'][$key]=='PI') {
+						$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+						//update as partially paid.
+						DB::table('purchase_invoice')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);//'is_editable' => 1
+								
+					} elseif($attributes['bill_type'][$key]=='OB') {
+					
+						$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+						//update as partially paid.
+						DB::table('opening_balance_tr')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+					} elseif($attributes['bill_type'][$key]=='PIN') { //ED12
+					
+						$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+						//update as partially paid.
+						DB::table('journal')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => $balance_amount, 'is_transfer' => 2]);
+						
+					} elseif($attributes['bill_type'][$key]=='OT') { //May 15.....
+					
+						$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+						//update as partially paid.
+						DB::table('other_voucher_tr')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+						
+					} //.....May 15
+				}
+			} else {
+				
+					//update as completely paid.
+					if($attributes['bill_type'][$key]=='PI')  {
+						DB::table('purchase_invoice')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => 0, 'amount_transfer' => 1]);//'is_editable' => 1
+									
+					} else if($attributes['bill_type'][$key]=='OB') {
+						
+						DB::table('opening_balance_tr')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => 0, 'amount_transfer' => 1]);
+									
+					} else if($attributes['bill_type'][$key]=='PIN') { //ED12
+						
+						DB::table('journal')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => 0, 'is_transfer' => 1]);
+									
+					} else if($attributes['bill_type'][$key]=='PIN') { //May 15......
+						
+						DB::table('other_voucher_tr')
+									->where('id', $attributes['purchase_invoice_id'][$key])
+									->update(['balance_amount' => 0, 'amount_transfer' => 1]);
+					} //.....May 15
+			}
+			
+		} else if($attributes['from_jv']==1) {
+			
+			if($attributes['group_id'][$key]=='CUSTOMER') { //customer type............
+				//if amount partially transfered, update pending amount.
+				//if(isset($attributes['actual_amount']) && ($attributes['line_amount'][$key] != $attributes['actual_amount'][$key])) {
+					if( isset($attributes['inv_id'][$key]) ) {
+						//ED12
+						if($attributes['bill_type'][$key]=='PI') {
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('purchase_invoice')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => DB::raw('balance_amount + '.$balance_amount), 'amount_transfer' => 2]);//'is_editable' => 1
+							
+							//check if bll is cleared or not...
+							$bal = DB::table('purchase_invoice')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('purchase_invoice')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+						} else if($attributes['bill_type'][$key]=='OB') {
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('opening_balance_tr')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => DB::raw('balance_amount + '.$balance_amount), 'amount_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('opening_balance_tr')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('opening_balance_tr')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+							
+							
+						} else if($attributes['bill_type'][$key]=='PIN') {
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('journal')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => DB::raw('balance_amount + '.$balance_amount), 'is_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('journal')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('journal')->where('id', $attributes['inv_id'][$key])->update(['is_transfer' => 1]);
+							}
+						
+						} else if($attributes['bill_type'][$key]=='OT') { //May 15.....
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('other_voucher_tr')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => DB::raw('balance_amount + '.$balance_amount), 'amount_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('other_voucher_tr')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('other_voucher_tr')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+						} //.....May 15
+						
+						
+						//May 15.....
+						if($attributes['account_type'][$key]=='Dr' && $attributes['inv_id'][$key]=='') {
+							
+							DB::table('other_voucher_tr')
+										->where('voucher_type', 'PV')
+										->where('voucher_id', $pv_entry_id)
+										->update([ 'tr_type' => $attributes['account_type'][$key],
+												   'tr_date' => date('Y-m-d', strtotime($attributes['voucher_date'])),
+												   'reference_no' => $attributes['reference'][$key],
+												   'amount' => $attributes['line_amount'][$key],
+												   'account_master_id' => $attributes['account_id'][$key]
+										]);
+									
+						}
+						//......May 15
+						
+					}
+				
+			} else if($attributes['group_id'][$key]=='SUPPLIER') { //supplier type............
+				//if amount partially transfered, update pending amount.
+					
+					if( isset($attributes['inv_id'][$key]) ) {
+						
+						if($attributes['bill_type'][$key]=='PI') {
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('purchase_invoice')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => DB::raw('balance_amount + '.$balance_amount), 'amount_transfer' => 2]);//'is_editable' => 1
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('purchase_invoice')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('purchase_invoice')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+							
+						} else if($attributes['bill_type'][$key]=='OB') {
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('opening_balance_tr')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => DB::raw('balance_amount + '.$balance_amount), 'amount_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('opening_balance_tr')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('opening_balance_tr')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+										
+						} else if($attributes['bill_type'][$key]=='PIN') {
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('journal')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => DB::raw('balance_amount + '.$balance_amount), 'is_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('journal')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('journal')->where('id', $attributes['inv_id'][$key])->update(['is_transfer' => 1]);
+							}
+							
+						} else if($attributes['bill_type'][$key]=='OT') { //May 15.....
+							
+							$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+							//update as partially paid.
+							DB::table('other_voucher_tr')
+										->where('id', $attributes['inv_id'][$key])
+										->update(['balance_amount' => DB::raw('balance_amount + '.$balance_amount), 'amount_transfer' => 2]);
+										
+							//check if bll is cleared or not...
+							$bal = DB::table('other_voucher_tr')->where('id', $attributes['inv_id'][$key])->select('balance_amount')->first();
+							if(isset($bal) && $bal->balance_amount == 0) {
+								DB::table('other_voucher_tr')->where('id', $attributes['inv_id'][$key])->update(['amount_transfer' => 1]);
+							}
+						} //......May 15
+						
+						
+						
+						//May 15.....
+						if($attributes['account_type'][$key]=='Cr' && $attributes['inv_id'][$key]=='') {
+							
+							DB::table('other_voucher_tr')
+										->where('voucher_type', 'PV')
+										->where('voucher_id', $pv_entry_id)
+										->update([ 'tr_type' => $attributes['account_type'][$key],
+												   'tr_date' => date('Y-m-d', strtotime($attributes['voucher_date'])),
+												   'reference_no' => $attributes['reference'][$key],
+												   'amount' => $attributes['line_amount'][$key],
+												   'account_master_id' => $attributes['account_id'][$key]
+										]);
+									
+						}
+						//......May 15
+					}
+				
+			}
+		}
+	}
+	
+	private function setAccountTransactionPV($attributes, $voucher_id, $type, $key=null)
+	{
+		if($attributes['from_jv']==0) {
+			
+			if($type=='Dr') {
+				$account_master_id = $attributes['supplier_id'];
+				if( isset($attributes['is_onaccount']) ) { //check on account..
+					$amount = isset($attributes['is_fc'])?($attributes['on_amount'] * $attributes['currency_rate']):$attributes['on_amount']; //MR12
+					$referencefrm = '';
+				} else {
+					$amount = $attributes['line_amount'][$key];
+					$referencefrm = $attributes['refno'][$key];
+				}
+			} else if($type=='Ds') {
+				
+				if( isset($attributes['is_debit']) && $attributes['is_debit']==1 ) { //check discount..
+					$amount = $attributes['dr_entry_amount'];
+					$account_master_id = $attributes['dr_entry_ac_id'];
+					$referencefrm = '';
+					$type = 'Cr';
+				}
+				
+			} else {
+				//LINE CR AMOUNT TRANSACTION...(CHECK LINE AMOUNT IS OR NOT)
+				if($key) {
+					$amount = $attributes['line_amount'][$key];
+					$account_master_id = $attributes['supplier_id'];
+					$referencefrm = $attributes['refno'][$key];
+				} else { //DR AMOUNT FIXED COLUMN FROM..
+					$account_master_id = $attributes['cr_account_id'];
+					$amount = isset($attributes['is_fc'])?($attributes['amount'] * $attributes['currency_rate']):$attributes['amount']; //MR12
+					$referencefrm = $attributes['reference'];
+				}
+			}
+			
+			$status = $attributes['status'];
+			if($attributes['status']==0) {
+				if($attributes['debit'] > 25000) {
+					$status = 0;
+				} else
+					$status = 1;
+			}
+			
+			DB::table('account_transaction')
+					->insert([  'voucher_type' 		=> 'PV',
+								'voucher_type_id'   => $voucher_id,
+								'account_master_id' => $account_master_id,
+								'transaction_type'  => $type,
+								'amount'   			=> $amount,
+								'status' 			=> $status,
+								'created_at' 		=> now(),
+								'created_by' 		=> Auth::User()->id,
+								'description' 		=> (isset($attributes['is_onaccount']))?'Advance Amount':$attributes['description'],
+								'reference'			=> $attributes['voucher_no'], //(isset($attributes['is_onaccount']))?'Adv.':
+								'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+								'reference_from'	=> (isset($attributes['is_onaccount']))?'Adv.':$referencefrm,
+								'department_id'		=> (isset($attributes['department_id']))?$attributes['department_id']:''
+							]);
+								
+		} else {
+			
+			$status = isset($attributes['status'])?$attributes['status']:1;
+			if(isset($attributes['status']) && $attributes['status']==0) {
+				if($attributes['debit'] > 25000) {
+					$status = 0;
+				} else
+					$status = 1;
+			}
+
+			DB::table('account_transaction')
+					->insert([  'voucher_type' 		=> 'PV',//payment_voucher entry
+								'voucher_type_id'   => $voucher_id,
+								'account_master_id' => $attributes['account_id'][$key],
+								'transaction_type'  => $attributes['account_type'][$key],
+								'amount'   			=> $attributes['line_amount'][$key],
+								'status' 			=> $status,
+								'created_at' 		=> now(),
+								'created_by' 		=> Auth::User()->id,
+								'description' 		=> $attributes['description'][$key],
+								'reference'			=> $attributes['voucher_no'],
+								'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+								'reference_from'	=> $attributes['reference'][$key],
+								'department_id'		=> (isset($attributes['department'][$key]))?$attributes['department'][$key]:''
+								]);
+		}
+		
+		return true;
+	}
+	
+	private function setAccountTransactionPVUpdate($attributes, $voucher_id, $type, $key=null)
+	{
+		if($attributes['from_jv']==0) {
+			
+			if($type=='Dr') {
+				$account_master_id = $attributes['supplier_id'];
+				if( isset($attributes['is_onaccount']) ) { //check on account..
+					$amount = $attributes['on_amount'];
+					$referencefrm = '';
+				} else {
+					$amount = $attributes['line_amount'][$key];
+					$referencefrm = $attributes['refno'][$key];
+				}
+				
+			} else {
+				$account_master_id = $attributes['cr_account_id'];
+				$amount = $attributes['amount'];
+				$referencefrm = $attributes['reference'];
+			}
+			
+			DB::table('account_transaction')
+					->where('voucher_type', 'PV')
+					->where('voucher_type_id', $voucher_id)
+					->where('account_master_id', $account_master_id)
+					->where('transaction_type', $type)
+					->update([  'amount'   			=> $amount,
+								'modify_at' 		=> now(),
+								'modify_by' 		=> Auth::User()->id,
+								'description' 		=> $attributes['description'],
+								'reference'			=> $attributes['voucher_no'],
+								'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+								'reference_from'	=> $referencefrm
+							]);
+			
+		} else {
+			
+			DB::table('account_transaction')
+					->where('voucher_type', 'PV')
+					->where('voucher_type_id', $voucher_id)
+					->where('account_master_id', $attributes['account_id'][$key])
+					->where('transaction_type', $type)
+					->update([  'amount'   			=> $attributes['line_amount'][$key],
+								'modify_at' 		=> now(),
+								'modify_by' 		=> Auth::User()->id,
+								'description' 		=> $attributes['description'][$key],
+								'reference'			=> $attributes['voucher_no'],
+								'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+								'reference_from'	=> $attributes['reference'][$key],
+								'department_id'		=> (isset($attributes['department_id'][$key]))?$attributes['department_id'][$key]:''
+								]);
+		}
+		
+		return true;
+	}
+	
+	private function setAccountTransactionPVDelete($attributes, $voucher_id, $type, $key)
+	{
+			$account_master_id = ($type=='Dr')?$attributes['supplierer_id']:$attributes['cr_account_id'];
+			
+			DB::table('account_transaction')
+						->where('voucher_type', 'PV')
+						->where('voucher_type_id', $voucher_id)
+						->where('account_master_id', $account_master_id)
+						->where('reference_from', $attributes['refno'][$key])
+						->update([ 'status' 		=> 0,
+								   'deleted_at' 	=> now(),
+								   'deleted_by' 	=> Auth::User()->id ]);
+	}
+	
+		
+	
+	protected function settleAdvancesWithInvoices($attributes, $payment_voucher_id)
+    {
+        if (empty($attributes['is_advNcash'])) return;
+    
+        $advances = [];
+        $invoices = [];
+    
+        foreach ($attributes['tag'] as $k => $key) {
+            $billType = $attributes['bill_type'][$key];
+            $docId = $attributes['purchase_invoice_id'][$key];
+            $amount = (float) $attributes['line_amount'][$key];
+    
+            if (in_array($billType, ['OBD', 'PV'])) {
+                $advances[] = [
+                    'bill_type' => $billType,
+                    'doc_id' => $docId,
+                    'remaining' => $amount,
+                ];
+            }
+    
+            if ($billType === 'PI') {
+                $invoices[] = [
+                    'invoice_id' => $docId,
+                    'amount' => $amount,
+                ];
+            }
+        }
+    
+        // Begin settlement
+        foreach ($invoices as $invoice) {
+            $invoiceId = $invoice['invoice_id'];
+            $amountToSettle = $invoice['amount'];
+    
+            foreach ($advances as &$adv) {
+                if ($amountToSettle <= 0) break;
+    
+                if ($adv['remaining'] > 0) {
+                    $used = min($amountToSettle, $adv['remaining']);
+                    $adv['remaining'] -= $used;
+                    $amountToSettle -= $used;
+    
+                    // Update account_transaction - split Cr entry
+                    DB::table('account_transaction')->insert([
+                        'voucher_type' => $adv['bill_type'],
+                        'voucher_type_id' => $adv['doc_id'],
+                        'account_master_id' => $attributes['supplier_id'],
+                        'transaction_type' => 'Cr',
+                        'amount' => $used,
+                        'status' => 1,
+                        'created_at' => now(),
+                        'created_by' => Auth::id(),
+                        'modify_at' => now(),
+                        'modify_by' => Auth::id(),
+                        'description' => 'Advance Settlement for Invoice ID ' . $invoiceId,
+                        'reference_from' => 'PI-' . $invoiceId,
+                        'invoice_date' => date('Y-m-d'),
+                        'is_paid' => 0,
+                        'reference' => '',
+                        'tr_for' => 0,
+                        'fc_amount' => 0,
+                        'other_type' => '',
+                        'is_fc' => 0,
+                        'department_id' => 0,
+                        'job_id' => 0,
+                        'other_info' => ''
+                    ]);
+    
+                    // Log in advance settlement history
+                    DB::table('advance_settlement')->insert([
+                        'advance_voucher_type' => $adv['bill_type'],
+                        'advance_voucher_id' => $adv['doc_id'],
+                        'invoice_id' => $invoiceId,
+                        'settled_amount' => $used,
+                        'created_at' => now()
+                    ]);
+                }
+            }
+    
+            // If still amount to settle, post new PV entry
+            if ($amountToSettle > 0) {
+                // Add cash payment entry - logic depends on your existing PV entry method
+                $newPVEntry = new PaymentVoucherEntry();
+                $newPVEntry->payment_voucher_id = $payment_voucher_id;
+                $newPVEntry->account_id = $attributes['cr_account_id'];
+                $newPVEntry->description = 'Cash payment for Invoice ID ' . $invoiceId;
+                $newPVEntry->reference = '';
+                $newPVEntry->amount = $amountToSettle;
+                $newPVEntry->entry_type = 'Cr';
+                $newPVEntry->job_id = 0;
+                $newPVEntry->department_id = 0;
+                $newPVEntry->is_fc = 0;
+                $newPVEntry->currency_id = 0;
+                $newPVEntry->currency_rate = 1;
+                $newPVEntry->amount_fc = 0;
+                $newPVEntry->cheque_no = '';
+                $newPVEntry->cheque_date = null;
+                $newPVEntry->bank_id = 0;
+                $newPVEntry->status = 1;
+                $newPVEntry->deleted_at = null;
+                $newPVEntry->is_onaccount = 0;
+                $newPVEntry->amount_transfer = 0;
+                $newPVEntry->balance_amount = 0;
+                $newPVEntry->party_account_id = $attributes['supplier_id'];
+                $newPVEntry->save();
+    
+                // Update account transaction for this cash
+                $this->setAccountTransactionPV($attributes, $newPVEntry->id, 'Dr');
+            }
+        }
+    }
+    
+	
+	private function getVoucherNoGenerate($attributes)
+	{
+		$cnt = 0;
+		$voucher = ($attributes['from_jv'] == 1) ? 10 : $attributes['voucher'];
+
+		// Fetch base prefix and number from account_setting
+		$jvset = DB::table('account_setting')
+			->where('voucher_type_id', $voucher)
+			->where('status', 1)
+			->whereNull('deleted_at')
+			->select('prefix', 'is_prefix', 'voucher_no')
+			->first();
+
+		if (!$jvset) {
+			// Fallback if no account_setting found
+			return [
+				'voucher_no' => 'RV' . date('ym') . '000001',
+				'vno'        => 1,
+				'curno'      => 'RV' . date('ym') . '000001'
+			];
+		}
+
+		do {
+			// Generate candidate number
+			if ($jvset->is_prefix == 0) {
+				$newattributes['voucher_no'] = $jvset->voucher_no + $cnt;
+				$newattributes['vno']        = $jvset->voucher_no + $cnt;
+			} else {
+				$newattributes['voucher_no'] = $jvset->prefix . ($jvset->voucher_no + $cnt);
+				$newattributes['vno']        = $jvset->voucher_no + $cnt;
+			}
+			$newattributes['curno'] = $newattributes['voucher_no'];
+
+			// Check if this voucher_no already exists (ignore soft-deleted)
+			$query = DB::table('payment_voucher')
+				->where('voucher_no', $newattributes['voucher_no'])
+				->where('status', 1)
+				->whereNull('deleted_at'); // ✅ important
+
+			if (isset($attributes['department_id']) && Session::get('department') == 1) {
+				$query->where('department_id', $attributes['department_id']);
+			}
+
+			$inv = $query->count(); //echo $inv;exit;
+			$cnt++; // increment counter and loop until unique number found
+		} while ($inv != 0);
+
+		return $newattributes;
+	}
+
+	public function create($attributes)
+	{ //echo '<pre>';print_r($attributes);exit;
+		if($this->isValid($attributes)) {
+			
+			DB::beginTransaction();
+			try {
+
+					//VOUCHER NO INCREMENT LOGIC//
+					if( $attributes['curno'] == $attributes['voucher_no'] ) {
+						//$attributes['rowid'] = $receipt_voucher_id; 
+						$newattributes = $this->getVoucherNoGenerate($attributes);
+						$attributes['voucher_no'] = $newattributes['voucher_no'];
+						$attributes['vno'] = $newattributes['vno'];
+						$attributes['curno'] = $newattributes['curno'];
+					} 
+					//VOUCHER NO INCREMENT LOGIC//
+
+					// ---- AUTO-INCREMENT HANDLER ON DUPLICATE ----
+					$maxRetries = 5; // prevent infinite loop
+					$retryCount = 0;
+					$saved = false;
+
+					while (!$saved && $retryCount < $maxRetries) {
+						try {
+							if ($this->setInputValue($attributes)) {
+								
+								$this->payment_voucher->status = 1;
+								$this->payment_voucher->created_at = now();
+								$this->payment_voucher->created_by = Auth::User()->id;
+								$this->payment_voucher->fill($attributes)->save();
+								$payment_voucher_id = $this->payment_voucher->id;
+								$saved = true; // success ✅
+							}
+						} catch (\Illuminate\Database\QueryException $ex) {
+
+							// Check if it's a duplicate voucher number error
+							if (strpos($ex->getMessage(), 'Duplicate entry') !== false ||
+								strpos($ex->getMessage(), 'duplicate key value') !== false) {
+
+								// Generate next available number
+								$newattributes = $this->getVoucherNoGenerate($attributes);
+								$attributes['voucher_no'] = $newattributes['voucher_no'];
+								$attributes['vno']        = $newattributes['vno'];
+								$attributes['curno']      = $newattributes['curno'];
+
+								$retryCount++;
+							} else {
+								throw $ex; // rethrow if different DB error
+							}
+						}
+					}
+
+								
+				//transactions insert
+				if($this->payment_voucher->id && $attributes['from_jv']==0) { //from PV....
+				    
+					$arr = [1,2]; $crv_entry_id = '';
+					foreach($arr as $ar) {
+						
+						//update account Cr transactions...
+						if($ar==1) {
+							$cr_amount = $dr_amount = $attributes['amount']; $difference = 0;
+							$paymentVoucherEntry = new PaymentVoucherEntry();
+							$this->setEntryInputValue($attributes, $paymentVoucherEntry, $ar, null);
+							$paymentVoucherEntry->status = 1;
+							$this->payment_voucher->PaymentVoucherAdd()->save($paymentVoucherEntry);
+							$crv_entry_id = $pv_entry_id = $paymentVoucherEntry->id;
+	
+							$this->setAccountTransactionPV($attributes, $pv_entry_id, 'Cr');
+							
+						} else {
+							
+							if( isset($attributes['is_onaccount']) ) {
+								
+								$cr_amount = $dr_amount = $attributes['amount']; $difference = 0;
+								$paymentVoucherEntry = new PaymentVoucherEntry();
+								$this->setEntryInputValue($attributes, $paymentVoucherEntry, 4, null);
+								$paymentVoucherEntry->status = 1;
+								$this->payment_voucher->PaymentVoucherAdd()->save($paymentVoucherEntry);
+								$pv_entry_id = $paymentVoucherEntry->id;
+							
+								//update account Dr transactions...
+								$this->setAccountTransactionPV($attributes, $pv_entry_id, 'Dr', $key=null);
+								//update closing balance of debitor account
+								if($this->updateClosingBalance($attributes['supplier_id'], $attributes['amount'], 'Cr',$attributes['voucher_type'])) {
+									//update closing balance of debitor account
+									$this->updateClosingBalance($attributes['cr_account_id'], $attributes['amount'], 'Dr');
+								}
+								
+							} else {
+								$cr_amount = 0; $dr_amount = 0; $difference = 0;
+								foreach($attributes['tag'] as $k => $key) { 
+									
+									//CHECK IF DR TRANSACTION IS THERE AND CR TRANSACTION ALSO DO..
+									if($attributes['acnttype'][$key]=='Dr') {
+										$paymentVoucherEntry = new PaymentVoucherEntry();
+										$this->setEntryInputValue($attributes, $paymentVoucherEntry, 5, $key);
+										$paymentVoucherEntry->status = 1;
+										$this->payment_voucher->PaymentVoucherAdd()->save($paymentVoucherEntry);
+										$pv_entry_id = $paymentVoucherEntry->id;
+										
+										//update account Dr transactions...
+										$this->setAccountTransactionPV($attributes, $pv_entry_id, 'Cr', $key);
+										
+									} else {
+										
+										$paymentVoucherEntry = new PaymentVoucherEntry();
+										$arrResult = $this->setEntryInputValue($attributes, $paymentVoucherEntry, $ar, $key);
+										if($arrResult) {
+											$cr_amount += $arrResult['cr_amount'];
+											$dr_amount += $arrResult['dr_amount'];
+											$paymentVoucherEntry->status = 1;
+											$this->payment_voucher->PaymentVoucherAdd()->save($paymentVoucherEntry);
+											$pv_entry_id = $paymentVoucherEntry->id;
+											
+											//PV transaction entry..........
+											$paymentVoucherTr = new PaymentVoucherTr();
+											$paymentVoucherTr->payment_voucher_entry_id = $pv_entry_id;
+											$paymentVoucherTr->purchase_invoice_id = $attributes['purchase_invoice_id'][$key]; //[$key]
+											$paymentVoucherTr->assign_amount = $attributes['line_amount'][$key];
+											$paymentVoucherTr->bill_type = $attributes['bill_type'][$key];
+											$paymentVoucherTr->status = 1;
+											$paymentVoucherEntry->PaymentVoucherTrAdd()->save($paymentVoucherTr);
+											
+											//update sales invoice transaction status...
+											$this->setTransactionStatus($attributes, $key, $pv_entry_id); //May 15
+											
+											//update account Cr transactions...
+											$this->setAccountTransactionPV($attributes, $pv_entry_id, 'Dr', $key);
+										}
+									}
+								}
+								
+								//update closing balance of debitor account
+								if($this->updateClosingBalance($attributes['supplier_id'], $attributes['amount'], 'Dr',$attributes['voucher_type'])) {
+									//update closing balance of debitor account
+									$this->updateClosingBalance($attributes['cr_account_id'], $attributes['amount'], 'Cr');
+								}
+							}
+						}
+						
+						
+					}
+					
+					//check discount received...
+					if( isset($attributes['is_debit']) ) {
+						
+						$paymentVoucherEntry = new PaymentVoucherEntry();
+						$this->setEntryInputValue($attributes, $paymentVoucherEntry, $ar=3, null);
+						$paymentVoucherEntry->status = 1;
+						$this->payment_voucher->PaymentVoucherAdd()->save($paymentVoucherEntry);
+						$dscnt_pv_entry_id = $paymentVoucherEntry->id;
+						
+						$this->setAccountTransactionPV($attributes, $dscnt_pv_entry_id, 'Ds');
+						$this->updateClosingBalance($attributes['dr_entry_ac_id'], $attributes['dr_entry_amount'], 'Cr');
+						
+
+					}
+					
+					
+					//cheque no insert...
+					if(isset($attributes['cheque_no']) && $attributes['cheque_no']!='' ){
+						DB::table('cheque')->insert([ 'cheque_no' => $attributes['cheque_no'], 'bank_id' => $attributes['bank_id'],'account_id' => '','ctype' => 1 ]);
+					}
+					
+				} else if($this->payment_voucher->id && $attributes['from_jv']==1) { //from JV....
+					
+					$cr_amount = 0; $dr_amount = 0;
+					foreach($attributes['line_amount'] as $key => $value) {
+						if($value!='' && $value!=0 && $attributes['account_id'][$key]!='' && $attributes['account_id'][$key]!=0) { //JN1
+							$paymentVoucherEntry = new PaymentVoucherEntry();
+							$arrResult = $this->setEntryInputValue($attributes, $paymentVoucherEntry, null, $key);
+							
+							if($arrResult) {
+								$cr_amount += $arrResult['cr_amount'];
+								$dr_amount += $arrResult['dr_amount'];
+								$paymentVoucherEntry->status = 1;
+								$this->payment_voucher->PaymentVoucherAdd()->save($paymentVoucherEntry);
+								$pv_entry_id = $paymentVoucherEntry->id;
+
+								//PDCI list inserting....
+								if($attributes['group_id'][$key]=='PDCI') {
+									
+									$acrow = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','BANK')->select('id')->first();
+									if(isset($attributes['partyac_id'][$key]) && $attributes['partyac_id'][$key]=='') {
+										$party_id = '';
+										$ctrow = DB::table('payment_voucher_entry')->where('payment_voucher_id',$this->payment_voucher->id)
+														->where('entry_type','Dr')->where('status',1)
+														->whereNull('deleted_at')
+														->select('account_id')->first();
+										if($ctrow) {
+											$party_id = $ctrow->account_id;
+										}
+									} else
+										$party_id = $attributes['partyac_id'][$key];
+									
+									$bnk = DB::table('account_setting')->where('voucher_type_id', 19)->where('status',1)->whereNull('deleted_at')->select('cr_account_master_id')->first();
+									
+									DB::table('pdc_issued')
+											->insert([ 'voucher_id' 	=>  $this->payment_voucher->id,
+														'voucher_type'   => 'CB',
+														'cr_account_id' => ($acrow)?$acrow->id:0,
+														'dr_account_id' => $attributes['account_id'][$key],
+														'reference'  => $attributes['reference'][$key],
+														'amount'   			=> $attributes['line_amount'][$key],
+														'status' 			=> 0,
+														'created_at' 		=> now(),
+														'created_by' 		=> Auth::User()->id,
+														'voucher_date'		=> ($attributes['voucher_date']!='')?date('Y-m-d', strtotime($attributes['voucher_date'])):date('Y-m-d'),
+														'supplier_id' => $party_id,
+														'cheque_no' => $attributes['cheque_no'][$key],
+														'cheque_date' => ($attributes['cheque_date'][$key]!='')?date('Y-m-d', strtotime($attributes['cheque_date'][$key])):date('Y-m-d'),
+														'voucher_no' => $attributes['voucher_no'],
+														'description' => $attributes['description'][$key],
+														'bank_id' => (isset($attributes['bank_id'][$key]) && $attributes['bank_id'][$key]!='')?$attributes['bank_id'][$key]:1,
+														'entry_id' => $pv_entry_id,
+														'entry_type' => 'PV',
+														'dr_bank_id' => ($bnk)?$bnk->cr_account_master_id:0
+													]);
+								}
+								
+								if((isset($attributes['sales_invoice_id'][$key]) && ($attributes['account_type'][$key]=='Dr') && ($attributes['sales_invoice_id'][$key]!=''))) {
+									//PV transaction entry..........
+									$paymentVoucherTr = new PaymentVoucherTr();
+									$paymentVoucherTr->payment_voucher_entry_id = $pv_entry_id;
+									$paymentVoucherTr->purchase_invoice_id = $attributes['sales_invoice_id'][$key]; //actually purchase invoice id...
+									$paymentVoucherTr->assign_amount = $attributes['line_amount'][$key];
+									$paymentVoucherTr->bill_type = $attributes['bill_type'][$key];
+									$paymentVoucherTr->status = 1;
+									$paymentVoucherEntry->PaymentVoucherTrAdd()->save($paymentVoucherTr);
+								}
+							}
+							
+							//update invoice transaction status...
+							$this->setTransactionStatus($attributes, $key, $paymentVoucherEntry->id); //May 15
+							
+							$this->setAccountTransactionPV($attributes, $paymentVoucherEntry->id, 'X', $key);
+								
+							//update closing balance of debitor/creditor account
+							$this->updateClosingBalanceJV($attributes['account_id'][$key], $attributes['line_amount'][$key], $attributes['account_type'][$key]);
+							
+							//cheque no insert...
+							if(isset($attributes['cheque_no'][$key]) && $attributes['cheque_no'][$key]!=''){
+								DB::table('cheque')->insert([ 'cheque_no' => $attributes['cheque_no'][$key], 
+								'bank_id' => isset($attributes['bank_id'][$key])?$attributes['bank_id'][$key]:'',
+								'account_id' => '','ctype' => 1 ]);
+							}
+						}
+					}
+
+					$difference = round($dr_amount - $cr_amount, 2);
+					if(bccomp($difference, '0.00', 2) != 0) { 	
+						Session::flash('error', 'Debit and Credit totals must be equal before saving this voucher.');
+						return false;
+						//throw new ValidationException('Receipt entry validation error! Please try again.',$this->getErrors());
+					}
+							
+				}
+				
+				//update debit, credit, difference amount
+				DB::table('payment_voucher')
+							->where('id', $this->payment_voucher->id)
+							->update([//'voucher_no'	  => $attributes['voucher_no'], 
+							            'debit'     => $attributes['debit'],
+									  'credit' 	  => $attributes['credit'],
+									  'difference' => $difference ]);
+
+				
+
+				//PDCI list table insert..........
+				if($attributes['from_jv']==0) {
+					if($attributes['voucher_type']=='PDCI') {
+						
+						$acrow = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','BANK')->select('id')->first();
+						$bnk = DB::table('account_setting')->where('voucher_type_id', 19)->where('status',1)->whereNull('deleted_at')->select('cr_account_master_id')->first();
+												
+						DB::table('pdc_issued')
+								->insert([ 'voucher_id' 	=> $this->payment_voucher->id,
+											'voucher_type'   => 'CB',
+											'cr_account_id' => ($acrow)?$acrow->id:0,
+											'dr_account_id' => $attributes['cr_account_id'],
+											'reference'  => $attributes['reference'],
+											'amount'   			=> $attributes['amount'],
+											'status' 			=> 0,
+											'created_at' 		=> now(),
+											'created_by' 		=> Auth::User()->id,
+											'voucher_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+											'supplier_id' => $attributes['supplier_id'],
+											'cheque_no' => $attributes['cheque_no'],
+											'cheque_date' => ($attributes['cheque_date']!='')?date('Y-m-d', strtotime($attributes['cheque_date'])):date('Y-m-d'),
+											'voucher_no' => $attributes['voucher_no'],
+											'description' => $attributes['supplier_account'],
+											'bank_id' => (isset($attributes['bank_id'])&&$attributes['bank_id']!='')?$attributes['bank_id']:1,
+											'entry_id' => $crv_entry_id,
+											'entry_type' => 'PV',
+											'dr_bank_id' => ($bnk)?$bnk->cr_account_master_id:0
+										]);
+					}
+				} 
+				
+				//update voucher no........
+				$voucher = ($attributes['from_jv']==1)?10:$attributes['voucher'];
+				
+				if( ($this->payment_voucher->id) && ($attributes['curno'] <= $attributes['voucher_no']) ) { 
+					DB::table('account_setting')
+							->where('voucher_type_id', $voucher)
+							->where('status',1)->whereNull('deleted_at')
+							->update(['voucher_no' => DB::raw('voucher_no + 1')]); //$attributes['voucher_no'] + 1
+				}
+				
+				DB::commit();
+				return $this->payment_voucher->id;
+				//abi-----------
+				
+			} catch (\Exception $e) {
+			  
+			  DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
+			  return false;
+		    }
+		}
+		//throw new ValidationException('payment_voucher validation error12!', $this->getErrors());
+	}
+
+	
+	public function update($id, $attributes)
+	{	//echo '<pre>';print_r($attributes);exit;
+		$this->payment_voucher = $this->find($id);
+		
+		DB::beginTransaction();
+		try {
+			$voucher_type = $this->payment_voucher->voucher_type;
+			if($this->payment_voucher->id && $attributes['from_jv']==1) { //from JV.... 
+				
+				$cr_amount = 0; $dr_amount = 0; $refs = '';
+				foreach($attributes['line_amount'] as $key => $value) {
+					
+					if($attributes['je_id'][$key]!='') {
+
+						if($attributes['account_id'][$key]!='' && $attributes['account_id'][$key]!=0) {
+							$paymentVoucherEntry = PaymentVoucherEntry::find($attributes['je_id'][$key]);
+							
+							if($attributes['account_type'][$key]=='Dr')
+								$dr_amount += $attributes['line_amount'][$key];
+							else if($attributes['account_type'][$key]=='Cr')
+								$cr_amount += $attributes['line_amount'][$key];
+							
+							$jerow['account_id'] = $attributes['account_id'][$key];
+							$jerow['description']    		= $attributes['description'][$key];
+							$jerow['reference']    		= $attributes['reference'][$key];
+							$jerow['entry_type']    		= $attributes['account_type'][$key];
+							$jerow['amount']    		= $attributes['line_amount'][$key];
+							$jerow['job_id']    		= isset($attributes['job_id'][$key])?$attributes['job_id'][$key]:'';
+							$jerow['department_id']    		= isset($attributes['department'][$key])?$attributes['department'][$key]:'';
+							$jerow['cheque_no']   		= isset($attributes['cheque_no'][$key])?$attributes['cheque_no'][$key]:'';
+							$jerow['cheque_date']    		=  (isset($attributes['cheque_date'][$key]) && $attributes['cheque_date'][$key]!='')?date('Y-m-d', strtotime($attributes['cheque_date'][$key])):'';
+							$jerow['bank_id']   		= isset($attributes['bank_id'][$key])?$attributes['bank_id'][$key]:'';
+							$jerow['party_account_id']  = isset($attributes['partyac_id'][$key])?$attributes['partyac_id'][$key]:'';
+							$jerow['currency_id']    		= isset($attributes['currency_id'][$key])?$attributes['currency_id'][$key]:'';
+							$paymentVoucherEntry->update($jerow);
+							
+							if($value=='' || $value==0) {
+								DB::table('payment_voucher_entry')->where('id',$attributes['je_id'][$key])->update(['status' => 0, 'deleted_at' => now()]);
+								DB::table('account_transaction')->where('voucher_type', 'PV')->where('voucher_type_id', $attributes['je_id'][$key])->update(['status' => 0, 'deleted_at' => now()]);
+							}
+							
+							if($attributes['account_type'][$key]=='Cr') {
+								$refs .= ($refs=='')?$attributes['reference'][$key]:','.$attributes['reference'][$key];
+								$voucher_type = $attributes['group_id'][$key];
+							}
+							
+							//Update tr_entry ....
+							if(isset($attributes['tr_id'][$key]) &&$attributes['tr_id'][$key]!='') {
+								$paymentVoucherTr = PaymentVoucherTr::find($attributes['tr_id'][$key]);
+								$sitr['purchase_invoice_id'] = $attributes['purchase_invoice_id'][$key];
+								$sitr['assign_amount'] = $attributes['line_amount'][$key];
+								$paymentVoucherTr->update($sitr);
+							}
+							
+							//update sales invoice transaction status...
+							$this->setTransactionStatusUpdate($attributes, $key, $paymentVoucherEntry->id); //May 15
+							
+							$this->setAccountTransactionUpdate($attributes, $paymentVoucherEntry->id, $key);
+							
+							//update closing balance of debitor/creditor account
+							$this->updateClosingBalance($attributes['account_id'][$key], $attributes['line_amount'][$key], $attributes['account_type'][$key]);
+							
+							//PDCI list updating....
+							if($attributes['group_id'][$key]=='PDCI') {
+
+								//UPDATE PDC...
+								$pdcrow = DB::table('pdc_issued')->where('entry_id', $attributes['je_id'][$key])->where('entry_type','PV')->select('id')->first();
+												
+								$acrow = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','BANK')->select('id')->first();
+								$bnk = DB::table('account_setting')->where('voucher_type_id', 19)->where('status',1)->whereNull('deleted_at')->select('cr_account_master_id')->first();
+
+								if($pdcrow)	{	
+									DB::table('pdc_issued')
+									            ->where('id', $pdcrow->id)
+												->update([ 	'cr_account_id' => ($acrow)?$acrow->id:0,
+															'dr_account_id' => $attributes['account_id'][$key],
+															'reference'  => $attributes['reference'][$key],
+															'amount'   			=> $attributes['line_amount'][$key],
+															'voucher_date'		=> ($attributes['voucher_date']!='')?date('Y-m-d', strtotime($attributes['voucher_date'])):date('Y-m-d'),
+															'supplier_id' => $attributes['partyac_id'][$key],
+															'cheque_no' => $attributes['cheque_no'][$key],
+															'cheque_date' => ($attributes['cheque_date'][$key]!='')?date('Y-m-d', strtotime($attributes['cheque_date'][$key])):date('Y-m-d'),
+															'voucher_no' => $attributes['voucher_no'],
+															'description' => $attributes['description'][$key],
+															'bank_id' => (isset($attributes['bank_id'][$key]) && $attributes['bank_id'][$key]!='')?$attributes['bank_id'][$key]:1,
+															'dr_bank_id' => ($bnk)?$bnk->cr_account_master_id:0,
+															'deleted_at' => '0000-00-00 00:00:00',
+														]);
+								} else {
+									
+									DB::table('pdc_issued')
+										->insert([ 'voucher_id' 	=> $this->payment_voucher->id,
+													'voucher_type'   => 'CB',
+													'cr_account_id' => ($acrow)?$acrow->id:0,
+													'dr_account_id' => $attributes['account_id'][$key],
+													'reference'  => $attributes['reference'][$key],
+													'amount'   			=> $attributes['line_amount'][$key],
+													'status' 			=> 0,
+													'created_at' 		=> now(),
+													'created_by' 		=> Auth::User()->id,
+													'voucher_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+													'supplier_id' => $attributes['partyac_id'][$key],
+													'cheque_no' => $attributes['cheque_no'][$key],
+													'cheque_date' => ($attributes['cheque_date'][$key]!='')?date('Y-m-d', strtotime($attributes['cheque_date'][$key])):date('Y-m-d'),
+													'voucher_no' => $attributes['voucher_no'],
+													'description' => $attributes['description'][$key],
+													'bank_id' => (isset($attributes['bank_id'][$key]) && $attributes['bank_id'][$key]!='')?$attributes['bank_id'][$key]:1,
+													'entry_id' => $attributes['je_id'][$key],
+													'entry_type' => 'PV',
+													'dr_bank_id' => ($bnk)?$bnk->cr_account_master_id:0
+												]);
+								}
+							} else { //CHECKING FOR PDC ALREDY EXIST BUT VOUCHER TYPE IS NOT PDCR...
+								
+									DB::table('pdc_issued')
+													->where('entry_id', $attributes['je_id'][$key])
+													->where('entry_type','PV')
+													->update([ 	'deleted_at'  => now() ]);
+								
+							}
+							
+							if(isset($attributes['cheque_no'][$key]) && $attributes['cheque_no'][$key]!='' && $attributes['group_id'][$key]=='PDCI'){
+								DB::table('cheque')->insert([ 'cheque_no' => $attributes['cheque_no'][$key],'bank_id' => $attributes['bank_id'][$key],'account_id' => '','ctype' => 1 ]);
+							}
+						} 
+					} else {
+						
+						//new entry....
+						if($value!='' && $value!=0 && $attributes['account_id'][$key]!='' && $attributes['account_id'][$key]!=0) {
+							$paymentVoucherEntry = new PaymentVoucherEntry();
+							$arrResult = $this->setEntryInputValue($attributes, $paymentVoucherEntry, null, $key);
+							$refs .= ($refs=='')?$attributes['reference'][$key]:','.$attributes['reference'][$key];
+							
+							if($arrResult) {
+								$cr_amount += $arrResult['cr_amount'];
+								$dr_amount += $arrResult['dr_amount'];
+								$paymentVoucherEntry->status = 1;
+								$this->payment_voucher->PaymentVoucherAdd()->save($paymentVoucherEntry);
+								$pv_entry_id = $paymentVoucherEntry->id;
+
+								//PDCI list inserting....
+								if($attributes['group_id'][$key]=='PDCI') {
+									
+									$acrow = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','BANK')->select('id')->first();
+									if($attributes['partyac_id'][$key]=='') {
+										$party_id = '';
+										$ctrow = DB::table('payment_voucher_entry')->where('payment_voucher_id',$this->payment_voucher->id)
+														->where('entry_type','Dr')->where('status',1)
+														->whereNull('deleted_at')
+														->select('account_id')->first();
+										if($ctrow) {
+											$party_id = $ctrow->account_id;
+										}
+									} else
+										$party_id = $attributes['partyac_id'][$key];
+
+									$bnk = DB::table('account_setting')->where('voucher_type_id', 19)->where('status',1)->whereNull('deleted_at')->select('cr_account_master_id')->first();
+									DB::table('pdc_issued')
+											->insert([ 'voucher_id' 	=>  $this->payment_voucher->id,
+														'voucher_type'   => 'CB',
+														'cr_account_id' => ($acrow)?$acrow->id:0,
+														'dr_account_id' => $attributes['account_id'][$key],
+														'reference'  => $attributes['reference'][$key],
+														'amount'   			=> $attributes['line_amount'][$key],
+														'status' 			=> 0,
+														'created_at' 		=> now(),
+														'created_by' 		=> Auth::User()->id,
+														'voucher_date'		=> ($attributes['voucher_date']!='')?date('Y-m-d', strtotime($attributes['voucher_date'])):date('Y-m-d'),
+														'supplier_id' => $party_id,
+														'cheque_no' => $attributes['cheque_no'][$key],
+														'cheque_date' => ($attributes['cheque_date'][$key]!='')?date('Y-m-d', strtotime($attributes['cheque_date'][$key])):date('Y-m-d'),
+														'voucher_no' => $attributes['voucher_no'],
+														'description' => $attributes['description'][$key],
+														'bank_id' => (isset($attributes['bank_id'][$key]) && $attributes['bank_id'][$key]!='')?$attributes['bank_id'][$key]:1,
+														'entry_id' => $pv_entry_id,
+														'entry_type' => 'PV',
+														'dr_bank_id' => ($bnk)?$bnk->cr_account_master_id:0
+													]);
+								}
+							}
+							
+							//transactions insert................
+							if(isset($attributes['purchase_invoice_id'][$key]) && $attributes['purchase_invoice_id'][$key]!='')
+							{
+								$paymentVoucherTr = new PaymentVoucherTr();
+								
+								$paymentVoucherTr->payment_voucher_entry_id = $pv_entry_id;
+								$paymentVoucherTr->purchase_invoice_id = isset($attributes['purchase_invoice_id'][$key])?$attributes['purchase_invoice_id'][$key]:'';
+								$paymentVoucherTr->assign_amount = isset($attributes['line_amount'][$key])?$attributes['line_amount'][$key]:'';
+								$paymentVoucherTr->bill_type = isset($attributes['bill_type'][$key])?$attributes['bill_type'][$key]:'';
+								$paymentVoucherTr->status = 1;
+								$paymentVoucherEntry->PaymentVoucherTrAdd()->save($paymentVoucherTr);
+
+							}
+							
+							//update invoice transaction status...
+							$this->setTransactionStatus($attributes, $key, $paymentVoucherEntry->id); //May 15
+							
+							$this->setAccountTransactionPV($attributes, $paymentVoucherEntry->id, 'X', $key);
+							
+							//update closing balance of debitor/creditor account
+							$this->updateClosingBalance($attributes['account_id'][$key], $attributes['line_amount'][$key], $attributes['account_type'][$key]);
+							
+							if(isset($attributes['cheque_no'][$key]) && $attributes['cheque_no'][$key]!=''){
+								DB::table('cheque')->insert([ 'cheque_no' => $attributes['cheque_no'][$key], 'bank_id' => (isset($attributes['bank_id'][$key]) && $attributes['bank_id'][$key]!='')?$attributes['bank_id'][$key]:1,'account_id'=> '','ctype' => 1 ]);
+							}
+						}
+					}
+				}
+				
+				/*DB::table('payment_voucher_entry')
+							->where('payment_voucher_id', $id)
+							->where('entry_type','Cr')
+							->update(['reference' => $refs]);*/
+							
+				//manage removed items...
+				if($attributes['remove_item']!='')
+				{
+					$arrids = array_unique(explode(',', $attributes['remove_item']));
+					$remline_total = $remtax_total = 0;
+					foreach($arrids as $id) {
+						$row = DB::table('payment_voucher_entry')->where('id', $id)->first();
+						if($row) {
+							DB::table('payment_voucher_entry')->where('id', $id)->update(['status' => 0, 'deleted_at' => now()]);
+							DB::table('pdc_issued')->where('entry_id',$id)->where('entry_type','PV')->where('status',0)->update(['deleted_at' => now()]);
+							
+							//clear purchase invoice bills...
+							$invs = DB::table('payment_voucher_tr')->where('payment_voucher_entry_id', $id)->select('id','purchase_invoice_id','assign_amount','bill_type')->get();
+							if($invs) {
+								DB::table('payment_voucher_tr')->where('payment_voucher_entry_id',$id)->update(['status' => 0, 'deleted_at' => now()]);
+								
+								foreach($invs as $inv) {
+									if($inv->bill_type=='PI')
+										DB::table('purchase_invoice')->where('id',$inv->purchase_invoice_id)->update(['amount_transfer' => 0, 'balance_amount' => DB::raw('balance_amount + '.$inv->assign_amount) ]);
+									else if($inv->bill_type=='OB')
+										DB::table('opening_balance_tr')->where('id', $inv->purchase_invoice_id)->update(['amount_transfer' => 0, 'balance_amount' => DB::raw('balance_amount + '.$inv->assign_amount) ]);
+									else if($inv->bill_type=='PIN')
+										DB::table('journal')->where('id', $inv->purchase_invoice_id)->update(['is_transfer' => 0, 'balance_amount' => DB::raw('balance_amount + '.$inv->assign_amount) ]);
+									else if($inv->bill_type=='OC')
+										DB::table('pi_other_cost')->where('id', $inv->purchase_invoice_id)->update(['is_transfer' => 0, 'balance_amount' => DB::raw('balance_amount + '.$inv->assign_amount) ]);
+								}
+							}
+							
+							if( $this->setAccountTransactionDelete($attributes, $id) )
+								$this->updateClosingBalance($row->account_id, $row->amount, $row->entry_type);
+							
+							//REMOVE CHEQUE NO ALSO FROM CHEQUE TABLE....
+							if($row->bank_id!=0 && $row->cheque_no!='') {
+								DB::table('cheque')->where('cheque_no',$row->cheque_no)->where('bank_id',$row->bank_id)->where('ctype', 1)->delete();
+							}
+						}
+			
+					}
+				}
+			}
+			
+			$difference = round($dr_amount - $cr_amount, 2);
+			if($difference==0) { //JN1
+				$this->payment_voucher->voucher_date  = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+				$this->payment_voucher->voucher_type = $voucher_type;
+				$this->payment_voucher->debit = $attributes['debit'];//$dr_amount;
+				$this->payment_voucher->credit = $attributes['credit'];//$cr_amount;
+				$this->payment_voucher->difference = $difference;
+				$this->payment_voucher->modify_at = now();
+				$this->payment_voucher->modify_by = Auth::User()->id;
+				$this->payment_voucher->supplier_name = isset($attributes['supplier_name'])?$attributes['supplier_name']:'';
+				$this->payment_voucher->trn_no = isset($attributes['trn_no'])?$attributes['trn_no']:'';
+				$this->payment_voucher->fill($attributes)->save();
+			} 
+			else {
+				// Fetch all valid (non-deleted) entries
+				$entries = DB::table('payment_voucher_entry')
+					->where('payment_voucher_id', $id)
+					->where('status', 1)
+					->whereNull('deleted_at')
+					->get();
+
+				foreach ($entries as $row) {
+					// check if account_transaction exists
+					$exists = DB::table('account_transaction')
+						->where('voucher_type', 'PV')
+						->where('voucher_type_id', $row->id)
+						->exists();
+
+					$data = [
+						'account_master_id' => $row->account_id,
+						'transaction_type'  => $row->entry_type,
+						'amount'            => round($row->amount, 2),
+						'description'       => $row->description,
+						'reference'         => $this->payment_voucher->voucher_no,
+						'reference_from'    => $row->reference,
+						'invoice_date'      => $this->payment_voucher->voucher_date,
+						'department_id'     => $row->department_id ?? null,
+						'status'            => 1,
+						'deleted_at'        => '0000-00-00 00:00:00',
+						'modify_at'         => now(),
+						'modify_by'         => Auth::user()->id,
+					];
+
+					if ($exists) {
+						DB::table('account_transaction')
+							->where('voucher_type', 'PV')
+							->where('voucher_type_id', $row->id)
+							->update($data);
+					} else {
+						DB::table('account_transaction')->insert(array_merge($data, [
+							'voucher_type'    => 'PV',
+							'voucher_type_id' => $row->id,
+							'created_at'      => now(),
+							'created_by'      => Auth::user()->id,
+						]));
+					}
+				}
+			}
+		
+			DB::commit();
+			return true;
+			
+		} catch (\Exception $e) {
+		  
+		  DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
+		  return false;
+		}
+	}
+	
+	public function delete($id)
+	{
+		$this->payment_voucher = $this->payment_voucher->find($id);
+		
+		DB::beginTransaction();
+		try {
+			$rows = DB::table('payment_voucher_entry')->where('payment_voucher_id', $id)->where('status',1)->get();//echo '<pre>';print_r($rows);exit;
+			//echo '<pre>';print_r($rows);exit;
+			if($rows) {
+				foreach($rows as $row)
+				{
+					if($row->entry_type=='Cr') {
+						$account_id = $row->account_id; $amount = $row->amount;
+						if($this->payment_voucher->voucher_type=='PDCI') {
+							DB::table('pdc_issued')->where('entry_id',$row->id)->where('entry_type','PV')->where('status',0)->update(['deleted_at' => now()]);
+							DB::table('account_master')->where('id', $row->account_id)
+													   ->update(['cl_balance' => DB::raw('IF(cl_balance < 0, cl_balance - '.$row->amount.', cl_balance + '.$row->amount.')'), 'pdc_amount' => DB::raw('IF(pdc_amount < 0, pdc_amount + '.$row->amount.', pdc_amount - '.$row->amount.')')]);
+							
+							//DELETE CHEQUE NO...
+							if($row->cheque_no!='' && $row->bank_id!='' && $row->account_id!='') {
+								DB::table('cheque')->where('cheque_no',$row->cheque_no)->where('bank_id',$row->bank_id)->where('ctype',1)->delete();
+							}
+						} else
+							DB::table('account_master')->where('id', $row->account_id)->update(['cl_balance' => DB::raw('cl_balance - '.$row->amount)]);
+						
+					} else
+						DB::table('account_master')->where('id', $row->account_id)
+												   ->update(['cl_balance' => DB::raw('IF(cl_balance < 0, cl_balance - '.$row->amount.', cl_balance + '.$row->amount.')')]);
+					
+					//ED12
+					//update sales invoice entry....
+					$entry = DB::table('payment_voucher_tr')->where('payment_voucher_entry_id', $row->id)->where('status',1)->whereNull('deleted_at')->get();
+				   
+					if($entry) {
+						foreach($entry as $ent) {
+							if($ent->bill_type=='PI')
+								DB::table('purchase_invoice')->where('id', $ent->purchase_invoice_id)->update(['amount_transfer' => 0, 'balance_amount' => DB::raw('balance_amount + '.$ent->assign_amount) ]);
+							else if($ent->bill_type=='OB')
+								DB::table('opening_balance_tr')->where('id', $ent->purchase_invoice_id)->update(['amount_transfer' => 0, 'balance_amount' => DB::raw('balance_amount + '.$ent->assign_amount) ]);
+							else if($ent->bill_type=='PIN')
+								DB::table('journal')->where('id', $ent->purchase_invoice_id)->update(['is_transfer' => 0, 'balance_amount' => DB::raw('balance_amount + '.$ent->assign_amount) ]);
+							else if($ent->bill_type=='OC')
+								DB::table('pi_other_cost')->where('id', $ent->purchase_invoice_id)->update(['is_transfer' => 0, 'balance_amount' => DB::raw('balance_amount + '.$ent->assign_amount) ]);
+							else if($ent->bill_type=='PS')
+								DB::table('purchase_split')->where('id', $ent->purchase_invoice_id)->update(['amount_transfer' => 0, 'balance_amount' => DB::raw('balance_amount + '.$ent->assign_amount) ]);
+							
+							DB::table('payment_voucher_tr')->where('id', $ent->id)->update(['status' => 0,'deleted_at' => now() ]);
+						}
+					}
+					
+					 DB::table('payment_voucher_entry')->where('id', $row->id)->update(['status' => 0,'deleted_at' => now(),'deleted_by' => Auth::User()->id]);
+					 
+					//Transaction update....
+					DB::table('account_transaction')->where('voucher_type', 'PV')->where('voucher_type_id',$row->id)->update(['status' => 0,'deleted_at' => now(), 'deleted_by' => Auth::User()->id  ]);
+					
+					//REMOVE CHEQUE NO ALSO FROM CHEQUE TABLE....
+					if($row->bank_id!=0 && $row->cheque_no!='') {
+						DB::table('cheque')->where('cheque_no',$row->cheque_no)->where('bank_id',$row->bank_id)->where('ctype',1)->delete();
+					}
+				}
+			}
+			
+			//clear opening balanace transaction details table.....
+			if($this->payment_voucher->opening_balance_id > 0) {
+				
+				DB::table('opening_balance_tr')->where('id', $this->payment_voucher->opening_balance_id)->update(['status' => 0, 'deleted_at' => '0000-00-00 00:00:00']);
+				DB::table('account_transaction')->where('voucher_type', 'OBD')->where('voucher_type_id', $this->payment_voucher->opening_balance_id)->update(['status' => 0,'deleted_at' => now(),'deleted_by' => Auth::User()->id ]);
+				
+				DB::table('account_master')->where('id', $account_id)->update(['cl_balance' => DB::raw('op_balance - '.$amount), 'op_balance' => DB::raw('op_balance - '.$amount)]);
+				
+				DB::table('account_transaction')->where('voucher_type', 'OB')->where('voucher_type_id', $account_id)->where('account_master_id',$account_id)->update(['amount' => 0]);
+			}
+					
+			DB::table('payment_voucher')->where('id', $id)->update(['deleted_by' => Auth::User()->id   ]);
+			$this->payment_voucher->delete();
+		
+			DB::commit();
+			return true;
+			
+		} catch (\Exception $e) {
+			DB::rollback();
+			return false;
+		}
+		
+	}
+	
+	public function payment_voucherList()
+	{
+		$result = $this->payment_voucher->where('payment_voucher.status', 1)
+							 ->join('payment_voucher_entry AS JE', function($join) {
+								 $join->on('JE.payment_voucher_id', '=', 'payment_voucher.id');
+							 })
+							 ->where('voucher_type','JV')
+							 ->select('payment_voucher.*','JE.description')
+							 ->groupBy('payment_voucher.id')
+							 ->orderBy('payment_voucher.id', 'DESC')
+							 ->get();
+		return $result;
+	}
+	
+	public function findJEdata($id)
+	{
+		return DB::table('payment_voucher_entry')->where('payment_voucher_entry.payment_voucher_id', $id)
+						->join('account_master', 'account_master.id', '=', 'payment_voucher_entry.account_id')
+						->leftJoin('account_master AS AM', 'AM.id', '=', 'payment_voucher_entry.party_account_id')
+						->where('payment_voucher_entry.status', 1)
+						->select('payment_voucher_entry.*','account_master.master_name','AM.master_name AS party_name','account_master.category')->get();
+	}
+	
+	public function findRVTrdata($id)
+	{
+		return DB::table('payment_voucher_tr')
+						->join('payment_voucher_entry', 'payment_voucher_entry.id', '=', 'payment_voucher_tr.payment_voucher_entry_id')
+						->where('payment_voucher_entry.status', 1)
+						->where('payment_voucher_entry.payment_voucher_id', $id)
+						->select('payment_voucher_tr.*')->get();
+		
+	}
+	
+	public function PDCIssuedList($date=null)
+	{
+		$query1 = DB::table('pdc_issued')->where('pdc_issued.status',0)
+						->join('account_master', 'account_master.id', '=', 'pdc_issued.dr_account_id')
+						->join('account_master AS AM', 'AM.id', '=', 'pdc_issued.supplier_id')
+						->join('payment_voucher AS PV', 'PV.id', '=', 'pdc_issued.voucher_id')
+						->join('bank AS B', 'B.id', '=', 'pdc_issued.bank_id')
+						->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+						->where('PV.deleted_at','0000-00-00 00:00:00')
+						->select('pdc_issued.*','account_master.master_name AS creditor','AM.master_name AS supplier',
+								'B.code',DB::raw('"PV" AS type'),
+								'account_master.id AS creditor_id',DB::raw('EXTRACT(MONTH FROM pdc_issued.voucher_date) AS month'),
+								'pdc_issued.dr_account_id AS pdci_id');
+								
+		/*$query2 = DB::table('pdc_issued')->where('pdc_issued.status',0)
+						->join('account_master', 'account_master.id', '=', 'pdc_issued.dr_account_id')
+						->join('account_master AS AM', 'AM.id', '=', 'pdc_issued.supplier_id')
+						->join('journal AS JV', 'JV.id', '=', 'pdc_issued.voucher_id')
+						->join('journal_entry AS JVE', function($join){
+							$join->on('JVE.journal_id', '=', 'pdc_issued.voucher_id');
+							$join->on('JV.voucher_no', '=', 'pdc_issued.voucher_no');
+							$join->where('JVE.entry_type', '=', 'Cr');
+						})
+						->join('bank AS B', 'B.id', '=', 'JVE.bank_id')
+						->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+						->where('JV.deleted_at','0000-00-00 00:00:00')
+						->select('pdc_issued.*','account_master.master_name AS creditor','AM.master_name AS supplier','JV.voucher_no',
+								'B.code','JV.voucher_type AS vtype','JVE.bank_id',DB::raw('"JV" AS type'),
+								'account_master.id AS creditor_id',DB::raw('EXTRACT(MONTH FROM pdc_issued.voucher_date) AS month'),
+								'pdc_issued.dr_account_id AS pdci_id') //'JVE.cheque_no','JVE.cheque_date',
+						->groupBy('pdc_issued.id');*/
+						
+		return $result = $query1->orderBy('cheque_date','ASC')->get();
+						
+	}
+	
+	public function setTransactionStatusAdvSetold($attributes, $key)
+	{
+		//if amount partially transfered, update pending amount.
+		if(isset($attributes['actual_amount']) && ($attributes['line_amount'][$key] != $attributes['actual_amount'][$key])) {
+			if( isset($attributes['purchase_invoice_id'][$key]) ) {
+				if($attributes['bill_type'][$key]=='PI') {
+					$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+					//update as partially paid.
+					DB::table('purchase_invoice')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);//'is_editable' => 1
+				} else if($attributes['bill_type'][$key]=='OB') {
+					$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+					//update as partially paid.
+					DB::table('opening_balance_tr')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+				
+				} else if($attributes['bill_type'][$key]=='PIN') {
+					$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+					//update as partially paid.
+					DB::table('journal')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => $balance_amount, 'is_transfer' => 2]);
+								
+				} else if($attributes['bill_type'][$key]=='OC') {
+					$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+					//update as partially paid.
+					DB::table('pi_other_cost')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => $balance_amount, 'is_transfer' => 2]);
+				
+				} else if($attributes['bill_type'][$key]=='OT') { //May 15.....
+					$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+					//update as partially paid.
+					DB::table('other_voucher_tr')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+				} //....May 15
+					
+			}
+		} else {
+				//update as completely paid.
+				if($attributes['bill_type'][$key]=='PI')  {
+					DB::table('purchase_invoice')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => 0, 'amount_transfer' => 1]);//'is_editable' => 1
+				} else if($attributes['bill_type'][$key]=='OB') {
+					DB::table('opening_balance_tr')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => 0, 'amount_transfer' => 1]);
+								
+				} else if($attributes['bill_type'][$key]=='PIN') {
+					DB::table('journal')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => 0, 'is_transfer' => 1]);
+								
+				} else if($attributes['bill_type'][$key]=='OC') {
+					DB::table('pi_other_cost')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => 0, 'is_transfer' => 1]);
+				} else if($attributes['bill_type'][$key]=='OT') { //May 15.....
+					DB::table('other_voucher_tr')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => 0, 'amount_transfer' => 1]);
+				} //......May 15
+		}
+	}
+	
+	private function setTransactionStatusAdvSet($attributes, $row, $key, $val) {
+		
+		//if amount partially transfered, update pending amount. amount_transfer
+		if(isset($attributes['actual_amount']) && ($attributes['line_amount'][$key] != $attributes['actual_amount'][$key])) {
+			if( isset($attributes['purchase_invoice_id'][$key]) ) {
+				if($attributes['bill_type'][$key]=='PI') {
+					$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+					//update as partially paid.
+					DB::table('purchase_invoice')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);//'is_editable' => 1
+				} elseif($attributes['bill_type'][$key]=='OB' || $attributes['bill_type'][$key]=='OnAc') {
+				
+					$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+					
+					//update as partially paid.
+					DB::table('opening_balance_tr')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+					
+				} elseif($attributes['bill_type'][$key]=='PIN') { //ED12
+				
+					$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+					//update as partially paid.
+					DB::table('journal')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => $balance_amount, 'is_transfer' => 2]);
+				
+				} elseif($attributes['bill_type'][$key]=='OT') { //May 15....
+				
+					$balance_amount = $attributes['actual_amount'][$key] - $attributes['line_amount'][$key];
+					//update as partially paid.
+					DB::table('other_voucher_tr')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => $balance_amount, 'amount_transfer' => 2]);
+				} //.....May 15
+				
+			}
+		} else {
+			
+				//update as completely paid.
+				if($attributes['bill_type'][$key]=='PI')  {
+					DB::table('purchase_invoice')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => 0, 'amount_transfer' => 1]);//'is_editable' => 1
+								
+				} else if($attributes['bill_type'][$key]=='OB' || $attributes['bill_type'][$key]=='OnAc') {
+					
+					//update as partially paid.
+					DB::table('opening_balance_tr')
+							->where('id', $attributes['purchase_invoice_id'][$key])
+							->update(['balance_amount' => 0, 'amount_transfer' => 1]);
+								
+				} else if($attributes['bill_type'][$key]=='PIN') { //ED12
+					
+					DB::table('journal')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => 0, 'is_transfer' => 1]);
+								
+				} else if($attributes['bill_type'][$key]=='OT') { //May 15.....
+					
+					DB::table('other_voucher_tr')
+								->where('id', $attributes['purchase_invoice_id'][$key])
+								->update(['balance_amount' => 0, 'amount_transfer' => 1]);
+				}  //....May 15
+		}
+			
+			
+	}
+	
+
+	public function getReport($attributes)
+	{
+
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+			$query = $this->payment_voucher->where('payment_voucher.status',1)->where('payment_voucher.opening_balance_id',0);
+			
+			if( $date_from!='' && $date_to!='' ) { 
+					$query->whereBetween('payment_voucher.voucher_date', array($date_from, $date_to));
+				}
+				if(isset($attributes['dept_id']) && $attributes['dept_id']!=''){
+				$query->where('payment_voucher.department_id', $attributes['dept_id']);
+				}
+				
+				
+				if(isset($attributes['voucher_type']) && $attributes['voucher_type']!='') { 
+					$query->where('payment_voucher.voucher_type', $attributes['voucher_type']);
+				}
+				$query->select('payment_voucher.id','payment_voucher.voucher_no','payment_voucher.voucher_date','payment_voucher.tr_description',
+									 'payment_voucher.debit AS amount','payment_voucher.from_jv','payment_voucher.voucher_type',
+									 DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+											   JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+											   WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+											   AND payment_voucher_entry.entry_type='Dr' AND account_master.category='SUPPLIER' LIMIT 0,1) AS debitor"));
+				return $query->get();
+		
+	}	
+	public function setAccountTransactionAdvSetUpdate($attributes, $voucher_id, $type , $actype, $key, $entry)
+	{
+		DB::table('account_transaction')
+					->where('voucher_type', $type)
+					->where('voucher_type_id', $voucher_id)
+					->where('account_master_id', $attributes['account_id'])
+					->where('transaction_type', $actype)
+					->update([  'amount'   			=> $entry['amount'],
+								'modify_at' 		=> now(),
+								'modify_by' 		=> Auth::User()->id,
+								'reference'			=> $attributes['voucher_no'],
+								'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+								'reference_from'	=> $attributes['refno'][$key]
+							]);
+	}
+	
+	public function advance_set($attributes)
+	{
+		DB::beginTransaction(); //balance_amount  purchase_invoice
+		try {
+			//echo '<pre>';print_r($attributes);exit;
+			foreach($attributes['tagadv'] as $row => $val)
+			{
+				$ar =1;
+				foreach($attributes['tag'] as $k => $key) { 
+					
+					if($ar==1) {
+						
+						$pv_entry_id = isset($attributes['doc_id'][$val])?$attributes['doc_id'][$val]:'';  //$attributes['payment_voucher_entry_id'][$row];
+						if($attributes['bill_type'][$val]=='OB') {
+
+							if($attributes['type'][$val]=='PV') {
+								
+								$paymentVoucherEntry = PaymentVoucherEntry::find( $attributes['doc_id'][$val] );
+								$this->payment_voucher = PaymentVoucher::find( $paymentVoucherEntry->payment_voucher_id ); 
+								
+								$rvEntry['reference'] = $attributes['refno'][$key];
+								$rvEntry['amount'] = ($paymentVoucherEntry->amount < $attributes['line_amount'][$key])?$paymentVoucherEntry->amount:$attributes['line_amount'][$key];
+								$rvEntry['is_onaccount'] = 0;
+								$paymentVoucherEntry->update($rvEntry);
+								
+								$attributes['voucher_no'] = $this->payment_voucher->voucher_no;
+								$attributes['voucher_date'] = $this->payment_voucher->voucher_date;
+								$attributes['account_id'] = $paymentVoucherEntry->account_id;
+								//update account Dr transactions...
+								$this->setAccountTransactionAdvSetUpdate($attributes, $paymentVoucherEntry->id, 'PV', 'Dr', $key, $rvEntry);
+
+							} else if($attributes['type'][$val]=='JV') {
+								
+								$journalEntry = JournalEntry::find( $attributes['doc_id'][$val] );
+								$this->journal = Journal::find( $journalEntry->journal_id ); 
+								
+								$jvEntry['reference'] = $attributes['refno'][$key];
+								$jvEntry['amount'] = $attributes['line_amount'][$key];
+								$jvEntry['is_onaccount'] = 0;
+								$journalEntry->update($jvEntry);
+								$attributes['voucher_no'] = $this->journal->voucher_no;
+								$attributes['voucher_date'] = $this->journal->voucher_date;
+								$attributes['account_id'] = $this->journal->account_id;
+								//update account Dr transactions...
+								$this->setAccountTransactionAdvSetUpdate($attributes, $journalEntry->id, 'JV', 'Dr', $key, $jvEntry);
+								
+							} else if($attributes['type'][$val]=='OBD') {
+							    
+							    $obtr = DB::table('opening_balance_tr')->find($rv_entry_id);
+								DB::table('opening_balance_tr')
+												->where('id', $obtr->id)
+												->update(['amount_transfer' => 1, 'balance_amount' => 0]);
+												
+									DB::table('account_transaction')
+												->where('voucher_type','OBD')
+												->where('account_master_id',$obtr->account_master_id)
+												->where('reference', $obtr->reference_no)
+												->update(['reference_from' => $attributes['refno'][$key]]);
+							}
+							
+							$this->setTransactionStatusAdvSet($attributes, $row, $key, $val);
+							
+						} else if($attributes['bill_type'][$val]=='PR') { //JN23
+							
+							if($attributes['actual_amountadv'][$k]==$attributes['advance_amount'][$k]) { 
+								
+								$srrow = DB::table('purchase_return')->where('id',$attributes['purchase_return_id'][$k])
+													->select('supplier_id','voucher_no')->first();
+								DB::table('purchase_return')
+											->where('id', $attributes['purchase_return_id'][$k])
+											->update(['balance_amount' => 0, 'amount_transfer' => 1]);
+											
+								DB::table('account_transaction')
+												->where('voucher_type','SR')
+												->where('account_master_id',$srrow->supplier_id)
+												->where('reference', $srrow->voucher_no)
+												->update(['reference_from' => $attributes['refno'][$key] ]);
+							}
+							
+							$this->setTransactionStatusAdvSet($attributes, $row, $key, $val);
+						}
+						
+					} else { //else $ar==2
+						
+						if($attributes['line_amount'][$key] < $attributes['advance_amount'][$row]) {
+							
+							if($attributes['type'][$val]=='PV') {
+								
+								$paymentVoucherEntry = new PaymentVoucherEntry();
+								$arrResult = $this->setEntryInputValue($attributes, $paymentVoucherEntry, $ar, $key);
+								$paymentVoucherEntry->status = 1;
+								$this->payment_voucher->PaymentVoucherAdd()->save($paymentVoucherEntry);
+								$pv_entry_id = $paymentVoucherEntry->id;
+								
+								$status = 1;//$attributes['status'];
+								/*if($attributes['status']==0) {
+									if($attributes['debit'] > 25000) {
+										$status = 0;
+									} else
+										$status = 1;
+								}*/
+
+								//update account Dr transactions...
+								DB::table('account_transaction')
+									->insert([  'voucher_type' 		=> $attributes['type'][$val],
+												'voucher_type_id'   => $pv_entry_id,
+												'account_master_id' => $attributes['supplier_id'],
+												'transaction_type'  => 'Dr',
+												'amount'   			=> $attributes['line_amount'][$key],
+												'status' 			=> $status,
+												'created_at' 		=> now(),
+												'created_by' 		=> Auth::User()->id,
+												'reference'			=> $this->payment_voucher->voucher_no,
+												'invoice_date'		=> $this->payment_voucher->voucher_date,
+												'reference_from'	=> $attributes['refno'][$key]
+											]);
+											
+								$receiptVoucherTr = new PaymentVoucherTr();
+								$receiptVoucherTr->payment_voucher_entry_id = $pv_entry_id;
+								$receiptVoucherTr->purchase_invoice_id = $attributes['purchase_invoice_id'][$key];
+								$receiptVoucherTr->assign_amount = $attributes['line_amount'][$key];
+								$receiptVoucherTr->bill_type = $attributes['bill_type'][$val];
+								$receiptVoucherTr->status = 1;
+								$paymentVoucherEntry->PaymentVoucherTrAdd()->save($receiptVoucherTr);
+								
+							} else if($attributes['type'][$val]=='JV') {
+								
+								$journalEntry = new JournalEntry();
+								$this->setTrInputValue($attributes, $journalEntry, $key);
+								$journalEntry->status = 1;
+								$this->journal->JournalAdd()->save($journalEntry);
+								$jv_entry_id = $journalEntry->id;
+								
+								$status = 1;//$attributes['status'];
+								/*if($attributes['status']==0) {
+									if($attributes['debit'] > 25000) {
+										$status = 0;
+									} else
+										$status = 1;
+								}*/
+
+								//update account Dr transactions...
+								DB::table('account_transaction')
+									->insert([  'voucher_type' 		=> $attributes['type'][$val],
+												'voucher_type_id'   => $jv_entry_id,
+												'account_master_id' => $attributes['supplier_id'],
+												'transaction_type'  => 'Dr',
+												'amount'   			=> $attributes['line_amount'][$key],
+												'status' 			=> $status,
+												'created_at' 		=> now(),
+												'created_by' 		=> Auth::User()->id,
+												'reference'			=> $this->journal->voucher_no,
+												'invoice_date'		=> $this->journal->voucher_date,
+												'reference_from'	=> $attributes['refno'][$key]
+											]);
+											
+							}
+							
+							$this->setTransactionStatusAdvSet($attributes, $row, $key, $val);
+						}
+						
+						
+					}
+					
+					/* if($attributes['tr_type'][$val]=='Dr')		
+						$this->setTransactionStatusAdvSetOB($attributes, $row, $key, $val); */
+					
+					$ar = 2;
+				}
+				
+			}
+			
+			DB::commit();
+			return true;
+		} catch (\Exception $e) {
+		  
+		  DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
+		  return false;
+		}
+	}
+	
+	public function advance_set2($attributes)
+	{
+		DB::beginTransaction(); //balance_amount  purchase_invoice
+		try {
+			//echo '<pre>';print_r($attributes);exit;
+			foreach($attributes['tagadv'] as $row => $val)
+			{
+				$ar =1;
+				foreach($attributes['tag'] as $k => $key) { 
+					
+					if($ar==1) {
+						
+						$pv_entry_id = $attributes['payment_voucher_entry_id'][$row];
+						if($attributes['bill_type'][$val]=='OB') {
+							
+								//$pv_entry_id = $attributes['payment_voucher_entry_id'][$row];
+								$obtr = DB::table('opening_balance_tr')->find($pv_entry_id);
+								if($attributes['actual_amountadv'][$k]==$attributes['advance_amount'][$k]) {
+									DB::table('opening_balance_tr')
+												->where('id', $obtr->id)
+												->update(['amount_transfer' => 1, 'balance_amount' => 0]);
+												
+									DB::table('account_transaction')
+												->where('voucher_type','OBD')
+												->where('account_master_id',$obtr->account_master_id)
+												->update(['reference_from' => $attributes['refno'][$key]]);
+												
+								} else {
+									DB::table('opening_balance_tr')
+										->where('id',$obtr->id)
+										->update(['amount_transfer' => 2, 
+										'balance_amount' => ($attributes['actual_amountadv'][$k]-$attributes['advance_amount'][$k])]);
+										
+									DB::table('account_transaction')
+												->where('voucher_type','OBD')
+												->where('account_master_id',$obtr->account_master_id)
+												->update(['reference_from' => $attributes['refno'][$key] ]);
+								}
+								
+							$this->setTransactionStatusAdvSet($attributes, $row, $key, $val);	
+							//$this->setTransactionStatusAdvSetOB($attributes, $row, $ar);
+							
+						} else if($attributes['bill_type'][$val]=='OnAc') {
+							
+							if($attributes['type'][$val]=='PV') {
+								
+								$paymentVoucherEntry = PaymentVoucherEntry::find( $attributes['payment_voucher_entry_id'][$row] );
+								$this->payment_voucher = PaymentVoucher::find( $paymentVoucherEntry->payment_voucher_id ); 
+								
+								$rvEntry['reference'] = $attributes['refno'][$key];
+								$rvEntry['amount'] = ($paymentVoucherEntry->amount < $attributes['line_amount'][$key])?$paymentVoucherEntry->amount:$attributes['line_amount'][$key];
+								$rvEntry['is_onaccount'] = 0;
+								$paymentVoucherEntry->update($rvEntry);
+								
+								$attributes['voucher_no'] = $this->payment_voucher->voucher_no;
+								$attributes['voucher_date'] = $this->payment_voucher->voucher_date;
+								$attributes['account_id'] = $paymentVoucherEntry->account_id;
+								//update account Dr transactions...
+								$this->setAccountTransactionAdvSetUpdate($attributes, $paymentVoucherEntry->id, 'PV', 'Dr', $key, $rvEntry);
+
+							} else if($attributes['type'][$val]=='JV') {
+								
+								$journalEntry = JournalEntry::find( $attributes['payment_voucher_entry_id'][$row] );
+								$this->journal = Journal::find( $journalEntry->journal_id ); 
+								
+								$jvEntry['reference'] = $attributes['refno'][$key];
+								$jvEntry['amount'] = $attributes['line_amount'][$key];
+								$jvEntry['is_onaccount'] = 0;
+								$journalEntry->update($jvEntry);
+								$attributes['voucher_no'] = $this->journal->voucher_no;
+								$attributes['voucher_date'] = $this->journal->voucher_date;
+								$attributes['account_id'] = $this->journal->account_id;
+								//update account Dr transactions...
+								$this->setAccountTransactionAdvSetUpdate($attributes, $journalEntry->id, 'JV', 'Dr', $key, $jvEntry);
+								
+							}
+							
+							$this->setTransactionStatusAdvSet($attributes, $row, $key, $val);
+						}
+						
+					} else { //else $ar==2
+						
+						if($attributes['line_amount'][$key] < $attributes['advance_amount'][$row]) {
+							
+							if($attributes['type'][$val]=='PV') {
+								
+								$paymentVoucherEntry = new PaymentVoucherEntry();
+								$arrResult = $this->setEntryInputValue($attributes, $paymentVoucherEntry, $ar, $key);
+								$paymentVoucherEntry->status = 1;
+								$this->payment_voucher->PaymentVoucherAdd()->save($paymentVoucherEntry);
+								$pv_entry_id = $paymentVoucherEntry->id;
+								
+								$status = $attributes['status'];
+								if($attributes['status']==0) {
+									if($attributes['debit'] > 25000) {
+										$status = 0;
+									} else
+										$status = 1;
+								}
+
+								//update account Dr transactions...
+								DB::table('account_transaction')
+									->insert([  'voucher_type' 		=> $attributes['type'][$val],
+												'voucher_type_id'   => $pv_entry_id,
+												'account_master_id' => $attributes['customer_id'],
+												'transaction_type'  => 'Dr',
+												'amount'   			=> $attributes['line_amount'][$key],
+												'status' 			=> $status,
+												'created_at' 		=> now(),
+												'created_by' 		=> Auth::User()->id,
+												'reference'			=> $this->payment_voucher->voucher_no,
+												'invoice_date'		=> $this->payment_voucher->voucher_date,
+												'reference_from'	=> $attributes['refno'][$key]
+											]);
+											
+								$receiptVoucherTr = new PaymentVoucherTr();
+								$receiptVoucherTr->payment_voucher_entry_id = $pv_entry_id;
+								$receiptVoucherTr->purchase_invoice_id = $attributes['purchase_invoice_id'][$key];
+								$receiptVoucherTr->assign_amount = $attributes['line_amount'][$key];
+								$receiptVoucherTr->bill_type = $attributes['bill_type'][$val];
+								$receiptVoucherTr->status = 1;
+								$paymentVoucherEntry->PaymentVoucherTrAdd()->save($receiptVoucherTr);
+								
+							} else if($attributes['type'][$val]=='JV') {
+								
+								$journalEntry = new JournalEntry();
+								$this->setTrInputValue($attributes, $journalEntry, $key);
+								$journalEntry->status = 1;
+								$this->journal->JournalAdd()->save($journalEntry);
+								$jv_entry_id = $journalEntry->id;
+								
+								$status = $attributes['status'];
+								if($attributes['status']==0) {
+									if($attributes['debit'] > 25000) {
+										$status = 0;
+									} else
+										$status = 1;
+								}
+
+								//update account Dr transactions...
+								DB::table('account_transaction')
+									->insert([  'voucher_type' 		=> $attributes['type'][$val],
+												'voucher_type_id'   => $jv_entry_id,
+												'account_master_id' => $attributes['customer_id'],
+												'transaction_type'  => 'Dr',
+												'amount'   			=> $attributes['line_amount'][$key],
+												'status' 			=> $status,
+												'created_at' 		=> now(),
+												'created_by' 		=> Auth::User()->id,
+												'reference'			=> $this->journal->voucher_no,
+												'invoice_date'		=> $this->journal->voucher_date,
+												'reference_from'	=> $attributes['refno'][$key]
+											]);
+											
+							}
+							
+							$this->setTransactionStatusAdvSet($attributes, $row, $key, $val);
+						}
+						
+						
+					}
+					
+					/* if($attributes['tr_type'][$val]=='Dr')		
+						$this->setTransactionStatusAdvSetOB($attributes, $row, $key, $val); */
+					
+					$ar = 2;
+				}
+				
+			}
+			
+			DB::commit();
+			return true;
+		} catch (\Exception $e) {
+		  
+		  DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
+		  return false;
+		}
+	}
+	
+	public function advance_setold($attributes)
+	{
+		//echo '<pre>';print_r($attributes['tag']);exit;
+		foreach($attributes['tagadv'] as $row => $val)
+		{
+			$amount_adv = $attributes['advance_amount'][$row];
+			$pv_entry_id = $attributes['payment_voucher_entry_id'][$row];
+			$paymentVoucherEntry = PaymentVoucherEntry::find($pv_entry_id);
+			
+			foreach($attributes['tag'] as $k => $key) { 
+			
+				$paymentVoucherTr = new PaymentVoucherTr();
+					
+				$paymentVoucherTr->payment_voucher_entry_id = $pv_entry_id;
+				$paymentVoucherTr->purchase_invoice_id = $attributes['purchase_invoice_id'][$key];
+				$paymentVoucherTr->assign_amount = $attributes['line_amount'][$key];
+				$paymentVoucherTr->bill_type = $attributes['bill_type'][$key];
+				$paymentVoucherTr->status = 1;
+				$paymentVoucherEntry->PaymentVoucherTrAdd()->save($paymentVoucherTr);
+							
+				$this->setTransactionStatusAdvSet($attributes, $key);
+			}
+			
+			$jerow['balance_amount'] = $attributes['actual_amountadv'][$row] - $attributes['advance_amount'][$row];
+			$jerow['is_onaccount']   = ($jerow['balance_amount']==0)?0:1;
+			
+			if($jerow['balance_amount']==0)
+			{
+				DB::table('account_transaction')
+									->where('voucher_type_id', $pv_entry_id)
+									->where('voucher_type','PV')
+									->update(['description' => '', 'reference' => $attributes['refno'][$row] ]);
+			}
+			$paymentVoucherEntry->update($jerow);
+			
+		}
+	}
+	
+	public function check_PV($id)
+	{
+		$count = DB::table('payment_voucher')->where('id', $id)->where('is_transfer', 1)->count();
+		if($count > 0)
+			return false;
+		else 
+			return true;
+			
+	}
+	
+	public function check_voucher_no($refno, $id = null) { 
+		
+		if($id)
+			return $this->payment_voucher->where('voucher_no',$refno)->where('id', '!=', $id)->count();
+		else
+			return $this->payment_voucher->where('voucher_no',$refno)->count();
+	}
+	
+	public function findPVdata($id)
+	{
+
+		return DB::table('payment_voucher_entry')->where('payment_voucher_entry.payment_voucher_id', $id)
+						->join('account_master', 'account_master.id', '=', 'payment_voucher_entry.account_id')
+						->leftJoin('account_master AS AM', 'AM.id', '=', 'payment_voucher_entry.party_account_id')
+						->leftJoin('bank', 'bank.id', '=', 'payment_voucher_entry.bank_id')
+						->leftJoin('payment_voucher_tr', 'payment_voucher_tr.payment_voucher_entry_id', '=', 'payment_voucher_entry.id')
+						->leftJoin('purchase_invoice', 'purchase_invoice.id', '=', 'payment_voucher_tr.purchase_invoice_id')
+						->leftJoin('purchase_invoice AS CE', function($join) {
+							$join->on('CE.id','=','payment_voucher_tr.purchase_invoice_id');
+						//	$join->where('payment_voucher_tr.bill_type','=','PI');
+							$join->where('payment_voucher_tr.status','=',1);
+							$join->where('payment_voucher_tr.deleted_at','=','0000-00-00 00:00:00');
+						})
+						->where('payment_voucher_entry.status', 1)
+						->select('payment_voucher_entry.*','account_master.master_name','AM.master_name AS party_name','bank.name','CE.voucher_date')
+						->orderBy('payment_voucher_entry.id','ASC')->get();
+	}
+	
+	public function PDCIundoList()  //JL27
+	{
+		$result = DB::table('pdc_issued')->where('pdc_issued.status',1)
+						 ->join('account_master', 'account_master.id', '=', 'pdc_issued.dr_account_id')
+						->join('account_master AS AM', 'AM.id', '=', 'pdc_issued.supplier_id')
+						->leftJoin('account_master AS AM2', 'AM2.id', '=', 'pdc_issued.dr_bank_id')
+						->join('bank AS B', 'B.id', '=', 'pdc_issued.bank_id') 
+						->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+						->select('pdc_issued.*','account_master.master_name','AM.master_name AS supplier',
+						'B.code',DB::raw('"PDCI" AS vtype'),'AM2.master_name AS bname')
+						->get();
+						
+		/*$query2 = DB::table('pdc_issued')->where('pdc_issued.status',1)
+						 ->join('account_master', 'account_master.id', '=', 'pdc_issued.dr_account_id')
+						->join('account_master AS AM', 'AM.id', '=', 'pdc_issued.supplier_id')
+						->leftJoin('account_master AS AM2', 'AM2.id', '=', 'pdc_issued.bank_id')
+						->join('journal AS PV', 'PV.id', '=', 'pdc_issued.voucher_id')
+						->join('journal_entry AS PVE', function($join){
+							$join->on('PVE.journal_id', '=', 'pdc_issued.voucher_id');
+							$join->where('PVE.entry_type', '=', 'Cr');
+						})
+						->join('bank AS B', 'B.id', '=', 'PVE.bank_id') 
+						->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+						->where('PV.deleted_at','0000-00-00 00:00:00')
+						->select('pdc_issued.*','account_master.master_name','AM.master_name AS supplier','PV.voucher_no',
+						'PVE.cheque_no','PVE.cheque_date','B.code','PV.voucher_type AS vtype','AM2.master_name AS bname')
+						->groupBy('PV.voucher_no');
+						//->get();
+						
+		$result = $query1->union($query2)->get();	*/
+		
+		return $result;
+	}
+	
+	
+	public function PdcIssuedSubmit($attributes)
+	{	//echo '<pre>';print_r($attributes);
+		$trnarr['id'] = explode(',', $attributes['id']); 
+		$trnarr['vtype'] = explode(',', $attributes['voucher_type']);
+		$trnarr['ref'] = explode(',', $attributes['reference']);
+		$trnarr['drid'] = explode(',', $attributes['dr_account_id']);
+		$trnarr['crid'] = explode(',', $attributes['cr_account_id']);
+		$trnarr['custid'] = explode(',', $attributes['customer_id']);
+		$trnarr['amt'] = explode(',', $attributes['amount']);
+		$trnarr['cname'] = explode(',', $attributes['cname']);
+		$trnarr['vdate'] = $attributes['vdate'];
+		//echo '<pre>';print_r($trnarr);exit;
+		foreach($trnarr['id'] as $key => $val) { 
+			
+			$pdcs = DB::table('pdc_issued')->where('id', $val)->first();
+			$id = null;
+			if($pdcs) {
+				$id = $pdcs->id;
+				DB::table('pdc_issued')->where('id',$id)->update(['status' => 1,'dr_bank_id' => $trnarr['crid'][$key], 'voucher_date' => date('Y-m-d', strtotime($trnarr['vdate'])) ]); //JL27
+				
+				$trans = DB::table('account_transaction')
+									->where('voucher_type', 'CB')
+									->where('voucher_type_id', $id)
+									->where('status',1)
+									->whereNull('deleted_at')
+									->get();
+				if($trans) {
+					if($this->setAccountTransactionReSubmit($id, $trnarr, 'Cr', $key))
+						$this->setAccountTransactionReSubmit($id, $trnarr, 'Dr', $key);
+					
+				} else {
+					if($this->setAccountTransaction($id, $trnarr, 'Cr', $key))
+						$this->setAccountTransaction($id, $trnarr, 'Dr', $key);
+				}
+			}
+			
+			//update PDC transfer status.......
+			if($id) {
+				if($trnarr['vtype'][$key]=="PDCI") {
+					
+					 DB::table('payment_voucher')
+						->where('id', $val)
+						->update(['is_transfer' => 1]);
+						
+				} else if($trnarr['vtype'][$key]=="JV") {
+					
+					 DB::table('journal')
+						 ->where('id', $val)
+						 ->update(['is_transfer' => 1]);
+						 
+				} else if($trnarr['vtype'][$key]=="OBD") {
+					
+					 DB::table('opening_balance_tr')
+						 ->where('id', $val)
+						 ->update(['amount_transfer' => 1]);
+				}
+			}
+			
+		}
+	}
+	
+	
+	public function PdcIssuedSubmit2($attributes)
+	{
+		foreach($attributes['tag'] as $k => $key) { 
+			
+			$pdcs = DB::table('pdc_issued')->where('voucher_id',$attributes['id'][$key])->first();
+			
+			if(!$pdcs) {
+				$id = DB::table('pdc_issued')
+						->insertGetId(['voucher_id' => $attributes['id'][$key],
+									'voucher_type'  => 'CB',
+									'cr_account_id' => $attributes['cr_account_id'][$key],
+									'dr_account_id' => $attributes['dr_account_id'][$key],
+									'reference'  => $attributes['reference'][$key],
+									'amount'   	=> $attributes['amount'][$key],
+									'status' 	=> 1,
+									'created_at' => now(),
+									'created_by' => Auth::User()->id,
+									'voucher_date'	=> ($attributes['voucher_date']!='')?date('Y-m-d', strtotime($attributes['voucher_date'])):date('Y-m-d'),
+									'supplier_id' => $attributes['supplier_id'][$key]
+									]);
+								
+				if($this->setAccountTransaction($id, $attributes, 'Cr', $key))
+					$this->setAccountTransaction($id, $attributes, 'Dr', $key);
+				
+			} else {
+				$id = $pdcs->id;
+				DB::table('pdc_issued')->where('id',$id)->update(['status' => 1]);
+				
+				if($this->setAccountTransactionReSubmit($id, $attributes, 'Cr', $key))
+					$this->setAccountTransactionReSubmit($id, $attributes, 'Dr', $key);
+			
+			}
+			
+			//update PDC transfer status.......
+			if($id) {
+				if($attributes['voucher_type'][$key]=="PDCI") {
+					 DB::table('payment_voucher')
+						->where('id', $attributes['id'][$key])
+						->update(['is_transfer' => 1]);
+						
+				} else if($attributes['voucher_type'][$key]=="JV") {
+					
+					 DB::table('journal')
+						 ->where('id', $attributes['id'][$key])
+						 ->update(['is_transfer' => 1]);
+						 
+				} else if($attributes['voucher_type'][$key]=="OBD") {
+					
+					 DB::table('opening_balance_tr')
+						 ->where('id', $attributes['id'][$key])
+						 ->update(['amount_transfer' => 1]);
+				}
+			}
+			
+		}
+	}
+	
+	
+	private function setAccountTransaction($id, $trans, $type, $key)
+	{
+		$account_master_id = ($type=='Cr')?$trans['crid'][$key]:$trans['drid'][$key];
+		$description = ($type=='Dr')?$trans['cname'][$key]:'';
+		
+		$status = (isset($trans['status']))?$trans['status']:1;
+		if(isset($trans['status']) && $trans['status']==0) {
+			if($trans['debit'] > 25000) {
+				$status = 0;
+			} else 
+				$status = 1;
+		}
+
+		DB::table('account_transaction')
+				->insert([  'voucher_type' 		=> 'CB',
+						    'voucher_type_id'   => $id,
+							'account_master_id' => $account_master_id,
+							'transaction_type'  => $type,
+							'amount'   			=> $trans['amt'][$key],
+							'status' 			=> $status,
+							'created_at' 		=> now(),
+							'created_by' 		=> Auth::User()->id,
+							'description'		=> $description,
+							'reference'			=> $trans['id'][$key],
+							'invoice_date'		=> date('Y-m-d', strtotime($trans['vdate'])),
+							'reference_from'	=> $trans['ref'][$key] 
+						]);
+						
+		if($type=='Dr') {
+			$this->objUtility->tallyClosingBalance( $trans['drid'][$key] );
+			
+		} else {
+			$this->objUtility->tallyClosingBalance( $trans['crid'][$key] );
+			
+		}
+		
+		return true;
+	}
+	
+	private function setAccountTransaction2($id, $attributes, $type, $key)
+	{
+		$account_master_id = ($type=='Cr')?$attributes['cr_account_id'][$key]:$attributes['dr_account_id'][$key];
+		
+		$status = $attributes['status'];
+		if($attributes['status']==0) {
+			if($attributes['debit'] > 25000) {
+				$status = 0;
+			} else 
+				$status = 1;
+
+		}
+
+		DB::table('account_transaction')
+				->insert([  'voucher_type' 		=> 'CB',
+						    'voucher_type_id'   => $id,
+							'account_master_id' => $account_master_id,
+							'transaction_type'  => $type,
+							'amount'   			=> $attributes['amount'][$key],
+							'status' 			=> $status,
+							'created_at' 		=> now(),
+							'created_by' 		=> Auth::User()->id,
+							'reference'			=> $attributes['id'][$key],
+							'invoice_date'		=> date('Y-m-d', strtotime($attributes['voucher_date'])),
+							'reference_from'	=> $attributes['reference'][$key] 
+						]);
+						
+		if($type=='Cr') {
+			$this->objUtility->tallyClosingBalance( $attributes['cr_account_id'][$key] );
+			
+		} else {
+			$this->objUtility->tallyClosingBalance( $attributes['dr_account_id'][$key] );
+			
+		}
+		
+		return true;
+	}
+	
+	private function setAccountTransactionReSubmit($id, $trnarr, $type, $key)
+	{
+		$account_master_id = ($type=='Cr')?$trnarr['crid'][$key]:$trnarr['drid'][$key];
+		$description = ($type=='Dr')?$trnarr['cname'][$key]:'';
+		
+		$status = (isset($trans['status']))?$trans['status']:1;
+		if(isset($trans['status']) && $trans['status']==0) {
+			if($attributes['debit'] > 25000) {
+				$status = 0;
+			} else
+				$status = 1;
+		}
+
+		DB::table('account_transaction')->where('voucher_type', 'CB')->where('voucher_type_id', $id)
+										->where('account_master_id', $account_master_id)
+										->update([  'transaction_type'  => $type,
+													'amount'   			=> $trnarr['amt'][$key],
+													'status'			=> $status,
+													'modify_at' 		=> now(),
+													'modify_by' 		=> Auth::User()->id,
+													'deleted_at'		=> '0000-00-00 00:00:00',
+													'description'		=> $description,
+													'reference'			=> $trnarr['id'][$key],
+													'invoice_date'		=> date('Y-m-d', strtotime($trnarr['vdate'])),
+													'reference_from'	=> $trnarr['ref'][$key] 
+												]);
+						
+		if($type=='Dr') {
+			$this->objUtility->tallyClosingBalance( $trnarr['drid'][$key] );
+			
+		} else {
+			$this->objUtility->tallyClosingBalance( $trnarr['crid'][$key] );
+		}
+		
+		return true;
+	}
+	
+	
+	private function setAccountTransactionReSubmit2($id, $attributes, $type, $key)
+	{
+		$account_master_id = ($type=='Cr')?$attributes['cr_account_id'][$key]:$attributes['dr_account_id'][$key];
+		
+		$status = $attributes['status'];
+			if($attributes['status']==0) {
+				if($attributes['debit'] > 25000) {
+					$status = 0;
+				} else 
+					$status = 1;
+			}
+
+		DB::table('account_transaction')->where('voucher_type', 'CB')->where('voucher_type_id', $id)
+										->where('account_master_id', $account_master_id)
+										->update([  'transaction_type'  => $type,
+													'amount'   			=> $attributes['amount'][$key],
+													'status'			=> $status,
+													'modify_at' 		=> now(),
+													'modify_by' 		=> Auth::User()->id,
+													'deleted_at'		=> '0000-00-00 00:00:00',
+													'reference'			=> $attributes['id'][$key],
+													'invoice_date'		=> date('Y-m-d', strtotime($attributes['voucher_date'])),
+													'reference_from'	=> $attributes['reference'][$key] 
+												]);
+		
+		if($type=='Cr') {
+			$this->objUtility->tallyClosingBalance( $attributes['cr_account_id'][$key] );
+			
+		} else {
+			$this->objUtility->tallyClosingBalance( $attributes['dr_account_id'][$key] );
+			
+		}
+		
+		return true;
+	}
+	
+	
+	public function PdcIssuedUndo($attributes)
+	{
+		foreach($attributes['tag'] as $key => $val) { 
+			
+			if($attributes['voucher_type'][$val]=="PDCI") {
+				
+				DB::table('pdc_issued')->where('id', $attributes['id'][$val])
+										 ->update(['status' => 0]);
+				
+				DB::table('account_transaction')->where('voucher_type', 'CB')->where('voucher_type_id', $attributes['id'][$val])
+													->update([  'status' 			=> 0,
+																'modify_at'			=> now(),
+																'deleted_at' 		=> now(),
+																'other_info'        => now()
+															]);
+															
+				$rvEntry = DB::table('payment_voucher_entry')->where('payment_voucher_id',$attributes['id'][$val])->get();
+				
+				DB::table('payment_voucher')->where('id', $attributes['pv_id'][$val])
+												->update(['is_transfer' => 0]);
+												
+							
+			} else if($attributes['voucher_type'][$val]=="JV") {
+				
+				$rvEntry = DB::table('journal_entry')->where('journal_id',$attributes['id'][$val])->get();
+				//echo '<pre>';print_r($rvEntry);exit;
+							
+				foreach($rvEntry as $entry) {
+					if($entry->entry_type=="Cr"){
+						DB::table('account_master')->where('id',$entry->account_id)
+									->update(['cl_balance' => DB::raw('cl_balance - '.$entry->amount)]);
+					} else {
+						DB::table('account_master')->where('id',$entry->account_id)
+									->update(['cl_balance' => DB::raw('cl_balance + '.$entry->amount),
+											  'pdc_amount' => DB::raw('pdc_amount - '.$entry->amount) ]);
+					}
+					
+					DB::table('journal_entry')->where('id',$entry->id)
+								->update(['status' => 0, 'deleted_at' => now() ]);
+								
+					DB::table('account_transaction')->where('voucher_type',"JV")->where('voucher_type_id',$entry->id)
+								->update(['status' => 0, 'deleted_at' => now() ]);
+				} 
+				
+				DB::table('journal')->where('id',$attributes['id'][$val])
+							->update(['status' => 0, 'deleted_at' => now()]);
+							
+			} else if($attributes['voucher_type'][$val]=="PC") {
+				
+				$rvEntry = DB::table('petty_cash_entry')->where('petty_cash_id',$attributes['id'][$val])->get();
+				//echo '<pre>';print_r($rvEntry);exit;
+							
+				foreach($rvEntry as $entry) {
+					if($entry->entry_type=="Cr"){
+						DB::table('account_master')->where('id',$entry->account_id)
+									->update(['cl_balance' => DB::raw('cl_balance - '.$entry->amount)]);
+					} else {
+						DB::table('account_master')->where('id',$entry->account_id)
+									->update(['cl_balance' => DB::raw('cl_balance + '.$entry->amount),
+											  'pdc_amount' => DB::raw('pdc_amount - '.$entry->amount) ]);
+					}
+					
+					DB::table('petty_cash_entry')->where('id',$entry->id)
+								->update(['status' => 0, 'deleted_at' => now() ]);
+								
+					DB::table('account_transaction')->where('voucher_type',"PC")->where('voucher_type_id',$entry->id)
+								->update(['status' => 0, 'deleted_at' => now() ]);
+				} 
+				
+				DB::table('petty_cash')->where('id',$attributes['id'][$val])
+							->update(['status' => 0, 'deleted_at' => now()]);
+							
+			} 
+			
+			
+		}
+		
+		return true;
+	}
+	
+	public function getLastId() {
+		
+		return $this->payment_voucher->where('status',1)
+					->select('id')
+					->orderBY('id', 'DESC')
+					->first();
+
+	}
+	
+	public function findPVEtryData($id)
+	{
+		return DB::table('payment_voucher_entry')->where('payment_voucher_entry.payment_voucher_id', $id)
+						->join('account_master', 'account_master.id', '=', 'payment_voucher_entry.account_id')
+						->leftJoin('account_master AS AM', 'AM.id', '=', 'payment_voucher_entry.party_account_id')
+						->leftJoin('payment_voucher_tr AS PVT', 'PVT.payment_voucher_entry_id', '=', 'payment_voucher_entry.id')
+						->leftJoin('jobmaster AS J', 'J.id', '=', 'payment_voucher_entry.job_id')
+						->where('payment_voucher_entry.status', 1)
+						->orderBy('payment_voucher_entry.id', 'ASC')
+						->select('payment_voucher_entry.*','account_master.master_name','account_master.category','AM.master_name AS party_name',
+								 'AM.id AS party_id','PVT.purchase_invoice_id','PVT.id AS tr_entry_id','PVT.bill_type','J.code')->get();
+						
+		
+	}
+	
+		public function getapprovalList()
+	{
+		return $query = $this->payment_voucher->where('payment_voucher.status',1)->where('payment_voucher.opening_balance_id',0)->where('payment_voucher.approval_status',0)
+							->select('payment_voucher.id','payment_voucher.voucher_no','payment_voucher.voucher_date','payment_voucher.tr_description',
+									 'payment_voucher.debit AS amount','payment_voucher.from_jv','payment_voucher.voucher_type',
+									 DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+											   JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+											   WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+											   AND payment_voucher_entry.entry_type='Dr' LIMIT 0,1) AS debitor"),
+									 DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+											   JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+											   WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+											   AND payment_voucher_entry.entry_type='Cr' LIMIT 0,1) AS creditor"),'payment_voucher.is_transfer')
+									->orderBy('payment_voucher.id','DESC')
+									->get();
+		
+	}
+	
+	public function SupplierPaymentListCount() 
+	{
+		return $query = $this->payment_voucher->where('payment_voucher.status',1)->where('payment_voucher.opening_balance_id',0)
+							->select('payment_voucher.id','payment_voucher.voucher_no','payment_voucher.voucher_date','payment_voucher.tr_description',
+									 'payment_voucher.debit AS amount','payment_voucher.from_jv','payment_voucher.voucher_type',
+									 DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+											   JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+											   WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+											   AND payment_voucher_entry.entry_type='Dr' LIMIT 0,1) AS debitor"),
+									 DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+											   JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+											   WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+											   AND payment_voucher_entry.entry_type='Cr' LIMIT 0,1) AS creditor"),'payment_voucher.is_transfer')
+									->orderBy('payment_voucher.id','DESC')
+									->count();
+	}
+	
+	public function SupplierPaymentList($type,$start,$limit,$order,$dir,$search)
+	{
+		$query = $this->payment_voucher->where('payment_voucher.opening_balance_id',0); //->where('payment_voucher.status',1)
+		
+									$query->join('payment_voucher_entry AS PE', function($join) {
+									    $join->on('PE.payment_voucher_id', '=', 'payment_voucher.id');
+									});
+									$query->join('account_master AS AM', function($join) {
+										$join->on('AM.id', '=', 'PE.account_id');
+									});
+									 
+									if($search) {
+										$query->where(function($query) use ($search){
+											 $query->where('AM.master_name','LIKE',"%{$search}%")
+												   ->orWhere('payment_voucher.voucher_no', 'LIKE',"%{$search}%")
+												   ->orWhere('PE.description', 'LIKE',"%{$search}%")
+												   ->orWhere('PE.reference', 'LIKE',"%{$search}%");
+										});
+										
+										/* $query->where('payment_voucher.voucher_no','LIKE',"%{$search}%")
+											  ->orWhere('payment_voucher.voucher_date', 'LIKE',"%{$search}%"); */
+									}
+									
+							$query->select('payment_voucher.id','payment_voucher.voucher_no','payment_voucher.voucher_date','payment_voucher.tr_description','payment_voucher.approval_status',
+									 'payment_voucher.debit AS amount','payment_voucher.from_jv','payment_voucher.voucher_type','PE.description','PE.reference',
+									 DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+											   JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+											   WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+											   AND payment_voucher_entry.entry_type='Dr' AND account_master.category IN('SUPPLIER','CASH','BANK') LIMIT 0,1) AS debitor"), //AND account_master.category='SUPPLIER'
+									DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+											   JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+											   WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+											   AND payment_voucher_entry.entry_type='Dr' LIMIT 0,1) AS debitor2"),
+									 DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
+											   JOIN account_master ON(account_master.id = payment_voucher_entry.account_id)
+											   WHERE payment_voucher_entry.payment_voucher_id=payment_voucher.id 
+											   AND payment_voucher_entry.entry_type='Cr' LIMIT 0,1) AS creditor"),'payment_voucher.is_transfer')
+										->offset($start)
+										->limit($limit)
+										->orderBy($order,$dir)
+										->groupBy('payment_voucher.id');
+										
+									if($type=='get')
+										return $query->get();
+									else
+										return $query->count();
+		
+	}
+	
+	
+	public function PdcIssuedDelete($id)
+	{
+        $pdcrow = DB::table('pdc_issued')->where('id', $id)->first();
+        if($pdcrow) {
+            DB::table('pdc_issued')->where('id', $id)->update(['status' => 0]);
+            //DB::table('account_transaction')->where('voucher_type', 'DB')->where('voucher_type_id', $id)->update(['status' => 0]);
+            //DB::table('pdc_issued')->where('id', $id)->delete();
+            DB::table('account_transaction')->where('voucher_type', 'CB')->where('voucher_type_id', $id)->delete();
+													
+			if($pdcrow->entry_type=='PV') {
+			    $rvEntry = DB::table('payment_voucher_entry')->where('id', $pdcrow->entry_id)->first();
+			    DB::table('payment_voucher')->where('id', $rvEntry->payment_voucher_id)->update(['is_transfer' => 0]);
+			    
+			} else if($pdcrow->entry_type=='JV') {
+			    $rvEntry = DB::table('journal_entry')->where('id', $pdcrow->entry_id)->first();
+			    DB::table('journal')->where('id', $rvEntry->journal_id)->update(['is_transfer' => 0]);
+			}
+        }
+	}
+	
+}

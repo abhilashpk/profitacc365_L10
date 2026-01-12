@@ -1,0 +1,127 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Salesman;
+
+use App\Models\Salesman;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Config;
+use Illuminate\Support\Facades\DB;
+
+class SalesmanRepository extends AbstractValidator implements SalesmanInterface {
+	
+	protected $salesman;
+	
+	protected static $rules = [
+		'salesman_id' => 'required|unique:salesman',
+		'name' => 'required|unique:salesman'
+	];
+	
+	public function __construct(Salesman $salesman) {
+		$this->salesman = $salesman;
+		
+	}
+	
+	public function all()
+	{
+		return $this->salesman->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->salesman->where('id', $id)->first();
+	}
+	
+	public function create($attributes)
+	{
+		//if($this->isValid($attributes)) { 
+			
+			$this->salesman->salesman_id = $attributes['salesman_id'];
+			$this->salesman->name = $attributes['name'];
+			$this->salesman->address1 = $attributes['address1'];
+			$this->salesman->address2 = $attributes['address2'];
+			$this->salesman->telephone = $attributes['telephone'];
+			$this->salesman->status = 1;
+			$this->salesman->fill($attributes)->save();
+			return true;
+		//}
+		
+		//throw new ValidationException('salesman validation error!', $this->getErrors());
+	}
+	
+	public function update($id, $attributes)
+	{
+		$this->salesman = $this->find($id);
+		$this->salesman->fill($attributes)->save();
+		return true;
+	}
+	
+	
+	public function delete($id)
+	{
+		$this->salesman = $this->salesman->find($id);
+		$this->salesman->delete();
+	}
+	
+	public function salesmanList()
+	{
+		//check admin session and apply return $this->salesman->where('parent_id',0)->where('status', 1)->get();
+		return $this->salesman->where('status', 1)->get();
+	}
+	
+	public function activeSalesmanList()
+	{
+		return $this->salesman->select('id','name')->where('status', 1)->orderBy('name', 'ASC')->get()->toArray();
+	}
+	
+	public function getSalesmanList() { 
+		
+		return $this->salesman->select('id','name','salesman_id')->where('status', 1)->orderBy('name', 'ASC')->get();
+	}
+	public function check_salesman_id($salesman_id, $id = null) {
+		
+		if($id)
+			return $this->salesman->where('salesman_id',$salesman_id)->where('id', '!=', $id)->count();
+		else
+			return $this->salesman->where('salesman_id',$salesman_id)->count();
+	}
+	
+	public function check_name($name, $id = null) {
+		
+		if($id)
+			return $this->salesman->where('name',$name)->where('id', '!=', $id)->count();
+		else
+			return $this->salesman->where('name',$name)->count();
+	}
+	public function ajaxCreate($attributes)
+	{
+		
+		DB::beginTransaction();
+		try { 
+			
+			$check1 = $this->salesman->where('salesman_id', trim($attributes['salesman_id']))->where('status',1)->count();
+			
+			if(($check1 > 0))
+				return 0;
+				
+			$this->salesman->salesman_id = trim($attributes['salesman_id']);
+			$this->salesman->name = trim($attributes['name']);
+			$this->salesman->address1 = trim($attributes['address1']);
+			$this->salesman->address2 = trim($attributes['address2']);
+			$this->salesman->telephone = trim($attributes['telephone']);
+			$this->salesman->status = 1;
+			$this->salesman->fill($attributes)->save();
+			
+				
+			DB::commit();
+			return $this->salesman->id;
+			
+		} catch(\Exception $e) {
+				
+			DB::rollback();
+			return -1;
+		}
+	}
+	
+}
+

@@ -1,0 +1,72 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\TemplateName;
+
+use App\Models\TemplateName;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Config;
+
+class TemplateNameRepository extends AbstractValidator implements TemplateNameInterface {
+	
+	protected $template_name;
+	
+	protected static $rules = [
+		'name' => 'required',
+		'message' => 'required',
+	];
+	
+	public function __construct(TemplateName $template_name) {
+		$this->template_name = $template_name;
+		
+	}
+	
+	public function all()
+	{
+		return $this->template_name->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->template_name->where('id', $id)->first();
+	}
+	
+	public function create($attributes)
+	{
+		if($this->isValid($attributes)) {
+			
+			$this->template_name->name = $attributes['name'];
+			$this->template_name->message = $attributes['message'];
+			$this->template_name->status = 1;
+			$this->template_name->fill($attributes)->save();
+			return true;
+		}
+		//throw new ValidationException('header_footer validation error12!', $this->getErrors());
+	}
+	
+	public function update($id, $attributes)
+	{
+		$this->template_name = $this->find($id);
+		$this->template_name->fill($attributes)->save();
+		return true;
+	}
+	
+	
+	public function delete($id)
+	{
+		$this->template_name = $this->template_name->find($id);
+		$this->template_name->delete();
+	}
+	
+	public function template_nameList()
+	{
+		//check admin session and apply return $this->header_footer->where('parent_id',0)->where('status', 1)->get();
+		return $this->template_name->where('status', 1)->get();
+	}
+	
+	public function activeTemplateList()
+	{
+		return $this->template_name->select('id','name','message')->where('status', 1)->orderBy('name', 'ASC')->get()->toArray();
+	}
+}
+

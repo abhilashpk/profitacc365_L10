@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Department;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface DepartmentInterface extends RepositoryInterface {
+	
+}
+

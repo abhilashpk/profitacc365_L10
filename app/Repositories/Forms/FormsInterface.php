@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Forms;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface FormsInterface extends RepositoryInterface {
+	
+}
+

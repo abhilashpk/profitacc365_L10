@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\SalesOrder;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface SalesOrderInterface extends RepositoryInterface {
+	
+}
+

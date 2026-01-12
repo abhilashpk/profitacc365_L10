@@ -1,0 +1,14 @@
+<?php
+namespace App\Providers;
+
+use App\Support\Input;
+use Illuminate\Support\ServiceProvider;
+
+class InputServiceProvider extends ServiceProvider {
+    public function register(): void {
+        $this->app->singleton('app.support.input', function () {
+            return new Input();
+        });
+    }
+}
+

@@ -1,0 +1,716 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\RentalSales;
+
+use App\Models\RentalSales;
+use App\Models\RentalSalesItem;
+use App\Models\AccountTransaction;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Ixudra\Curl\Facades\Curl;
+use App\Repositories\UpdateUtility;
+
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
+use Auth;
+use Storage;
+
+class RentalSalesRepository extends AbstractValidator implements RentalSalesInterface {
+	
+	public $objUtility;
+	
+	protected $rental_sales;
+	
+	protected static $rules = [];
+	
+	public function __construct(RentalSales $rental_sales) {
+		$this->rental_sales = $rental_sales;
+		
+		$this->objUtility = new UpdateUtility();
+	}
+	
+	public function all()
+	{
+		return $this->rental_sales->get();
+	}
+	
+	
+	public function find($id)
+	{
+		return $this->rental_sales->where('id', $id)->first();
+	}
+	
+	public function getRentalSalesList($type,$start,$limit,$order,$dir,$search)
+	{	
+		$query = DB::table('rental_sales')
+								->join('account_master AS AC','AC.id','=','rental_sales.customer_id')
+								->where('rental_sales.deleted_at',null);
+		
+			if($search) {
+				$query->where(function($query) use ($search){
+					
+					$query->where('AC.master_name','LIKE',"%{$search}%");
+					$query->orWhere('rental_sales.voucher_no','LIKE',"%{$search}%");
+					
+				});
+			}
+			
+		$query->select('rental_sales.id','rental_sales.voucher_no','rental_sales.voucher_date','rental_sales.net_amount','AC.master_name');
+				
+			if($type=='get')
+				return $query->offset($start)
+							 ->limit($limit)
+							 ->orderBy($order,$dir)->get();
+			else
+				return $query->count();
+	}
+	
+	//set input fields values
+	private function setInputValue($attributes)
+	{
+		$this->rental_sales->voucher_no = $attributes['voucher_no']; 
+		$this->rental_sales->voucher_date = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+		$this->rental_sales->reference_no = $attributes['reference_no']; 
+		$this->rental_sales->customer_id = $attributes['customer_id'];
+		$this->rental_sales->description = $attributes['description'];
+		$this->rental_sales->account_master_id = $attributes['account_master_id'];
+		$this->rental_sales->is_vat = $attributes['is_vat'];
+		$this->rental_sales->vat_type = isset($attributes['vat_type'])?$attributes['vat_type']:'';
+		
+		return true;
+	}
+		
+	private function setItemInputValue($attributes, $rentalSalesItem, $key)
+	{
+		$rentalSalesItem->rental_sales_id = $this->rental_sales->id;
+		$rentalSalesItem->service_date = date('Y-m-d',strtotime($attributes['service_date'][$key]));
+		$rentalSalesItem->item_id = $attributes['item_id'][$key];
+		$rentalSalesItem->driver_id = $attributes['drvr_id'][$key];
+		$rentalSalesItem->unit_id = $attributes['unit'][$key];
+		$rentalSalesItem->quantity = $attributes['quantity'][$key];
+		$rentalSalesItem->rate = $attributes['rate'][$key];
+		$rentalSalesItem->extra_hr = $attributes['hrextra'][$key];
+		$rentalSalesItem->extra_rate = $attributes['ratextra'][$key];
+		$rentalSalesItem->vat = $attributes['vat'][$key];
+		$rentalSalesItem->vat_amount = $attributes['vatamt'][$key];
+		$rentalSalesItem->line_total = $attributes['line_total'][$key];
+		
+		return true;
+		
+	}
+	
+	private function setAccountTransaction($attributes, $amount, $voucher_id, $type, $amount_type=null)
+	{
+		$cr_acnt_id = $dr_acnt_id = '';
+		if($amount!=0) {
+			if($amount_type=='VAT') {
+				$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); 
+				
+				if($vatrow) {
+					$cr_acnt_id = $vatrow->payment_account;
+				}
+				
+			} else if($amount_type == 'LNTOTAL') {
+				$cr_acnt_id = $attributes['account_master_id'];
+			} else if($amount_type == 'NTAMT') {
+				$dr_acnt_id = $attributes['customer_id'];
+			} else if($amount_type == 'DIS') {
+				$disrow = DB::table('other_account_setting')->where('account_setting_name', 'Discount in Sales')->where('status', 1)->first();
+				$dr_acnt_id = $disrow->account_id;
+			}
+			
+			DB::table('account_transaction')
+					->insert([  'voucher_type' 		=> 'SIR',
+								'voucher_type_id'   => $voucher_id,
+								'account_master_id' => ($type=='Cr')?$cr_acnt_id:$dr_acnt_id,
+								'transaction_type'  => $type,
+								'amount'   			=> $amount,
+								'status' 			=> 1,
+								'created_at' 		=> now(),
+								'created_by' 		=> Auth::User()->id,
+								'description' 		=> $attributes['description'],
+								'reference'			=> $attributes['voucher_no'],
+								'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+								'fc_amount'			=> $amount
+							]);
+			
+			$this->objUtility->tallyClosingBalance(($type=='Cr')?$cr_acnt_id:$dr_acnt_id);	
+			
+		}
+						
+		return true;
+	}
+	
+	
+	//Accounting Method function............
+	private function AccountingMethod($attributes, $line_total, $tax_total, $net_amount, $rental_sales_id)
+	{
+		$discount = ($attributes['discount']=='')?0:$attributes['discount'];
+		
+		//Debit Stock in Hand
+		if( $this->setAccountTransaction($attributes, $line_total, $rental_sales_id, $type='Cr', $amount_type='LNTOTAL') ) {
+		
+			//Debit VAT Input
+			if( $this->setAccountTransaction($attributes, $tax_total, $rental_sales_id, $type='Cr', $amount_type='VAT') ) {
+		
+				//Credit Supplier Accounting
+				if( $this->setAccountTransaction($attributes, $net_amount, $rental_sales_id, $type='Dr', $amount_type='NTAMT') ) {
+				
+					$this->setAccountTransaction($attributes, $discount, $rental_sales_id, $type='Dr', $amount_type='DIS');
+				}
+			}
+		}
+		
+	}
+	
+	private function AccountingMethodUpdate($attributes, $line_total, $tax_total, $net_amount, $rental_sales_id)
+	{
+		$discount = ($attributes['discount']=='')?0:$attributes['discount'];
+		
+		//Debit Stock in Hand
+		if( $this->setAccountTransactionUpdate($attributes, $line_total, $rental_sales_id, $type='Cr', $amount_type='LNTOTAL') ) {
+		
+			//Debit VAT Input
+			if( $this->setAccountTransactionUpdate($attributes, $tax_total, $rental_sales_id, $type='Cr', $amount_type='VAT') ) {
+			
+				//Credit Supplier Accounting
+				if( $this->setAccountTransactionUpdate($attributes, $net_amount, $rental_sales_id, $type='Dr', $amount_type='NTAMT') ) {
+					
+					$this->setAccountTransactionUpdate($attributes, $discount, $rental_sales_id, $type='Dr', $amount_type='DIS');
+				}
+			}
+		}
+	}
+	
+	private function setAccountTransactionUpdate($attributes, $amount, $voucher_id, $type, $amount_type=null)
+	{
+		$cr_acnt_id = $dr_acnt_id = '';
+		$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null);
+		if($amount!=0) {
+			if($amount_type=='VAT') {
+				
+				if($vatrow) {
+					$cr_acnt_id = $account_id = $vatrow->payment_account;
+				}
+				$cur_account_id = $account_id;
+				
+			} else if($amount_type == 'LNTOTAL') {
+				$cr_acnt_id = $cur_account_id = $account_id = $attributes['account_master_id']; 
+			} else if($amount_type == 'NTAMT') {
+				$dr_acnt_id = $cur_account_id = $account_id = $attributes['customer_id'];
+				
+				//CHANGING SUPPLIER..
+				if($attributes['customer_id'] != $attributes['old_customer_id']) {
+					DB::table('account_transaction')
+							->where('voucher_type_id', $voucher_id)
+							->where('voucher_type', 'SIR')
+							->where('account_master_id', $attributes['old_customer_id'])
+							->update( ['account_master_id' => $attributes['customer_id'] ]);
+							
+					$this->objUtility->tallyClosingBalance($attributes['old_customer_id']);
+				}
+				
+				//CHANGING Dr account.. 
+				if($attributes['account_master_id'] != $attributes['old_account_master_id']) {
+					DB::table('account_transaction')
+							->where('voucher_type_id', $voucher_id)
+							->where('voucher_type', 'SIR')
+							->where('account_master_id', $attributes['old_account_master_id'])
+							->update( ['account_master_id' => $attributes['account_master_id'] ]);
+							
+					$this->objUtility->tallyClosingBalance($attributes['old_customer_id']);
+				}
+				
+			} else if($amount_type == 'DIS') {
+				
+				$disrow = DB::table('other_account_setting')->where('account_setting_name', 'Discount in Sales')->where('status', 1)->first();
+				$dr_acnt_id = $cur_account_id = $account_id = $disrow->account_id;
+				
+				//IF DISCOUNT NOT ADDED PREVIOUS.. FEB21
+				if($attributes['discount_old']==0) {
+					DB::table('account_transaction')
+						->insert([  'voucher_type' 		=> 'SIR',
+									'voucher_type_id'   => $voucher_id,
+									'account_master_id' => $dr_acnt_id,
+									'transaction_type'  => 'Dr',
+									'amount'   			=> $amount,
+									'status' 			=> 1,
+									'created_at' 		=> now(),
+									'created_by' 		=> Auth::User()->id,
+									'description' 		=> $attributes['description'],
+									'reference'			=> $attributes['voucher_no'],
+									'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+									'fc_amount'			=> $amount
+									]);
+									
+				} 
+			}
+			
+			$trfor = 0;
+			DB::table('account_transaction')
+					->where('voucher_type_id', $voucher_id)
+					->where('account_master_id', $cur_account_id)
+					->where('voucher_type', 'SIR')					
+					->where('tr_for', $trfor)
+					->update([  'account_master_id' => $account_id,
+								'amount'   			=> $amount,
+								'modify_at' 		=> now(),
+								'modify_by' 		=> Auth::User()->id,
+								'description' 		=> $attributes['description'],
+								'reference'			=> $attributes['voucher_no'],
+								'invoice_date'		=> date('Y-m-d', strtotime($attributes['voucher_date'])),
+								'fc_amount'			=> $amount
+								]);
+								
+			$this->objUtility->tallyClosingBalance(($type=='Cr')?$cr_acnt_id:$dr_acnt_id);
+			
+		} else {  //Remove vat account transaction..
+			
+			if( $attributes['vatcur'] != 0 && $attributes['vat'] == 0) {
+				//Remove vat account...
+				DB::table('account_transaction')
+					->where('voucher_type_id', $voucher_id)
+					->where('account_master_id', $vatrow->payment_account)
+					->where('transaction_type' , 'Cr')
+					->where('voucher_type', 'SIR')					
+					->where('tr_for', 0)
+						->update(['status' => 0, 'deleted_at' => now()]);
+						
+				$this->objUtility->tallyClosingBalance($vatrow->payment_account);
+						
+			} 
+			
+			//Remove DISCOUNT.... 
+			if($amount_type == 'DIS') {
+				$vatrow = DB::table('other_account_setting')->where('account_setting_name', 'Discount in Sales')->where('status', 1)->first();
+				$dr_acnt_id = $cur_account_id = $account_id = $vatrow->account_id;
+				
+				//Remove DISCOUNT....		
+				DB::table('account_transaction')
+					->where('voucher_type_id', $voucher_id)
+					->where('account_master_id', $dr_acnt_id) //CHNG
+					->where('transaction_type' , 'Dr')
+					->where('voucher_type', 'SIR')					
+					->where('tr_for', 0)
+						->update(['status' => 0, 'deleted_at' => now()]);
+						
+				$this->objUtility->tallyClosingBalance($dr_acnt_id);
+			}
+			
+		}
+		
+		return true;
+	}
+	
+		
+	public function create($attributes)
+	{ 	//echo '<pre>';print_r($attributes);exit;
+		if($this->isValid($attributes)) {
+			
+		 DB::beginTransaction();
+		 try {
+				
+			if($this->setInputValue($attributes)) {
+				$this->rental_sales->status = 1;
+				$this->rental_sales->created_at = now();
+				$this->rental_sales->created_by = Auth::User()->id;
+				$this->rental_sales->fill($attributes)->save();
+			}
+			
+			//invoice items insert
+			if($this->rental_sales->id && !empty( array_filter($attributes['item_id']))) { 
+				
+				foreach($attributes['item_id'] as $key => $value){ 
+					$rentalSalesItem = new RentalSalesItem();
+					$arrResult 	= $this->setItemInputValue($attributes, $rentalSalesItem, $key);
+					if($arrResult) {
+						$rentalSalesItem->status = 1;
+						$inv_item = $this->rental_sales->doItem()->save($rentalSalesItem);
+						
+						DB::table('rental_itemlog')
+									->insert([
+										'row_id' => $inv_item->id,
+										'doc_type' => 'SIR',
+										'doc_id' => $this->rental_sales->id,
+										'voucher_date' => ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+										'service_date' => date('Y-m-d',strtotime($attributes['service_date'][$key])),
+										'driver_id' => $attributes['drvr_id'][$key],
+										'item_id' => $value,
+										'unit_id' => $attributes['unit'][$key],
+										'qty'	=> $attributes['quantity'][$key],
+										'rate'	=> $attributes['rate'][$key],
+										'trtype'	=> 0
+									]);
+					}
+				}
+				
+				//update discount, total amount, vat and other cost....
+				DB::table('rental_sales')
+							->where('id', $this->rental_sales->id)
+							->update(['total'    	  => $attributes['total'],
+									  'discount' 	  => $attributes['discount'],
+									  'subtotal'	  => $attributes['subtotal'],
+									  'vat_amount'	  => $attributes['vat_total'],
+									  'net_amount'	  => $attributes['net_amount']
+									  ]); 
+									  
+				//Cost Accounting or Purchase and Sales Method .....
+				$this->AccountingMethod($attributes, $attributes['subtotal'], $attributes['vat_total'], $attributes['net_amount'], $this->rental_sales->id);
+				
+				//update voucher no........
+				if( $this->rental_sales->id ) {  
+					
+					 DB::table('account_setting')
+						->where('id', $attributes['voucher_id'])
+						->update(['voucher_no' => $attributes['voucher_no'] + 1 ]);
+					 
+				}
+				
+			}
+			
+			DB::commit();
+			return true;
+			
+		  } catch (\Exception $e) {
+			  
+			  DB::rollback(); echo $e->getLine().'-'.$e->getMessage().' '.$e->getFile();exit;
+			  return false;
+		  }
+		}
+		
+	}
+	
+	public function update($id, $attributes)
+	{ 	//echo '<pre>';print_r($attributes);exit;
+		$this->rental_sales = $this->find($id);
+		
+		DB::beginTransaction();
+		try {
+			
+			if($this->rental_sales->id && !empty( array_filter($attributes['item_id']))) {
+				
+				foreach($attributes['item_id'] as $key => $value) { 
+				
+					if($attributes['rowid'][$key]!='') {
+						$rentalSalesItem = RentalSalesItem::find($attributes['rowid'][$key]);
+						$items['item_id'] = $value;
+						$items['service_date'] = date('Y-m-d',strtotime($attributes['service_date'][$key]));
+						$items['driver_id'] = $attributes['drvr_id'][$key];
+						$items['unit_id'] = $attributes['unit'][$key];
+						$items['quantity'] = $attributes['quantity'][$key];
+						$items['unit_price'] = $attributes['rate'][$key];
+						$items['extra_hr']		 = $attributes['hrextra'][$key];
+						$items['extra_rate']		 = $attributes['ratextra'][$key];
+						$items['vat']		 = $attributes['vat'][$key];
+						$items['vat_amount'] = $attributes['vatamt'][$key];
+						$items['line_total'] = $attributes['line_total'][$key]; //echo '<pre>';print_r($items);exit;
+						$rentalSalesItem->update($items);
+						
+						DB::table('rental_itemlog')
+									->where('row_id', $attributes['rowid'][$key])
+									->where('doc_type', 'SIR')
+									->where('doc_id', $this->rental_sales->id)
+									->update([
+										'voucher_date' => ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+										'service_date' => date('Y-m-d',strtotime($attributes['service_date'][$key])),
+										'driver_id' => $attributes['drvr_id'][$key],
+										'item_id' => $value,
+										'unit_id' => $attributes['unit'][$key],
+										'qty'	=> $attributes['quantity'][$key],
+										'rate'	=> $attributes['rate'][$key]
+									]);
+											
+					} else { 
+						//new entry...
+						$rentalSalesItem = new RentalSalesItem();
+						$arrResult 	= $this->setItemInputValue($attributes, $rentalSalesItem, $key);
+						if($arrResult) {
+							$rentalSalesItem->status = 1;
+							$inv_item = $this->rental_sales->doItem()->save($rentalSalesItem);
+							
+							DB::table('rental_itemlog')
+									->insert([
+										'row_id' => $inv_item->id,
+										'doc_type' => 'SIR',
+										'doc_id' => $this->rental_sales->id,
+										'voucher_date' => ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+										'service_date' => date('Y-m-d',strtotime($attributes['service_date'][$key])),
+										'driver_id' => $attributes['drvr_id'][$key],
+										'item_id' => $value,
+										'unit_id' => $attributes['unit'][$key],
+										'qty'	=> $attributes['quantity'][$key],
+										'rate'	=> $attributes['rate'][$key],
+										'trtype'	=> 0
+									]);
+						}
+					}
+				}
+			}
+			
+			//UPDATED MAR 1...
+			//manage removed items...
+			if($attributes['remove_item']!='')
+			{
+				$arrids = explode(',', $attributes['remove_item']);
+				foreach($arrids as $row) {
+					DB::table('rental_sales_item')->where('id', $row)->update(['deleted_at' => now()]);
+					
+					DB::table('rental_itemlog')
+									->where('row_id', $row)
+									->where('doc_type', 'SIR')
+									->where('doc_id', $this->rental_sales->id)
+									->update(['deleted_at' => now()]);
+				}
+			}
+			
+			if($this->setInputValue($attributes)) {
+				
+				$this->rental_sales->modify_at = now();
+				$this->rental_sales->modify_by = Auth::User()->id;
+				$this->rental_sales->fill($attributes)->save();
+				
+			}
+			
+			DB::table('rental_sales')
+							->where('id', $this->rental_sales->id)
+							->update(['total'    	  => $attributes['total'],
+									  'discount' 	  => $attributes['discount'],
+									  'subtotal'	  => $attributes['subtotal'],
+									  'vat_amount'	  => $attributes['vat_total'],
+									  'net_amount'	  => $attributes['net_amount']
+									  ]); 
+			
+			//check whether Cost Accounting method or not.....
+			$this->AccountingMethodUpdate($attributes, $attributes['subtotal'], $attributes['vat_total'], $attributes['net_amount'], $this->rental_sales->id);
+			
+			DB::commit();
+			return true;
+			
+		} catch (\Exception $e) {
+			 DB::rollback(); echo $e->getLine().'-'.$e->getMessage().' '.$e->getFile();exit;
+			return false;
+		}
+	}
+	
+	public function delete($id)
+	{
+		$this->rental_sales = $this->rental_sales->find($id);
+		//inventory update...
+		DB::beginTransaction();
+		try {
+			
+			DB::table('rental_sales_item')->where('rental_sales_id', $id)->update(['deleted_at' => now()]);
+			
+			DB::table('rental_itemlog')->where('doc_type', 'SIR')->where('doc_id', $id)->update(['deleted_at' => now()]);
+			
+			//Transaction update....
+			DB::table('account_transaction')->where('voucher_type', 'SIR')->where('voucher_type_id',$id)->update(['status' => 0,'deleted_at' => now(),'deleted_by' => Auth::User()->id ]);
+			
+			$this->objUtility->tallyClosingBalance( $this->rental_sales->customer_id );
+			
+			$this->objUtility->tallyClosingBalance( $this->rental_sales->account_master_id );
+			
+			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); 
+			if($vatrow) {
+				$this->objUtility->tallyClosingBalance($vatrow->collection_account);
+			}
+			
+			$this->rental_sales->delete();
+			
+			DB::commit();
+			return true;
+			
+		} catch (\Exception $e) {
+			DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
+			return false;
+		}	
+		
+	}
+		
+	public function findRSdata($id)
+	{
+		$query = $this->rental_sales->where('rental_sales.id', $id);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','rental_sales.customer_id');
+						} )
+					->join('account_master AS am2', function($join){
+						  $join->on('am2.id','=','rental_sales.account_master_id');
+					  })
+					->select('rental_sales.*','am.master_name AS customer','am2.master_name AS account')
+					->orderBY('rental_sales.id', 'ASC')
+					->first();
+	}
+	
+	public function getItems($id)
+	{
+		$query = $this->rental_sales->where('rental_sales.id',$id);
+		
+		return $query->join('rental_sales_item AS PRI', function($join) {
+							$join->on('PRI.rental_sales_id','=','rental_sales.id');
+						} )
+					  ->join('itemmaster AS IM', function($join){
+						  $join->on('IM.id','=','PRI.item_id');
+					  })
+					  ->join('units AS U', function($join){
+						  $join->on('U.id','=','PRI.unit_id');
+					  }) 
+					  ->leftjoin('rental_driver AS RD', function($join){
+						  $join->on('RD.id','=','PRI.driver_id');
+					  })
+					  ->where('PRI.deleted_at',null)
+					  ->select('PRI.*','U.unit_name','IM.description','RD.driver_name')
+					  ->orderBY('PRI.id')
+					  ->groupBY('PRI.id')
+					  ->get();
+	}
+	
+		
+	//CLOSING BALANCE UPDATE...
+	public function tallyClosingBalance($id)
+	{
+		$this->updateAccountTally( $this->groupAccount($this->updateUtilityById($id)) );
+	}
+	
+	public function updateUtilityById($id)
+	{
+		$date = DB::table('parameter1')->select('from_date','to_date')->first();
+		
+		return $query = DB::table('account_master')->where('account_master.status',1)
+						->where('account_master.id', $id)
+						->join('account_transaction', 'account_transaction.account_master_id', '=', 'account_master.id')
+						->where('account_transaction.voucher_type','!=','OBD')
+						->where('account_transaction.status',1)
+						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->where('account_master.status',1)
+						->where('account_master.deleted_at','0000-00-00 00:00:00')
+						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereBetween('account_transaction.invoice_date',[$date->from_date, $date->to_date])
+						->select('account_master.id','account_master.master_name','account_master.cl_balance','account_master.category',
+								 'account_transaction.transaction_type','account_transaction.amount','account_master.op_balance','account_transaction.invoice_date')
+						->orderBy('account_master.id','ASC')
+						->get();
+			
+	}
+	
+	protected function groupAccount($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item->id][] = $item;
+
+		return $childs;
+	}
+	
+	protected function updateAccountTally($results)
+	{
+		$arrSummarry = array();
+		foreach($results as $result)
+		{
+			$arraccount = array(); 
+			$dramount = $cramount = 0;
+			foreach($result as $row) {
+				$cl_balance = $row->cl_balance;
+				$account_id = $row->id;
+				if($row->transaction_type=='Dr') {
+					$amountD = ($row->amount < 0)?(-1*$row->amount):$row->amount;
+					$dramount += $amountD;
+				} else {
+					$amountC = ($row->amount < 0)?(-1*$row->amount):$row->amount;
+					$cramount += $amountC;
+				}
+			}
+			
+			$amount = $dramount - $cramount;
+			//$amount = ($amount < 0)?(-1*$amount):$amount;
+			if($amount != $cl_balance) {
+				//update the closing balance as amount.....
+				$this->updateClosingBalance($account_id, $amount);
+			}
+				
+		}
+		return true;
+	}
+	
+	public function updateClosingBalance($account_id, $amount)
+	{
+		 DB::table('account_master')
+					->where('id', $account_id)
+					->update(['cl_balance' => $amount]);
+	}
+	
+	private function getVatAccounts($department_id=null) {
+		
+		if(Session::get('department')==1 && $department_id!=null) {
+			$vatdept = DB::table('vat_department')->where('department_id', $department_id)->first();
+			$vatacs = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
+			if(!$vatdept)
+				return $vatacs;
+			else {
+				$vatres = (object)[ 'id'				=> $vatdept->id,
+									'vatmaster_id'		=> $vatdept->vatmaster_id,
+									'department_id'		=> $vatdept->department_id,
+									'collection_account' => ($vatdept->collection_account=='')?$vatacs->collection_account:$vatdept->collection_account,
+									'payment_account' => ($vatdept->payment_account=='')?$vatacs->payment_account:$vatdept->payment_account,
+									'expense_account' => ($vatdept->expense_account=='')?$vatacs->expense_account:$vatdept->expense_account,
+									'vatinput_import' => ($vatdept->vatinput_import=='')?$vatacs->vatinput_import:$vatdept->vatinput_import,
+									'vatoutput_import' => ($vatdept->vatoutput_import=='')?$vatacs->vatoutput_import:$vatdept->vatoutput_import
+								  ];
+				
+				return $vatres;
+			}
+			
+		} else {
+			return DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
+		}
+	}
+	public function getReport($attributes)
+	{
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		$department = (Session::get('department')==1)?$attributes['department_id']:null;
+		
+			
+				$query = $this->rental_sales
+								->join('rental_sales_item AS RSI', function($join) {
+									$join->on('RSI.rental_sales_id','=','rental_sales.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','rental_sales.customer_id');
+								})
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','RSI.item_id');
+								})
+								->join('units AS U', function($join){
+									$join->on('U.id','=','RSI.unit_id');
+								}) 
+								->leftjoin('rental_driver AS RD', function($join){
+									$join->on('RD.id','=','RSI.driver_id');
+								})	
+								->where('RSI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('rental_sales.voucher_date', array($date_from, $date_to));
+						}
+						
+						/* if(isset($attributes['job_id']))
+							$query->whereIn('purchase_rental.job_id', $attributes['job_id']); */
+						 
+				$query->select('rental_sales.voucher_no','rental_sales.reference_no','IM.description','rental_sales.total',
+								'rental_sales.vat_amount','RSI.quantity','RSI.rate','RSI.line_total','AM.account_id','rental_sales.id',
+								'AM.master_name','AM.id','rental_sales.net_amount','RSI.vat_amount AS unit_vat','rental_sales.discount','rental_sales.voucher_date','RD.driver_type',
+								'RD.driver_name','U.description As unit_description ','RSI.extra_hr','RSI.extra_rate');
+					
+				
+				if($attributes['search_type']=="summary")
+					$query->groupBy('rental_sales.id');
+					if($attributes['customer']!=''){
+						$query->where('AM.id', $attributes['customer']);
+					}
+					
+			$result = $query->get();
+								
+		return $result;
+		
+	}
+}
+

@@ -1,0 +1,121 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Users;
+
+use App\Models\Users;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Hash;
+use Config;
+use Illuminate\Support\Facades\Session;
+
+class UsersRepository extends AbstractValidator implements UsersInterface {
+	
+	protected $users;
+	
+	protected static $rules = [
+		'name' => 'required',
+		'username' => 'required|unique:user',
+		'email' => 'required|unique:user',
+		'password' => 'required'
+	];
+	
+	public function __construct(Users $users) {
+		$this->users = $users;
+	}
+	
+	public function all()
+	{
+		return $this->users->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->users->where('id', $id)->first();
+	}
+	
+	public function create($attributes)
+	{
+		
+		if($this->isValid($attributes)) { 
+		
+			$start_date = (isset($attributes['start_date']))?date("Y-m-d", strtotime($attributes['start_date'])):''; 
+			$end_date = (isset($attributes['end_date']))?date("Y-m-d", strtotime($attributes['end_date'])):'';
+			$this->users->name = $attributes['name'];
+			$this->users->username = $attributes['username'];
+			$this->users->email = $attributes['email'];
+			$this->users->password = sha1($attributes['password']);
+			$this->users->company = $attributes['company'];
+			$this->users->address = $attributes['address'];
+			$this->users->phone = $attributes['phone'];
+			$this->users->remember_token = md5($attributes['email']);
+			$this->users->start_date = $start_date;
+			$this->users->end_date = $end_date;
+			$this->users->created_at = now();
+			$this->users->status = 1;
+			$this->users->role_id = $attributes['usertype'];
+			$this->users->fill($attributes)->save();
+			return true;
+		}
+		
+		throw new ValidationException('User validation error!', $this->getErrors());
+	}
+	
+	public function update($id,$attributes)
+	{
+		$this->users = $this->find($attributes['id']);
+		if($this->isValid($attributes, ['name' => 'required','username' => 'required','email' => 'required'])) {
+			
+			$start_date = (isset($attributes['start_date']))?date("Y-m-d", strtotime($attributes['start_date'])):''; 
+			$end_date = (isset($attributes['end_date']))?date("Y-m-d", strtotime($attributes['end_date'])):'';
+			
+			$this->users->name = $attributes['name'];
+			$this->users->username = $attributes['username'];
+			$this->users->email = $attributes['email'];
+			if($attributes['password']!='')
+				$this->users->password = sha1($attributes['password']);
+			$this->users->company = $attributes['company'];
+			$this->users->address = $attributes['address'];
+			$this->users->phone = $attributes['phone'];
+			$this->users->status = $attributes['status'];
+			$this->users->start_date = $start_date;
+			$this->users->end_date = $end_date;
+			$this->users->fill($attributes)->save();
+			return true;
+		}
+		throw new ValidationException('Category validation error!', $this->getErrors());
+	}
+	
+	public function delete($id)
+	{
+		$this->users = $this->users->find($id);
+		$this->users->delete();
+	}
+	
+	public function login($input)
+	{
+		$today = date('Y-m-d');
+		$userdata = $this->users->where('username', $input['username'])
+								->where('password',sha1($input['password']))
+								->first(); 
+		if($userdata) {
+			if($userdata->role_id==3) {
+				if(strtotime($userdata->start_date) <= strtotime(date('Y-m-d')) && strtotime($userdata->end_date) >= strtotime(date('Y-m-d')) ) {
+					$config = Config::get('siteconfig');
+					Session::push('user', $userdata); //echo $userdata['role_id'];exit;
+					$roles = $config['roles'][$userdata['role_id']];
+					Session::push('roles', $roles);
+				} else 
+					$userdata = null;
+			} else {
+				$config = Config::get('siteconfig');
+				Session::push('user', $userdata); //echo $userdata['role_id'];exit;
+				$roles = $config['roles'][$userdata['role_id']];
+				Session::push('roles', $roles);
+			}
+		}
+		return $userdata;
+		
+	}
+}
+

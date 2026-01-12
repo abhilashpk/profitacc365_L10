@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\PettyCash;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface PettyCashInterface extends RepositoryInterface {
+	
+}
+

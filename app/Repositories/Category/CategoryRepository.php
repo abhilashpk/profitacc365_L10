@@ -1,0 +1,131 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Category;
+
+use App\Models\Category;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Image;
+use Config;
+
+class CategoryRepository extends AbstractValidator implements CategoryInterface {
+	
+	protected $category;
+	
+	protected static $rules = [
+		//'category_name' => 'required|unique:category',
+	];
+	
+	public function __construct(Category $category) {
+		$this->category = $category;
+		
+	}
+	
+	public function all()
+	{
+		return $this->category->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->category->where('id', $id)->first();
+	}
+	
+	public function create($attributes)
+	{
+		if($this->isValid($attributes)) { 
+			
+			
+			//list($parent_id, $level) = explode(':', $attributes['parent_id']);
+			$this->category->parent_id = $attributes['parent_id'];
+			$this->category->category_name = $attributes['category_name'];
+			$this->category->description = $attributes['description'];
+			$this->category->status = 1;
+			$this->category->fill($attributes)->save();
+			return true;
+		}
+		
+		//throw new ValidationException('Category validation error!', $this->getErrors());
+	}
+	
+	public function update($id, $attributes)
+	{
+		$this->category = $this->find($id);
+		$this->category->fill($attributes)->save();
+		return true;
+	}
+	
+	public function hide($id,$status)
+	{
+		$this->category = $this->category->find($id);
+		$this->category->status = $status;
+		$this->category->save();
+	}
+	
+	public function delete($id)
+	{
+		$this->category = $this->category->find($id);
+		$this->category->delete();
+	}
+	
+	public function activeCategoryList()
+	{
+		return $this->category->select('id','category_name','parent_id')->where('status', 1)->orderBy('category_name', 'ASC')->get()->toArray();
+	}
+	
+	public function categoryList()
+	{
+		//check admin session and apply return $this->category->where('parent_id',0)->where('status', 1)->get();
+		return $this->category->where('parent_id',0)->get();
+	}
+	
+	public function allSubcategory()
+	{
+		//check admin session and apply return $this->category->where('parent_id',0)->where('status', 1)->get();
+		return $this->category->where('parent_id','!=',0)->get();
+	}
+	
+	public function allSubcategoryList($parent_id)
+	{
+		//check admin session and apply return $this->category->where('parent_id',0)->where('status', 1)->get();
+		return $this->category->where('parent_id',$parent_id)->select('id','name')->get()->toArray();
+	}
+	
+	public function categoryView($id)
+	{
+		return $this->category->where('id', $id)->join('category');
+	}
+	
+	public function subcategoryList()
+	{
+		return $this->category->where('parent_id',1)->get();
+	}
+	
+	public function productList($slug)
+	{
+		//return $this->category->where('slug',$slug)->with('products.productImages')->get();
+		return $this->category
+					->where('slug',$slug)
+					->with('products.defaultImage')
+					->select('category.name','category.slug','category.id')->get();
+
+		//return $this->category->where('slug',$slug)->find(1)->products()->get();
+	}
+	
+	public function check_category_name($name, $id = null) {
+		
+		if($id)
+			return $this->category->where('category_name',$name)->where('parent_id', 0)->where('id', '!=', $id)->count();
+		else
+			return $this->category->where('category_name',$name)->where('parent_id', 0)->count();
+	}
+	
+	public function check_subcategory_name($name, $id = null) {
+		
+		if($id)
+			return $this->category->where('category_name',$name)->where('parent_id', 1)->where('id', '!=', $id)->count();
+		else
+			return $this->category->where('category_name',$name)->where('parent_id', 1)->count();
+	}
+}
+

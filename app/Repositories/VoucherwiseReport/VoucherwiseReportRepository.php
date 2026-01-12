@@ -1,0 +1,2334 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\VoucherwiseReport;
+
+use App\Models\VoucherwiseReport;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Config;
+use Illuminate\Support\Facades\DB;
+
+class VoucherwiseReportRepository extends AbstractValidator implements VoucherwiseReportInterface {
+	
+	protected $voucherwise_report;
+	
+	protected static $rules = [];
+	
+	public function __construct(VoucherwiseReport $voucherwise_report) {
+		$this->voucherwise_report = $voucherwise_report;
+	}
+	
+	public function all()
+	{
+		
+	}
+	
+	public function find($id)
+	{
+		
+	}
+	
+	public function create($attributes)
+	{
+		
+	}
+	
+	public function update($id, $attributes)
+	{
+		
+	}
+	
+	
+	public function delete($id)
+	{
+		
+	}
+	
+	public function bankList()
+	{
+		
+	}
+	
+	public function getReportResult($attributes)
+	{	
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		$invoice_from =(isset($attributes['invoice_from']))?$attributes['invoice_from']:'';	
+		$invoice_to = (isset($attributes['invoice_to']))?$attributes['invoice_to']:'';	
+		$department_id = (isset($attributes['department_id']))?$attributes['department_id']:'';		
+		
+		switch($attributes['voucher_type'])
+		{ 
+			case 'JV':
+				$query =  DB::table('journal_entry')->where('journal_entry.status', 1)
+										->join('journal AS J', function($join) {
+											$join->on('J.id', '=', 'journal_entry.journal_id');
+										})
+										->join('account_transaction AS AT', function($join) {
+											$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'journal_entry.account_id');
+										});
+										
+				$query->where('AT.voucher_type', $attributes['voucher_type'])
+										->where('AT.amount','>',0)
+										->where('J.status',1)
+										->where('J.deleted_at','0000-00-00 00:00:00')
+										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('J.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('J.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('J.voucher_no', array($invoice_from, $invoice_to));
+			    }
+
+				return $result = $query->select('J.id','journal_entry.reference AS reference_no','AT.amount','AT.voucher_type','AT.id AS aid','AT.other_type','AT.reference',
+												 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AM.master_name')
+										->orderBy(DB::raw('CONVERT(J.voucher_no, SIGNED)'),'ASC') //->orderBy('journal_entry.id', 'ASC')
+										->get();
+				break;
+				
+			
+			case 'MJV':
+				$query =  DB::table('manual_journal_entry')->where('manual_journal_entry.status', 1)
+										->join('manual_journal AS J', function($join) {
+											$join->on('J.id', '=', 'manual_journal_entry.manual_journal_id');
+										})
+										->join('account_transaction AS AT', function($join) {
+											$join->on('AT.voucher_type_id', '=', 'manual_journal_entry.id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'manual_journal_entry.account_id');
+										});
+										
+				$query->where('AT.voucher_type', $attributes['voucher_type'])
+										->where('AT.amount','>',0)
+										->where('J.status',1)
+										->where('J.deleted_at','0000-00-00 00:00:00')
+										->where('manual_journal_entry.deleted_at','0000-00-00 00:00:00')
+										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('J.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('J.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('J.voucher_no', array($invoice_from, $invoice_to));
+			    }
+
+				return $result = $query->select('J.id','manual_journal_entry.reference AS reference_no','AT.amount','AT.voucher_type','AT.id AS aid','AT.other_type','AT.reference',
+												 'manual_journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AM.master_name')
+										->orderBy('manual_journal_entry.id', 'ASC')
+										->get();
+				break;
+				
+				
+			case 'SI': 
+				$query = DB::table('sales_invoice')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'sales_invoice.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','SI')
+								->where('AT.amount','>',0)
+								->where('sales_invoice.status',1)
+								->where('sales_invoice.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('sales_invoice.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('sales_invoice.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('sales_invoice.voucher_no', array($invoice_from, $invoice_to));
+			    }
+
+				
+				//$query->where('sales_invoice.amount_transfer', '!=', 1)
+				 
+				return $result = $query->select('sales_invoice.id','sales_invoice.reference_no','sales_invoice.net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','sales_invoice.description','AT.transaction_type AS type',
+										 'sales_invoice.voucher_no','sales_invoice.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('sales_invoice.id', 'ASC')//->toSql();
+								->get();
+								
+				break;
+				
+			case 'PI':
+				$query = DB::table('purchase_invoice')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchase_invoice.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','PI')
+								//->where('purchase_invoice.amount_transfer', '!=', 1)
+								->where('AT.amount','>',0)
+								->where('purchase_invoice.status',1)
+								->where('purchase_invoice.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('purchase_invoice.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('purchase_invoice.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('purchase_invoice.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('purchase_invoice.id','AT.reference','purchase_invoice.net_amount','AT.voucher_type',
+										 'AT.id AS aid','AT.account_master_id','purchase_invoice.description','AT.transaction_type AS type','AT.other_type',
+										 'purchase_invoice.voucher_no','purchase_invoice.voucher_date','purchase_invoice.reference_no','AT.amount','AM.master_name','AT.reference_from')
+								->orderBy('purchase_invoice.id', 'ASC')->orderBy('aid', 'DESC')->orderBy('type', 'ASC') //'purchase_invoice.reference_no' 
+								->get();
+				break;
+			
+			case 'RV':
+				$query = DB::table('receipt_voucher_entry')->where('receipt_voucher_entry.status', 1)
+								->join('receipt_voucher AS RV', function($join) {
+									$join->on('receipt_voucher_entry.receipt_voucher_id', '=', 'RV.id');
+								})
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'receipt_voucher_entry.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','RV')
+								->where('AT.amount','>',0)
+								->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00')
+								->where('RV.status',1)
+								->where('RV.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('RV.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('RV.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('RV.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('RV.id','receipt_voucher_entry.reference AS reference_no','AT.voucher_type','receipt_voucher_entry.id AS rvid',
+										 'AT.id AS aid','AT.account_master_id','receipt_voucher_entry.description','AT.transaction_type AS type','AT.other_type','AT.reference',
+										 'RV.voucher_no','RV.voucher_date','AM.master_name',DB::raw('SUM(AT.amount) AS amount'))
+								->orderBy('receipt_voucher_entry.id', 'ASC')
+								//->orderBy('AT.transaction_type','ASC')
+								->groupBy('AT.voucher_type_id')
+								->get();
+								
+				break;
+			
+			case 'PV':
+				$query = DB::table('payment_voucher_entry')->where('payment_voucher_entry.status',1)
+								->join('payment_voucher AS PV', function($join) {
+									$join->on('payment_voucher_entry.payment_voucher_id', '=', 'PV.id');
+								})
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'payment_voucher_entry.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','PV')
+								->where('AT.amount','>',0)
+								->where('payment_voucher_entry.deleted_at','0000-00-00 00:00:00')
+								->where('PV.status',1)
+								->where('PV.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('PV.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('PV.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('PV.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('PV.id','payment_voucher_entry.reference AS reference_no','AT.voucher_type','AT.other_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','payment_voucher_entry.description','AT.transaction_type AS type',
+										 'PV.voucher_no','PV.voucher_date','AT.amount','AM.master_name',DB::raw('SUM(AT.amount) AS amount'))
+								->orderBy('payment_voucher_entry.id', 'ASC')
+								->groupBy('AT.voucher_type_id')
+								->get();
+								
+				break;
+				
+			case 'PR':
+				$query = DB::table('purchase_return')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchase_return.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+								
+				$query->where('AT.voucher_type','=','PR')
+								->where('AT.amount','>',0)
+								->where('purchase_return.status',1)
+								->where('purchase_return.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+								//->where('purchase_return.amount_transfer', '!=', 1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('purchase_return.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('purchase_return.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('purchase_return.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('purchase_return.id','purchase_return.reference_no','purchase_return.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','purchase_return.description','AT.transaction_type AS type',
+										 'purchase_return.voucher_no','purchase_return.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('purchase_return.id', 'ASC')
+								->get();
+
+				break;
+				
+			case 'SR':
+				$query = DB::table('sales_return')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'sales_return.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','SR')
+								->where('sales_return.status', 1)
+								->where('AT.amount','>',0)
+								->where('sales_return.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('sales_return.voucher_date', array($date_from, $date_to));
+				} //where('sales_return.amount_transfer', '!=', 1)
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('sales_return.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('sales_return.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('sales_return.id','sales_return.reference_no','sales_return.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','sales_return.description','AT.transaction_type AS type',
+										 'sales_return.voucher_no','sales_return.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('sales_return.id', 'ASC')//->toSql();
+								->get();
+				break;
+				
+			case 'DB':
+				$query = DB::table('pdc_received')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'pdc_received.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','DB')
+								->where('pdc_received.status', 1)
+								->where('AT.amount','>',0)
+								->where('pdc_received.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('pdc_received.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				
+				return $result = $query->select('pdc_received.id','pdc_received.reference AS reference_no','pdc_received.amount AS net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type','AT.other_type',
+										 'pdc_received.voucher_id AS voucher_no','pdc_received.voucher_date','AT.amount','AM.master_name')
+								->orderBy('pdc_received.id', 'ASC')//->toSql();
+								->get();
+								
+				break;
+				
+			case 'CB':
+				$query = DB::table('pdc_issued')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'pdc_issued.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','CB')
+								->where('pdc_issued.status', 1)
+								->where('AT.amount','>',0)
+								->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('pdc_issued.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('pdc_issued.id','pdc_issued.reference AS reference_no','pdc_issued.amount AS net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type','AT.other_type',
+										 'pdc_issued.voucher_id AS voucher_no','pdc_issued.voucher_date','AT.amount','AM.master_name')
+								->orderBy('pdc_issued.id', 'ASC')//->toSql();
+								->get();
+								
+				break;
+			
+			case 'GI':
+				$query = DB::table('goods_issued')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'goods_issued.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','GI')
+								->where('goods_issued.status', 1)
+								->where('AT.amount','>',0)
+								->where('goods_issued.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('goods_issued.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('goods_issued.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('goods_issued.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('goods_issued.id','goods_issued.voucher_no AS reference_no','goods_issued.net_amount AS net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type','AT.other_type',
+										 'goods_issued.voucher_no','goods_issued.voucher_date','AT.amount','AM.master_name')
+								->orderBy('goods_issued.id', 'ASC') //JUL22
+								->get();
+								
+				break;
+				
+			case 'GR':
+				$query = DB::table('goods_return')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'goods_return.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','GR')
+								->where('goods_return.status', 1)
+								->where('AT.amount','>',0)
+								->where('goods_return.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('goods_return.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('goods_return.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('goods_return.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('goods_return.id','goods_return.voucher_no AS reference_no','goods_return.net_amount AS net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type','AT.other_type',
+										 'goods_return.voucher_no','goods_return.voucher_date','AT.amount','AM.master_name')
+								->orderBy('goods_return.id', 'ASC') //JUL22
+								->get();
+								
+				break;
+				
+			case 'PIN':
+				$query =  DB::table('journal_entry')->where('journal_entry.status', 1)
+										->join('journal AS J', function($join) {
+											$join->on('J.id', '=', 'journal_entry.journal_id');
+										})
+										->join('account_transaction AS AT', function($join) {
+											$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'journal_entry.account_id');
+										});
+										
+				$query->where('AT.voucher_type', $attributes['voucher_type'])
+										->where('AT.amount','>',0)
+										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+										->where('J.deleted_at','0000-00-00 00:00:00')
+										->where('J.status',1)
+										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('J.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('J.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('J.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('J.id','journal_entry.reference AS reference_no','AT.amount','AT.voucher_type','AT.id AS aid','AT.other_type','AT.reference',
+												 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AM.master_name')
+										->orderBy('journal_entry.id', 'ASC')
+										->get();
+				break;
+			
+			case 'SIN':
+				$query =  DB::table('journal_entry')->where('journal_entry.status', 1)
+										->join('journal AS J', function($join) {
+											$join->on('J.id', '=', 'journal_entry.journal_id');
+										})
+										->join('account_transaction AS AT', function($join) {
+											$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'journal_entry.account_id');
+										});
+										
+				$query->where('AT.voucher_type', $attributes['voucher_type'])
+										->where('AT.amount','>',0)
+										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+										->where('J.deleted_at','0000-00-00 00:00:00')
+										->where('J.status',1)
+										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('J.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('J.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('J.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('J.id','journal_entry.reference AS reference_no','AT.amount','AT.voucher_type','AT.id AS aid','AT.other_type','AT.reference',
+												 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AM.master_name')
+										->orderBy('journal_entry.id', 'ASC')
+										->get();
+				break;
+			
+			case 'PC':
+				$query =  DB::table('petty_cash_entry')->where('petty_cash_entry.status', 1)
+										->join('petty_cash AS J', function($join) {
+											$join->on('J.id', '=', 'petty_cash_entry.petty_cash_id');
+										})
+										->join('account_transaction AS AT', function($join) {
+											$join->on('AT.voucher_type_id', '=', 'petty_cash_entry.id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'petty_cash_entry.account_id');
+										});
+										
+				$query->where('AT.voucher_type', $attributes['voucher_type'])
+										->where('AT.amount','>',0)
+										->where('petty_cash_entry.deleted_at','0000-00-00 00:00:00')
+										->where('J.deleted_at','0000-00-00 00:00:00')
+										->where('J.status',1)
+										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('J.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('J.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('J.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('J.id','petty_cash_entry.reference AS reference_no','AT.amount','AT.voucher_type','AT.id AS aid','AT.other_type','AT.reference',
+												 'petty_cash_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AM.master_name')
+										->orderBy('petty_cash_entry.id', 'ASC')
+										->get();
+				break;
+			
+			case 'STI':
+				$query = DB::table('stock_transferin')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'stock_transferin.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','STI')
+								->where('stock_transferin.status', 1)
+								->where('AT.amount','>',0)
+								->where('stock_transferin.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('stock_transferin.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('stock_transferin.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('stock_transferin.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('stock_transferin.id','stock_transferin.voucher_no AS reference_no','stock_transferin.net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type','AT.other_type','AT.reference_from',
+										 'stock_transferin.voucher_no','stock_transferin.voucher_date','AT.amount','AM.master_name')
+								->orderBy('stock_transferin.id', 'ASC') //JUL22
+								->get();
+								
+				break;
+
+		case 'STO':
+				$query = DB::table('stock_transferout')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'stock_transferout.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','STO')
+								->where('stock_transferout.status', 1)
+								->where('AT.amount','>',0)
+								->where('stock_transferout.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('stock_transferout.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('stock_transferout.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('stock_transferout.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('stock_transferout.id','stock_transferout.voucher_no AS reference_no','stock_transferout.net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type','AT.other_type','AT.reference_from',
+										 'stock_transferout.voucher_no','stock_transferout.voucher_date','AT.amount','AM.master_name')
+								->orderBy('stock_transferout.id', 'ASC') //JUL22
+								->get();
+								
+				break;
+				
+		case 'MV': 
+			$query = DB::table('manufacture')
+							->join('account_transaction AS AT', function($join) {
+								$join->on('AT.voucher_type_id', '=', 'manufacture.id');
+							})
+							->join('account_master AS AM', function($join) {
+								$join->on('AT.account_master_id', '=', 'AM.id');
+							});
+							
+							
+				$query->where('AT.voucher_type','=','MV')
+							->where('AT.amount','>',0)
+							->where('AT.deleted_at','0000-00-00 00:00:00')
+							->where('AT.status',1);
+							
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('manufacture.voucher_date', array($date_from, $date_to));
+				}
+
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+
+				$result1 = $query->select('manufacture.id','manufacture.voucher_no AS reference_no','manufacture.amount AS net_total','AT.voucher_type','AT.reference', //'STO.id',
+									'AT.id AS aid','AT.account_master_id','AT.description',
+									'AT.transaction_type AS type','AT.other_type','AT.reference_from',
+									'manufacture.voucher_no','manufacture.voucher_date','AT.amount','AM.master_name')
+							->orderBy('manufacture.id', 'ASC')->get();
+
+				return $result1;
+
+				$query = DB::table('manufacture')
+								->join('stock_transferout AS STO', function($join) {
+									$join->on('STO.id', '=', 'manufacture.stock_transferout_id');
+								})
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'STO.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+								
+				$query->where('AT.voucher_type','=','STO')
+								->where('STO.status', 1)
+								->where('AT.amount','>',0)
+								->where('STO.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('manufacture.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('STO.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('STO.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				$result1 = $query->select('manufacture.id','manufacture.voucher_no AS reference_no','STO.net_total',DB::raw('"MV" AS voucher_type'),'AT.reference', //'STO.id',
+										 'AT.id AS aid','AT.account_master_id','AT.description',
+										 'AT.transaction_type AS type','AT.other_type','AT.reference_from',
+										 'STO.voucher_no','STO.voucher_date','AT.amount','AM.master_name')
+								->orderBy('manufacture.id', 'ASC');
+								
+								
+			$query2 = DB::table('manufacture')
+								->join('stock_transferin AS STI', function($join) {
+									$join->on('STI.id', '=', 'manufacture.stock_transferin_id');
+								})
+								->join('account_transaction AS AT2', function($join) {
+									$join->on('AT2.voucher_type_id', '=', 'STI.id');
+								})
+								->join('account_master AS AM2', function($join) {
+									$join->on('AT2.account_master_id', '=', 'AM2.id');
+								});
+								
+				$query2->where('AT2.voucher_type','=','STI')
+								->where('STI.status', 1)
+								->where('AT2.amount','>',0)
+								->where('STI.deleted_at','0000-00-00 00:00:00')
+								->where('AT2.deleted_at','0000-00-00 00:00:00')
+								->where('AT2.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query2->whereBetween('manufacture.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query2->where('AT2.department_id', $department_id); 
+				}
+				
+				
+				$result2 = $query2->select('manufacture.id','manufacture.voucher_no AS reference_no','STI.net_total',DB::raw('"MV" AS voucher_type'),'AT2.reference', //STI.id
+										 'AT2.id AS aid','AT2.account_master_id','AT2.description',
+										 'AT2.transaction_type AS type2','AT2.other_type','AT2.reference_from',
+										 'STI.voucher_no','STI.voucher_date','AT2.amount','AM2.master_name')
+								->orderBy('manufacture.id', 'ASC');
+				
+				
+								
+								
+				break;
+			
+			
+			case 'SS': 
+				$query = DB::table('sales_split')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'sales_split.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','SS')
+								->where('AT.amount','>',0)
+								->where('sales_split.status',1)
+								->where('sales_split.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('sales_split.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('sales_split.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('sales_split.voucher_no', array($invoice_from, $invoice_to));
+			    }
+
+				return $result = $query->select('sales_split.id','sales_split.reference_no','sales_split.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','sales_split.description','AT.transaction_type AS type',
+										 'sales_split.voucher_no','sales_split.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('sales_split.id', 'ASC')//->toSql();
+								->get();
+								
+				break;
+				
+				case 'SSR': 
+				$query = DB::table('salessplit_return')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'salessplit_return.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','SSR')
+								->where('AT.amount','>',0)
+								->where('salessplit_return.status',1)
+								->where('salessplit_return.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('salessplit_return.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('salessplit_return.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('salessplit_return.voucher_no', array($invoice_from, $invoice_to));
+			    }
+
+				return $result = $query->select('salessplit_return.id','salessplit_return.reference_no','salessplit_return.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','salessplit_return.description','AT.transaction_type AS type',
+										 'salessplit_return.voucher_no','salessplit_return.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('salessplit_return.id', 'ASC')//->toSql();
+								->get();
+								
+				break;
+				
+			
+			case 'PS': 
+				$query = DB::table('purchase_split')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchase_split.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','PS')
+								->where('AT.amount','>',0)
+								->where('purchase_split.status',1)
+								->where('purchase_split.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('purchase_split.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('purchase_split.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('purchase_split.voucher_no', array($invoice_from, $invoice_to));
+			    }
+
+				return $result = $query->select('purchase_split.id','purchase_split.reference_no','purchase_split.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','purchase_split.description','AT.transaction_type AS type',
+										 'purchase_split.voucher_no','purchase_split.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('purchase_split.id', 'ASC')
+								->get();
+								
+				break;
+				
+				case 'PSR': 
+				$query = DB::table('purchasesplit_return')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchasesplit_return.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','PSR')
+								->where('AT.amount','>',0)
+								->where('purchasesplit_return.status',1)
+								->where('purchasesplit_return.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('purchasesplit_return.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+				$query->whereBetween('purchasesplit_return.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+				$invoice_to=$invoice_from;
+				$query->whereBetween('purchasesplit_return.voucher_no', array($invoice_from, $invoice_to));
+			    }
+
+				return $result = $query->select('purchasesplit_return.id','purchasesplit_return.reference_no','purchasesplit_return.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','purchasesplit_return.description','AT.transaction_type AS type',
+										 'purchasesplit_return.voucher_no','purchasesplit_return.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('purchasesplit_return.id', 'ASC')
+								->get();
+								
+				break;
+				
+			
+				
+			
+			case 'PIR':
+				$query = DB::table('purchase_rental')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchase_rental.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','PIR')
+								->where('AT.amount','>',0)
+								->where('purchase_rental.status',1)
+								->where('purchase_rental.deleted_at',null)
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('purchase_rental.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+					$query->whereBetween('purchase_rental.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+					$invoice_to=$invoice_from;
+					$query->whereBetween('purchase_rental.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('purchase_rental.id','AT.reference AS reference_no','purchase_rental.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','purchase_rental.description','AT.transaction_type AS type','AT.other_type',
+										 'purchase_rental.voucher_no','purchase_rental.voucher_date','AT.amount','AM.master_name','AT.reference_from')
+								->orderBy('purchase_rental.id', 'ASC')->orderBy('aid', 'DESC')->orderBy('type', 'ASC') 
+								->get();
+				break;
+				
+				
+			case 'SIR':
+				$query = DB::table('rental_sales')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'rental_sales.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query->where('AT.voucher_type','=','SIR')
+								->where('AT.amount','>',0)
+								->where('rental_sales.status',1)
+								->where('rental_sales.deleted_at',null)
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query->whereBetween('rental_sales.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query->where('AT.department_id', $department_id);
+				}
+				if(($invoice_from!='') && ($invoice_to!='')){
+					$query->whereBetween('rental_sales.voucher_no', array($invoice_from, $invoice_to));
+			    }
+			    else if(($invoice_from!='') && ($invoice_to=='')) {
+					$invoice_to=$invoice_from;
+					$query->whereBetween('rental_sales.voucher_no', array($invoice_from, $invoice_to));
+			    }
+				
+				return $result = $query->select('rental_sales.id','AT.reference AS reference_no','rental_sales.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','rental_sales.description','AT.transaction_type AS type','AT.other_type',
+										 'rental_sales.voucher_no','rental_sales.voucher_date','AT.amount','AM.master_name','AT.reference_from')
+								->orderBy('rental_sales.id', 'ASC')->orderBy('aid', 'DESC')->orderBy('type', 'ASC') 
+								->get();
+				break;
+				
+				
+			case 'ALL':
+				$query1 = DB::table('sales_invoice')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'sales_invoice.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query1->where('AT.voucher_type','=','SI')
+								->where('sales_invoice.status', 1)
+								->where('AT.amount','>',0)
+								->where('sales_invoice.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query1->whereBetween('sales_invoice.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query1->where('AT.department_id', $department_id);
+				}
+				
+				//$query1->where('sales_invoice.amount_transfer', '!=', 1)
+				
+				$qry1 = $query1->select('sales_invoice.id','sales_invoice.reference_no','sales_invoice.net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','sales_invoice.description','AT.transaction_type AS type',
+										 'sales_invoice.voucher_no','sales_invoice.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('sales_invoice.id', 'ASC');//->toSql();
+								//->get();
+								
+				$query2 = DB::table('purchase_invoice')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchase_invoice.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+								
+				$query2->where('AT.voucher_type','=','PI')
+								->where('purchase_invoice.status', 1)
+								//->where('purchase_invoice.amount_transfer', '!=', 1)
+								->where('AT.amount','>',0)
+								->where('purchase_invoice.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query2->whereBetween('purchase_invoice.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query2->where('AT.department_id', $department_id);
+				}
+				
+				$qry2 = $query2->select('purchase_invoice.id','purchase_invoice.reference_no','purchase_invoice.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','purchase_invoice.description','AT.transaction_type AS type',
+										 'purchase_invoice.voucher_no','purchase_invoice.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('purchase_invoice.id', 'ASC');
+								//->get();
+								
+				$query3 = DB::table('purchase_return')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchase_return.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+								
+				$query3->where('AT.voucher_type','=','PR')
+								->where('purchase_return.status', 1)
+								->where('AT.amount','>',0)
+								->where('purchase_return.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								//->where('purchase_return.amount_transfer', '!=', 1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query3->whereBetween('purchase_return.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query3->where('AT.department_id', $department_id);
+				}
+				
+				$qry3 = $query3->select('purchase_return.id','purchase_return.reference_no','purchase_return.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','purchase_return.description','AT.transaction_type AS type',
+										 'purchase_return.voucher_no','purchase_return.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('purchase_return.id', 'ASC');
+				
+				$query4 = DB::table('sales_return')
+												->join('account_transaction AS AT', function($join) {
+													$join->on('AT.voucher_type_id', '=', 'sales_return.id');
+												})
+												->join('account_master AS AM', function($join) {
+													$join->on('AT.account_master_id', '=', 'AM.id');
+												});
+				$query4->where('AT.voucher_type','=','SR')
+								->where('sales_return.status', 1)
+								->where('AT.amount','>',0)
+								->where('sales_return.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query4->whereBetween('sales_return.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query4->where('AT.department_id', $department_id);
+				}
+				
+				$qry4 = $query4->select('sales_return.id','sales_return.reference_no','sales_return.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','sales_return.description','AT.transaction_type AS type',
+										 'sales_return.voucher_no','sales_return.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('sales_return.id', 'ASC');
+								
+				$query5 = DB::table('receipt_voucher_entry')->where('receipt_voucher_entry.status',1)
+								->join('receipt_voucher AS RV', function($join) {
+									$join->on('receipt_voucher_entry.receipt_voucher_id', '=', 'RV.id');
+								})
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'receipt_voucher_entry.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query5->where('AT.voucher_type','=','RV')
+								->where('RV.status', 1)
+								->where('AT.amount','>',0)
+								->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00')
+								->where('RV.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query5->whereBetween('RV.voucher_date', array($date_from, $date_to));//customer_receipt
+				}
+				
+				if($department_id!='') {
+					$query5->where('AT.department_id', $department_id);
+				}
+				
+				 $qry5 = $query5->select('RV.id','receipt_voucher_entry.reference AS reference_no','receipt_voucher_entry.amount_fc','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','receipt_voucher_entry.description','AT.transaction_type AS type',
+										 'RV.voucher_no','RV.voucher_date',DB::raw('SUM(AT.amount) AS amount'),'AM.master_name','AT.other_type')
+								->orderBy('receipt_voucher_entry.id', 'ASC')
+								->groupBy('AT.voucher_type_id');
+				
+				$query6 = DB::table('payment_voucher_entry')->where('payment_voucher_entry.status',1)
+								->join('payment_voucher AS PV', function($join) {
+									$join->on('payment_voucher_entry.payment_voucher_id', '=', 'PV.id');
+								})
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'payment_voucher_entry.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query6->where('AT.voucher_type','=','PV')
+								->where('PV.status', 1)
+								->where('AT.amount','>',0)
+								->where('payment_voucher_entry.deleted_at','0000-00-00 00:00:00')
+								->where('PV.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query6->whereBetween('PV.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query6->where('AT.department_id', $department_id);
+				}
+				
+				$qry6 = $query6->select('PV.id','payment_voucher_entry.reference AS reference_no','payment_voucher_entry.amount_fc','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','payment_voucher_entry.description','AT.transaction_type AS type',
+										 'PV.voucher_no','PV.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('payment_voucher_entry.id', 'ASC');
+				
+				$query7 =  DB::table('journal_entry')->where('journal_entry.status', 1)
+										->join('journal AS J', function($join) {
+											$join->on('J.id', '=', 'journal_entry.journal_id');
+										})
+										->join('account_transaction AS AT', function($join) {
+											$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'journal_entry.account_id');
+										});
+										
+				$query7->where('AT.voucher_type','JV')
+										->where('AT.amount','>',0)
+										->where('J.status',1)
+										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+										->where('J.deleted_at','0000-00-00 00:00:00')
+										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->where('AT.status',1);	
+				
+				if($date_from!='' && $date_to!='') {		
+					$query7->whereBetween('J.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query7->where('AT.department_id', $department_id);
+				}
+				
+				$qry7 = $query7->select('J.id','journal_entry.reference AS reference_no','J.debit','AT.voucher_type','AT.reference','AT.id AS aid','AT.account_master_id',
+												 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AT.amount','AM.master_name','AT.other_type')
+										->orderBy('journal_entry.id', 'ASC');
+										
+				
+				$query8 = DB::table('pdc_received')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'pdc_received.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query8->where('AT.voucher_type','=','DB')
+								->where('pdc_received.status', 1)
+								->where('AT.amount','>',0)
+								->where('pdc_received.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);	
+								
+				if($date_from!='' && $date_to!='') {		
+					$query8->whereBetween('pdc_received.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query8->where('AT.department_id', $department_id);
+				}
+				
+				$qry8 = $query8->select('pdc_received.id','pdc_received.reference AS reference_no','pdc_received.amount AS net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type',
+										 'pdc_received.voucher_id AS voucher_no','pdc_received.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('pdc_received.id', 'ASC');
+				
+				$query9 = DB::table('pdc_issued')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'pdc_issued.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query9->where('AT.voucher_type','=','CB')
+								->where('pdc_issued.status', 1)
+								->where('AT.amount','>',0)
+								->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);	
+								
+				if($date_from!='' && $date_to!='') {		
+					$query9->whereBetween('pdc_issued.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query9->where('AT.department_id', $department_id);
+				}
+				
+				$qry9 = $query9->select('pdc_issued.id','pdc_issued.reference AS reference_no','pdc_issued.amount AS net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type',
+										 'pdc_issued.voucher_id AS voucher_no','pdc_issued.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('pdc_issued.id', 'ASC');
+				
+				
+				$query10 = DB::table('goods_issued')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'goods_issued.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query10->where('AT.voucher_type','=','GI')
+								->where('goods_issued.status', 1)
+								->where('AT.amount','>',0)
+								->where('goods_issued.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);	
+								
+				if($date_from!='' && $date_to!='') {		
+					$query10->whereBetween('goods_issued.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query10->where('AT.department_id', $department_id);
+				}
+				
+				$qry10 = $query10->select('goods_issued.id','goods_issued.voucher_no AS reference_no','goods_issued.net_amount AS net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type',
+										 'goods_issued.voucher_id AS voucher_no','goods_issued.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('goods_issued.id', 'ASC');
+								
+				
+				$query11 = DB::table('goods_return')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'goods_return.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query11->where('AT.voucher_type','=','GR')
+								->where('goods_return.status', 1)
+								->where('AT.amount','>',0)
+								->where('goods_return.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);	
+								
+				if($date_from!='' && $date_to!='') {		
+					$query11->whereBetween('goods_return.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query11->where('AT.department_id', $department_id);
+				}
+				
+				$qry11 = $query11->select('goods_return.id','goods_return.voucher_no AS reference_no','goods_return.net_amount AS net_total','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type',
+										 'goods_return.voucher_id AS voucher_no','goods_return.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('goods_return.id', 'ASC');
+								
+				
+				$query12 =  DB::table('journal_entry')->where('journal_entry.status', 1)
+										->join('journal AS J', function($join) {
+											$join->on('J.id', '=', 'journal_entry.journal_id');
+										})
+										->join('account_transaction AS AT', function($join) {
+											$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'journal_entry.account_id');
+										});
+										
+				$query12->where('AT.voucher_type','=','PIN')
+										->where('AT.amount','>',0)
+										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+										->where('J.deleted_at','0000-00-00 00:00:00')
+										->where('J.status',1)
+										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->where('AT.status',1);	
+				
+				if($date_from!='' && $date_to!='') {		
+					$query12->whereBetween('J.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query12->where('AT.department_id', $department_id);
+				}
+				
+				$qry12 = $query12->select('J.id','journal_entry.reference AS reference_no','J.debit','AT.voucher_type','AT.reference','AT.id AS aid','AT.account_master_id',
+												 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AT.amount','AM.master_name','AT.other_type')
+										->orderBy('journal_entry.id', 'ASC');
+				
+				$query13 =  DB::table('journal_entry')->where('journal_entry.status', 1)
+										->join('journal AS J', function($join) {
+											$join->on('J.id', '=', 'journal_entry.journal_id');
+										})
+										->join('account_transaction AS AT', function($join) {
+											$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'journal_entry.account_id');
+										});
+										
+				$query13->where('AT.voucher_type','SIN')
+										->where('AT.amount','>',0)
+										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+										->where('J.status',1)
+										->where('J.deleted_at','0000-00-00 00:00:00')
+										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->where('AT.status',1);	
+				
+				if($date_from!='' && $date_to!='') {		
+					$query13->whereBetween('J.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query13->where('AT.department_id', $department_id);
+				}
+				
+				$qry13 = $query13->select('J.id','journal_entry.reference AS reference_no','J.debit','AT.voucher_type','AT.reference','AT.id AS aid','AT.account_master_id',
+												 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AT.amount','AM.master_name','AT.other_type')
+										->orderBy('journal_entry.id', 'ASC');
+				//echo '<pre>';print_r($qry13);exit;
+
+				$query14 = DB::table('stock_transferin')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'stock_transferin.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query14->where('AT.voucher_type','=','STI')
+								->where('stock_transferin.status', 1)
+								->where('AT.amount','>',0)
+								->where('stock_transferin.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query14->whereBetween('stock_transferin.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query14->where('AT.department_id', $department_id);
+				}
+				
+				$qry14 = $query14->select('stock_transferin.id','stock_transferin.voucher_no AS reference_no','stock_transferin.net_total','AT.voucher_type',
+										  'AT.reference','AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type',
+										 'stock_transferin.voucher_no','stock_transferin.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('stock_transferin.id', 'ASC'); //JUL22
+								
+								
+				$query15 = DB::table('stock_transferout')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'stock_transferout.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+				$query15->where('AT.voucher_type','=','STO')
+								->where('stock_transferout.status', 1)
+								->where('AT.amount','>',0)
+								->where('stock_transferout.deleted_at','0000-00-00 00:00:00')
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				if($date_from!='' && $date_to!='') {		
+					$query15->whereBetween('stock_transferout.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query15->where('AT.department_id', $department_id);
+				}
+				
+				$qry15 = $query15->select('stock_transferout.id','stock_transferout.voucher_no AS reference_no','stock_transferout.net_total','AT.voucher_type',
+										 'AT.reference','AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type',
+										 'stock_transferout.voucher_no','stock_transferout.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('stock_transferout.id', 'ASC');
+			
+			    $query16 =  DB::table('petty_cash_entry')->where('petty_cash_entry.status', 1)
+										->join('petty_cash AS J', function($join) {
+											$join->on('J.id', '=', 'petty_cash_entry.petty_cash_id');
+										})
+										->join('account_transaction AS AT', function($join) {
+											$join->on('AT.voucher_type_id', '=', 'petty_cash_entry.id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'petty_cash_entry.account_id');
+										});
+										
+				$query16->where('AT.voucher_type','PC')
+										->where('AT.amount','>',0)
+										->where('J.status',1)
+										->where('petty_cash_entry.deleted_at','0000-00-00 00:00:00')
+										->where('J.deleted_at','0000-00-00 00:00:00')
+										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->where('AT.status',1);	
+				
+				if($date_from!='' && $date_to!='') {		
+					$query16->whereBetween('J.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query16->where('AT.department_id', $department_id);
+				}
+				
+				$qry16 = $query16->select('J.id','petty_cash_entry.reference AS reference_no','J.debit','AT.voucher_type','AT.reference_from','AT.id AS aid','AT.account_master_id',
+												 'petty_cash_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AT.amount','AM.master_name','AT.other_type')
+										->orderBy('petty_cash_entry.id', 'ASC');
+										
+								
+												
+			
+            				
+				$query18 = DB::table('purchase_split')
+				 				->join('account_transaction AS AT', function($join) {
+				 					$join->on('AT.voucher_type_id', '=', 'purchase_split.id');
+				 				})
+				 				->join('account_master AS AM', function($join) {
+				 					$join->on('AT.account_master_id', '=', 'AM.id');
+				 				});
+				$query18->where('AT.voucher_type','=','PS')
+				 				->where('purchase_split.status', 1)
+				 				->where('AT.amount','>',0)
+				 				->where('purchase_split.deleted_at','0000-00-00 00:00:00')
+				 				->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				 if($date_from!='' && $date_to!='') {		
+				 	$query18->whereBetween('purchase_split.voucher_date', array($date_from, $date_to));
+				 }
+				
+				 if($department_id!='') {
+				 	$query18->where('AT.department_id', $department_id);
+				 }
+				
+				$qry18 = $query18->select('purchase_split.id','purchase_split.voucher_no AS reference_no','purchase_split.net_amount','AT.voucher_type',
+				 						 'AT.reference','AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type',
+				 						 'purchase_split.voucher_no','purchase_split.voucher_date','AT.amount','AM.master_name','AT.other_type')
+				 				->orderBy('purchase_split.id', 'ASC');	
+				 				
+				 $query22 = DB::table('purchasesplit_return')
+				 				->join('account_transaction AS AT', function($join) {
+				 					$join->on('AT.voucher_type_id', '=', 'purchasesplit_return.id');
+				 				})
+				 				->join('account_master AS AM', function($join) {
+				 					$join->on('AT.account_master_id', '=', 'AM.id');
+				 				});
+				$query22->where('AT.voucher_type','=','PSR')
+				 				->where('purchasesplit_return.status', 1)
+				 				->where('AT.amount','>',0)
+				 				->where('purchasesplit_return.deleted_at','0000-00-00 00:00:00')
+				 				->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+								
+				 if($date_from!='' && $date_to!='') {		
+				 	$query22->whereBetween('purchasesplit_return.voucher_date', array($date_from, $date_to));
+				 }
+				
+				 if($department_id!='') {
+				 	$query22->where('AT.department_id', $department_id);
+				 }
+				
+				$qry22 = $query22->select('purchasesplit_return.id','purchasesplit_return.voucher_no AS reference_no','purchasesplit_return.net_amount','AT.voucher_type',
+				 						 'AT.reference','AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type',
+				 						 'purchasesplit_return.voucher_no','purchasesplit_return.voucher_date','AT.amount','AM.master_name','AT.other_type')
+				 				->orderBy('purchasesplit_return.id', 'ASC');		
+				
+
+				 $query17 = DB::table('sales_split')
+								->join('account_transaction AS AT', function($join) {
+				 					$join->on('AT.voucher_type_id', '=', 'sales_split.id');
+				 				})
+				 				->join('account_master AS AM', function($join) {
+				 					$join->on('AT.account_master_id', '=', 'AM.id');
+				 				});
+				 $query17->where('AT.voucher_type','=','SS')
+								->where('sales_split.status', 1)
+				 				->where('AT.amount','>',0)
+				 				->where('sales_split.deleted_at','0000-00-00 00:00:00')
+				 				->where('AT.deleted_at','0000-00-00 00:00:00')
+				 				->where('AT.status',1);
+								
+				 if($date_from!='' && $date_to!='') {		
+				 	$query17->whereBetween('sales_split.voucher_date', array($date_from, $date_to));
+				 }
+				
+				 if($department_id!='') {
+				 	$query17->where('AT.department_id', $department_id);
+				 }
+				
+				 $qry17 = $query17->select('sales_split.id','sales_split.voucher_no AS reference_no','sales_split.net_amount','AT.voucher_type',
+				 						 'AT.reference','AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type',
+				 						 'sales_split.voucher_no','sales_split.voucher_date','AT.amount','AM.master_name','AT.other_type')
+				 				->orderBy('sales_split.id', 'ASC');
+
+				
+				 $query23 = DB::table('salessplit_return')
+								->join('account_transaction AS AT', function($join) {
+				 					$join->on('AT.voucher_type_id', '=', 'salessplit_return.id');
+				 				})
+				 				->join('account_master AS AM', function($join) {
+				 					$join->on('AT.account_master_id', '=', 'AM.id');
+				 				});
+				 $query23->where('AT.voucher_type','=','SSR')
+								->where('salessplit_return.status', 1)
+				 				->where('AT.amount','>',0)
+				 				->where('salessplit_return.deleted_at','0000-00-00 00:00:00')
+				 				->where('AT.deleted_at','0000-00-00 00:00:00')
+				 				->where('AT.status',1);
+								
+				 if($date_from!='' && $date_to!='') {		
+				 	$query23->whereBetween('salessplit_return.voucher_date', array($date_from, $date_to));
+				 }
+				
+				 if($department_id!='') {
+				 	$query23->where('AT.department_id', $department_id);
+				 }
+				
+				 $qry23 = $query23->select('salessplit_return.id','salessplit_return.voucher_no AS reference_no','salessplit_return.net_amount','AT.voucher_type',
+				 						 'AT.reference','AT.id AS aid','AT.account_master_id','AT.description','AT.transaction_type AS type',
+				 						 'salessplit_return.voucher_no','salessplit_return.voucher_date','AT.amount','AM.master_name','AT.other_type')
+				 				->orderBy('salessplit_return.id', 'ASC');
+				 				
+				 				
+				$query19 =  DB::table('manual_journal_entry')->where('manual_journal_entry.status', 1)
+										->join('manual_journal AS J', function($join) {
+											$join->on('J.id', '=', 'manual_journal_entry.manual_journal_id');
+										})
+										->join('account_transaction AS AT', function($join) {
+											$join->on('AT.voucher_type_id', '=', 'manual_journal_entry.id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'manual_journal_entry.account_id');
+										});
+										
+				$query19->where('AT.voucher_type','MJV')
+										->where('AT.amount','>',0)
+										->where('J.status',1)
+										->where('manual_journal_entry.deleted_at','0000-00-00 00:00:00')
+										->where('J.deleted_at','0000-00-00 00:00:00')
+										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->where('AT.status',1);	
+				
+				if($date_from!='' && $date_to!='') {		
+					$query19->whereBetween('J.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query19->where('AT.department_id', $department_id);
+				}
+				
+				$qry19 = $query19->select('J.id','manual_journal_entry.reference AS reference_no','J.debit','AT.voucher_type','AT.reference','AT.id AS aid','AT.account_master_id',
+												 'manual_journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AT.amount','AM.master_name','AT.other_type')
+										->orderBy('manual_journal_entry.id', 'ASC');
+										
+				
+				$query20 = DB::table('purchase_rental')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchase_rental.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+								
+				$query20->where('AT.voucher_type','=','PIR')
+								->where('purchase_rental.status', 1)
+								->where('AT.amount','>',0)
+								->where('purchase_rental.deleted_at',null)
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query20->whereBetween('purchase_rental.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query20->where('AT.department_id', $department_id);
+				}
+				
+				$qry20 = $query20->select('purchase_rental.id','purchase_rental.reference_no','purchase_rental.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','purchase_rental.description','AT.transaction_type AS type',
+										 'purchase_rental.voucher_no','purchase_rental.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('purchase_rental.id', 'ASC');
+				
+				
+				$query21 = DB::table('rental_sales')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'rental_sales.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								});
+								
+				$query21->where('AT.voucher_type','=','SIR')
+								->where('rental_sales.status', 1)
+								->where('AT.amount','>',0)
+								->where('rental_sales.deleted_at',null)
+								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->where('AT.status',1);
+				
+				if($date_from!='' && $date_to!='') {		
+					$query21->whereBetween('rental_sales.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($department_id!='') {
+					$query21->where('AT.department_id', $department_id);
+				}
+				
+				$qry21 = $query21->select('rental_sales.id','rental_sales.reference_no','rental_sales.net_amount','AT.voucher_type','AT.reference',
+										 'AT.id AS aid','AT.account_master_id','rental_sales.description','AT.transaction_type AS type',
+										 'rental_sales.voucher_no','rental_sales.voucher_date','AT.amount','AM.master_name','AT.other_type')
+								->orderBy('rental_sales.id', 'ASC');
+								
+								
+				return $results = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry8)->union($qry9)->union($qry10)->union($qry7)
+										->union($qry11)->union($qry12)->union($qry13)->union($qry14)->union($qry15)->union($qry16)->union($qry17)->union($qry18)
+										->union($qry19)->union($qry20)->union($qry21)->union($qry22)->union($qry23)->get();	
+				
+				
+				break;
+			
+			default:
+				$result = array();
+		}
+			
+		
+		return $result;
+	}
+	
+	public function getPrintView($id,$type)
+	{
+		
+		switch($type) {
+			case 'JV':
+				$result =  DB::table('journal_entry')->where('journal_entry.status', 1)
+										->join('journal AS J', function($join) {
+											$join->on('J.id', '=', 'journal_entry.journal_id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'journal_entry.account_id');
+										})
+										->where('J.id', $id)
+										->select('J.id','journal_entry.reference AS reference_no','journal_entry.amount',
+												 'journal_entry.description','journal_entry.entry_type AS type','J.voucher_no',
+												 'J.voucher_date','AM.master_name')
+										->get();
+				break;
+				
+			case 'MJV':
+				$result =  DB::table('manual_journal_entry')->where('manual_journal_entry.status', 1)
+										->join('manual_journal AS J', function($join) {
+											$join->on('J.id', '=', 'manual_journal_entry.manual_journal_id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'manual_journal_entry.account_id');
+										})
+										->where('J.id', $id)
+										->select('J.id','journal_entry.reference AS reference_no','journal_entry.amount',
+												 'journal_entry.description','journal_entry.entry_type AS type','J.voucher_no',
+												 'J.voucher_date','AM.master_name')
+										->get();
+				break;
+				
+			case 'SI':
+				$result = DB::table('sales_invoice')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'sales_invoice.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								})
+								->where('AT.voucher_type','=','SI')
+								->where('sales_invoice.status', 1)
+								->where('sales_invoice.amount_transfer', '!=', 1)
+								->where('sales_invoice.id', $id)
+								->select('sales_invoice.id','sales_invoice.reference_no','sales_invoice.net_total',
+										 'AT.id AS aid','AT.account_master_id','sales_invoice.description','AT.transaction_type AS type',
+										 'sales_invoice.voucher_no','sales_invoice.voucher_date','AT.amount','AM.master_name')
+								->orderBy('sales_invoice.id', 'ASC')
+								->get();
+				break;
+				
+			case 'PI':
+				$result = DB::table('purchase_invoice')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchase_invoice.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								})
+								->where('AT.voucher_type','=','PI')
+								->where('purchase_invoice.status', 1)
+								->where('purchase_invoice.amount_transfer', '!=', 1)
+								->where('purchase_invoice.id', $id)
+								->select('purchase_invoice.id','purchase_invoice.reference_no','purchase_invoice.net_amount',
+										 'AT.id AS aid','AT.account_master_id','purchase_invoice.description','AT.transaction_type AS type',
+										 'purchase_invoice.voucher_no','purchase_invoice.voucher_date','AT.amount','AM.master_name')
+								->orderBy('purchase_invoice.id', 'ASC')
+								->get();
+				break;
+				
+			case 'PR':
+				$result = DB::table('purchase_return')->where('status', 1)->orderBy('id', 'ASC')->get();
+				break;
+				
+			case 'SR':
+				$result = DB::table('sales_return')->where('status', 1)->orderBy('id', 'ASC')->get();
+				break;
+			
+			case 'PIN':
+				$result =  DB::table('journal_entry')->where('journal_entry.status', 1)
+										->join('journal AS J', function($join) {
+											$join->on('J.id', '=', 'journal_entry.journal_id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'journal_entry.account_id');
+										})
+										->where('J.id', $id)
+										->select('J.id','journal_entry.reference AS reference_no','journal_entry.amount',
+												 'journal_entry.description','journal_entry.entry_type AS type','J.voucher_no',
+												 'J.voucher_date','AM.master_name')
+										->get();
+				break;
+				
+			case 'SIN':
+				$result =  DB::table('journal_entry')->where('journal_entry.status', 1)
+										->join('journal AS J', function($join) {
+											$join->on('J.id', '=', 'journal_entry.journal_id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'journal_entry.account_id');
+										})
+										->where('J.id', $id)
+										->select('J.id','journal_entry.reference AS reference_no','journal_entry.amount',
+												 'journal_entry.description','journal_entry.entry_type AS type','J.voucher_no',
+												 'J.voucher_date','AM.master_name')
+										->get();
+				break;
+			
+			case 'PC':
+				$result =  DB::table('petty_cash_entry')->where('petty_cash_entry.status', 1)
+										->join('petty_cash AS J', function($join) {
+											$join->on('J.id', '=', 'petty_cash_entry.petty_cash_id');
+										})
+										->join('account_master AS AM', function($join) {
+											$join->on('AM.id', '=', 'petty_cash_entry.account_id');
+										})
+										->where('J.id', $id)
+										->select('J.id','petty_cash_entry.reference AS reference_no','petty_cash_entry.amount',
+												 'petty_cash_entry.description','petty_cash_entry.entry_type AS type','J.voucher_no',
+												 'J.voucher_date','AM.master_name')
+										->get();
+				break;		
+			
+			
+			case 'PS':
+				$result = DB::table('purchase_split')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchase_split.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								})
+								->where('AT.voucher_type','=','SI')
+								->where('sales_invoice.status', 1)
+								->where('sales_invoice.amount_transfer', '!=', 1)
+								->where('sales_invoice.id', $id)
+								->select('sales_invoice.id','sales_invoice.reference_no','sales_invoice.net_total',
+										 'AT.id AS aid','AT.account_master_id','sales_invoice.description','AT.transaction_type AS type',
+										 'sales_invoice.voucher_no','sales_invoice.voucher_date','AT.amount','AM.master_name')
+								->orderBy('sales_invoice.id', 'ASC')
+								->get();
+				break;
+				
+			case 'SS':
+				$result = DB::table('sales_split')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'sales_split.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								})
+								->where('AT.voucher_type','=','SS')
+								->where('sales_split.status', 1)
+								->where('sales_split.id', $id)
+								->select('sales_split.id','sales_split.reference_no','sales_split.net_amount',
+										 'AT.id AS aid','AT.account_master_id','sales_split.description','AT.transaction_type AS type',
+										 'sales_split.voucher_no','sales_split.voucher_date','AT.amount','AM.master_name')
+								->orderBy('sales_split.id', 'ASC')
+								->get();
+				break;
+				
+			case 'PIR':
+				$result = DB::table('purchase_rental')
+								->join('account_transaction AS AT', function($join) {
+									$join->on('AT.voucher_type_id', '=', 'purchase_rental.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AT.account_master_id', '=', 'AM.id');
+								})
+								->where('AT.voucher_type','=','PIR')
+								->where('purchase_rental.status', 1)
+								->where('purchase_rental.id', $id)
+								->select('purchase_rental.id','purchase_rental.reference_no','purchase_rental.net_amount',
+										 'AT.id AS aid','AT.account_master_id','purchase_rental.description','AT.transaction_type AS type',
+										 'purchase_rental.voucher_no','purchase_rental.voucher_date','AT.amount','AM.master_name')
+								->orderBy('purchase_rental.id', 'ASC')
+								->get();
+				break;
+				
+			default:
+				$result = array();
+		}
+			
+		
+	
+		return $result;
+	}
+	
+	public function getReportPisi($attributes)
+	{	
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		
+		$qry1 = DB::table('sales_order')->where('sales_order.status',1)
+						->join('account_master AS AM', function($join) {
+							$join->on('AM.id', '=', 'sales_order.customer_id');
+						})
+						->leftJoin('jobmaster AS J', function($join) {
+							$join->on('J.id','=','sales_order.job_id');
+						})
+						->where('sales_order.deleted_at','0000-00-00 00:00:00');
+						
+				if($date_from!='' && $date_to!='') {		
+					$qry1->whereBetween('sales_order.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($attributes['customer_id'])
+					$qry1->where('sales_order.customer_id', $attributes['customer_id']);
+				
+				if($attributes['job_id'])
+					$qry1->where('sales_order.job_id', $attributes['job_id']);
+				
+		$result['pi_res'] = $qry1->select('sales_order.voucher_no','sales_order.reference_no','sales_order.total','sales_order.vat_amount',
+					'AM.master_name','sales_order.net_total','sales_order.discount','sales_order.voucher_date','J.name AS jobname','J.code','sales_order.less_amount')->get();
+							  
+		$qry2 = DB::table('sales_invoice')->where('sales_invoice.status',1)
+						->join('account_master AS AM', function($join) {
+							$join->on('AM.id', '=', 'sales_invoice.customer_id');
+						})
+						->leftJoin('jobmaster AS J', function($join) {
+							$join->on('J.id','=','sales_invoice.job_id');
+						})
+						->where('sales_invoice.deleted_at','0000-00-00 00:00:00');
+						
+				if($date_from!='' && $date_to!='') {		
+					$qry2->whereBetween('sales_invoice.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($attributes['customer_id'])
+					$qry2->where('sales_invoice.customer_id', $attributes['customer_id']);
+				
+				if($attributes['job_id'])
+					$qry2->where('sales_invoice.job_id', $attributes['job_id']);
+				
+		$result['si_res'] = $qry2->select('sales_invoice.voucher_no','sales_invoice.reference_no','sales_invoice.total','sales_invoice.vat_amount',
+					'AM.master_name','sales_invoice.net_total','sales_invoice.discount','sales_invoice.voucher_date','J.name AS jobname','J.code','sales_invoice.less_amount')->get();
+					
+		
+		return $result;			
+	}
+	
+	public function getReportPisiRv($attributes)
+	{	
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		
+		$qry = DB::table('receipt_voucher')->where('receipt_voucher.status',1)
+						->join('receipt_voucher_entry AS RE', function($join) {
+								 $join->on('RE.receipt_voucher_id', '=', 'receipt_voucher.id');
+							})
+						 ->join('account_master AS AM', function($join) {
+							 $join->on('AM.id', '=', 'RE.account_id');
+						 })
+						->leftJoin('jobmaster AS J', function($join) {
+							$join->on('J.id','=','RE.job_id');
+						})
+						->where('receipt_voucher.deleted_at','0000-00-00 00:00:00');
+						
+				if($date_from!='' && $date_to!='') {		
+					$qry->whereBetween('receipt_voucher.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($attributes['customer_id'])
+					$qry->where('RE.account_id', $attributes['customer_id']);
+				
+				if($attributes['job_id'])
+					$qry->where('RE.job_id', $attributes['job_id']);
+				
+		$result = $qry->select('receipt_voucher.voucher_no','receipt_voucher.voucher_date','RE.amount',
+					'AM.master_name','J.name AS jobname','J.code')
+					->groupBy('receipt_voucher.id')->get();
+					
+		
+		return $result;			
+	}
+	
+	public function getReportPisiPending($attributes)
+	{	
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		
+		$qry1 = DB::table('sales_order')->where('sales_order.status',1)
+						->join('account_master AS AM', function($join) {
+							$join->on('AM.id', '=', 'sales_order.customer_id');
+						})
+						->leftJoin('jobmaster AS J', function($join) {
+							$join->on('J.id','=','sales_order.job_id');
+						})
+						->where('sales_order.deleted_at','0000-00-00 00:00:00');
+						
+				if($date_from!='' && $date_to!='') {		
+					$qry1->whereBetween('sales_order.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($attributes['customer_id'])
+					$qry1->where('sales_order.customer_id', $attributes['customer_id']);
+				
+				if($attributes['job_id'])
+					$qry1->where('sales_order.job_id', $attributes['job_id']);
+				
+		$result['pi_res'] = $qry1->select('AM.master_name','J.code','J.name AS jobname',DB::raw('SUM(sales_order.net_total) AS amount'))
+							->groupBy('sales_order.job_id')->get();
+							  
+		$qry2 = DB::table('sales_invoice')->where('sales_invoice.status',1)
+						->join('account_master AS AM', function($join) {
+							$join->on('AM.id', '=', 'sales_invoice.customer_id');
+						})
+						->leftJoin('jobmaster AS J', function($join) {
+							$join->on('J.id','=','sales_invoice.job_id');
+						})
+						->where('sales_invoice.deleted_at','0000-00-00 00:00:00');
+						
+				if($date_from!='' && $date_to!='') {		
+					$qry2->whereBetween('sales_invoice.voucher_date', array($date_from, $date_to));
+				}
+				
+				if($attributes['customer_id'])
+					$qry2->where('sales_invoice.customer_id', $attributes['customer_id']);
+				
+				if($attributes['job_id'])
+					$qry2->where('sales_invoice.job_id', $attributes['job_id']);
+				
+		$result['si_res'] = $qry2->select('AM.master_name','J.code','J.name AS jobname',DB::raw('SUM(sales_invoice.net_total) AS amount'))
+							->groupBy('sales_invoice.job_id')->get();
+					
+		
+		return $result;			
+	}
+	
+	public function getReportsById($attributes) {
+		
+		switch($attributes['type']) {
+			case 'SIN':
+					$query =  DB::table('journal_entry')->where('journal_entry.status', 1)
+											->join('journal AS J', function($join) {
+												$join->on('J.id', '=', 'journal_entry.journal_id');
+											})
+											->join('account_transaction AS AT', function($join) {
+												$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+											})
+											->join('account_master AS AM', function($join) {
+												$join->on('AM.id', '=', 'journal_entry.account_id');
+											});
+											
+					$query->where('AT.voucher_type', 'SIN')
+											->where('AT.amount','>',0)
+											->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+											->where('J.deleted_at','0000-00-00 00:00:00')
+											->where('J.status',1)
+											->where('AT.deleted_at','0000-00-00 00:00:00')
+											->where('AT.status',1)
+											->where('J.id',$attributes['jid']);
+					
+					return $result = $query->select('J.id','journal_entry.reference AS reference_no','AT.amount','AT.voucher_type','AT.id AS aid','AT.other_type',
+													 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AM.master_name')
+											->orderBy('journal_entry.id', 'ASC')
+										->get();
+				break;
+		}
+	}
+	
+	
+	public function getReportsByIdRE($attributes) {
+		
+			$query13 =  DB::table('journal_entry')->where('journal_entry.status', 1)
+									->join('journal AS J', function($join) {
+										$join->on('J.id', '=', 'journal_entry.journal_id');
+									})
+									->join('account_transaction AS AT', function($join) {
+										$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+									})
+									->join('account_master AS AM', function($join) {
+										$join->on('AM.id', '=', 'journal_entry.account_id');
+									});
+			
+			$query13->where('AT.voucher_type','SIN')
+									->where('AT.amount','>',0)
+									->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+									->where('J.status',1)
+									->where('J.deleted_at','0000-00-00 00:00:00')
+									->where('AT.deleted_at','0000-00-00 00:00:00')
+									->where('AT.status',1)
+									->where('J.id',$attributes['jid']); //rvids
+									
+			
+			$qry13 = $query13->select('J.id','journal_entry.reference AS reference_no','J.debit','AT.voucher_type','AT.reference_from','AT.id AS aid','AT.account_master_id',
+											 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AT.amount','AM.master_name','AT.other_type')
+									->orderBy('journal_entry.id', 'ASC');
+			
+			$query5 = DB::table('receipt_voucher_entry')->where('receipt_voucher_entry.status',1)
+							->join('receipt_voucher AS RV', function($join) {
+								$join->on('receipt_voucher_entry.receipt_voucher_id', '=', 'RV.id');
+							})
+							->join('account_transaction AS AT', function($join) {
+								$join->on('AT.voucher_type_id', '=', 'receipt_voucher_entry.id');
+							})
+							->join('account_master AS AM', function($join) {
+								$join->on('AT.account_master_id', '=', 'AM.id');
+							});
+			$query5->where('AT.voucher_type','=','RV')
+							->where('RV.status', 1)
+							->where('AT.amount','>',0)
+							->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00')
+							->where('RV.deleted_at','0000-00-00 00:00:00')
+							->where('AT.deleted_at','0000-00-00 00:00:00')
+							->where('AT.status',1)
+							->whereIn('RV.id', $attributes['jvids']);;
+							
+			 $qry5 = $query5->select('RV.id','receipt_voucher_entry.reference AS reference_no','receipt_voucher_entry.amount_fc','AT.voucher_type','AT.reference_from',
+									 'AT.id AS aid','AT.account_master_id','receipt_voucher_entry.description','AT.transaction_type AS type',
+									 'RV.voucher_no','RV.voucher_date',DB::raw('SUM(AT.amount) AS amount'),'AM.master_name','AT.other_type')
+							->orderBy('receipt_voucher_entry.id', 'ASC')
+							->groupBy('AT.voucher_type_id');
+			
+			$query6 = DB::table('payment_voucher_entry')->where('payment_voucher_entry.status',1)
+							->join('payment_voucher AS PV', function($join) {
+								$join->on('payment_voucher_entry.payment_voucher_id', '=', 'PV.id');
+							})
+							->join('account_transaction AS AT', function($join) {
+								$join->on('AT.voucher_type_id', '=', 'payment_voucher_entry.id');
+							})
+							->join('account_master AS AM', function($join) {
+								$join->on('AT.account_master_id', '=', 'AM.id');
+							});
+			$query6->where('AT.voucher_type','=','PV')
+							->where('PV.status', 1)
+							->where('AT.amount','>',0)
+							->where('payment_voucher_entry.deleted_at','0000-00-00 00:00:00')
+							->where('PV.deleted_at','0000-00-00 00:00:00')
+							->where('AT.deleted_at','0000-00-00 00:00:00')
+							->where('AT.status',1)
+							->whereIn('PV.id', $attributes['jvids']);;
+							
+			
+			$qry6 = $query6->select('PV.id','payment_voucher_entry.reference AS reference_no','payment_voucher_entry.amount_fc','AT.voucher_type','AT.reference_from',
+									 'AT.id AS aid','AT.account_master_id','payment_voucher_entry.description','AT.transaction_type AS type',
+									 'PV.voucher_no','PV.voucher_date','AT.amount','AM.master_name','AT.other_type')
+							->orderBy('payment_voucher_entry.id', 'ASC');
+			
+			$query7 =  DB::table('journal_entry')->where('journal_entry.status', 1)
+									->join('journal AS J', function($join) {
+										$join->on('J.id', '=', 'journal_entry.journal_id');
+									})
+									->join('account_transaction AS AT', function($join) {
+										$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+									})
+									->join('account_master AS AM', function($join) {
+										$join->on('AM.id', '=', 'journal_entry.account_id');
+									});
+									
+			$query7->where('AT.voucher_type','JV')
+									->where('AT.amount','>',0)
+									->where('J.status',1)
+									->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+									->where('J.deleted_at','0000-00-00 00:00:00')
+									->where('AT.deleted_at','0000-00-00 00:00:00')
+									->where('AT.status',1)
+									->whereIn('J.id', $attributes['jvids']);
+			
+			$qry7 = $query7->select('J.id','journal_entry.reference AS reference_no','J.debit','AT.voucher_type','AT.reference_from','AT.id AS aid','AT.account_master_id',
+											 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AT.amount','AM.master_name','AT.other_type')
+									->orderBy('journal_entry.id', 'ASC');
+									
+			
+			return $results = $qry13->union($qry5)->union($qry6)->union($qry7)->get();	
+									
+			
+	}
+	
+	public function getConReportsByIdRE($attributes) {
+		
+			$query13 =  DB::table('journal_entry')->where('journal_entry.status', 1)
+									->join('journal AS J', function($join) {
+										$join->on('J.id', '=', 'journal_entry.journal_id');
+									})
+									->join('account_transaction AS AT', function($join) {
+										$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+									})
+									->join('account_master AS AM', function($join) {
+										$join->on('AM.id', '=', 'journal_entry.account_id');
+									});
+			
+			$query13->where('AT.voucher_type','SIN')
+									->where('AT.amount','>',0)
+									->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+									->where('J.status',1)
+									->where('J.deleted_at','0000-00-00 00:00:00')
+									->where('AT.deleted_at','0000-00-00 00:00:00')
+									->where('AT.status',1)
+									->where('J.id',$attributes['jid']); //rvids
+									
+			
+			$qry13 = $query13->select('J.id','journal_entry.reference AS reference_no','J.debit','AT.voucher_type','AT.reference_from','AT.id AS aid','AT.account_master_id',
+											 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AT.amount','AM.master_name','AT.other_type')
+									->orderBy('journal_entry.id', 'ASC');
+			
+			$query5 = DB::table('receipt_voucher_entry')->where('receipt_voucher_entry.status',1)
+							->join('receipt_voucher AS RV', function($join) {
+								$join->on('receipt_voucher_entry.receipt_voucher_id', '=', 'RV.id');
+							})
+							->join('account_transaction AS AT', function($join) {
+								$join->on('AT.voucher_type_id', '=', 'receipt_voucher_entry.id');
+							})
+							->join('account_master AS AM', function($join) {
+								$join->on('AT.account_master_id', '=', 'AM.id');
+							});
+			$query5->where('AT.voucher_type','=','RV')
+							->where('RV.status', 1)
+							->where('AT.amount','>',0)
+							->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00')
+							->where('RV.deleted_at','0000-00-00 00:00:00')
+							->where('AT.deleted_at','0000-00-00 00:00:00')
+							->where('AT.status',1)
+							->whereIn('RV.id', $attributes['rvids']);;
+							
+			 $qry5 = $query5->select('RV.id','receipt_voucher_entry.reference AS reference_no','receipt_voucher_entry.amount_fc','AT.voucher_type','AT.reference_from',
+									 'AT.id AS aid','AT.account_master_id','receipt_voucher_entry.description','AT.transaction_type AS type',
+									 'RV.voucher_no','RV.voucher_date',DB::raw('SUM(AT.amount) AS amount'),'AM.master_name','AT.other_type')
+							->orderBy('receipt_voucher_entry.id', 'ASC')
+							->groupBy('AT.voucher_type_id');
+			
+			
+			
+			$query7 =  DB::table('journal_entry')->where('journal_entry.status', 1)
+									->join('journal AS J', function($join) {
+										$join->on('J.id', '=', 'journal_entry.journal_id');
+									})
+									->join('account_transaction AS AT', function($join) {
+										$join->on('AT.voucher_type_id', '=', 'journal_entry.id');
+									})
+									->join('account_master AS AM', function($join) {
+										$join->on('AM.id', '=', 'journal_entry.account_id');
+									});
+									
+			$query7->where('AT.voucher_type','JV')
+									->where('AT.amount','>',0)
+									->where('J.status',1)
+									->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+									->where('J.deleted_at','0000-00-00 00:00:00')
+									->where('AT.deleted_at','0000-00-00 00:00:00')
+									->where('AT.status',1)
+									->whereIn('J.id', $attributes['jvids']);
+			
+			$qry7 = $query7->select('J.id','journal_entry.reference AS reference_no','J.debit','AT.voucher_type','AT.reference_from','AT.id AS aid','AT.account_master_id',
+											 'journal_entry.description','AT.transaction_type AS type','J.voucher_no','J.voucher_date','AT.amount','AM.master_name','AT.other_type')
+									->orderBy('journal_entry.id', 'ASC');
+									
+			
+			return $results = $qry13->union($qry5)->union($qry7)->get();	
+									
+			
+	}
+	
+}
+

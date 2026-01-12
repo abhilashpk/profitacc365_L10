@@ -1,0 +1,774 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Repositories\Area\AreaInterface;
+use App\Repositories\Itemmaster\ItemmasterInterface;
+use App\Repositories\Terms\TermsInterface;
+use App\Repositories\Jobmaster\JobmasterInterface;
+use App\Repositories\AccountMaster\AccountMasterInterface;
+use App\Repositories\Currency\CurrencyInterface;
+use App\Repositories\VoucherNo\VoucherNoInterface;
+use App\Repositories\SalesOrder\SalesOrderInterface;
+use App\Repositories\Production\ProductionInterface;
+use App\Repositories\Location\LocationInterface;
+use App\Repositories\QuotationSales\QuotationSalesInterface;
+use App\Repositories\Salesman\SalesmanInterface;
+use App\Repositories\Forms\FormsInterface;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests;
+use Session;
+use Response;
+use Input;
+use Excel;
+use App;
+use DB;
+use Mail;
+use PDF;
+
+class ProductionController extends Controller
+{
+
+	protected $area;
+	protected $itemmaster;
+	protected $terms;
+	protected $jobmaster;
+	protected $accountmaster;
+	protected $currency;
+	protected $voucherno;
+	protected $sales_order;
+	protected $production;
+	protected $location;
+	protected $quotation_sales;
+	protected $salesman;
+	protected $forms;
+	protected $formData;
+	
+	public function __construct(ProductionInterface $production, QuotationSalesInterface $quotation_sales, SalesOrderInterface $sales_order,ItemmasterInterface $itemmaster, TermsInterface $terms, JobmasterInterface $jobmaster, AccountMasterInterface $accountmaster, CurrencyInterface $currency, VoucherNoInterface $voucherno, AreaInterface $area, SalesmanInterface $salesman, LocationInterface $location,FormsInterface $forms) {
+		
+		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
+		
+		$this->middleware('auth');
+		$this->area = $area;
+		$this->itemmaster = $itemmaster;
+		$this->terms = $terms;
+		$this->jobmaster = $jobmaster;
+		$this->accountmaster = $accountmaster;
+		$this->currency = $currency;
+		$this->voucherno = $voucherno;
+		$this->sales_order = $sales_order;
+		$this->production = $production;
+		$this->location = $location;
+		$this->quotation_sales = $quotation_sales;
+		$this->salesman = $salesman;
+		$this->forms = $forms;
+		$this->formData = $this->forms->getFormData('PrO');
+	}
+	
+    public function index() {
+		
+		$data = array();
+		$orders = [];
+		$salesmans = $this->salesman->getSalesmanList();
+		$customer = $this->accountmaster->getCustomerList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		return view('body.production.index')
+					->withOrders($orders)
+					->withSalesman($salesmans)
+					->withCustomer($customer)
+					->withJobs($jobs)
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	
+	public function ajaxPaging(Request $request)
+	{
+		$columns = array( 
+                            0 =>'production.id', 
+                            1 =>'voucher_no',
+                            2=> 'customer',
+                            3=> 'voucher_date',
+                            4=> 'net_total',
+                            5=> 'item_name',
+							6=> 'status'
+                        );
+						
+		$totalData = $this->production->ProductionListCount();
+            
+        $totalFiltered = $totalData; 
+
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'production.id';
+        $dir = 'desc';
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+        
+		$invoices = $this->production->ProductionList('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->production->ProductionList('count', $start, $limit, $order, $dir, $search);
+		
+		$prints = DB::table('report_view_detail')
+					->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+					->where('report_view.code','PRO')
+					->select('report_view_detail.name','report_view_detail.id')
+					->get();
+
+        $data = array();
+        if(!empty($invoices))
+        {
+           
+			foreach ($invoices as $row)
+            {
+                //$edit =  '"'.url('production/edit/'.$row->id).'"';
+                $delete =  'funDelete("'.$row->id.'","'.$row->is_editable.'")';
+				$print = url('production/print/'.$row->id);
+				$planning =  url('production/planning/'.$row->id);
+				$edit =  url('production/edit/'.$row->id);
+				
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['customer'] = ($row->customer=='CASH CUSTOMERS') ? (($row->customer_name!='')?$row->customer.'('.$row->customer_name.')':$row->customer) : $row->customer;
+				$nestedData['net_total'] = $row->qty; //$row->net_total;
+				$nestedData['item_name'] = $row->item_name;
+                /*$nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
+												<span class='glyphicon glyphicon-pencil'></span></button></p>";*/
+				
+				$opts = '';					
+				foreach($prints as $doc) {
+					$opts .= "<li role='presentation'><a href='{$print}/".$doc->id."' target='_blank' role='menuitem'>".$doc->name."</a></li>";
+				}
+
+				$nestedData['edit'] = "<div class='btn-group drop_btn' role='group'>
+												<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+														id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+													<i class='fa fa-fw fa-shield'></i><span class='caret'></span>
+												</button>
+												<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+													<li role='presentation'><a href='{$edit}' role='menuitem'>Edit</a></li>
+													<li role='presentation'><a href='{$planning}' target='_blank' role='menuitem'>PO Planning</a></li>
+												</ul>
+											</div>";
+												
+				$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+												<span class='glyphicon glyphicon-trash'></span>";
+												
+				
+				$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+				
+				if(in_array($row->doc_status, $apr))	 {							
+					if($row->is_fc==1) {
+						$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a>
+												<a href='{$print}/FC' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a></p>";
+					} else {
+						//$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";
+						$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>";
+					}
+				} else {
+					$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>";
+				}
+				
+				if($this->acsettings->doc_approve==1) {
+					if($row->doc_status==1)
+						$status = '<span class="label label-sm label-success">Approved</span>';
+					else if($row->doc_status==0)
+						$status = '<span class="label label-sm label-warning">Pending</span>';
+					else if($row->doc_status==2)
+						$status = '<span class="label label-sm label-danger">Rejected</span>';
+					
+					$nestedData['status'] = $status;
+				} else 
+					$nestedData['status'] = '';
+				
+				$data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+		
+	public function add($id=null, $doctype=null) {
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$location = $this->location->locationList();
+		$res = $this->voucherno->getVoucherNo('PrO');
+		$vno = $res->no;
+		$lastid = DB::table('production')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$footertxt = DB::table('header_footer')->where('doc','PrO')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		if($id) {
+			$ids = explode(',', $id);
+			if($doctype=='QS') {
+				$quoteRow = $this->quotation_sales->findQuoteData($ids[0]);
+				$quoteItems = $this->quotation_sales->getQSItems($ids);//echo '<pre>';print_r($quoteRow);exit;
+			} else if($doctype=='SO') {
+				$quoteRow = $this->sales_order->findOrderData($ids[0]);
+				$quoteItems = $this->sales_order->getSOItems($ids);//echo '<pre>';print_r($quoteRow);exit;
+			}
+			
+			$total = 0; $vat_amount = 0; $nettotal = 0;
+			foreach($quoteItems as $item) {
+				if($item->balance_quantity==0)
+					$quantity = $item->quantity;
+				else
+					$quantity = $item->balance_quantity;
+				
+				$total 		+= ($quantity * $item->unit_price) - $item->discount;
+				$vat_amount += ($total * $item->vat) / 100;
+			}
+			$nettotal = $total + $vat_amount;
+			return view('body.production.addcdo')
+						->withItems($itemmaster)
+						->withTerms($terms)
+						->withJobs($jobs)
+						->withCurrency($currency)
+						->withQuoterow($quoteRow)
+						->withVoucherno($vno)
+						->withVoucherno($res)
+						->withQuoteitems($quoteItems)
+						->withDocid($id)
+						->withTotal($total)
+						->withVatamount($vat_amount)
+						->withNettotal($nettotal)
+						->withDoctype($doctype)
+						->withVoucherno(Session::get('voucher_no'))
+						->withReferenceno(Session::get('reference_no'))
+						->withVoucherdt(Session::get('voucher_date'))
+						->withLpodt(Session::get('lpo_date'))
+						->withVatdata($this->vatdata)
+						->withSettings($this->acsettings)
+						->withFormdata($this->formData)
+						->withData($data);
+		}
+		
+		return view('body.production.add')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withLocation($location)
+					->withVoucherno($vno)
+					->withVoucherno($res)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withPrintid($lastid)
+					->withFormdata($this->formData)
+					->withFooter(isset($footertxt)?$footertxt->description:'')
+					->withData($data);
+	}
+	
+	public function save(Request $request) {
+		//echo '<pre>';print_r(Input::all());exit;
+		
+		if( $this->validate(
+			$request, 
+			['customer_name' => 'required','customer_id' => 'required',
+			 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 //'cost.*' => 'required'
+			],
+			['customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
+			 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 //'cost.*' => 'Item cost is required.'
+			]
+		)) {
+
+			return redirect('production/add')->withInput()->withErrors();
+		}
+		
+		$id = $this->production->create(Input::all());
+		if($id) {
+			Session::flash('message', 'Production Order added successfully.');
+			return redirect('production/add/');
+		} else {
+			Session::flash('error', 'Something went wrong, Order failed to add!');
+			return redirect('production/add');
+		}
+	}
+	
+	public function destroy($id)
+	{
+		$this->production->delete($id);
+		//check accountmaster name is already in use.........
+		// code here ********************************
+		Session::flash('message', 'Production order deleted successfully.');
+		return redirect('production');
+	}
+	
+	public function checkRefNo() {
+
+		$check = $this->production->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	
+	public function edit($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->production->findPOdata($id);
+		$orditems = $this->production->getItems($id);
+		
+		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+		if(in_array($orderrow->doc_status, $apr))
+			$isprint = true;
+		else
+			$isprint = null;
+		
+		//print_r($orditems);exit;
+		return view('body.production.edit')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withFormdata($this->formData)
+					->withIsprint($isprint)
+					->withData($data);
+
+	}
+	
+		
+	public function update(Request $request)
+	{ 
+		$id = $request->input('production_id');
+		if( $this->validate(
+			$request, 
+			[//'reference_no' => 'required',
+			 'customer_name' => 'required','customer_id' => 'required',
+			 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required'
+			],
+			[//'reference_no.required' => 'Reference no. is required.',
+			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
+			 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.'
+			]
+		)) {
+			//echo '<pre>';print_r($request->flash());exit;
+			return redirect('production/edit/'.$id)->withInput()->withErrors();
+		}
+		
+		$this->production->update($id, Input::all());
+		
+		########## email script #############
+		if($this->acsettings->doc_approve==1 && Input::get('doc_status')==1 && Input::get('chkmail')==1) {
+				
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = '';
+			$result = $this->production->getOrder($attributes); //echo '<pre>';print_r($result);exit;
+			
+			$data = array('details'=> $result['details'], 'fc' => $attributes['is_fc'], 'items' => $result['items']);
+			$pdf = PDF::loadView('body.production.pdfprint', $data); 
+			
+			$mailmessage = Input::get('email_message');
+			$emails = explode(',', Input::get('email'));
+			
+			if($emails[0]!='') {
+				$data = array('name'=> Input::get('customer_name'), 'mailmessage' => $mailmessage );
+				try{
+					Mail::send('body.production.email', $data, function($message) use ($emails,$pdf) {
+						$message->to($emails[0]);
+						
+						if(count($emails) > 1) {
+							foreach($emails as $k => $row) {
+								if($k!=0)
+									$cc[] = $row;
+							}
+							$message->cc($cc);
+						}
+						
+						$message->subject('Production Order');
+						$message->attachData($pdf->output(), "production-ord.pdf");
+					});
+					
+				}catch(JWTException $exception){
+					$this->serverstatuscode = "0";
+					$this->serverstatusdes = $exception->getMessage();
+					echo '<pre>';print_r($this->serverstatusdes);exit;
+				}
+			}
+		}
+		
+		Session::flash('message', 'Production order updated successfully');
+		return redirect('production');
+	}
+	
+	public function ajax_getcode($group_id)
+	{
+		$group = $this->group->getGroupCode($group_id);
+		$row = $this->accountmaster->getGroupCode($group_id);
+		if($row)
+			$no = intval(preg_replace('/[^0-9]+/', '', $row->account_id), 10);
+		else 
+			$no = 0;
+		
+		$no++;
+		return $code = strtoupper($group->code).''.$no;
+		//return $group->account_id;
+
+	}
+	
+	public function show($id) { 
+
+		$data = array();
+		$acmasterrow = $this->accountmaster->accountMasterView($id);
+		//echo '<pre>';print_r($acmasterrow);exit;
+		return view('body.accountmaster.view')
+					->withMasterrow($acmasterrow)
+					->withData($data);
+	}
+	
+	public function getSupplier()
+	{
+		$data = array();
+		$suppliers = $this->accountmaster->getSupplierList();//echo '<pre>';print_r($suppliers);exit;
+		return view('body.production.supplier')
+					->withSuppliers($suppliers)
+					->withData($data);
+	}
+	
+	public function getItem($num)
+	{
+		$data = array();
+		$itemmaster = $this->itemmaster->getActiveItemmasterList();
+		return view('body.production.item')
+					->withItems($itemmaster)
+					->withNum($num)
+					->withData($data);
+	}
+	
+	public function getOrder($customer_id, $url)
+	{
+		$data = array();
+		$orders = $this->production->getCustomerOrder($customer_id);
+		return view('body.production.order')
+					->withOrders($orders)
+					->withUrl($url)
+					->withData($data);
+	}
+
+	public function getPrint($id,$rid=null)
+	{
+		//$viewfile = DB::table('report_view')->where('code', 'PO')->where('status',1)->select('view_name')->first();
+		$viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first();
+		//echo '<pre>';print_r($viewfile);
+		if($viewfile->print_name=='') {
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = ($fc)?1:'';
+			$result = $this->purchase_order->getOrder($attributes);
+			$titles = ['main_head' => 'Purchase Order','subhead' => 'Purchase Order'];
+			return view('body.purchaseorder.print')
+						->withDetails($result['details'])
+						->withTitles($titles)
+						->withFc($attributes['is_fc'])
+						->withId($id)
+						->withItems($result['items']);
+		} else {
+			$path = app_path() . '/stimulsoft/helper.php';
+			
+			if(env('STIMULSOFT_VER')==2)
+			        return view('body.reports')->withPath($path)->withView($viewfile->print_name);
+			   else
+			        return view('body.production.viewer')->withPath($path)->withView($viewfile->print_name);
+			        
+			
+		}
+	}
+	
+	public function getPrint2($id,$fc=null)
+	{
+		$attributes['document_id'] = $id;
+		$attributes['is_fc'] = ($fc)?1:'';
+		$result = $this->production->getOrder($attributes);
+		$pids = DB::table('production_item')->where('production_id', $id)->select('item_id')->get();
+		foreach($pids as $pid) {
+			$rowmaterials[$pid->item_id] = DB::table('mfg_items')->where('mfg_items.item_id',$pid->item_id)
+											->join('itemmaster AS IM', function($join) {
+												$join->on('IM.id','=','mfg_items.subitem_id');
+											})
+											->where('mfg_items.deleted_at','0000-00-00 00:00:00')
+											->select('mfg_items.*','IM.item_code','IM.description')
+											->get();
+		}
+
+		//echo '<pre>';print_r($rowmaterials);exit;
+		return view('body.production.print')
+					->withDetails($result['details'])
+					->withFc($attributes['is_fc'])
+					->withRowmaterials($rowmaterials)
+					->withItems($result['items']);
+		
+	}
+	
+	public function setSessionVal()
+	{
+		Session::put('voucher_no', Input::get('vchr_no'));
+		Session::put('reference_no', Input::get('ref_no'));
+		Session::put('voucher_date', Input::get('vchr_dt'));
+		Session::put('lpo_date', Input::get('lpo_dt'));
+	}
+	
+	protected function makeTree($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		return $childs;
+	}
+	
+	protected function makeArrGroup($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		$arr = array();
+		foreach($childs as $child) {
+			$pending_qty = $pending_amt = $vat_amount = $net_amount = $discount = 0;
+			foreach($child as $row) {
+			    $pending_qty = ($row->balance_quantity==0)?$row->quantity:$row->balance_quantity;
+			    $pending_amt += $pending_qty * $row->unit_price;
+				$vat = $row->unit_vat / $row->quantity;
+				$vat_amount += $vat * $pending_qty;
+				$net_amount = $vat_amount + $pending_amt;
+				$voucher_no = $row->voucher_no;
+				$refno = $row->reference_no;
+				$suppname = $row->master_name;
+				$salesman = $row->salesman;
+				$discount = $row->discount;
+			}
+			$arr[] = ['voucher_no' => $voucher_no,'reference_no' => $refno, 'master_name' => $suppname, 'discount' => $discount, 
+					  'total' => $pending_amt,'vat_amount' => $vat_amount, 'net_total' => $net_amount, 'salesman' => $salesman];
+			
+		}
+
+		return $arr;
+	}
+
+	public function getSearch()
+	{
+		$data = array();
+		
+		$reports = $this->production->getPendingReport(Input::all());
+		
+		if(Input::get('search_type')=="summary")
+			$voucher_head = 'Production Order Summary';
+		elseif(Input::get('search_type')=="summary_pending") {
+			$voucher_head = 'Production Order Pending Summary';
+			$reports = $this->makeArrGroup($reports);
+		} elseif(Input::get('search_type')=="detail") {
+			$voucher_head = 'Production Order Detail';
+			$reports = $this->makeTree($reports);
+		} else {
+			$voucher_head = 'Production Order Pending Detail';
+			$reports = $this->makeTree($reports);
+		}
+		
+		//echo '<pre>';print_r($reports);exit;
+		return view('body.production.preprint')
+					->withReports($reports)
+					->withVoucherhead($voucher_head)
+					->withType(Input::get('search_type'))
+					->withFromdate(Input::get('date_from'))
+					->withTodate(Input::get('date_to'))
+					->withSalesman(Input::get('salesman'))
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	
+	public function dataExport()
+	{
+		$data = array();
+		Input::merge(['type' => 'export']);
+		$reports = $this->production->getPendingReport(Input::all());
+		$datareport[] = ['','','',strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+		if(Input::get('search_type')=="summary")
+			$voucher_head = 'Production Order Summary';
+		elseif(Input::get('search_type')=="summary_pending") {
+			$voucher_head = 'Production Order Pending Summary';
+			$reports = $this->makeArrGroup($reports);
+		} elseif(Input::get('search_type')=="detail") {
+			$voucher_head = 'Production Order Detail';
+		} else {
+			$voucher_head = 'Production Order Pending Detail';
+		}
+		
+		 //echo '<pre>';print_r($reports);exit;
+		
+		if(Input::get('search_type')=='detail' || Input::get('search_type')=='detail_pending') {
+		    
+		    $datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
+		     $datareport[] = ['','','','','','',''];
+			
+			$datareport[] = ['SI.No.','PrO.#', 'PrO.Ref#', 'Customer','Salesman','Item Code','Description','PO.Qty','Rate','Total Amt.','Vat Amt.','Net Amt.'];
+			$i=0;
+			foreach ($reports as $row) {
+				$i++;
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'supplier' => $row['master_name'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => $row['unit_price'],
+								  'total' => $row['line_total'],
+								  'vat' => $row['unit_vat'],
+								  'net_amount' => $row['line_total']+$row['unit_vat']
+								];
+			}
+		} else {
+		    
+		    $datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
+		     $datareport[] = ['','','','','','',''];
+			
+			$datareport[] = ['SI.No.','PO.#', 'PO.Ref#', 'Customer','Salesman','Gross Amt.','Discount','Total Amt.','VAT Amt.','Net Total'];
+			$i=$gross=$disc=$total_amt=$vat=$net_total=0;
+			foreach ($reports as $row) {
+					$i++;
+					$datareport[] = [ 'si' => $i,
+									  'po' => $row['voucher_no'],
+									  'ref' => $row['reference_no'],
+									  'supplier' => $row['master_name'],
+									  'salesman' => $row['salesman'],
+									  'gross' => $row['total'],
+									  'dis' => $row['discount'],
+									  'total' => $row['total']-$row['discount'],
+									  'vat' => $row['vat_amount'],
+									  'net' => $row['net_total']
+									];
+										
+					$gross+=$row['total'];
+					$disc+=$row['discount'];
+					$total_amt+=$row['total']-$row['discount'];
+					$vat+=$row['vat_amount'];
+				  $net_total += $row['net_total'];				
+			}
+			     $datareport[] = ['','','','','','',''];
+				$datareport[] = ['','','','','Total:',number_format($gross,2),$disc,number_format($total_amt,2),number_format($vat,2),number_format($net_total,2)];
+		}
+		// echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('NumakPro ERP')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		});
+
+		})->download('xlsx');
+		
+	}
+	
+	public function getJob($id)
+	{
+		$data = array();
+	
+			$data = DB::table('production')->where('production.customer_id',$id)
+			                    ->join('jobmaster', 'jobmaster.id', '=', 'production.job_id')
+			                   ->where('production.status',1)->where('production.deleted_at','0000-00-00 00:00:00')
+			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
+			return $data;
+		}
+
+	public function planning($id) {
+
+		$attributes['document_id'] = $id;
+		$attributes['is_fc'] = '';
+		$result = $this->production->getOrder($attributes);
+		$pids = DB::table('production_item')->where('production_id', $id)->select('item_id')->get();
+		foreach($pids as $pid) {
+			$rowmaterials[$pid->item_id] = DB::table('mfg_items')->where('mfg_items.item_id',$pid->item_id)
+											->join('itemmaster AS IM', function($join) {
+												$join->on('IM.id','=','mfg_items.subitem_id');
+											})
+											->join('item_unit AS IU', function($join) {
+												$join->on('IU.itemmaster_id','=','mfg_items.subitem_id');
+											})
+											->where('mfg_items.deleted_at','0000-00-00 00:00:00')
+											->select('mfg_items.*','IM.item_code','IM.description','IU.cur_quantity')
+											->get();
+		}
+
+		//echo '<pre>';print_r($rowmaterials);exit;
+		return view('body.production.planning')
+					->withDetails($result['details'])
+					->withFc($attributes['is_fc'])
+					->withRowmaterials($rowmaterials)
+					->withItems($result['items']);
+
+	}
+
+	public function getProdata($url = null)
+	{
+		$data = DB::table('production')
+				->join('account_master','account_master.id','=','production.customer_id')
+				->where('production.status',1)->where('production.is_transfer',0)->where('production.deleted_at','0000-00-00 00:00:00')
+				->select('account_master.master_name','production.*')
+							->orderBY('id', 'ASC')->get(); //echo '<pre>';print_r($mrdata);exit;
+		return view('body.production.prodata')
+					->withData($data);
+	}
+
+	public function getItemDetails($id) {
+		$data = array();
+		$items = $this->production->getPOitems(array($id));
+		return view('body.production.itemdetails')
+					->withItems($items)
+					->withData($data);
+	}
+}
+
+

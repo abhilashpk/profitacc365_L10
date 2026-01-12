@@ -1,0 +1,2663 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\PackingList;
+
+use App\Models\PackingList;
+use App\Models\PackingListItem;
+use App\Models\PackingListInfo;
+use App\Models\JobOrderDetails;
+use App\Repositories\AbstractValidator;
+use App\Models\ItemDescription;
+use App\Exceptions\Validation\ValidationException;
+use Illuminate\Support\Facades\File; 
+
+use Illuminate\Support\Facades\Session;
+use Config;
+use Illuminate\Support\Facades\DB;
+//use Carbon;
+use Carbon\Carbon;
+use input;
+use Auth;
+
+class PackingListRepository extends AbstractValidator implements PackingListInterface {
+	
+	protected $packing_list;
+	
+	protected static $rules = [];
+	protected $matservice;
+	protected $module;
+	
+	public function __construct(PackingList $packing_list) {
+		$this->packing_list = $packing_list;
+		$config = Config::get('siteconfig');
+		
+		$this->module = DB::table('parameter2')->where('keyname', 'mod_workshop')->where('status',1)->select('is_active')->first();
+		$this->matservice = DB::table('parameter2')->where('keyname', 'mod_material_service')->where('status',1)->select('is_active')->first();
+		
+		$this->width = $config['modules']['joborder']['image_size']['width'];
+        $this->height = $config['modules']['joborder']['image_size']['height'];
+        $this->thumbWidth = $config['modules']['joborder']['thumb_size']['width'];
+        $this->thumbHeight = $config['modules']['joborder']['thumb_size']['height'];
+        $this->imgDir = $config['modules']['joborder']['image_dir'];
+	}
+	
+	public function all()
+	{
+		return $this->packing_list->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->packing_list->where('id', $id)->first();
+	}
+	
+	private function jobmasterEntry($attributes) {
+		
+		$id = DB::table('jobmaster')
+							->insertGetId([
+								'code'  => $attributes['prefix'].$attributes['voucher_no'],
+								'name'  => ($attributes['description']=='')?'Job - '.$attributes['prefix'].$attributes['voucher_no']:$attributes['description'],
+								'customer_id'	=> $attributes['customer_id'],
+								'salesman_id'	=> $attributes['salesman_id'],
+								'start_date' 	=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+								'end_date' 	=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+								'status'		=> 1,
+								'vehicle_id'	=> isset($attributes['vehicle_id'])?$attributes['vehicle_id']:'',
+								'date' 	=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']))
+							]);
+							
+		return $id;
+			
+	}
+	
+	//set input fields values
+	private function setInputValue($attributes)
+	{
+		//Joborder enter into job master....
+		if($this->module->is_active==1)
+			$attributes['job_id'] = $this->jobmasterEntry($attributes);
+		
+		$this->packing_list->voucher_no    = $attributes['voucher_no'];
+		$this->packing_list->reference_no  = $attributes['reference_no'];
+		$this->packing_list->voucher_date  = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+		$this->packing_list->lpo_date      = ($attributes['lpo_date']!='')?date('Y-m-d', strtotime($attributes['lpo_date'])):'';
+		$this->packing_list->customer_id   = $attributes['customer_id'];
+		$this->packing_list->quotation_id  = isset($attributes['quotation_id'])?$attributes['quotation_id']:'';
+		$this->packing_list->description   = $attributes['description'];
+		$this->packing_list->items_description  = isset($attributes['items_description'])?$attributes['items_description']:'';
+		$this->packing_list->job_id 		  = isset($attributes['job_id'])?$attributes['job_id']:'';
+		$this->packing_list->terms_id 	  = $attributes['terms_id'];
+		$this->packing_list->footer_id 	  = isset($attributes['footer_id'])?$attributes['footer_id']:'';
+		$this->packing_list->is_fc 		  = isset($attributes['is_fc'])?1:0;
+		$this->packing_list->currency_id   = (isset($attributes['currency_id']))?$attributes['currency_id']:'';
+		$this->packing_list->currency_rate = (isset($attributes['currency_rate']))?$attributes['currency_rate']:'';
+		$this->packing_list->salesman_id  = (isset($attributes['salesman_id']))?$attributes['salesman_id']:'';
+		$this->packing_list->is_export		= isset($attributes['is_export'])?1:0;
+		$this->packing_list->vehicle_id		= isset($attributes['vehicle_id'])?$attributes['vehicle_id']:'';
+		
+		$this->packing_list->next_due  = (isset($attributes['next_due'])&&$attributes['next_due']!='')?date('Y-m-d', strtotime($attributes['next_due'])):'';
+		$this->packing_list->kilometer		= isset($attributes['kilometer'])?$attributes['kilometer']:(isset($attributes['delivery'])?$attributes['delivery']:'');
+		$this->packing_list->present_km		= isset($attributes['present_km'])?$attributes['present_km']:'';
+		$this->packing_list->service_km		= isset($attributes['service_km'])?$attributes['service_km']:'';
+		$this->packing_list->next_km		= isset($attributes['next_km'])?$attributes['next_km']:'';
+		$this->packing_list->job_type		= isset($attributes['job_type'])?$attributes['job_type']:(isset($attributes['jobtype'])?$attributes['jobtype']:''); //SUPPLIMENTRY JOB TYPE
+		$this->packing_list->jobnature		= isset($attributes['jobnature'])?$attributes['jobnature']:'';
+		$this->packing_list->fabrication		= isset($attributes['fabrication'])?$attributes['fabrication']:(isset($attributes['parent_job'])?$attributes['parent_job']:''); //SUPPLIMENTRY JOB PARENT id
+		$this->packing_list->prefix			= isset($attributes['prefix'])?$attributes['prefix']:'';
+		$this->packing_list->less_amount	    = isset($attributes['less_amount'])?$attributes['less_amount']:'';
+		$this->packing_list->less_description = isset($attributes['less_description'])?$attributes['less_description']:(isset($attributes['location'])?$attributes['location']:'');
+		
+		$this->packing_list->less_amount2	    = isset($attributes['less_amount2'])?$attributes['less_amount2']:'';
+		$this->packing_list->less_description2 = isset($attributes['less_description2'])?$attributes['less_description2']:(isset($attributes['info_delivery'])?$attributes['info_delivery']:'');
+		$this->packing_list->less_amount3	    = isset($attributes['less_amount3'])?$attributes['less_amount3']:'';
+		$this->packing_list->less_description3 = isset($attributes['less_description3'])?$attributes['less_description3']:'';
+		$this->packing_list->location_id = (isset($attributes['location_id']))?$attributes['location_id']:(isset($attributes['department_id'])?$attributes['department_id']:'');
+		
+		$jbno = '';
+		if(isset($attributes['jobtype']) && $attributes['jobtype']==1) {
+			$narr = explode('/',$attributes['voucher_no']);
+			$jbno = $narr[0];
+			if($attributes['btn']=='submit')
+				DB::table('packing_list')->where('id', $attributes['parent_job'])->update(['jctype' => $narr[1]]);
+		} 
+		
+		$this->packing_list->jctype 	  = isset($attributes['jctype'])?$attributes['jctype']:'';
+		$this->packing_list->is_warning 	  = isset($attributes['is_warning'])?$attributes['is_warning']:'';
+		$this->packing_list->items_inside 	  = isset($attributes['items_inside'])?$attributes['items_inside']:$jbno; //SUPPLIMENTRY PARENT JOB No
+		$this->packing_list->remarks 	  = isset($attributes['remarks'])?$attributes['remarks']:'';
+		$this->packing_list->signature 	  = isset($attributes['sign'])?($attributes['customer_id'].'_'.date('d-m-Y').'.png') : '';
+		$this->packing_list->fuel_level 	  = isset($attributes['fuel_level'])?$attributes['fuel_level']:'';
+		
+		return true;
+	}
+	
+	private function setJobdetails($attributes) {
+							
+		if(isset($attributes['opr_description']) && !empty( array_filter($attributes['opr_description'])) ) {
+			
+			foreach($attributes['opr_description'] as $key => $value){ 
+				if($value != '') {
+					$jobOrderDetails = new JobOrderDetails();
+					$jobOrderDetails->joborder_id = $this->packing_list->id;
+					$jobOrderDetails->description = $value;
+					$jobOrderDetails->comment = $attributes['opr_comment'][$key];
+					$jobOrderDetails->status = 1;
+					$jobOrderDetails->save();
+				}
+			}
+		}
+		
+	}
+	
+	private function setJobdetailsUpdate($attributes) {
+		
+		if(isset($attributes['opr_description']) && !empty( array_filter($attributes['opr_description'])) ) {
+			foreach($attributes['opr_description'] as $key => $value) { 
+			
+				if(isset($attributes['jobdetail_id'][$key]) && $attributes['jobdetail_id'][$key]!='') {
+					
+					$jobOrderDetails = jobOrderDetails::find($attributes['jobdetail_id'][$key]);
+					$items['description'] = $value;
+					$items['comment'] = $attributes['opr_comment'][$key];
+					$jobOrderDetails->update($items);
+					
+				} else { //new entry.....
+					
+					if($value != '') {
+						$jobOrderDetails = new JobOrderDetails();
+						$jobOrderDetails->joborder_id = $this->packing_list->id;
+						$jobOrderDetails->description = $value;
+						$jobOrderDetails->comment = $attributes['opr_comment'][$key];
+						$jobOrderDetails->status = 1;
+						$jobOrderDetails->save();
+					}
+				}
+			}
+		}
+		
+		//manage removed items...
+		if(isset($attributes['opr_description']) && $attributes['remove_desc']!='')
+		{
+			$arrids = explode(',', $attributes['remove_desc']);
+			$remline_total = $remtax_total = 0;
+			foreach($arrids as $row) {
+				DB::table('joborder_details')->where('id', $row)->update(['status' => 0, 'deleted_at' => now()]);
+			}
+		}
+	}
+	
+	
+	private function setItemInputValue($attributes, $packingListItem, $key, $value,$lineTotal) 
+	{
+		if( isset($attributes['is_fc']) ) {
+			$tax        = ( ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100) * $attributes['currency_rate'];
+			$item_total = ( ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key] ) * $attributes['currency_rate'];
+			$tax_total  = round($tax * $attributes['quantity'][$key],2);
+			$line_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]) * $attributes['currency_rate'];
+			$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['tax_code'][$key];
+		} else {
+			
+			$line_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]);
+			
+			$tax_code = (isset($attributes['is_export']))?"ZR":(isset($attributes['tax_code'][$key])?$attributes['tax_code'][$key]:'');
+						
+			if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+				
+				$tax        = 0;
+				$item_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key];
+				$tax_total  = round($tax * $attributes['quantity'][$key],2);
+				
+			} else if(isset($attributes['tax_include'][$key]) && $attributes['tax_include'][$key]==1){
+				
+				$ln_total   = $attributes['cost'][$key] * $attributes['quantity'][$key];
+				$tax_total  = $ln_total *  $attributes['line_vat'][$key] / (100 +  $attributes['line_vat'][$key]);
+				$item_total = $ln_total - $tax_total;
+				
+			} else {
+				$tax = $tax_total = 0;
+				if(isset($attributes['line_vat'][$key])){
+					$tax        = ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100;
+					$tax_total  = round($tax * $attributes['quantity'][$key],2);
+				}
+				$item_total = (int)($attributes['cost'][$key] * (int)$attributes['quantity'][$key]) - (int)(isset($attributes['line_discount'][$key])?$attributes['line_discount'][$key]:'');
+			}
+		}
+		
+		//********DISCOUNT Calculation.............
+		$discount = (isset($attributes['discount']))?$attributes['discount']:0;
+		$type = 'tax_exclude';
+			
+		if(isset($attributes['tax_include'][$key]) && $attributes['tax_include'][$key]==1 ) {
+			$vatPlus = 100 + $attributes['line_vat'][$key];
+			$total = $attributes['cost'][$key] * $attributes['quantity'][$key];
+			$type = 'tax_include';
+		} else {
+			$vatPlus = 100;
+			$total = $attributes['line_total'][$key];
+			$type = 'tax_exclude';
+		}
+		
+		if($discount > 0) {
+			$discountAmt = round( (($total / $lineTotal) * $discount),2 );
+			$amountTotal = $total - $discountAmt;
+			$vatLine = round( (($amountTotal * $attributes['line_vat'][$key]) / $vatPlus),2 );
+			//$line_total = $amountTotal;
+			$tax_total = $vatLine; 
+		} 
+		
+		//CHNG SEP 17
+		$pay_pcntg = 100; $pay_amount = $line_total; $pay_pcntg_desc = '';
+		if(isset($attributes['per'][$key]) && $attributes['per'][$key]!='' && $attributes['per'][$key] > 0) {
+			$pay_pcntg = $attributes['per'][$key];
+			$pay_amount = ($line_total * $pay_pcntg) / 100;
+			$pay_pcntg_desc = $attributes['perdesc'][$key];
+		} else {
+			$pay_pcntg_desc = isset($attributes['sojob_id'][$key])?$attributes['sojob_id'][$key]:'';
+		}
+		
+		if(isset($attributes['metname'][$key])) {
+			$metname = '<br/>'.$attributes['metname'][$key];
+		} else
+			$metname = '';
+		
+		$packingListItem->packing_list_id = $this->packing_list->id;
+		$packingListItem->item_id    	= $value;
+		$packingListItem->item_name  	= $attributes['item_name'][$key].$metname;
+		$packingListItem->unit_id 		= $attributes['unit_id'][$key];
+		$packingListItem->quantity   	= $attributes['quantity'][$key];
+		$packingListItem->unit_price 	= (isset($attributes['is_fc']))?$attributes['cost'][$key]*$attributes['currency_rate']:$attributes['cost'][$key];
+		$packingListItem->vat		    = isset($attributes['line_vat'][$key])?$attributes['line_vat'][$key]:'';
+		$packingListItem->vat_amount 	= isset($tax_total)?$tax_total:'';
+		$packingListItem->discount   	= isset($attributes['line_discount'][$key])?$attributes['line_discount'][$key]:'';
+		$packingListItem->line_total 	= $line_total;
+		$packingListItem->tax_code 		= isset($tax_code)?$tax_code:'';
+		$packingListItem->tax_include 	= isset($attributes['tax_include'][$key])?$attributes['tax_include'][$key]:'';
+		$packingListItem->item_total 	= $item_total;
+		
+		//CHNG SEP 17
+		$packingListItem->pay_pcntg 		= $pay_pcntg;
+		$packingListItem->pay_amount 	= $pay_amount;
+		$packingListItem->pay_pcntg_desc 		= $pay_pcntg_desc;
+		
+		return array('line_total' => $line_total, 'tax_total' => $tax_total, 'type' => $type, 'item_total' => $item_total);
+	}
+	
+	private function setInfoInputValue($attributes, $packingListInfo, $key, $value)
+	{
+		$packingListInfo->packing_list_id = $this->packing_list->id;
+		$packingListInfo->title 			= $attributes['title'][$key];
+		$packingListInfo->description 	= $attributes['desc'][$key];
+		return true;
+	}
+	
+	private function setTransferStatusItem($attributes, $key)
+	{
+		if(isset($attributes['po_to_so'])) { //CHECK PO TO SO OR NOT...
+			//if quantity partially deliverd, update pending quantity.
+			if(isset($attributes['quote_sales_item_id'])) {
+				if(isset($attributes['actual_quantity']) && ($attributes['quantity'][$key] != $attributes['actual_quantity'][$key])) {
+					if( isset($attributes['quote_sales_item_id'][$key]) ) {
+						$quantity 	 = $attributes['actual_quantity'][$key] - $attributes['quantity'][$key];
+						//update as partially delivered.
+						DB::table('purchase_order_item')
+									->where('id', $attributes['quote_sales_item_id'][$key])
+									->update(['balance_quantity' => $quantity, 'is_transfer' => 2]);
+					}
+				} else {
+						//update as completely delivered.
+						DB::table('purchase_order_item')
+									->where('id', $attributes['quote_sales_item_id'][$key])
+									->update(['balance_quantity' => 0, 'is_transfer' => 1]);
+				}
+			}
+		} else {
+			//if quantity partially deliverd, update pending quantity.
+			if(isset($attributes['quote_sales_item_id'])) {
+				if(isset($attributes['actual_quantity']) && ($attributes['quantity'][$key] != $attributes['actual_quantity'][$key])) {
+					if( isset($attributes['quote_sales_item_id'][$key]) ) {
+						$quantity 	 = $attributes['actual_quantity'][$key] - $attributes['quantity'][$key];
+						//update as partially delivered.
+						DB::table('quotation_sales_item')
+									->where('id', $attributes['quote_sales_item_id'][$key])
+									->update(['balance_quantity' => $quantity, 'is_transfer' => 2]);
+					}
+				} else {
+						//update as completely delivered.
+						DB::table('quotation_sales_item')
+									->where('id', $attributes['quote_sales_item_id'][$key])
+									->update(['balance_quantity' => 0, 'is_transfer' => 1]);
+				}
+			}
+		}
+	}
+	
+	private function setTransferStatusService($attributes, $key)
+	{
+		//if quantity partially deliverd, update pending quantity.
+		if(isset($attributes['lbquote_sales_item_id'][$key])) {
+			if(isset($attributes['lbactual_quantity']) && ($attributes['lbquantity'][$key] != $attributes['lbactual_quantity'][$key])) {
+				if( isset($attributes['lbquote_sales_item_id'][$key]) ) {
+					$quantity 	 = $attributes['lbactual_quantity'][$key] - $attributes['lbquantity'][$key];
+					//update as partially delivered.
+					DB::table('quotation_sales_item')
+								->where('id', $attributes['lbquote_sales_item_id'][$key])
+								->update(['balance_quantity' => $quantity, 'is_transfer' => 2]);
+				}
+			} else {
+					//update as completely delivered.
+					DB::table('quotation_sales_item')
+								->where('id', $attributes['lbquote_sales_item_id'][$key])
+								->update(['balance_quantity' => 0, 'is_transfer' => 1]);
+			}
+		}
+	}
+	
+	private function setTransferStatusQuote($attributes)
+	{
+		if($this->matservice->is_active==1) {
+			$idarr = explode(',',$attributes['quotation_id']);
+			if($idarr) {
+				foreach($idarr as $id) {
+					DB::table('quotation_sales')->where('id', $id)->update(['is_editable' => 1, 'is_transfer' => 1]);
+				}
+			}
+			
+		} else {
+			
+			if(isset($attributes['po_to_so'])) { //CHECK PO TO SO OR NOT
+				//update purchase order transfer status....
+				$idarr = explode(',',$attributes['quotation_id']);
+				if($idarr) {
+					foreach($idarr as $id) {
+						DB::table('purchase_order')->where('id', $id)->update(['is_editable' => 1]);
+						$row1 = DB::table('purchase_order_item')->where('purchase_order_id', $id)->where('status',1)->whereNull('deleted_at')->count();
+						$row2 = DB::table('purchase_order_item')->where('purchase_order_id', $id)->where('status',1)->whereNull('deleted_at')->where('is_transfer',1)->count();
+						if($row1==$row2) {
+							DB::table('purchase_order')
+									->where('id', $id)
+									->update(['is_transfer' => 1]);
+						}
+					}
+				}
+
+			} else {
+				//update purchase order transfer status....
+				if(isset($attributes['quotation_id'])) {
+					$idarr = explode(',',$attributes['quotation_id']);
+					if($idarr) {
+						foreach($idarr as $id) {
+							DB::table('quotation_sales')->where('id', $id)->update(['is_editable' => 1]);
+							$row1 = DB::table('quotation_sales_item')->where('quotation_sales_id', $id)->where('status',1)->whereNull('deleted_at')->count();
+							$row2 = DB::table('quotation_sales_item')->where('quotation_sales_id', $id)->where('status',1)->whereNull('deleted_at')->where('is_transfer',1)->count();
+							if($row1==$row2) {
+								DB::table('quotation_sales')
+										->where('id', $id)
+										->update(['is_transfer' => 1]);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	private function calculateTotalAmount2($attributes) {
+		
+		$total = 0;
+		foreach($attributes['item_id'] as $key => $value){ 
+			
+			$total += $attributes['quantity'][$key] * $attributes['cost'][$key];
+		}
+		return $total;
+	}
+	
+	private function calculateTotalAmount($attributes) {
+		
+		$total = 0;
+		if(isset($attributes['item_id'])) {
+			foreach($attributes['item_id'] as $key => $value){ 
+				
+				$total += $attributes['quantity'][$key] * $attributes['cost'][$key];
+			}
+		}
+		
+		if(isset($attributes['lbitem_id'])) {
+			foreach($attributes['lbitem_id'] as $key => $value){ 
+				
+				$total += $attributes['lbquantity'][$key] * $attributes['lbcost'][$key];
+			}
+		}
+		
+		return $total;
+	}
+	
+	protected function addService($attributes) {
+		
+		$linetotal = $taxtotal = $itemtotal = $lbtax_total = 0; $type = 'tax_exclude'; $vat = 0;
+		$discount = (isset($attributes['discount']))?$attributes['discount']:0;
+		if($discount > 0)
+			$lineTotal = $this->calculateTotalAmount($attributes);
+		
+			foreach($attributes['lbitem_id'] as $key => $value){ 
+				
+				if($value!='') {
+					$packingListItem = new PackingListItem();
+					
+					//------------ SEP25
+					$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['lbtax_code'][$key];
+					$lbline_total = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);		
+					if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+						$tax        = 0;
+						$lbitem_total = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);// - $attributes['line_discount'][$key];
+						$lbtax_total  = round($tax * $attributes['lbquantity'][$key],2);
+						
+					} else if($attributes['lbtax_include'][$key]==1){
+						
+						$ln_total   = $attributes['lbcost'][$key] * $attributes['lbquantity'][$key];
+						$lbtax_total  = $ln_total *  $attributes['lbline_vat'][$key] / (100 +  $attributes['lbline_vat'][$key]);
+						$lbitem_total = $ln_total - $lbtax_total;
+						
+					} else {
+						
+						$tax        = ($attributes['lbcost'][$key] * $attributes['lbline_vat'][$key]) / 100;
+						$lbitem_total = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);
+						$lbtax_total  = round($tax * $attributes['lbquantity'][$key],2);
+						$lbline_total = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);
+					}
+					
+					$type = 'tax_exclude'; //SEP25
+					if($attributes['lbtax_include'][$key]==1 ) {
+						$vatPlus = 100 + $attributes['lbline_vat'][$key];
+						$total = $attributes['lbcost'][$key] * $attributes['lbquantity'][$key];
+						$type = 'tax_include';
+					} else {
+						$vatPlus = 100;
+						$total = $attributes['lbline_total'][$key];
+						$type = 'tax_exclude';
+					}
+					
+					if($discount > 0) {
+						$discountAmt = round( (($total / $lineTotal) * $discount),2 );
+						$amountTotal = $total - $discountAmt;
+						$vatLine = round( (($amountTotal * $attributes['lbline_vat'][$key]) / $vatPlus),2 );
+						$lbtax_total = $vatLine; 
+					}
+						
+					$packingListItem->packing_list_id = $this->packing_list->id;
+					$packingListItem->item_id    		= $value;
+					$packingListItem->item_name  		= $attributes['lbitem_name'][$key];
+					$packingListItem->unit_id 			= $attributes['lbunit_id'][$key];
+					$packingListItem->quantity   		= $attributes['lbquantity'][$key];
+					$packingListItem->unit_price 		= (isset($attributes['is_fc']))?$attributes['lbcost'][$key]*$attributes['currency_rate']:$attributes['lbcost'][$key];
+					$packingListItem->vat		    	= $attributes['lbline_vat'][$key];
+					$packingListItem->vat_amount 		= $lbtax_total;
+					$packingListItem->discount   		= $attributes['lbline_discount'][$key];
+					$packingListItem->line_total 		= $lbline_total;
+					$packingListItem->tax_code 			= $attributes['lbtax_code'][$key];
+					$packingListItem->tax_include 		= $attributes['lbtax_include'][$key];
+					$packingListItem->item_total 		= $lbitem_total;
+					$packingListItem->item_type = 1;
+					$packingListItem->status = 1;
+					$itemObj = $this->packing_list->packingListItem()->save($packingListItem);
+					
+					$linetotal += $lbline_total;
+					$taxtotal += $lbtax_total;
+					$itemtotal += $lbitem_total;
+					$vat = $attributes['lbline_vat'][$key]; //SEP25
+				}
+			}
+		return array('line_total' => $linetotal, 'tax_total' => $taxtotal, 'item_total' => $itemtotal, 'type' => $type, 'vat' => $vat );//SEP25
+		//return array('line_total' => $linetotal, 'tax_total' => $taxtotal, 'item_total' => $itemtotal);	
+	}
+	
+	protected function updateService($attributes)
+	{
+		$line_total = $tax_total = $item_total = 0;
+		$discount = (isset($attributes['discount']))?$attributes['discount']:0;
+		if($discount > 0)
+			$lineTotal = $this->calculateTotalAmount($attributes);
+		
+		foreach($attributes['lbitem_id'] as $key => $value) { 
+					
+			if($attributes['lborder_item_id'][$key]!='') {
+				
+				$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['lbtax_code'][$key];
+				$linetotal = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);
+				
+				if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+					
+					$tax        = 0;
+					$itemtotal = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);// - $attributes['line_discount'][$key];
+					$lbtax_total  = round($tax * $attributes['lbquantity'][$key],2);
+					
+				} else if($attributes['lbtax_include'][$key]==1){
+					
+					$ln_total   = $attributes['lbcost'][$key] * $attributes['lbquantity'][$key];
+					$lbtax_total  = $ln_total *  $attributes['lbline_vat'][$key] / (100 +  $attributes['lbline_vat'][$key]);
+					$itemtotal = $ln_total - $lbtax_total;
+					
+				} else {
+					
+					$tax        = ($attributes['lbcost'][$key] * $attributes['lbline_vat'][$key]) / 100;
+					$itemtotal = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);
+					$lbtax_total  = round($tax * $attributes['lbquantity'][$key], 2);
+				}
+				
+				$type = 'tax_exclude';
+				if($attributes['lbtax_include'][$key]==1 ) {
+					$vatPlus = 100 + $attributes['lbline_vat'][$key];
+					$total = $attributes['lbcost'][$key] * $attributes['lbquantity'][$key];
+					$type = 'tax_include';
+				} else {
+					$vatPlus = 100;
+					$total = $attributes['lbline_total'][$key];
+					$type = 'tax_exclude';
+				}
+				
+				if($discount > 0) {
+					$discountAmt = round( (($total / $lineTotal) * $discount),2 );
+					$amountTotal = $total - $discountAmt;
+					$vatLine = round( (($amountTotal * $attributes['lbline_vat'][$key]) / $vatPlus),2 );
+					$lbtax_total = $vatLine; 
+				}
+					
+				$packingListItem = PackingListItem::find($attributes['lborder_item_id'][$key]);
+				$oldqty = $packingListItem->quantity;
+				$items['item_name'] = $attributes['lbitem_name'][$key];
+				$items['item_id'] = $value;
+				$items['unit_id'] = $attributes['lbunit_id'][$key];
+				$items['quantity'] = $attributes['lbquantity'][$key];
+				$items['unit_price'] = (isset($attributes['is_fc']))?$attributes['lbcost'][$key]*$attributes['currency_rate']:$attributes['lbcost'][$key];
+				$items['vat']		 = $attributes['lbline_vat'][$key];
+				$items['vat_amount'] = $lbtax_total;
+				$items['discount'] = $attributes['lbline_discount'][$key];
+				$items['line_total'] = $linetotal;
+				$items['item_total'] = $itemtotal;
+				$items['tax_code'] 	= $attributes['lbtax_code'][$key];
+				$items['tax_include'] = $attributes['lbtax_include'][$key];//CHG
+				$exi_quantity = $packingListItem->quantity;
+				$packingListItem->update($items);
+				
+				$tax_total += $lbtax_total;
+				$line_total += $linetotal;
+				$item_total += $itemtotal;
+				
+			} else { //add new service
+				
+				$packingListItem = new PackingListItem();
+				
+				$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['lbtax_code'][$key];
+				$lbline_total = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);		
+				if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+					$tax        = 0;
+					$lbitem_total = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);// - $attributes['line_discount'][$key];
+					$lbtax_total  = round($tax * $attributes['lbquantity'][$key],2);
+					
+				} else if($attributes['lbtax_include'][$key]==1){
+					
+					$ln_total   = $attributes['lbcost'][$key] * $attributes['lbquantity'][$key];
+					$lbtax_total  = $ln_total *  $attributes['lbline_vat'][$key] / (100 +  $attributes['lbline_vat'][$key]);
+					$lbitem_total = $ln_total - $lbtax_total;
+					
+				} else {
+					$tax        = ($attributes['lbcost'][$key] * $attributes['lbline_vat'][$key]) / 100;
+					$lbitem_total = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);
+					$lbtax_total  = round($tax * $attributes['lbquantity'][$key],2);
+					$lbline_total = ($attributes['lbcost'][$key] * $attributes['lbquantity'][$key]);
+				}
+				
+				$type = 'tax_exclude';
+				if($attributes['lbtax_include'][$key]==1 ) {
+					$vatPlus = 100 + $attributes['lbline_vat'][$key];
+					$total = $attributes['lbcost'][$key] * $attributes['lbquantity'][$key];
+					$type = 'tax_include';
+				} else {
+					$vatPlus = 100;
+					$total = $attributes['lbline_total'][$key];
+					$type = 'tax_exclude';
+				}
+				
+				if($discount > 0) {
+					$discountAmt = round( (($total / $lineTotal) * $discount),2 );
+					$amountTotal = $total - $discountAmt;
+					$vatLine = round( (($amountTotal * $attributes['lbline_vat'][$key]) / $vatPlus),2 );
+					$lbtax_total = $vatLine; 
+				}
+				
+				$packingListItem->packing_list_id = $this->packing_list->id;
+				$packingListItem->item_id    		= $value;
+				$packingListItem->item_name  		= $attributes['lbitem_name'][$key];
+				$packingListItem->unit_id 			= $attributes['lbunit_id'][$key];
+				$packingListItem->quantity   		= $attributes['lbquantity'][$key];
+				$packingListItem->unit_price 		= (isset($attributes['is_fc']))?$attributes['lbcost'][$key]*$attributes['currency_rate']:$attributes['lbcost'][$key];
+				$packingListItem->vat		    	= $attributes['lbline_vat'][$key];
+				$packingListItem->vat_amount 		= $lbtax_total;
+				$packingListItem->discount   		= $attributes['lbline_discount'][$key];
+				$packingListItem->line_total 		= $lbline_total;
+				$packingListItem->tax_code 		= $attributes['lbtax_code'][$key];
+				$packingListItem->tax_include 		= $attributes['lbtax_include'][$key];
+				$packingListItem->item_total 		= $lbitem_total;
+				$packingListItem->item_type = 1;
+				$packingListItem->status = 1;
+				
+				$itemObj = $this->packing_list->packingListItem()->save($packingListItem);
+				
+				$line_total += $lbline_total;
+				$tax_total += $lbtax_total;
+				$item_total += $lbitem_total;
+			}
+			$vat = $attributes['lbline_vat'][$key]; //SEP25
+		}
+		return array('line_total' => $line_total, 'tax_total' => $tax_total, 'item_total' => $item_total, 'type' => $type, 'vat' => $vat );
+		//return array('line_total' => $line_total, 'tax_total' => $tax_total, 'item_total' => $item_total);	
+	}
+	
+	
+	public function create($attributes)
+	{ //echo '<pre>';print_r($attributes);exit;
+		if($this->isValid($attributes)) {
+			DB::beginTransaction();
+			try {
+
+				if($this->setInputValue($attributes)) {
+					$this->packing_list->status 	   = 1;
+					$this->packing_list->created_at = now();
+					$this->packing_list->created_by = 1;
+					$this->packing_list->fill($attributes)->save();
+					
+					//check workshop version active...
+					if($this->module->is_active==1 && $this->packing_list->id) {
+						$this->setJobdetails($attributes);
+					}
+				}
+				
+				$line_total = 0; $tax_total = 0; $total = $item_total = 0; $taxtype = '';
+				$discount = (isset($attributes['discount']))?$attributes['discount']:0;
+				//sales order items insert
+				if($this->packing_list->id && isset($attributes['item_id']) && !empty( array_filter($attributes['item_id']))) {
+										
+					//calculate total amount....
+					if($discount > 0) 
+						$total = $this->calculateTotalAmount($attributes);
+					
+					foreach($attributes['item_id'] as $key => $value){ 
+						$packingListItem = new PackingListItem();
+						$vat = isset($attributes['line_vat'][$key])?$attributes['line_vat'][$key]:'';
+						$arrResult 		= $this->setItemInputValue($attributes, $packingListItem, $key, $value,$total);
+						//if($arrResult['line_total']) {
+							$line_total			   += $arrResult['line_total'];
+							$tax_total      	   += $arrResult['tax_total'];
+							$taxtype				  = $arrResult['type'];
+							$item_total				 += $arrResult['item_total'];
+							
+							$packingListItem->status = 1;
+							$itemObj = $this->packing_list->packingListItem()->save($packingListItem);
+							
+							$this->setTransferStatusItem($attributes, $key);
+							
+							//update service item....
+							if($this->matservice->is_active==1) {
+								$this->setTransferStatusService($attributes, $key);
+							}
+							
+							//item description section....
+							if(isset($attributes['itemdesc'][$key])) {
+								foreach($attributes['itemdesc'][$key] as $descrow) {
+									//if($descrow != '') {
+										$itemDescription = new ItemDescription();
+										$itemDescription->invoice_type = 'SO';
+										$itemDescription->item_detail_id = $itemObj->id;
+										$itemDescription->description = $descrow;
+										$itemDescription->status = 1;
+										$itemDescription->save();
+									//}
+								}
+							}
+						//}
+					}
+				  }
+				  
+					//Check material service module..........
+					if($this->matservice->is_active==1 && isset($attributes['lbitem_id'])) {
+						
+						$arrResult = $this->addService($attributes);
+						$line_total			     += $arrResult['line_total'];
+						$tax_total      	     += $arrResult['tax_total'];
+						$item_total				 += $arrResult['item_total'];
+						$taxtype				  = $arrResult['type'];//SEP25
+						$vat					  = $arrResult['vat'];//SEP25
+					}
+					
+					/*CHG*/
+					$subtotal = (int)$line_total - (int)$discount;
+					if($taxtype=='tax_include' && $attributes['discount'] == 0) {
+					  
+					  $net_amount = $subtotal;
+					  $tax_total = ($subtotal * $vat) / (100 + $vat);
+					  $subtotal = $subtotal - $tax_total;
+					  
+					} elseif($taxtype=='tax_include' && $attributes['discount'] > 0) { 
+					
+					   $tax_total = ($subtotal * $vat) / (100 + $vat);
+					   $net_amount = $subtotal - $tax_total;
+					} else 
+						$net_amount = $subtotal + $tax_total;
+					/*CHG*/
+					
+					//VAT calculate from subtotal...
+					$net_total_pay = '';
+					if(isset($attributes['vatfrm_subtotal'])) {
+						
+						$tax_total = $attributes['vat'];
+						$less_amount = (isset($attributes['less_amount']))?$attributes['less_amount']:0;
+						$less_amount2 = (isset($attributes['less_amount2']))?$attributes['less_amount2']:0;
+						$less_amount3 = (isset($attributes['less_amount3']))?$attributes['less_amount3']:0;
+						$line_total = $attributes['total']; //CHNG SEP 17
+						$subtotal = $line_total - $less_amount - $less_amount2 - $less_amount3;
+						$net_amount = $net_total_pay = $attributes['net_amount']; //CHNG SEP 17
+					}
+					
+					if( isset($attributes['is_fc']) ) {
+						$total_fc 	   = $line_total / $attributes['currency_rate'];
+						$discount_fc   = $attributes['discount'] / $attributes['currency_rate'];
+						$vat_fc 	   = $attributes['vat_fc'] / $attributes['currency_rate'];
+						$tax_fc 	   = $tax_total / $attributes['currency_rate'];
+						$net_amount_fc = $total_fc - $discount_fc + $tax_fc;
+						$subtotal_fc	   = $subtotal / $attributes['currency_rate'];
+					} else {
+						$total_fc = $discount_fc = $tax_fc = $net_amount_fc = $vat_fc = $subtotal_fc = 0;
+					}
+					
+					if(isset($attributes['jobtype']) && $attributes['jobtype']==1) {
+						$narr = explode('/',$attributes['voucher_no']);
+						$jbno = $narr[1];
+					}
+
+					//VOUCHER NO INCREMENT LOGIC//
+					if( $attributes['curno'] == $attributes['voucher_no'] ) {
+						$cnt = 0;
+						do {
+							
+							$jvset = DB::table('voucher_no')->where('voucher_type', 'SO')->where('status',1)->select('no AS voucher_no','prefix')->first();
+							if($jvset) {
+								if($jvset->prefix==0) {
+									$attributes['voucher_no'] = $jvset->voucher_no + $cnt;
+									$attributes['vno'] = $jvset->voucher_no + $cnt;
+								} else {
+									$attributes['voucher_no'] = $jvset->prefix.($jvset->voucher_no + $cnt);
+									$attributes['vno'] = $jvset->voucher_no + $cnt;
+								}
+								$attributes['curno'] = $attributes['voucher_no'];
+							}
+							$inv = DB::table('packing_list')->where('id','!=',$this->packing_list->id)->where('voucher_no',$attributes['voucher_no'])->where('status',1)->whereNull('deleted_at')->count();
+							
+							$cnt++;
+						} while ($inv!=0);
+					} 
+					//VOUCHER NO INCREMENT LOGIC//
+
+					//update discount, total amount
+					DB::table('packing_list')
+								->where('id', $this->packing_list->id)
+								->update(['voucher_no' => $attributes['voucher_no'],
+										   'total'    	  => $line_total,
+										  'discount' 	  => (isset($attributes['discount']))?$attributes['discount']:0,
+										  'vat' 	 	  => $tax_total, //$attributes['vat']
+										  'vat_amount'	  => $tax_total,
+										  // 'is_rental' => (isset($attributes['is_rental']))?$attributes['is_rental']:'', 
+										  'net_total'	  => $net_amount,
+										  'total_fc' 	  => $total_fc,
+										  'discount_fc'   => $discount_fc,
+										  'vat_fc' 		  => $vat_fc,
+										  'vat_amount_fc' => $tax_fc,
+										  'net_total_fc'  => $net_amount_fc,
+										  'subtotal'	  => $subtotal,
+										  'subtotal_fc'	  => $subtotal_fc,
+										  'net_total_pay' => $net_total_pay,
+										  'footer_text'	  => (isset($attributes['footer']))?$attributes['footer']:''
+										  ]); //CHNG SEP 17
+				//}
+				
+				if(isset($attributes['tempid'])) {
+					foreach($attributes['tempid'] as $key => $row) {
+						DB::table('crm_info')->insert(['temp_id' => $row, 'textval' => $attributes['crmtext'][$key], 'doc_id' => $this->packing_list->id, 'textval2' => (isset($attributes['crmtext2'][$key]))?$attributes['crmtext2'][$key]:'']);
+					}
+				}
+				
+				if($this->packing_list->id && isset($attributes['packageid'])) { 
+				
+					foreach($attributes['packageid'] as $pkg) {
+						DB::table('joborder_pkgs')
+									->insert(['job_order_id' => $this->packing_list->id, 
+											  'package_id'	=> $pkg
+											]);
+					}
+				}
+				
+				/* if($this->packing_list->id && isset($attributes['photo_name'])) {
+					$photos = explode(',',$attributes['photo_name']);
+					foreach($photos as $photo) {
+						if($photo!='')
+							DB::table('job_photos')->insert(['job_order_id' => $this->packing_list->id, 'photo' => $photo]);
+					}
+					
+				} */
+				
+				if($this->packing_list->id && isset($attributes['photo_name'])) {
+					/* $photos = explode(',',$attributes['photo_name']);  RylNmk@2021
+					foreach($photos as $photo) {
+						if($photo!='')
+							DB::table('job_photos')->insert(['job_order_id' => $this->packing_list->id, 'photo' => $photo]);
+					} */
+					if($attributes['photo_name']!='') {
+						foreach($attributes['photo_name'] as $key => $val) {
+							if($val!='') {
+								DB::table('job_photos')
+										->insert(['job_order_id' => $this->packing_list->id, 
+												  'photo' => $val,
+												  'description'	=> $attributes['imgdesc'][$key]
+												]);
+							}
+						}
+					}
+				}
+				
+				//sales order info insert
+				if($this->packing_list->id && isset($attributes['title']) && !empty( array_filter($attributes['title'])) ) {
+					foreach($attributes['title'] as $key => $value) {
+						$packingListInfo = new PackingListInfo();
+						if($this->setInfoInputValue($attributes, $packingListInfo, $key, $value)) {
+							$packingListInfo->status = 1;
+							$this->packing_list->packingListInfo()->save($packingListInfo);
+						}
+					}
+				}
+				
+				$this->setTransferStatusQuote($attributes);
+				
+				if( ($attributes['curno']!='') && ($this->packing_list->id && $attributes['autoincrement']==1) && ($attributes['curno'] == $attributes['voucher_no']) ) { 
+					//update voucher number
+					if($this->packing_list->id) {
+						if(isset($attributes['jobtype'])) {
+							if($attributes['jobtype']==0) {
+								 DB::table('voucher_no')
+									->where('voucher_type', $attributes['voucher_type'])
+									->update(['no' => DB::raw('no + 1') ]);
+							}
+						} else {
+							DB::table('voucher_no') 
+								->where('voucher_type', $attributes['voucher_type'])
+								->update(['no' => DB::raw('no + 1') ]);
+						}
+					}
+				}
+				
+				DB::commit();
+				return true;
+				
+			} catch(\Exception $e) { 
+			
+				DB::rollback(); echo $e->getLine().'-'.$e->getMessage();exit;
+				return false;
+			}
+				
+		}
+		//throw new ValidationException('packing_list validation error12!', $this->getErrors());
+	}
+	
+	public function update($id, $attributes)
+	{
+		$this->packing_list = $this->find($id);
+		$line_total = $tax_total = $line_total_new = $tax_total_new = $item_total = $total = 0;
+		//echo '<pre>';print_r($attributes);exit;
+		DB::beginTransaction();
+		try {
+			
+			//check workshop version active...
+			if($this->module->is_active==1 && $this->packing_list->id) {
+				$this->setJobdetailsUpdate($attributes);
+			}
+			
+			$discount = (isset($attributes['discount']))?$attributes['discount']:0; $taxtype = '';
+			$lineTotal = $this->calculateTotalAmount($attributes);
+			if($this->packing_list->id && $attributes['item_id'] && !empty( array_filter($attributes['item_id']))) {
+				
+				foreach($attributes['item_id'] as $key => $value) { 
+					$orderitems =  (isset($attributes['order_item_id'][$key]))?$attributes['order_item_id'][$key]:'';
+					if($attributes['order_item_id'][$key]!='') {
+						$deskey = $attributes['order_item_id'][$key];
+						$tax_code = (isset($attributes['is_export']))?"ZR":(isset($attributes['tax_code'][$key])?$attributes['tax_code'][$key]:'');
+						if( isset($attributes['is_fc']) ) {
+								$tax        = ( ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100) * $attributes['currency_rate'];
+								$itemtotal = ( ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key] ) * $attributes['currency_rate'];
+								$taxtotal  = round($tax * $attributes['quantity'][$key],2);
+								$linetotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) * $attributes['currency_rate'];
+								
+							} else {
+								
+								$linetotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]);
+								
+								if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+									
+									$tax        = 0;
+									$itemtotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key];
+									$taxtotal  = round($tax * $attributes['quantity'][$key],2);
+									
+								} else if(isset($attributes['tax_include'][$key]) && $attributes['tax_include'][$key]==1){
+									
+									$ln_total   = $attributes['cost'][$key] * $attributes['quantity'][$key];
+									$taxtotal  = $ln_total *  $attributes['line_vat'][$key] / (100 +  $attributes['line_vat'][$key]);
+									$itemtotal = $ln_total - $taxtotal;
+									
+								} else {
+									if(isset($attributes['line_vat'][$key])) {
+										$tax        = ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100;
+										$itemtotal = (int)($attributes['cost'][$key] * (int)$attributes['quantity'][$key]) - (int)$attributes['line_discount'][$key];
+									} else {
+										$tax = $itemtotal = 0;
+									}
+									$taxtotal  = round($tax * $attributes['quantity'][$key],2);
+								}
+							}
+							
+							//********DISCOUNT Calculation.............
+							$discount = (isset($attributes['discount']))?$attributes['discount']:0;
+							$taxtype = 'tax_exclude';
+								
+							if(isset($attributes['tax_include'][$key]) && $attributes['tax_include'][$key]==1 ) {
+								$vatPlus = 100 + $attributes['line_vat'][$key];
+								$total = $attributes['cost'][$key] * $attributes['quantity'][$key];
+								$taxtype = 'tax_include';
+							} else {
+								$vatPlus = 100;
+								$total = isset($attributes['line_total'][$key])?$attributes['line_total'][$key]:0;
+								$taxtype = 'tax_exclude';
+							}
+							
+							if($discount > 0) {
+								$discountAmt = round( (($total / $lineTotal) * $discount),2 );
+								$amountTotal = $total - $discountAmt;
+								$vatLine = round( (($amountTotal * $attributes['line_vat'][$key]) / $vatPlus),2 );
+								$taxtotal = $vatLine; 
+							} 
+							
+							$tax_total += $taxtotal;
+							$line_total += $linetotal;
+							$item_total += $itemtotal;
+							
+							$vat = isset($attributes['line_vat'][$key])?$attributes['line_vat'][$key]:0;
+							// $is_rental = (isset($attributes['is_rental']))?$attributes['is_rental']:''; 
+							$packingListItem = PackingListItem::find($attributes['order_item_id'][$key]);
+							$items['item_name'] = $attributes['item_name'][$key];
+							
+							$items['item_id'] = $value;
+							$items['unit_id'] = $attributes['unit_id'][$key];
+							$items['quantity'] = $attributes['quantity'][$key];
+							$items['unit_price'] = (isset($attributes['is_fc']))?$attributes['cost'][$key]*$attributes['currency_rate']:$attributes['cost'][$key];
+							$items['vat']		 = isset($attributes['line_vat'][$key])?$attributes['line_vat'][$key]:0;
+							$items['vat_amount'] = $taxtotal;
+							$items['discount'] = isset($attributes['line_discount'][$key])?$attributes['line_discount'][$key]:0;
+							$items['line_total'] = $linetotal;
+							$items['item_total'] = $itemtotal; //CHG
+							$items['tax_code'] 	= $tax_code;
+							 // $items['is_rental'] 	= $is_rental;
+							$items['tax_include'] = isset($attributes['tax_include'][$key])?$attributes['tax_include'][$key]:0;
+							
+							//CHNG SEP 17
+							$pay_pcntg = 100; $pay_amount = $line_total; $pay_pcntg_desc = '';
+							if(isset($attributes['per'][$key]) && $attributes['per'][$key]!='' && $attributes['per'][$key] > 0) {
+								$pay_pcntg = $attributes['per'][$key];
+								$pay_amount = ($linetotal * $pay_pcntg) / 100;
+								$pay_pcntg_desc = $attributes['perdesc'][$key];
+							} else {
+								$items['pay_pcntg'] = $pay_pcntg;
+								$items['pay_amount'] = $pay_amount;
+								$items['pay_pcntg_desc'] = isset($attributes['sojob_id'][$key])?$attributes['sojob_id'][$key]:'';
+							}
+							
+							
+							$packingListItem->update($items);
+							
+							//description update...
+							if(isset($attributes['desc_id'])) {
+								if(array_key_exists($deskey, $attributes['desc_id'])) {
+									foreach($attributes['desc_id'][$deskey] as $k => $v) {
+										if($v!='') {
+											$itemDescription = ItemDescription::find($v);
+											$desc['description'] = $attributes['itemdesc'][$deskey][$k];
+											$itemDescription->update($desc);
+										} else {
+											//new entry.........
+											$itemDescription = new ItemDescription();
+											$itemDescription->invoice_type = 'SO';
+											$itemDescription->item_detail_id = $deskey;
+											$itemDescription->description = $attributes['itemdesc'][$deskey][$k];
+											$itemDescription->status = 1;
+											$itemDescription->save();
+											
+										}
+									}
+								}
+							} else {
+								//new entry description.........
+								if(isset($attributes['itemdesc'][$key])) {
+									foreach($attributes['itemdesc'][$key] as $descrow) {
+										if($descrow != '') {
+											$itemDescription = new ItemDescription();
+											$itemDescription->invoice_type = 'SO';
+											$itemDescription->item_detail_id = $deskey;
+											$itemDescription->description = $descrow;
+											$itemDescription->status = 1;
+											$itemDescription->save();
+										}
+									}
+								}
+							}
+							
+						} else { //new entry...
+							$item_total_new = $tax_total_new = $item_total_new = 0;
+							if($discount > 0) 
+								$total = $this->calculateTotalAmount($attributes);
+							
+							$vat = $attributes['line_vat'][$key];
+							$packingListItem = new PackingListItem();
+							$arrResult 		= $this->setItemInputValue($attributes, $packingListItem, $key, $value, $total);
+							//if($arrResult['line_total']) {
+								$line_total_new 		 += $arrResult['line_total'];
+								$tax_total_new      	 += $arrResult['tax_total'];
+								$item_total_new			 += $arrResult['item_total']; //CHG
+								
+								$line_total			     += $arrResult['line_total'];
+								$tax_total      	     += $arrResult['tax_total'];
+								$item_total 			 += $arrResult['item_total'];
+								$taxtype				  = $arrResult['type'];
+								
+								$packingListItem->status = 1;
+								$itemObj = $this->packing_list->packingListItem()->save($packingListItem);
+								
+								//new entry description.........
+								if(isset($attributes['itemdesc'][$key])) {
+									foreach($attributes['itemdesc'][$key] as $descrow) {
+										if($descrow != '') {
+											$itemDescription = new ItemDescription();
+											$itemDescription->invoice_type = 'SO';
+											$itemDescription->item_detail_id = $itemObj->id;
+											$itemDescription->description = $descrow;
+											$itemDescription->status = 1;
+											$itemDescription->save();
+										}
+									}
+								}
+							//}
+						}
+						
+					} 
+
+				}
+				
+				//check workshop version active...
+				if($this->matservice->is_active==1 && $this->packing_list->id && isset($attributes['lbitem_id'])) {
+					$arrResult = $this->updateService($attributes);
+					
+					$line_total	+= $arrResult['line_total'];
+					$tax_total  += $arrResult['tax_total'];
+					$item_total += $arrResult['item_total'];
+					$taxtype				  = $arrResult['type'];//SEP25
+					$vat					  = $arrResult['vat'];//SEP25
+					
+					//manage removed service...
+					if($attributes['lbremove_item']!='')
+					{
+						$arrids = explode(',', $attributes['lbremove_item']);
+						$remline_total = $remtax_total = 0;
+						foreach($arrids as $row) {
+							DB::table('packing_list_item')->where('id', $row)->update(['status' => 0,'deleted_at' => now()]);
+						}
+					}
+				}
+				
+				if(isset($attributes['photo_id'])) {
+					
+					foreach($attributes['photo_id'] as $key => $val) {
+						
+						//UPDATE...
+						if($val!='') {
+							DB::table('job_photos')
+								->where('id', $val)
+								->update(['photo' =>  $attributes['photo_name'][$key],
+										  'description'	=> $attributes['imgdesc'][$key]
+										]);
+										
+						} else { 
+							//ADD NEW..
+							DB::table('job_photos')
+								->insert(['job_order_id' => $this->packing_list->id, 
+										  'photo' => $attributes['photo_name'][$key],
+										  'description'	=> $attributes['imgdesc'][$key]
+										]);
+						}
+					}
+				}
+				
+				
+				//Remove photos
+				if(isset($attributes['rem_photo_id']) && $attributes['rem_photo_id']!='') {
+					$rem_photos = explode(',',$attributes['rem_photo_id']);
+					foreach($rem_photos as $id) {
+						$rec = DB::table('job_photos')->find($id);
+						DB::table('job_photos')->where('id', $id)->delete();
+						
+						if($rec->photo!='') {			
+							$fPath = public_path() . $this->imgDir.'/'.$rec->photo;
+							File::delete($fPath);
+						}
+					}
+				}
+			
+                
+				//DEC22   sales order info insert
+				if(isset($attributes['infoid'])) {
+				foreach($attributes['infoid'] as $key => $value) {
+					if($value=='') {
+						$packingListInfo= new PackingListInfo();
+						if($this->setInfoInputValue($attributes, $packingListInfo, $key, $value)) {
+							$packingListInfo->status = 1;
+							$this->packing_list->packingListInfo()->save($packingListInfo);
+						}
+					} else {
+						DB::table('packing_list_info')->where('id',$value)->update(['title' => $attributes['title'][$key], 'description' => $attributes['desc'][$key]]);
+					}
+				}
+				}
+				//manage removed items...
+				
+				if($attributes['remove_item']!='')
+				{
+					$arrids = explode(',', $attributes['remove_item']);
+					$remline_total = $remtax_total = 0;
+					foreach($arrids as $row) {
+						DB::table('packing_list_item')->where('id', $row)->update(['status' => 0, 'deleted_at' => now()]);
+					}
+				}
+				$this->packing_list->voucher_date  = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+				$this->packing_list->fill($attributes)->save();
+				
+				if($this->setInputValue($attributes)) {
+					$this->packing_list->modify_at = now();
+					$this->packing_list->modify_by = Auth::User()->id;
+					$this->packing_list->fill($attributes)->save();
+				}
+			
+				/*CHG*/
+				$subtotal = $line_total - $discount;
+				if($taxtype=='tax_include' && $attributes['discount'] == 0) {
+				  
+				  $net_amount = $subtotal;
+				  $tax_total = ($subtotal * $vat) / (100 + $vat);
+				  $subtotal = $subtotal - $tax_total;
+				  
+				} elseif($taxtype=='tax_include' && $attributes['discount'] > 0) { 
+				
+				   $tax_total = ($subtotal * $vat) / (100 + $vat);
+				   $net_amount = $subtotal - $tax_total;
+				} else 
+					$net_amount = $subtotal + $tax_total;
+				/*CHG*/
+				
+				//VAT calculate from subtotal...
+				$net_total_pay = '';
+				if(isset($attributes['vatfrm_subtotal'])) {
+					//$subtotal = $line_total - $attributes['less_amount'];
+					$tax_total = $attributes['vat'];//($subtotal * $attributes['vatfrm_subtotal']) / 100;
+					
+					$less_amount = (isset($attributes['less_amount']))?$attributes['less_amount']:0;
+					$less_amount2 = (isset($attributes['less_amount2']))?$attributes['less_amount2']:0;
+					$less_amount3 = (isset($attributes['less_amount3']))?$attributes['less_amount3']:0;
+					$line_total = $attributes['total']; //CHNG SEP 17
+					$subtotal = $line_total - $less_amount - $less_amount2 - $less_amount3;
+						
+					$net_amount = $net_total_pay = $attributes['net_amount']; //CHNG SEP 17
+				}
+				
+				if( isset($attributes['is_fc']) ) {
+					$total_fc 	   = $line_total / $attributes['currency_rate'];
+					$discount_fc   = $attributes['discount'] / $attributes['currency_rate'];
+					$vat_fc 	   = $attributes['vat_fc'] / $attributes['currency_rate'];
+					$tax_fc 	   = $tax_total / $attributes['currency_rate'];
+					$net_amount_fc = $total_fc - $discount_fc + $tax_fc;
+					$subtotal_fc	   = $subtotal / $attributes['currency_rate']; //CHG
+				} else {
+					$total_fc = 0; $discount_fc = 0; $tax_fc = 0; $net_amount_fc = 0; $vat_fc = $subtotal_fc = 0;
+				}
+				
+				//echo 'n: '.$net_amount;exit;
+				//update discount, total amount
+				DB::table('packing_list')
+							->where('id', $this->packing_list->id)
+							->update(['total'    	  => $line_total,
+									  'discount' 	  => isset($attributes['discount'])?$attributes['discount']:0,
+									  'vat_amount'	  => $tax_total,
+									  'net_total'	  => $net_amount,
+									  'total_fc' 	  => $total_fc,
+									  'discount_fc'   => $discount_fc,
+									  'vat_amount_fc' => $tax_fc,
+									  
+									  'net_total_fc'  => $net_amount_fc,
+									  'subtotal'	  => $subtotal,
+									  'subtotal_fc'	  => $subtotal_fc,
+									  'net_total_pay' => $net_total_pay,
+									  'footer_text'	  => isset($attributes['footer'])?$attributes['footer']:'',
+									  'doc_status' 	  => (isset($attributes['doc_status']))?$attributes['doc_status']:'',
+									  'comment'		  => (isset($attributes['comment']))?$attributes['comment']:((isset($attributes['comment_hd']))?$attributes['comment_hd']:'')
+									  ]);
+									  
+				if(isset($attributes['tempid'])) {
+					DB::table('crm_info')->where('doc_id',$this->packing_list->id)->delete();
+					foreach($attributes['tempid'] as $key => $row) {
+						DB::table('crm_info')->insert(['temp_id' => $row, 'textval' => $attributes['crmtext'][$key],'doc_id' => $this->packing_list->id, 'textval2' => isset($attributes['crmtext2'][$key])?$attributes['crmtext2'][$key]:'']);
+					}
+				}
+				
+			DB::commit(); 
+			return true;
+			
+		} catch(\Exception $e) {
+			
+			DB::rollback(); echo $e->getLine().'-'.$e->getMessage();exit;
+			return false;
+		}
+	}
+	
+	public function delete($id)
+	{
+		$this->packing_list = $this->packing_list->find($id);
+		
+		//Quotatio unlock....
+		DB::table('quotation_sales')->where('id',$this->packing_list->quotation_id)->update(['is_transfer' => 0, 'is_editable' => 0]);
+			
+		$this->packing_list->delete();
+	}
+	
+	public function quotationSalesList()
+	{
+		$query = $this->packing_list->where('packing_list.status',1);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+					->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} )
+					->select('packing_list.*','am.master_name AS customer','V.reg_no','V.name AS vehicle')
+					->orderBY('packing_list.id', 'DESC')
+					->get();
+	}
+	
+		
+	public function check_reference_no($refno, $id = null) { 
+		
+		if($id)
+			return $this->packing_list->where('reference_no',$refno)->where('id', '!=', $id)->count();
+		else
+			return $this->packing_list->where('reference_no',$refno)->count();
+	}
+		
+	public function getCustomerOrder($customer_id, $type=null)
+	{
+		 $query = $this->packing_list
+						->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} )
+						->leftJoin('jobmaster AS J', function($join) {
+							$join->on('J.id','=','packing_list.job_id');
+						} )
+					 ->where('packing_list.status', 1)
+					 ->where('packing_list.customer_id', $customer_id)
+					 ->where('packing_list.is_transfer', 0);
+					
+					if($type) {
+						$query->where(function($qry) {
+							$qry->where('packing_list.salesman_id', 0)->where('packing_list.doc_status', 0)
+								->orWhere('packing_list.salesman_id','>',0)->where('packing_list.doc_status', 1);
+						});
+					}
+					 
+		return	$query->select('packing_list.id','packing_list.voucher_no','packing_list.voucher_date','packing_list.net_total','V.reg_no','V.name AS vehicle',
+							   'packing_list.prefix','J.code')->get();
+		
+	}
+	
+	public function findOrderData($id)
+	{
+		$query = $this->packing_list->where('packing_list.id', $id)->where('packing_list.is_transfer', 0);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+					->leftJoin('header_footer AS f',function($join) {
+						$join->on('f.id','=','packing_list.footer_id');
+					})
+					->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} )
+					->leftJoin('salesman AS S', function($join) {
+							$join->on('S.id','=','packing_list.salesman_id');
+						} )
+					->select('packing_list.*','am.master_name AS customer','f.title AS footer','V.reg_no','V.name AS vehicle',
+							 'S.name AS salesman','V.issue_plate','V.code_plate','V.make','V.model')
+					->orderBY('packing_list.id', 'ASC')
+					->first();
+	}
+	
+
+	public function getOrderReport($attributes) 
+	{
+		$result = array();
+		
+		if($attributes['date_from']!=null && $attributes['date_to']!=null) {
+			$date_from = (isset($attributes['date_from']))?date('Y-m-d', strtotime($attributes['date_from'])):'';
+			$date_to = (isset($attributes['date_to']))?date('Y-m-d', strtotime($attributes['date_to'])):'';
+			
+			$result = $this->packing_list->where('packing_list.status',1)
+								    ->join('account_master AS AM', function($join) {
+									   $join->on('AM.id','=','packing_list.customer_id');
+								   })
+								   ->leftJoin('jobmaster AS JM', function($join) {
+									   $join->on('JM.id','=','packing_list.job_id');
+								   })
+								   ->whereBetween('voucher_date', array($date_from, $date_to))
+								   ->select('AM.master_name AS supplier','packing_list.*','JM.name AS job')
+								   ->orderBY('id', 'ASC')
+								   ->get();
+		} else {
+			$result = $this->packing_list->where('packing_list.status',1)
+								   ->join('account_master AS AM', function($join) {
+									   $join->on('AM.id','=','packing_list.customer_id');
+								   })
+								   ->leftJoin('jobmaster AS JM', function($join) {
+									   $join->on('JM.id','=','packing_list.job_id');
+								   })
+								   ->select('AM.master_name AS supplier','packing_list.*','JM.name AS job')
+								   ->orderBY('packing_list.id', 'ASC')
+								   ->get();
+		}
+		
+		return $result; 
+	}
+	
+	public function getOrder($attributes)
+	{
+		$order = $this->packing_list->where('packing_list.id', $attributes['document_id'])
+								   ->join('account_master AS AM', function($join) {
+									   $join->on('AM.id','=','packing_list.customer_id');
+								   })
+								   ->leftJoin('currency AS C', function($join) {
+									   $join->on('C.id','=','packing_list.currency_id');
+								   })
+								   ->leftJoin('jobmaster AS J', function($join) {
+									   $join->on('J.id','=','packing_list.job_id');
+								   })
+								    ->leftJoin('vehicle AS V', function($join) {
+									   $join->on('V.id','=','packing_list.vehicle_id');
+								   })
+								    ->leftJoin('salesman AS SL', function($join) {
+									   $join->on('SL.id','=','packing_list.salesman_id');
+								   })
+								   ->leftJoin('terms AS TR', function($join) {
+									   $join->on('TR.id','=','packing_list.terms_id');
+								   })
+								   ->select('AM.account_id','AM.master_name AS supplier','packing_list.*','AM.address','AM.city','AM.state','AM.pin','AM.vat_no','AM.phone','C.name AS currency',
+								   'V.name AS vehicle','V.reg_no','V.make','V.color','V.issue_plate','V.code_plate','SL.name AS salesman','TR.description AS terms')
+								   ->orderBY('packing_list.id', 'ASC')
+								   ->first();
+								   
+		$items = $this->packing_list->where('packing_list.id', $attributes['document_id'])
+								   ->join('packing_list_item AS PI', function($join) {
+									   $join->on('PI.packing_list_id','=','packing_list.id');
+								   })
+								   ->join('itemmaster AS IM', function($join) {
+									   $join->on('IM.id','=','PI.item_id');
+								   })
+								   ->join('units AS U', function($join) {
+									   $join->on('U.id','=','PI.unit_id');
+								   })
+								   ->where('PI.status',1)
+								   ->where('PI.deleted_at','0000-00-00 00:00:00')
+								   ->select('PI.*','packing_list.id','IM.item_code','U.unit_name')
+								   ->get();
+								   
+		return $result = ['details' => $order, 'items' => $items];
+	}
+	public function findSIdata($id)
+	{
+		$query = DB::table('sales_invoice')->where('sales_invoice.id', $id);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','sales_invoice.customer_id');
+						} )
+					->leftJoin('salesman AS S',function($join) {
+						$join->on('S.id','=','sales_invoice.salesman_id');
+					})
+					->select('sales_invoice.*','am.master_name AS customer','S.name AS salesman','am.email')
+					->first();
+	}
+	public function findPOdataold($id)
+	{
+		$query = $this->packing_list->where('packing_list.id', $id);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+					->leftJoin('header_footer AS f',function($join) {
+						$join->on('f.id','=','packing_list.footer_id');
+					})
+					->leftJoin('salesman AS S',function($join) {
+						$join->on('S.id','=','packing_list.salesman_id');
+					})
+					->leftJoin('vehicle AS V',function($join) {
+						$join->on('V.id','=','packing_list.vehicle_id');
+					})
+					->select('packing_list.*','am.master_name AS customer','f.title AS footer','S.name AS salesman','V.name AS vehicle',
+							 'V.reg_no','V.model','V.make','V.issue_plate','V.code_plate','am.email')
+					->first();
+	}
+	
+	
+	public function getItems($id,$mod=null)
+	{
+		$query = $this->packing_list->where('packing_list.id',$id);
+		
+		$query->join('packing_list_item AS poi', function($join) {
+							$join->on('poi.packing_list_id','=','packing_list.id');
+						} )
+					  ->leftjoin('itemmaster AS im', function($join){
+						  $join->on('im.id','=','poi.item_id');
+					  })
+					  ->leftjoin('item_unit AS iu', function($join){
+						  $join->on('iu.itemmaster_id','=','poi.item_id');
+					  })
+					  ->leftjoin('units AS u', function($join){
+						  $join->on('u.id','=','poi.unit_id');
+					  })
+					  ->where('poi.status',1);
+					  
+					  if($mod) {
+						$val = ($mod=='ser')?2:1;
+						$query->where('im.class_id',$val);
+					  }
+					  
+		return $query->where('poi.deleted_at','0000-00-00 00:00:00')
+					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
+					  ->groupBy('poi.id')
+					  ->orderBY('poi.id')
+					  ->get();
+	}
+	
+	public function getSIitems($id)
+	{
+		
+		$query = DB::table('sales_invoice')->whereIn('sales_invoice.id',$id);
+		
+		return $query->join('sales_invoice_item AS poi', function($join) {
+							$join->on('poi.sales_invoice_id','=','sales_invoice.id');
+						} )
+					  ->join('itemmaster AS im', function($join){
+						  $join->on('im.id','=','poi.item_id');
+					  })
+					  ->where('poi.status',1)
+					  ->where('im.class_id',1)
+					  ->select('poi.*','im.item_code','im.description')
+					  ->where('poi.deleted_at', '0000-00-00 00:00:00')
+					  ->orderBY('poi.id')
+					  ->groupBy('poi.id')
+					  ->get();
+		
+	}
+	public function getSOdata($customer_id = null)
+	{
+		if($customer_id)
+			$query = DB::table('sales_order')->where('sales_order.status',1)->where('sales_order.is_transfer',0)->where('sales_order.customer_id',$customer_id);
+		else
+			$query = DB::table('sales_order')->where('sales_order.status',1)->where('sales_order.is_transfer',0);
+		
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','sales_order.customer_id');
+						} )
+					->select('sales_order.*','am.master_name AS customer')
+					->orderBY('sales_order.id', 'ASC')
+					->get();
+	}
+
+	public function getVehicleExpiryInfo() {
+		//	$parameter1 = DB::table('packing_list')->where('packing_list.is_editable','=',1)->get();
+		//	$doc_warndays = $parameter1->next_due;
+		//	echo '<pre>';print_r($doc_warndays);
+		//	$todate = date('Y-m-d', strtotime($doc_warndays . "+10 days"));
+		//	echo '<pre>';print_r($todate);exit;
+		$fromdate = date('Y-m-d');
+		//$endDate = Carbon::now()->addDays(30);
+	//	$endDate = Carbon::now()->subdays(10);
+	//	$endDate = Carbon::today()->addDays(7);
+		//$endDate = date('Y-m-d', strtotime("+". ." 10 days"));
+		//echo '<pre>';print_r($endDate);exit;
+		//Carbon::today()->addDays(10);
+		$parameter1 = DB::table('parameter1')->first();
+		$doc_warndays = $parameter1->doc_warndays;
+		
+		$endDate = date('Y-m-d', strtotime("+".$doc_warndays." days"));
+	//	->where('packing_list.is_editable','=',1)
+	//->whereBetween('packing_list.next_due', array($fromdate,$endDate))
+			$query = $this->packing_list	->where('packing_list.is_editable','=',1)
+			->where('packing_list.next_due','!=',0);
+			$doc_warnda =  $query->join('account_master AS am', function($join) {
+								$join->on('am.id','=','packing_list.customer_id');
+							} )->leftJoin('sales_invoice AS SI', function($join) {
+								$join->on('SI.document_id','=','packing_list.id');
+							} )
+					
+						
+						->leftJoin('vehicle AS V',function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						})
+						->select('packing_list.*','am.master_name AS customer','packing_list.next_due AS expiry_date','V.name AS vehicle',
+								 'V.reg_no','V.model','V.make','V.issue_plate','V.code_plate','am.email')
+						->get();
+
+						//echo '<pre>';print_r($doc_warnda);exit;
+						return $doc_warnda;
+	
+	}
+	public function getPendingReport($attributes)
+	{
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		
+		switch($attributes['search_type']) {
+			case 'summary':
+				$query = $this->packing_list
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('vehicle AS V', function($join) {
+									$join->on('V.id','=','packing_list.vehicle_id');
+								})
+								->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						if(isset($attributes['customer_id']) && $attributes['customer_id']!=''){
+							$query->where('packing_list.customer_id', $attributes['customer_id']);	
+						} 
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+								$query->whereIn('packing_list.job_id', $attributes['job_id']);	
+							
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','packing_list.total','packing_list.vat_amount','S.name AS salesman',
+									  'SOI.quantity','SOI.balance_quantity','SOI.unit_price','AM.master_name','packing_list.net_total','packing_list.discount',
+									  'V.reg_no','V.issue_plate','V.code_plate','packing_list.voucher_date','J.code AS jobcode','J.name AS jobname','J.code AS jobcode')
+								->groupBy('packing_list.id')->get();
+				break;
+				
+			case 'jobwise':
+				$query = $this->packing_list
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						if(isset($attributes['customer_id']) && $attributes['customer_id']!=''){
+							$query->where('packing_list.customer_id', $attributes['customer_id']);	
+						} 
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+						$query->whereIn('J.id', $attributes['job_id']);
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','packing_list.total','packing_list.vat_amount','S.name AS salesman',
+									  'SOI.quantity','SOI.balance_quantity','SOI.unit_price','AM.master_name','packing_list.net_total','packing_list.discount',
+									  'packing_list.voucher_date','J.code AS jobcode','J.name AS jobname','packing_list.less_amount','packing_list.less_amount2','packing_list.less_amount3')
+								->orderBY('jobcode','ASC')
+								->groupBy('packing_list.id')->get();
+				break;
+				
+			case 'customer_wise':
+				$query = $this->packing_list
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						if(isset($attributes['customer_id']) && $attributes['customer_id']!=''){
+							$query->where('packing_list.customer_id', $attributes['customer_id']);	
+						} 
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+						$query->whereIn('J.id', $attributes['job_id']);	
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','packing_list.total','packing_list.vat_amount','S.name AS salesman',
+									  'SOI.quantity','SOI.balance_quantity','SOI.unit_price','AM.master_name','packing_list.net_total','packing_list.discount',
+									  'packing_list.voucher_date','J.code AS jobcode','J.name AS jobname','packing_list.less_amount','packing_list.less_amount2','packing_list.less_amount3')
+								->orderBY('master_name','ASC')
+								->groupBy('packing_list.id')->get();
+				break;
+				
+			case 'summary_pending':
+				$query = $this->packing_list->where('SOI.is_transfer','!=',1)
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('vehicle AS V', function($join) {
+									$join->on('V.id','=','packing_list.vehicle_id');
+								})
+								->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						if(isset($attributes['customer_id']) && $attributes['customer_id']!=''){
+							$query->where('packing_list.customer_id', $attributes['customer_id']);	
+						} 
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+							$query->whereIn('packing_list.job_id', $attributes['job_id']);
+						
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','packing_list.total','packing_list.vat_amount','packing_list.discount','J.code AS jobcode',
+									  'SOI.quantity','SOI.balance_quantity','J.code AS jobcode','J.name AS jobname','SOI.unit_price','AM.master_name','packing_list.net_total','S.name AS salesman','SOI.vat_amount AS unit_vat',
+									  'V.reg_no','V.issue_plate','V.code_plate')
+								->get();//->groupBy('packing_list.id')
+								
+				break;
+				
+			case 'detail':
+				$query = $this->packing_list
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','SOI.item_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('vehicle AS V', function($join) {
+									$join->on('V.id','=','packing_list.vehicle_id');
+								})->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						} 
+						if(isset($attributes['customer_id']) && $attributes['customer_id']!=''){
+							$query->where('packing_list.customer_id', $attributes['customer_id']);	
+						} 
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+							$query->whereIn('packing_list.job_id', $attributes['job_id']);
+						
+				return $query->select('packing_list.voucher_no','packing_list.voucher_date','packing_list.reference_no','IM.item_code','IM.description','S.name AS salesman','SOI.vat_amount AS unit_vat','J.code as jobcode',
+									  'SOI.quantity','SOI.unit_price','SOI.line_total','J.code AS jobcode','J.name AS jobname','AM.master_name','packing_list.net_total','packing_list.discount',
+									  'V.reg_no','V.issue_plate','V.code_plate')
+								->get();
+				break;
+				
+			case 'detail_pending':
+				$query = $this->packing_list->where('QSI.is_transfer','!=',1)
+								->join('packing_list_item AS QSI', function($join) {
+									$join->on('QSI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','QSI.item_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('vehicle AS V', function($join) {
+									$join->on('V.id','=','packing_list.vehicle_id');
+								})
+								->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('QSI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						if(isset($attributes['customer_id']) && $attributes['customer_id']!=''){
+							$query->where('packing_list.customer_id', $attributes['customer_id']);	
+						} 
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+							$query->whereIn('packing_list.job_id', $attributes['job_id']);
+						
+				return $query->select('packing_list.voucher_no','packing_list.voucher_date','packing_list.reference_no','IM.item_code','IM.description','packing_list.total','packing_list.vat_amount','packing_list.discount','J.code AS jobcode',
+									  'QSI.quantity','QSI.balance_quantity','QSI.unit_price','J.code AS jobcode','J.name AS jobname','QSI.line_total','AM.master_name','packing_list.net_total','S.name AS salesman',
+									  'V.reg_no','V.issue_plate','V.code_plate')
+								->get();
+				break;
+		}
+	}
+	
+
+	public function getPendingReportrental($attributes)
+	{
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		
+		switch($attributes['search_type']) {
+			case 'summary':
+				$query = $this->packing_list
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('vehicle AS V', function($join) {
+									$join->on('V.id','=','packing_list.vehicle_id');
+								})
+								->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								}) ;
+								 //->where('SOI.status',1)->where('is_rental',1)
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+						$query->whereIn('J.id', $attributes['job_id']);		
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','packing_list.total','packing_list.vat_amount','S.name AS salesman',
+									  'SOI.quantity','SOI.balance_quantity','SOI.unit_price','AM.master_name','packing_list.net_total','packing_list.discount',
+									  'V.reg_no','V.issue_plate','V.code_plate','packing_list.voucher_date','J.code AS jobcode','J.name AS jobname')
+								->groupBy('packing_list.id')->get();
+				break;
+				
+			case 'jobwise':
+				$query = $this->packing_list
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('SOI.status',1);
+								//->where('is_rental',1)
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+						$query->whereIn('J.id', $attributes['job_id']);
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','packing_list.total','packing_list.vat_amount','S.name AS salesman',
+									  'SOI.quantity','SOI.balance_quantity','SOI.unit_price','AM.master_name','packing_list.net_total','packing_list.discount',
+									  'packing_list.voucher_date','J.code AS jobcode','J.name AS jobname','packing_list.less_amount','packing_list.less_amount2','packing_list.less_amount3')
+								->orderBY('jobcode','ASC')
+								->groupBy('packing_list.id')->get();
+				break;
+				
+			case 'customer_wise':
+				$query = $this->packing_list
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('SOI.status',1);
+								//->where('is_rental',1)
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+						$query->whereIn('J.id', $attributes['job_id']);	
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','packing_list.total','packing_list.vat_amount','S.name AS salesman',
+									  'SOI.quantity','SOI.balance_quantity','SOI.unit_price','AM.master_name','packing_list.net_total','packing_list.discount',
+									  'packing_list.voucher_date','J.code AS jobcode','J.name AS jobname','packing_list.less_amount','packing_list.less_amount2','packing_list.less_amount3')
+								->orderBY('master_name','ASC')
+								->groupBy('packing_list.id')->get();
+				break;
+				
+			case 'summary_pending':
+				$query = $this->packing_list->where('SOI.is_transfer','!=',1)
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('vehicle AS V', function($join) {
+									$join->on('V.id','=','packing_list.vehicle_id');
+								})->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('SOI.status',1);
+								//->where('is_rental',1)
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+						$query->whereIn('jobmaster.id', $attributes['job_id']);
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','packing_list.total','packing_list.vat_amount','packing_list.discount',
+									  'SOI.quantity','SOI.balance_quantity','J.code AS jobcode','J.name AS jobname','SOI.unit_price','AM.master_name','packing_list.net_total','S.name AS salesman','SOI.vat_amount AS unit_vat',
+									  'V.reg_no','V.issue_plate','V.code_plate')
+								->get();//->groupBy('packing_list.id')
+								
+				break;
+				
+			case 'detail':
+				$query = $this->packing_list
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','SOI.item_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('vehicle AS V', function($join) {
+									$join->on('V.id','=','packing_list.vehicle_id');
+								})->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('SOI.status',1);
+								//->where('is_rental',1)
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						/* if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						} */
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+						$query->whereIn('jobmaster.id', $attributes['job_id']);
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','IM.item_code','IM.description','S.name AS salesman','SOI.vat_amount AS unit_vat',
+									  'SOI.quantity','SOI.unit_price','SOI.line_total','J.code AS jobcode','J.name AS jobname','AM.master_name','packing_list.net_total','packing_list.discount',
+									  'V.reg_no','V.issue_plate','V.code_plate')
+								->get();
+				break;
+				
+			case 'detail_pending':
+				$query = $this->packing_list->where('QSI.is_transfer','!=',1)
+								->join('packing_list_item AS QSI', function($join) {
+									$join->on('QSI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','QSI.item_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('vehicle AS V', function($join) {
+									$join->on('V.id','=','packing_list.vehicle_id');
+								})->leftJoin('jobmaster AS J', function($join) {
+									$join->on('J.id','=','packing_list.job_id');
+								})
+								->where('QSI.status',1);
+								//->where('is_rental',1)
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						if(isset($attributes['job_id']) && $attributes['job_id']!='')
+						$query->whereIn('jobmaster.id', $attributes['job_id']);
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','IM.item_code','IM.description','packing_list.total','packing_list.vat_amount','packing_list.discount',
+									  'QSI.quantity','QSI.balance_quantity','QSI.unit_price','J.code AS jobcode','J.name AS jobname','QSI.line_total','AM.master_name','packing_list.net_total','S.name AS salesman',
+									  'V.reg_no','V.issue_plate','V.code_plate')
+								->get();
+				break;
+		}
+	}
+	
+
+	public function getItemDesc($id)
+	{
+		return DB::table('packing_list')
+						->join('packing_list_item AS QSI', function($join) {
+							$join->on('QSI.packing_list_id', '=', 'packing_list.id');
+						})
+						->join('item_description AS D', function($join) {
+							$join->on('D.item_detail_id', '=', 'QSI.id');
+						})
+						->where('packing_list.id', $id)
+						->where('D.invoice_type','SO')
+						->where('QSI.status',1)
+						->where('QSI.deleted_at','0000-00-00 00:00:00')
+						->where('D.status',1)
+						->where('D.deleted_at','0000-00-00 00:00:00')
+						->select('D.*')
+						->get();
+	}
+	
+	public function check_voucher_no($refno, $id = null) { 
+		
+		if($id)
+			return $this->packing_list->where('voucher_no',$refno)->where('id', '!=', $id)->count();
+		else
+			return $this->packing_list->where('voucher_no',$refno)->count();
+	}
+	
+	public function getjobDescription($id)
+	{
+		return DB::table('joborder_details')->where('joborder_id',$id)->where('status',1)->whereNull('deleted_at')->get();
+	}
+
+	public function packingListListCountRent()
+	{
+		$query = $this->packing_list->where('packing_list.status',1);
+		//->where('is_rental',1)
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+					->count();
+	}
+
+	public function packingListListrental($type,$start,$limit,$order,$dir,$search)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+						->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} );
+						
+				if($search) {
+					$query->where('packing_list.voucher_no','LIKE',"%{$search}%")
+                          ->orWhere('am.master_name', 'LIKE',"%{$search}%");
+				}
+				
+				$query->select('packing_list.*','am.master_name AS customer','V.reg_no','V.name AS vehicle')
+					->offset($start)
+                    ->limit($limit)
+                    ->orderBy($order,$dir);
+					
+				if($type=='get')
+					return $query->get();
+				else
+					return $query->count();
+	}
+	public function packingListListCount()
+	{
+		$query = $this->packing_list->where('packing_list.status',1);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+					->count();
+	}
+	
+	public function packingListList($type,$start,$limit,$order,$dir,$search)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+						->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} );
+						
+				if($search) {
+					$query->where('packing_list.voucher_no','LIKE',"%{$search}%")
+					->orWhere('V.reg_no', 'LIKE',"%{$search}%")
+					->orWhere('V.name', 'LIKE',"%{$search}%")
+					->orWhere('packing_list.reference_no', 'LIKE',"%{$search}%")
+                          ->orWhere('am.master_name', 'LIKE',"%{$search}%");
+				}
+				
+				$query->select('packing_list.*','am.master_name AS customer','V.reg_no','V.name AS vehicle',
+								DB::raw('SUBSTRING_INDEX(packing_list.voucher_no, "/", 1) AS bin_name1'))
+								//DB::raw('SUBSTRING_INDEX(packing_list.voucher_no, "/", -1) AS bin_name2'))
+					->offset($start)
+                    ->limit($limit)
+					//->orderBy($order,$dir)
+					->orderBy('bin_name1','DESC');
+					//->orderBy('bin_name2','ASC');
+					//->sortBy('packing_list.voucher_no');
+					
+				if($type=='get')
+					return $query->get();
+				else
+					return $query->count();
+	}
+	
+	public function packingListPendingList($type,$start,$limit,$order,$dir,$search)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+						->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} )
+						->join('packing_list_item AS soi', function($join) {
+							$join->on('soi.packing_list_id','=','packing_list.id');
+						} )
+						->where('packing_list.is_warning',0);
+						
+				if($search) {
+					$query->where('packing_list.voucher_no','LIKE',"%{$search}%")
+					->orWhere('V.reg_no', 'LIKE',"%{$search}%")
+					->orWhere('V.name', 'LIKE',"%{$search}%")
+					->orWhere('packing_list.reference_no', 'LIKE',"%{$search}%")
+                    ->orWhere('am.master_name', 'LIKE',"%{$search}%")
+                    ->orWhere('soi.item_id', $search);
+				}
+				
+				$query->select('packing_list.*','am.master_name AS customer','V.reg_no','V.name AS vehicle')
+					->offset($start)
+                    ->limit($limit)
+                    ->groupBy('soi.packing_list_id')
+                    ->orderBy($order,$dir);
+					
+				if($type=='get')
+					return $query->get();
+				else
+					return $query->count();
+	}
+	
+	
+	public function packingListPendingListCom($type,$start,$limit,$order,$dir,$search)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+						->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} )
+						->join('packing_list_item AS soi', function($join) {
+							$join->on('soi.packing_list_id','=','packing_list.id');
+						} )
+						->where('packing_list.is_warning',1);
+						
+				if($search) {
+					$query->where('packing_list.voucher_no','LIKE',"%{$search}%")
+					->orWhere('V.reg_no', 'LIKE',"%{$search}%")
+					->orWhere('V.name', 'LIKE',"%{$search}%")
+					->orWhere('packing_list.reference_no', 'LIKE',"%{$search}%")
+                    ->orWhere('am.master_name', 'LIKE',"%{$search}%")
+                    ->orWhere('soi.item_id', $search);
+				}
+				
+				$query->select('packing_list.*','am.master_name AS customer','V.reg_no','V.name AS vehicle')
+					->offset($start)
+                    ->limit($limit)
+                    ->groupBy('soi.packing_list_id')
+                    ->orderBy($order,$dir);
+					
+				if($type=='get')
+					return $query->get();
+				else
+					return $query->count();
+	}
+	
+	
+	public function getPaymentCertificate($attributes)
+	{
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		
+		switch($attributes['search_type']) {
+			case 'jobwise':
+				$query = $this->packing_list
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['jobmaster_id']!='') { 
+							$query->where('packing_list.job_id', $attributes['jobmaster_id']);
+						}
+						 
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','packing_list.total','packing_list.vat_amount',
+									  'SOI.quantity','SOI.balance_quantity','SOI.unit_price','AM.master_name','packing_list.net_total',
+									  'packing_list.voucher_date')
+								->groupBy('packing_list.id')->get();
+				break;
+				
+			case 'summary_pending':
+				$query = $this->packing_list->where('SOI.is_transfer','!=',1)
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('vehicle AS V', function($join) {
+									$join->on('V.id','=','packing_list.vehicle_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						}
+						 
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','packing_list.total','packing_list.vat_amount','packing_list.discount',
+									  'SOI.quantity','SOI.balance_quantity','SOI.unit_price','AM.master_name','packing_list.net_total','S.name AS salesman','SOI.vat_amount AS unit_vat',
+									  'V.reg_no','V.issue_plate','V.code_plate')
+								->get();//->groupBy('packing_list.id')
+								
+				break;
+				
+			case 'detail':
+				$query = $this->packing_list
+								->join('packing_list_item AS SOI', function($join) {
+									$join->on('SOI.packing_list_id','=','packing_list.id');
+								})
+								->join('account_master AS AM', function($join) {
+									$join->on('AM.id','=','packing_list.customer_id');
+								})
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','SOI.item_id');
+								})
+								->leftJoin('salesman AS S', function($join) {
+									$join->on('S.id','=','packing_list.salesman_id');
+								})
+								->leftJoin('vehicle AS V', function($join) {
+									$join->on('V.id','=','packing_list.vehicle_id');
+								})
+								->where('SOI.status',1);
+								
+						if( $date_from!='' && $date_to!='' ) { 
+							$query->whereBetween('packing_list.voucher_date', array($date_from, $date_to));
+						}
+						
+						/* if($attributes['salesman']!='') { 
+							$query->where('packing_list.salesman_id', $attributes['salesman']);
+						} */
+						
+				return $query->select('packing_list.voucher_no','packing_list.reference_no','IM.item_code','IM.description','S.name AS salesman','SOI.vat_amount AS unit_vat',
+									  'SOI.quantity','SOI.unit_price','SOI.line_total','AM.master_name','packing_list.net_total','packing_list.discount',
+									  'V.reg_no','V.issue_plate','V.code_plate')
+								->get();
+				break;
+		}
+	}
+	
+	public function ajax_upload($file)
+	{ 
+		$photo = '';
+		$fname = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+		
+		if($file) {
+			$ext = $file->getClientOriginalExtension();
+			if($ext=='.jpg' ||$ext=='.JPG' || $ext=='.png' || $ext=='.PNG') {
+				$photo = rand(1, 999).$fname.'.'.$ext;
+				$destinationPath = public_path() . $this->imgDir.'/'.$photo;
+				$destinationPathThumb = public_path() . $this->imgDir.'/thumb_'.$photo;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->width, $this->height, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->thumbWidth, $this->thumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			} else {
+				 $photo = rand(1, 999).$fname.'.'.$ext;
+				 $destinationPath = public_path() . $this->imgDir;
+				 $file->move($destinationPath,$photo);
+			}
+		}
+		
+		return $photo;
+
+	}
+	
+	public function TechnicianOrderList($type,$search=null)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+						->leftjoin('salesman AS S', 'S.id','=','packing_list.salesman_id')
+						->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} );
+				
+				if(Session::has('technician_id')){
+				    $query->where('packing_list.salesman_id', Session::get('technician_id'));
+						 // ->where('packing_list.doc_status',0)
+				}
+				
+				if($search) {
+					$query->where('packing_list.voucher_no','LIKE',"%{$search}%")
+							   ->orWhere('V.reg_no', 'LIKE',"%{$search}%");
+				}
+				
+				if($type=='Assigned') {
+					$query->where('packing_list.start_time','')
+							->where('packing_list.end_time','');
+				}
+				
+				if($type=='Working') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','');
+				}
+				
+				if($type=='Completed') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','!=','')
+							->where('packing_list.doc_status',0);
+				}
+				
+				if($type=='Approved') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','!=','')
+							->where('packing_list.doc_status',1);
+				}
+				
+			$result = $query->select('packing_list.*','am.master_name AS customer','V.reg_no','V.name AS vehicle','S.name AS salesman')->get();
+				
+			return $result;
+
+	}
+	
+	public function TechnicianOrderListById($techid,$type)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+						->leftjoin('salesman AS S', 'S.id','=','packing_list.salesman_id')
+						->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} );
+				
+				if(Session::has('technician_id')){
+				    $query->where('packing_list.salesman_id', Session::get('technician_id'))
+						  ->where('packing_list.doc_status',0);
+				}
+				
+				if($techid && $techid!='all') {
+					$query->where('packing_list.salesman_id',$techid);
+				}
+				
+				if($type=='Assigned') {
+					$query->where('packing_list.start_time','')
+							->where('packing_list.end_time','');
+				}
+				
+				if($type=='Working') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','');
+				}
+				
+				if($type=='Completed') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','!=','')
+							->where('packing_list.doc_status',0);
+				}
+				
+				if($type=='Approved') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','!=','')
+							->where('packing_list.doc_status',1);
+				}
+				
+			$result = $query->select('packing_list.*','am.master_name AS customer','V.reg_no','V.name AS vehicle','S.name AS salesman')->get();
+				
+			return $result;
+
+	}
+	
+	public function TechnicianOrderListItems($type)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('packing_list_item AS IT', function($join) {
+							$join->on('IT.packing_list_id','=','packing_list.id');
+						})
+						->join('itemmaster AS IM', function($join) {
+							$join->on('IM.id','=','IT.item_id');
+						})
+						->join('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						});
+						
+				if(Session::has('technician_id')){
+				    $query->where('packing_list.salesman_id', Session::get('technician_id'));
+						 // ->where('packing_list.doc_status',0);
+				}
+				
+								
+				if($type=='Assigned') {
+					$query->where('packing_list.start_time','')
+							->where('packing_list.end_time','');
+				}
+				
+				if($type=='Working') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','');
+				}
+				
+				if($type=='Completed') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','!=','')
+							->where('packing_list.doc_status',0);
+				}
+				
+				if($type=='Approved') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','!=','')
+							->where('packing_list.doc_status',1);
+				}
+				
+			$result = $query->select('packing_list.id','IM.description','IT.quantity')->get();
+				
+			return $result;
+
+	}
+	
+	
+	
+	public function VehicleDetails($type)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						});
+						
+				if(Session::has('technician_id')){
+				    $query->where('packing_list.salesman_id', Session::get('technician_id'))
+						  ->where('packing_list.doc_status',0);
+				}
+				
+				if($type=='Assigned') {
+					$query->where('packing_list.start_time','')
+							->where('packing_list.end_time','');
+				}
+				
+				if($type=='Working') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','');
+				}
+				
+				if($type=='Completed') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','!=','')
+							->where('packing_list.doc_status',0);
+				}
+				
+				if($type=='Approved') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','!=','')
+							->where('packing_list.doc_status',1);
+				}
+				
+			$result = $query->select('packing_list.id','V.reg_no','V.issue_plate','V.code_plate','V.make','V.model')->get();
+				
+			return $result;
+
+	}
+	
+	public function getJobImages($type)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('job_photos AS P', function($join) {
+							$join->on('P.job_order_id','=','packing_list.id');
+						});
+						
+				if(Session::has('technician_id')){
+				    $query->where('packing_list.salesman_id', Session::get('technician_id'))
+						  ->where('packing_list.doc_status',0);
+				}
+				
+				if($type=='Assigned') {
+					$query->where('packing_list.start_time','')
+							->where('packing_list.end_time','');
+				}
+				
+				if($type=='Working') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','');
+				}
+				
+				if($type=='Completed') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','!=','')
+							->where('packing_list.doc_status',0);
+				}
+				
+				if($type=='Approved') {
+					$query->where('packing_list.start_time','!=','')
+							->where('packing_list.end_time','!=','')
+							->where('packing_list.doc_status',1);
+				}
+				
+			$result = $query->select('packing_list.id','P.photo','P.description')->get();
+				
+			return $result;
+
+	}
+	
+	
+	public function TechnicianOrderReport($type,$search=null)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+						->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} )
+						->leftJoin('salesman AS S', function($join) {
+							$join->on('S.id','=','packing_list.salesman_id');
+						} );
+				
+				if(Session::has('technician_id')){
+					
+				    $query->where('packing_list.salesman_id', Session::get('technician_id'))
+						  ->where('packing_list.doc_status',0);
+						  
+					if(request()->input('search_type')=='Pending') {
+						$query->where('packing_list.start_time','')
+								->where('packing_list.end_time','');
+					}
+					
+					if(request()->input('search_type')=='Completed') {
+						$query->where('packing_list.start_time','!=','')
+								->where('packing_list.end_time','!=','')
+								->where('packing_list.doc_status',0);
+					}
+					
+				} else {
+					
+					if(request()->input('search_type')=='Pending') {
+						$query->where('packing_list.start_time','!=','')
+								->where('packing_list.end_time','!=','')
+								->where('packing_list.doc_status',0);
+					}
+					
+					if(request()->input('search_type')=='Completed') {
+						$query->where('packing_list.start_time','!=','')
+								->where('packing_list.end_time','!=','')
+								->where('packing_list.doc_status',1);
+					}
+				}
+				
+			$result = $query->select('packing_list.*','am.master_name AS customer','V.reg_no','V.name AS vehicle','S.name AS salesman')->get();
+				
+			return $result;
+
+	}
+	
+	
+	public function packingListListDelivery($type,$start,$limit,$order,$dir,$search)
+	{
+		$query = $this->packing_list->where('packing_list.status',1)
+						->join('account_master AS am', function($join) {
+							$join->on('am.id','=','packing_list.customer_id');
+						} )
+						->leftJoin('vehicle AS V', function($join) {
+							$join->on('V.id','=','packing_list.vehicle_id');
+						} )
+						->join('packing_list_item AS soi', function($join) {
+							$join->on('soi.packing_list_id','=','packing_list.id');
+						} )
+						->where('packing_list.is_warning',1)
+						->where('packing_list.job_type',0) //CHECK ASSIGNED TO DRIVER
+						->where('packing_list.jctype',0); //CHECK ASSIGNED TO DRIVER
+						
+				if($search) {
+					$query->where('packing_list.voucher_no','LIKE',"%{$search}%")
+					->orWhere('V.reg_no', 'LIKE',"%{$search}%")
+					->orWhere('V.name', 'LIKE',"%{$search}%")
+					->orWhere('packing_list.reference_no', 'LIKE',"%{$search}%")
+                    ->orWhere('am.master_name', 'LIKE',"%{$search}%")
+                    ->orWhere('soi.item_id', $search);
+				}
+				
+				$query->select('packing_list.*','am.master_name AS customer','V.reg_no','V.name AS vehicle')
+					->offset($start)
+                    ->limit($limit)
+                    ->groupBy('soi.packing_list_id')
+                    ->orderBy($order,$dir);
+					
+				if($type=='get')
+					return $query->get();
+				else
+					return $query->count();
+	}
+	
+	
+	public function getReportById($id) {
+		
+		$query = $this->packing_list->where('QSI.is_transfer','!=',1)
+								->join('packing_list_item AS QSI', function($join) {
+									$join->on('QSI.packing_list_id','=','packing_list.id');
+								})
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','QSI.item_id');
+								})
+								->where('packing_list.id',$id)
+								->where('QSI.status',1);
+						
+		return $query->select('packing_list.voucher_no','packing_list.reference_no','IM.item_code','IM.description','packing_list.total','packing_list.vat_amount','packing_list.discount',
+							  'QSI.quantity','QSI.balance_quantity','QSI.unit_price','QSI.line_total','packing_list.net_total')
+							->get();
+	}
+	
+//	
+	
+}
+

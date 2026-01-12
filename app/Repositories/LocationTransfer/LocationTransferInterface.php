@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\LocationTransfer;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface LocationTransferInterface extends RepositoryInterface {
+	
+}
+

@@ -1,0 +1,895 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Repositories\Area\AreaInterface;
+use App\Repositories\Itemmaster\ItemmasterInterface;
+use App\Repositories\Terms\TermsInterface;
+use App\Repositories\Jobmaster\JobmasterInterface;
+use App\Repositories\AccountMaster\AccountMasterInterface;
+use App\Repositories\Currency\CurrencyInterface;
+use App\Repositories\VoucherNo\VoucherNoInterface;
+use App\Repositories\SalesOrder\SalesOrderInterface;
+use App\Repositories\ProformaInvoice\ProformaInvoiceInterface;
+use App\Repositories\PurchaseOrder\PurchaseOrderInterface;
+use App\Repositories\Salesman\SalesmanInterface;
+use App\Repositories\QuotationSales\QuotationSalesInterface;
+use App\Repositories\AccountSetting\AccountSettingInterface;
+use App\Repositories\Country\CountryInterface;
+use App\Repositories\Acgroup\AcgroupInterface;
+use App\Repositories\Forms\FormsInterface;
+use App\Repositories\Location\LocationInterface;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests;
+use Session;
+use Response;
+use Input;
+use Excel;
+use App;
+use DB;
+use Mail;
+use PDF;
+
+class ProformaInvoiceController extends Controller
+{
+
+	protected $itemmaster;
+	protected $terms;
+	protected $jobmaster;
+	protected $accountmaster;
+	protected $currency;
+	protected $voucherno;
+	protected $sales_order;
+	protected $proforma_invoice;
+	protected $purchase_order;
+	protected $salesman;
+	protected $quotation_sales;
+	protected $country;
+	protected $group;
+	protected $area;
+	protected $forms;
+	protected $formData;
+	protected $location;
+	
+	public function __construct(SalesOrderInterface $sales_order,ProformaInvoiceInterface $proforma_invoice, AreaInterface $area, QuotationSalesInterface $quotation_sales, ItemmasterInterface $itemmaster, TermsInterface $terms, JobmasterInterface $jobmaster, AccountMasterInterface $accountmaster, CurrencyInterface $currency, VoucherNoInterface $voucherno, SalesmanInterface $salesman, CountryInterface $country,AcgroupInterface $group,FormsInterface $forms,LocationInterface $location,PurchaseOrderInterface $purchase_order) {
+		
+		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
+		
+		$this->middleware('auth');
+		$this->itemmaster = $itemmaster;
+		$this->terms = $terms;
+		$this->jobmaster = $jobmaster;
+		$this->accountmaster = $accountmaster;
+		$this->currency = $currency;
+		$this->voucherno = $voucherno;
+		$this->sales_order = $sales_order;
+		$this->proforma_invoice = $proforma_invoice;
+		$this->purchase_order = $purchase_order;
+		$this->salesman = $salesman;
+		$this->quotation_sales = $quotation_sales;
+		$this->country = $country;
+		$this->group = $group;
+		$this->area = $area;
+		$this->forms = $forms;
+		$this->formData = $this->forms->getFormData('SO');
+		$this->location = $location;
+	}
+	
+    public function index() { 
+		
+		$data = array();
+		$quotations = [];//$this->sales_order->quotationSalesList();
+		$salesmans = $this->salesman->getSalesmanList();
+		//$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->select('id','code')->get();
+		$custs = [];//DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CUSTOMER')->select('id','master_name')->get();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		return view('body.proformainvoice.index')
+					->withQuotations($quotations)
+					->withSalesman($salesmans)
+					->withJobs($jobs)
+					->withCusts($custs)
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	
+	public function ajaxPaging(Request $request)
+	{
+		if($this->acsettings->doc_approve==1) {
+		    $columns = array( 
+                            0 =>'proforma_invoice.id', 
+                            1 =>'voucher_no',
+                            2=> 'customer',
+                            3=> 'voucher_date',
+                            4=> 'net_total',
+							5=> 'status'
+                        );
+		} else {
+		    $columns = array( 
+                            0 =>'proforma_invoice.id', 
+                            1 =>'voucher_no',
+                            2=> 'customer',
+                            3=> 'voucher_date',
+                            4=> 'net_total',
+							5=> 'reference_no'
+                        );
+		}
+						
+		$totalData = $this->proforma_invoice->proformaInvoiceListCount();
+            
+        $totalFiltered = $totalData; 
+
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'proforma_invoice.voucher_no';
+        $dir = 'desc';
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+        
+		$invoices = $this->proforma_invoice->proformaInvoiceList('get', $start, $limit, $order, $dir, $search);
+		//echo '<pre>';print_r($invoices);exit;
+		if($search)
+			$totalFiltered =  $this->proforma_invoice->proformaInvoiceList('count', $start, $limit, $order, $dir, $search);
+		
+		$prints = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','SO')
+							->select('report_view_detail.name','report_view_detail.id')
+							->get();
+							
+        $data = array();
+        if(!empty($invoices))
+        {
+           
+			foreach ($invoices as $row)
+            {
+                //$edit =  '"'.url('proforma_invoice/edit/'.$row->id).'"';
+                $edit =  url('proforma_invoice/edit/'.$row->id);
+                $delete =  'funDelete("'.$row->id.'","'.$row->is_editable.'")';
+				$print = url('proforma_invoice/print/'.$row->id);
+				$dotranfer = url('customers_do/add/'.$row->id.'/SO');
+				
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['customer'] = ($row->customer=='CASH CUSTOMERS') ? (($row->customer_name!='')?$row->customer.'('.$row->customer_name.')':$row->customer) : $row->customer;
+				$nestedData['net_total'] = $row->net_total;
+				$nestedData['reference_no'] = $row->reference_no;
+                //$nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'><span class='glyphicon glyphicon-pencil'></span></button></p>";
+												
+				$nestedData['edit'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-shield'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												<li role='presentation'><a href='{$edit}' role='menuitem'>Edit</a></li>";
+												
+				if($row->is_transfer!=1)
+				    $nestedData['edit'] .= "<li role='presentation'><a href='{$dotranfer}' role='menuitem'>DO Transfer</a></li>";
+				    
+				$nestedData['edit'] .= "</ul></div>";
+												
+				$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+												<span class='glyphicon glyphicon-trash'></span>";
+				
+				$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+				
+				$opts = '';					
+				foreach($prints as $doc) {
+					$opts .= "<li role='presentation'><a href='{$print}/".$doc->id."' target='_blank' role='menuitem'>".$doc->name."</a></li>";
+				}
+				
+				if(in_array($row->doc_status, $apr))	 {
+					if($row->is_fc==1) {								
+						$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a>
+												<a href='{$print}/FC' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a></p>";
+					} else {
+						//$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";
+						$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>";
+					}
+				} else {
+					$nestedData['print'] = "";
+				}	
+				
+				if($this->acsettings->doc_approve==1) {
+					if($row->doc_status==1)
+						$status = '<span class="label label-sm label-success">Approved</span>';
+					else if($row->doc_status==0)
+						$status = '<span class="label label-sm label-warning">Pending</span>';
+					else if($row->doc_status==2)
+						$status = '<span class="label label-sm label-danger">Rejected</span>';
+					
+					$nestedData['status'] = $status;
+				} else 
+					$nestedData['status'] = '';
+				
+				$data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	public function add($id = null) {
+
+		$data = array(); //echo '<pre>';print_r($this->formData);exit;
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$res = $this->voucherno->getVoucherNo('PFI'); //echo '<pre>';print_r($res);exit;
+		//$vno = $res->no;
+		$row = DB::table('proforma_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+		$location = $this->location->locationList();
+		if($row && in_array($row->doc_status, $apr))
+			$lastid = $row->id;
+		else
+			$lastid = null;
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','SO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+							
+		$prntjobs = [];/* DB::table('proforma_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+						->select('id','voucher_no')
+						->offset(0)->limit(10)
+						->orderBy('id','DESC')
+						->get(); */
+		
+		if($id) {
+			$ids = explode(',', $id);
+			$quoteRow = $this->quotation_sales->findQuoteData($ids[0]);
+			$quoteItems = $this->consolidateItems( $this->quotation_sales->getQSItems($ids) );//echo '<pre>';print_r($quoteRow);exit;
+			
+			$total = 0; $vat_amount = 0; $nettotal = 0;
+			foreach($quoteItems as $item) {
+				if($item->balance_quantity==0)
+					$quantity = $item->quantity;
+				else
+					$quantity = $item->balance_quantity;
+				
+				$total 		+= ($quantity * $item->unit_price) - $item->discount;
+				$vat_amount += ($total * $item->vat) / 100;
+			}
+			$nettotal = $total + $vat_amount;
+			return view('body.proformainvoice.addquote')
+						->withItems($itemmaster)
+						->withTerms($terms)
+						->withJobs($jobs)
+						->withCurrency($currency)
+						->withQuoterow($quoteRow)
+						->withVoucherno($res)
+						->withQuoteitems($quoteItems)
+						->withQuoteid($id)
+						->withTotal($total)
+						->withVatamount($vat_amount)
+						->withNettotal($nettotal)
+						//->withVoucherno(Session::get('voucher_no'))
+						->withReferenceno(Session::get('reference_no'))
+						->withVoucherdt(Session::get('voucher_date'))
+						->withLpodt(Session::get('lpo_date'))
+						->withVatdata($this->vatdata)
+						->withSettings($this->acsettings)
+						->withFormdata($this->formData)
+						->withLocation($location)
+						->withData($data);
+		}
+		
+		return view('body.proformainvoice.add')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withVoucherno($res)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withPrintid($lastid)
+					->withFormdata($this->formData)
+					->withPrint($print)
+					->withLocation($location)
+					->withPrntjobs($prntjobs)
+					->withData($data);
+	}
+	
+	
+	private function consolidateItems($array) {
+	
+    	$combined = array();
+    	foreach( $array as $values )  {
+    	  if( ( $key = array_search( $values->item_id, array_column( $combined, 'item_id') ) ) !== false )  {
+    		$combined[$key]['quantity'] += $values->quantity;
+    	  } else {
+    		$combined[] = $values;
+    	  }
+    	}
+    	return $combined;
+	}
+	
+	public function save(Request $request) { //echo '<pre>';print_r(Input::all());exit;
+	
+		if( $this->validate(
+			$request, 
+			[//'voucher_no' => 'required|unique:sales_order',
+			 'customer_name' => 'required','customer_id' => 'required',
+			 /* 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required' */
+			],
+			[//'voucher_no' => 'Voucher no should be unique.',
+			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
+			 /* 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.' */
+			]
+		)) {
+
+			//echo '<pre>';print_r($request->flash());exit;
+			//return redirect('sales_order/add')->withInput()->withErrors();
+		}
+		
+		if($this->proforma_invoice->create(Input::all()))
+			Session::flash('message', 'Proforma Invoice added successfully.');
+		else
+			Session::flash('error', 'Something went wrong, Order failed to add!');
+		
+		return redirect('proforma_invoice/add');
+	}
+	
+	public function destroy($id)
+	{
+		$this->proforma_invoice->delete($id);
+		//check accountmaster name is already in use.........
+		// code here ********************************
+		Session::flash('message', 'Proforma Invoice  deleted successfully.');
+		return redirect('proforma_invoice');
+	}
+	
+	public function checkRefNo() {
+
+		$check = $this->proforma_invoice->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	
+	public function edit($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->proforma_invoice->findPOdata($id);
+		$orditems = $this->proforma_invoice->getItems($id);
+		$location = $this->location->locationList();
+		
+		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+		if(in_array($orderrow->doc_status, $apr))
+			$isprint = true;
+		else
+			$isprint = null;
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','SO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+							
+		$infodata = DB::table('proforma_invoice_info')->where('proforma_invoice_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();					
+		//echo '<pre>';print_r($infodata);exit;
+		return view('body.proformainvoice.edit') //editsp  edit
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withFormdata($this->formData)
+					->withIsprint($isprint)
+					->withPrint($print)
+					->withLocation($location)
+					->withInfos($infodata)
+					->withData($data);
+
+	}
+	
+	public function update(Request $request)
+	{
+		$id = $request->input('proforma_invoice_id');
+		if( $this->validate(
+			$request, 
+			[//'reference_no' => 'required',
+			 'customer_name' => 'required','customer_id' => 'required',
+			 /* 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required' */
+			],
+			[//'reference_no.required' => 'Reference no. is required.',
+			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
+			 /* 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.' */
+			]
+		)) {
+		
+			return redirect('proforma_invoice/edit/'.$id)->withInput()->withErrors();
+		}
+		
+		$this->proforma_invoice->update($id, Input::all());
+		
+		########## email script #############
+		if($this->acsettings->doc_approve==1 && Input::get('doc_status')==1 && Input::get('chkmail')==1) {
+					
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = '';
+			$result = $this->proforma_invoice->getOrder($attributes);
+			$titles = ['main_head' => 'Proforma Invoice ','subhead' => 'Proforma Invoice '];
+			$data = array('details'=> $result['details'], 'titles' => $titles, 'fc' => $attributes['is_fc'], 'items' => $result['items']);
+			$pdf = PDF::loadView('body.proformainvoice.pdfprint', $data);
+			
+			$mailmessage = Input::get('email_message');
+			$emails = explode(',', Input::get('email'));
+			
+			if($emails[0]!='') {
+				$data = array('name'=> Input::get('customer_name'), 'mailmessage' => $mailmessage );
+				try{
+					Mail::send('body.proformainvoice.email', $data, function($message) use ($emails,$pdf) {
+						$message->to($emails[0]);
+						
+						if(count($emails) > 1) {
+							foreach($emails as $k => $row) {
+								if($k!=0)
+									$cc[] = $row;
+							}
+							$message->cc($cc);
+						}
+						
+						$message->subject('Proforma Invoice ');
+						$message->attachData($pdf->output(), "proforma_invoice.pdf");
+					});
+					
+				}catch(JWTException $exception){
+					$this->serverstatuscode = "0";
+					$this->serverstatusdes = $exception->getMessage();
+					
+				}
+			}
+		}
+		
+		Session::flash('message', 'Proforma Invoice  updated successfully');
+		return redirect('proforma_invoice');
+	}
+	
+	public function ajax_getcode($category)
+	{
+		$group = $this->group->getGroupCode($category);
+		$row = $this->accountmaster->getGroupCode($category);
+		if($row)
+			$no = intval(preg_replace('/[^0-9]+/', '', $row->account_id), 10);
+		else 
+			$no = 0;
+		
+		$no++;
+		
+		return json_encode(array(
+							'code' => strtoupper($group->code).''.$no,
+							'category' => $group->category
+							));
+		//return $code = strtoupper($group->code).''.$no;
+		//return $group->account_id;
+
+	}
+	
+	public function show($id) { 
+
+		$data = array();
+		$acmasterrow = $this->accountmaster->accountMasterView($id);
+		//echo '<pre>';print_r($acmasterrow);exit;
+		return view('body.accountmaster.view')
+					->withMasterrow($acmasterrow)
+					->withData($data);
+	}
+	
+	public function getCustomer($deptid=null)
+	{
+		$data = array();
+		$customers = $this->accountmaster->getCustomerList($deptid);//
+		//print_r($customers);exit;
+		$country = $this->country->activeCountryList();
+		$area = $this->area->activeAreaList();
+		$cus_code = json_decode($this->ajax_getcode($category='CUSTOMER'));
+		return view('body.proformainvoice.customer')//customer
+					->withCustomers($customers)
+					->withArea($area)
+					->withCusid($cus_code->code)
+					->withCategory($cus_code->category)
+					->withFormdata($this->formData)
+					->withCountry($country)
+					->withDeptid($deptid)
+					->withData($data);
+	}
+	
+	public function getSalesman()
+	{
+		$data = array();
+		$salesmans = $this->salesman->getSalesmanList();
+		return view('body.proformainvoice.salesman')
+					->withSalesmans($salesmans)
+					->withData($data);
+	}
+	
+	public function getItem($num)
+	{
+		$data = array();
+		$itemmaster = $this->itemmaster->getActiveItemmasterList();
+		return view('body.proformainvoice.item')
+					->withItems($itemmaster)
+					->withNum($num)
+					->withData($data);
+	}
+	
+	public function getOrder($customer_id, $url)
+	{
+		$data = array();
+		$orders = $this->proforma_invoice->getCustomerOrder($customer_id);
+		return view('body.proformainvoice.order')
+					->withOrders($orders)
+					->withUrl($url)
+					->withData($data);
+	}
+	
+	public function getPrint($id,$rid=null)
+	{
+		//$viewfile = DB::table('report_view')->where('code', 'SO')->where('status',1)->select('view_name')->first();
+		$viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first();
+		if($viewfile->print_name=='') {
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = ($fc)?1:'';
+			$result = $this->proforma_invoice->getOrder($attributes);
+			$titles = ['main_head' => 'Proforma Invoice ','subhead' => 'Proforma Invoice '];
+			return view('body.proformainvoice.print') //printsp print
+						->withDetails($result['details'])
+						->withTitles($titles)
+						->withFc($attributes['is_fc'])
+						->withItems($result['items']);
+		} else {
+			$path = app_path() . '/stimulsoft/helper.php';
+			
+			if(env('STIMULSOFT_VER')==2)
+			        return view('body.reports')->withPath($path)->withView($viewfile->print_name);
+			   else
+			        return view('body.proformainvoice.viewer')->withPath($path)->withView($viewfile->print_name);
+			        
+			
+		}
+		
+	}
+	
+	public function setSessionVal()
+	{
+		Session::put('voucher_no', Input::get('vchr_no'));
+		Session::put('reference_no', Input::get('ref_no'));
+		Session::put('voucher_date', Input::get('vchr_dt'));
+		Session::put('lpo_date', Input::get('lpo_dt'));
+	}
+	
+	protected function makeTree($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		return $childs;
+	}
+
+	protected function makeArrGroup($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		$arr = array();
+		foreach($childs as $child) {
+			$pending_qty = $pending_amt = $vat_amount = $net_amount = $discount = 0;
+			foreach($child as $row) {
+			    $pending_qty = ($row->balance_quantity==0)?$row->quantity:$row->balance_quantity;
+			    $pending_amt += $pending_qty * $row->unit_price;
+				$vat = $row->unit_vat / $row->quantity;
+				$vat_amount += $vat * $pending_qty;
+				$net_amount = $vat_amount + $pending_amt;
+				$voucher_no = $row->voucher_no;
+				$refno = $row->reference_no;
+				$suppname = $row->master_name;
+				$salesman = $row->salesman;
+				$discount = $row->discount;
+				$jobcode = $row->jobcode;
+			}
+			$arr[] = ['voucher_no' => $voucher_no,'reference_no' => $refno, 'master_name' => $suppname, 'discount' => $discount, 
+					  'total' => $pending_amt,'vat_amount' => $vat_amount, 'net_total' => $net_amount, 'salesman' => $salesman,
+					  'jobcode' => $jobcode];
+			
+		}
+
+		return $arr;
+	}
+
+	public function getSearch()
+	{
+		$data = array();
+		
+		$reports = $this->proforma_invoice->getPendingReport(Input::all());//echo '<pre>';print_r($reports);exit;
+		
+		if(Input::get('search_type')=="summary")
+			$voucher_head = 'Proforma Invoice  Summary';
+		elseif(Input::get('search_type')=="summary_pending") {
+			$voucher_head = 'Proforma Invoice  Pending Summary';
+			$reports = $this->makeArrGroup($reports);
+		} elseif(Input::get('search_type')=="detail") {
+			$voucher_head = 'Proforma Invoice Detail';
+			$reports = $this->makeTree($reports);
+		} elseif(Input::get('search_type')=="jobwise") {
+			$voucher_head = 'Proforma Invoice  - Jobwise';
+		} elseif(Input::get('search_type')=="customer_wise") {
+			$voucher_head = 'Proforma Invoice  - Customer Wise';
+		} elseif(Input::get('search_type')=="detail_pending") {
+			$voucher_head = 'Proforma Invoice  Pending Detail';
+			$reports = $this->makeTree($reports);
+		}
+		
+		//echo '<pre>';print_r($reports);exit;
+		return view('body.proformainvoice.preprint') //preprint
+					->withReports($reports)
+					->withVoucherhead($voucher_head)
+					->withType(Input::get('search_type'))
+					->withFromdate(Input::get('date_from'))
+					->withTodate(Input::get('date_to'))
+					->withJobids(json_encode(Input::get('job_id')))
+					->withSalesman(Input::get('salesman'))
+					->withSettings($this->acsettings)
+					->withData($data);
+	}
+	
+	public function dataExport()
+	{
+		$data = array();
+		$datareport[] = ['','','','',strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		Input::merge(['type' => 'export']);
+		Input::merge(['job_id' => json_decode(Input::get('job_id'))]);
+		$reports = $this->proforma_invoice->getPendingReport(Input::all());
+		
+		if(Input::get('search_type')=="summary")
+			$voucher_head = 'Proforma Invoice  Summary';
+		elseif(Input::get('search_type')=="summary_pending") {
+			$voucher_head = 'Proforma Invoice  Pending Summary';
+			$reports = $this->makeArrGroup($reports);
+		} elseif(Input::get('search_type')=="detail") {
+			$voucher_head = 'Proforma Invoice  Detail';
+		} else {
+			$voucher_head = 'Proforma Invoice  Pending Detail';
+		}
+		
+		$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		 //echo '<pre>';print_r($reports);exit;
+		
+		if(Input::get('search_type')=='detail' || Input::get('search_type')=='detail_pending') {
+			
+			$datareport[] = ['SI.No.','SO.#', 'SO.Ref#', 'Job No', 'Customer','Salesman','Item Code','Description','SO.Qty','Rate','Total Amt.'];
+			$i=0;
+			foreach ($reports as $row) {
+				$i++;
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'jobcode' => $row['jobcode'],
+								  'supplier' => $row['master_name'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => number_format($row['unit_price'],2),
+								  'net_amount' => number_format($row['net_total'],2)
+								];
+			}
+		} else {
+			
+			$datareport[] = ['SI.No.','SO.#', 'SO.Ref#', 'Job No', 'Customer','Salesman','Gross Amt.','VAT Amt.','Net Total'];
+			$i=0;
+			$total=0;$gross=0;$vat=0;	
+		    $tot=0;$gs=0;$vt=0;
+			foreach ($reports as $row) {
+					$i++;
+					$datareport[] = [ 'si' => $i,
+									  'po' => $row['voucher_no'],
+									  'ref' => $row['reference_no'],
+									  'jobcode' => $row['jobcode'],
+									  'supplier' => $row['master_name'],
+									  'salesman' => $row['salesman'],
+									  'gross' => number_format($row['total'],2),
+									  'vat' => number_format($row['vat_amount'],2),
+									  'total' => number_format($row['net_total'],2)
+									];
+									$total+= $row['net_total'];
+							        $tot=number_format($total,2) ;
+									$gross+= $row['total'];
+							        $gs=number_format($gross,2) ;
+									$vat+= $row['vat_amount'];
+							        $vt=number_format($vat,2) ;
+									
+			}
+			$datareport[] = ['','','','','','',''];			
+		    $datareport[] = ['','','','','','Total:',$gs,$vt,$tot];
+		}
+		 //echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('NumakPro ERP')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		});
+
+		})->download('xlsx');
+		
+	}
+	
+	public function getNewCustomer($deptid=null)
+	{
+		$data = array();
+		$customers = $this->accountmaster->getCustomerList($deptid);//print_r($customers);exit;
+		$country = $this->country->activeCountryList();
+		$area = $this->area->activeAreaList();
+		$cus_code = json_decode($this->ajax_getcode($category='CUSTOMER'));
+		return view('body.proformainvoice.newcustomer')//customer
+					->withCustomers($customers)
+					->withArea($area)
+					->withCusid($cus_code->code)
+					->withCategory($cus_code->category)
+					->withCountry($country)
+					->withDeptid($deptid)
+					->withData($data);
+	}
+	
+	public function getItemDetails($id) 
+	{
+		$data = array();
+		$items = $this->proforma_invoice->getItems(array($id));
+		return view('body.proformainvoice.itemdetails')
+					->withItems($items)
+					->withData($data);
+	}
+	
+	
+	public function poadd($id) {
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$res = $this->voucherno->getVoucherNo('SO'); //echo '<pre>';print_r($res);exit;
+		//$vno = $res->no;
+		$row = DB::table('proforma_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+		$location = $this->location->locationList();
+		if($row && in_array($row->doc_status, $apr))
+			$lastid = $row->id;
+		else
+			$lastid = null;
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','SO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+							
+		if($id) {
+			$ids = explode(',', $id);
+			$quoteRow = $this->purchase_order->findPOdata($ids[0]);
+			$quoteItems = $this->purchase_order->getPOitems($ids);//echo '<pre>';print_r($quoteRow);exit;
+			
+			$total = 0; $vat_amount = 0; $nettotal = 0;
+			foreach($quoteItems as $item) {
+				if($item->balance_quantity==0)
+					$quantity = $item->quantity;
+				else
+					$quantity = $item->balance_quantity;
+				
+				$total 		+= ($quantity * $item->unit_price) - $item->discount;
+				$vat_amount += ($total * $item->vat) / 100;
+			}
+			$nettotal = $total + $vat_amount;
+			return view('body.proformainvoice.addquote')
+						->withItems($itemmaster)
+						->withTerms($terms)
+						->withJobs($jobs)
+						->withCurrency($currency)
+						->withQuoterow($quoteRow)
+						->withVoucherno($res)
+						->withQuoteitems($quoteItems)
+						->withQuoteid($id)
+						->withTotal($total)
+						->withVatamount($vat_amount)
+						->withNettotal($nettotal)
+						//->withVoucherno(Session::get('voucher_no'))
+						->withReferenceno(Session::get('reference_no'))
+						->withVoucherdt(Session::get('voucher_date'))
+						->withLpodt(Session::get('lpo_date'))
+						->withVatdata($this->vatdata)
+						->withSettings($this->acsettings)
+						->withFormdata($this->formData)
+						->withLocation($location)
+						->withPoso(true)
+						->withData($data);
+		}
+		
+	}
+	
+	public function getOrderNo(Request $request) {
+		
+		if($request->get('search')=='') {
+			$result = DB::table('proforma_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+						->where('customer_id',$request->get('cid'))
+						->where('job_type',0)
+						->select('id','voucher_no as text')
+						->offset(0)->limit(10)
+						->orderBy('id','DESC')
+						->get();
+		} else {
+			$result = DB::table('proforma_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+						->where('customer_id',$request->get('cid'))
+						->where('job_type',0)
+						->where('voucher_no', 'like', '%' . $request->get('search') . '%')
+						->select('id','voucher_no as text')
+						->offset(0)->limit(10)
+						->orderBy('id','DESC')
+						->get();
+		}
+		
+		//$data[] = array("id"=>12, "text"=>"AsD");
+		echo json_encode($result);
+	}
+	
+	public function getCounter($id) {
+		
+		$row = DB::table('proforma_invoice')->where('id',$id)->select('voucher_no','jctype')->first();
+		echo json_encode($row);
+	}
+}
+
+

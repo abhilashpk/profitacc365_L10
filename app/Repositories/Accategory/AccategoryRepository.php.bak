@@ -1,0 +1,217 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Accategory;
+
+use App\Models\Accategory;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Image;
+use Config;
+use Illuminate\Support\Facades\DB;
+
+class AccategoryRepository extends AbstractValidator implements AccategoryInterface {
+	
+	protected $accategory;
+	
+	protected static $rules = [
+		'name' => 'required', //|unique:account_category
+	];
+	
+	public function __construct(Accategory $accategory) {
+		$this->accategory = $accategory;
+		
+	}
+	
+	public function all()
+	{
+		return $this->accategory->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->accategory->where('id', $id)->first();
+	}
+	
+	public function create($attributes)
+	{
+		if($this->isValid($attributes)) { 
+			
+			$this->accategory->parent_id = $attributes['parent_id'];
+			$this->accategory->name = $attributes['name'];
+			$this->accategory->status = 1;
+			$this->accategory->fill($attributes)->save();
+			return true;
+		}
+		
+		//throw new ValidationException('Accategory validation error!', $this->getErrors());
+	}
+	
+	public function update($id, $attributes)
+	{
+		$this->accategory = $this->find($id);
+		$this->accategory->fill($attributes)->save();
+		return true;
+	}
+	
+	
+	public function delete($id)
+	{
+		$this->accategory = $this->accategory->find($id);
+		$this->accategory->delete();
+	}
+	
+	public function activeAccategoryList()
+	{
+		return $this->accategory->select('id','name')->where('status', 1)->where('parent_id','!=',0)->orderBy('name', 'ASC')->get()->toArray();
+	}
+	
+	public function accountType()
+	{
+		return $this->accategory->where('parent_id',0)->where('status',1)->get();
+	}
+	public function accategorybudList()
+	{
+		return $this->accategory->where('parent_id',0)->where('status',1)->where('is_log',1)->get();
+	}
+	public function accategoryList()
+	{
+		$query = $this->accategory->where('account_category.parent_id','!=',0);
+		
+		return $query->join('account_category AS ac', function($join) {
+							$join->on('ac.id','=','account_category.parent_id');
+						} )
+					->select('account_category.id','account_category.name','ac.name AS account_type')
+					->orderBy('account_category.parent_id', 'ASC')
+					->get(); 
+	}
+
+	public function getCategorybyType($type_id)
+	{
+		return $this->accategory->where('parent_id', $type_id)->where('status',1)->get();
+	}
+	
+	public function allSubaccategoryList($parent_id)
+	{
+		//check admin session and apply return $this->accategory->where('parent_id',0)->where('status', 1)->get();
+		return $this->accategory->where('parent_id',$parent_id)->select('id','name')->get()->toArray();
+	}
+	
+	public function accategoryView($id)
+	{
+		return $this->accategory->where('id', $id)->join('accategory');
+	}
+	
+	public function subaccategoryList()
+	{
+		return $this->accategory->where('parent_id',1)->get();
+	}
+		
+	public function check_accategory_name($name, $id = null) {
+		
+		if($id)
+			return $this->accategory->where('name',$name)->where('parent_id', '!=', 0)->where('id', '!=', $id)->count();
+		else
+			return $this->accategory->where('name',$name)->where('parent_id', '!=',0)->count();
+	}
+	
+	public function check_subaccategory_name($name, $id = null) {
+		
+		if($id)
+			return $this->accategory->where('accategory_name',$name)->where('parent_id', 1)->where('id', '!=', $id)->count();
+		else
+			return $this->accategory->where('accategory_name',$name)->where('parent_id', 1)->count();
+	}
+	
+	public function check_category($id)
+	{
+		
+		$count = DB::table('account_category')->where('parent_id', $id)->whereNull('deleted_at')->count();
+	
+		
+		if($count > 0)
+			return false;
+		else {
+			$count = DB::table('account_group')->where('category_id', $id)->whereNull('deleted_at')->count();
+			if($count > 0)
+				return false;
+			else {
+				$count = DB::table('account_master')->where('account_category_id', $id)->whereNull('deleted_at')->count();
+				if($count > 0)
+					return false;
+				else
+					return true;
+			}
+		}
+			
+	}
+	public function check_categoryacc($idarr)
+	{
+		
+		$count = DB::table('account_category')->where('parent_id', $idarr)->whereNull('deleted_at')->count();
+	       
+		
+		if($count > 0)
+			return false;
+		else {
+			$count = DB::table('account_group')->where('category_id', $idarr)->whereNull('deleted_at')->count();
+			//echo '<pre>';print_r($count);exit;
+			if($count > 0)
+				return false;
+			else {
+				$count = DB::table('account_master')->where('account_category_id', $idarr)->whereNull('deleted_at')->count();
+					
+				if($count > 0)
+					return false;
+				else
+					return true;
+			}
+		}
+			
+	}
+	// public function check_categoryacc($idarr)
+	// {
+	// 	//echo '<pre>';print_r($idarr);exit;
+	// 	$id = implode(',',$idarr);
+	// 	//echo '<pre>';print_r($id);exit;
+	// 	//$row = DB::table('account_master')->whereIn('id',$id)->whereNull('deleted_at')->select('cl_balance','op_balance')->first(); //echo '<pre>';print_r($row);exit;
+	// 	$row = DB::table('account_master')->where('id', $id)->where('status', 1)->whereNull('deleted_at')->select('cl_balance','op_balance')->first(); //echo '<pre>';print_r($row);exit;
+	// 	echo '<pre>';print_r($row);exit;
+		
+	// 	if($row->op_balance > 0 || $row->cl_balance > 0)
+	// 		return false;
+	// 		else {
+	// 			$count = DB::table('account_transaction')->where('account_master_id', $id)->where('amount', '!=', 0)->where('status',1)->whereNull('deleted_at')->count();
+	// 			if($count > 0)
+	// 				return false;
+	// 			else
+	// 				return true;
+	// 	}		
+	// }
+	// public function check_categoryacc($idarr)
+	// {
+	// 	echo '<pre>';print_r($idarr);exit;
+	// 	$row = DB::table('account_master')->where('account_category_id',$idarr)->where('status', 1)->whereNull('deleted_at')->count(); //
+	// 	//echo '<pre>';print_r($row);exit;
+	// 	if($row > 0)
+	// 		return false;
+	// 	else {
+	// 		return true;
+					
+	// 	}	
+		
+	// 	// $count = DB::table('account_group')->where('category_id', $idarr)->whereNull('deleted_at')->first();
+	// 	// if($count > 0)
+	// 	// 	return false;
+	// 	// else {
+	// 	// 	$count = DB::table('account_master')->where('account_category_id', $idarr)->whereNull('deleted_at')->first();
+	// 	// 	if($count > 0)
+	// 	// 		return false;
+	// 	// 	else
+	// 	// 		return true;
+	// 	// }
+	
+	//   //$this->accategory->check_categoryacc();
+			
+    //       }
+	
+}

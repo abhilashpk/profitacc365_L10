@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\ItemUnit;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface ItemUnitInterface extends RepositoryInterface {
+	
+}
+

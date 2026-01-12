@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Acgroup;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface AcgroupInterface extends RepositoryInterface {
+	
+}
+

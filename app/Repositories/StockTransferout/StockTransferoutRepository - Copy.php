@@ -1,0 +1,560 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\StockTransferout;
+
+use App\Models\StockTransferout;
+use App\Models\StockTransferoutItem;
+use App\Models\StockTransferinItem;
+use App\Models\StockTransferoutInfo;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use App\Repositories\UpdateUtility;
+use Config;
+use Illuminate\Support\Facades\DB;
+use Auth;
+use Storage;
+use Illuminate\Support\Facades\Session;
+
+class StockTransferoutRepository extends AbstractValidator implements StockTransferoutInterface {
+	
+	protected $stock_transferout;
+	
+	public $objUtility;
+	
+	protected static $rules = [];
+	
+	public function __construct(StockTransferout $stock_transferout) {
+		$this->stock_transferout = $stock_transferout;
+		$this->objUtility = new UpdateUtility();
+	}
+	
+	public function all()
+	{
+		return $this->stock_transferout->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->stock_transferout->where('id', $id)->first();
+	}
+	
+	//set input fields values
+	private function setInputValue($attributes)
+	{
+		$this->stock_transferout->voucher_no = $attributes['voucher_no'];
+		$this->stock_transferout->reference_no = $attributes['reference_no'];
+		$this->stock_transferout->description = $attributes['description'];
+		//$this->stock_transferout->job_id = $attributes['job_id'];
+		$this->stock_transferout->account_dr = $attributes['account_dr'];
+		$this->stock_transferout->account_cr = $attributes['account_cr'];
+		$this->stock_transferout->voucher_date = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+		$this->stock_transferout->is_mfg =  isset($attributes['is_mfg'])?$attributes['is_mfg']:'';
+		$this->stock_transferout->department_id = isset($attributes['department_id'])?$attributes['department_id']:'';
+		
+		return true;
+	}
+	
+	private function setItemInputValue($attributes, $stockTransferinItem, $key, $value) 
+	{
+		$item_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]);
+		
+		$stockTransferinItem->stock_transferout_id = $this->stock_transferout->id;
+		$stockTransferinItem->item_id = $attributes['item_id'][$key];
+		$stockTransferinItem->unit_id = $attributes['unit_id'][$key];
+		$stockTransferinItem->item_name = $attributes['item_name'][$key];
+		$stockTransferinItem->quantity = $attributes['quantity'][$key];
+		$stockTransferinItem->price = $attributes['cost'][$key];
+		$stockTransferinItem->item_total = $item_total;
+		
+		$diffcost = 0;
+		if($attributes['cost'][$key] < $attributes['actcost'][$key]) {
+			$diffcost = ($attributes['actcost'][$key] - $attributes['cost'][$key]) * $attributes['quantity'][$key];
+		}
+		
+		return array('line_total' => $attributes['quantity'][$key], 'item_total' => $item_total, 'diffcost' => $diffcost);
+		
+	}
+	
+	//Purchase and Sales Method function............
+	private function PurchaseAndSalesMethod($attributes, $net_amount, $transferin_id, $mod=null, $diffcost=null)
+	{
+		//Debit Customer Account
+		if( $this->setAccountTransaction($attributes, $net_amount, $transferin_id, $type='Dr', $mod, $diffcost) ) {
+			
+			//Credit Sales A/c
+			$this->setAccountTransaction($attributes, $net_amount, $transferin_id, $type='Cr', $mod, $diffcost);
+		}
+	}
+	
+	private function PurchaseAndSalesMethodUpdate($attributes, $net_amount, $transferin_id, $mod=null, $diffcost=null)
+	{
+		//Debit Customer Account
+		if( $this->setAccountTransactionUpdate($attributes, $net_amount, $transferin_id, $type='Dr', $mod, $diffcost) ) {
+			
+			//Credit Sales A/c
+			$this->setAccountTransactionUpdate($attributes, $net_amount, $transferin_id, $type='Cr', $mod, $diffcost);
+		}
+	}
+	
+	private function setAccountTransaction($attributes, $amount, $voucher_id, $type, $mod=null, $diffcost=null)
+	{
+		$cr_acnt_id = $dr_acnt_id = '';
+		if($type == 'Cr') {
+			$cr_acnt_id = $attributes['account_cr'];
+			$amount = ($mod=='CD')?$diffcost:$amount;
+		} else if($type == 'Dr') {
+			
+			if($mod=='CD') {
+				if(Session::get('department')==1) {
+					$acc = DB::table('department_accounts')->where('department_id', $attributes['department_id'])->select('costdif_acid')->first();
+					$dr_acnt_id = $acc->costdif_acid;
+				} else {
+					$acc = DB::table('other_account_setting')->where('account_setting_name', 'Cost Difference')->select('account_id')->first();
+					$dr_acnt_id = $acc->account_id;
+				}
+				$amount = $diffcost;
+			} else
+				$dr_acnt_id = $attributes['account_dr'];
+		}
+		
+		if( ($cr_acnt_id!='' || $cr_acnt_id!=0) || ($dr_acnt_id!='' || $dr_acnt_id!=0) ) {
+			DB::table('account_transaction')
+					->insert([  'voucher_type' 		=> 'STO',
+								'voucher_type_id'   => $voucher_id,
+								'account_master_id' => ($type=='Cr')?$cr_acnt_id:$dr_acnt_id,
+								'transaction_type'  => $type,
+								'amount'   			=> $amount,
+								'status' 			=> 1,
+								'created_at' 		=> now(),
+								'created_by' 		=> Auth::User()->id,
+								'description' 		=> $attributes['description'],
+								'reference'			=> $attributes['voucher_no'],
+								'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+								'department_id'		=> isset($attributes['department_id'])?$attributes['department_id']:''
+							]);
+			
+			$this->objUtility->tallyClosingBalance(($type=='Cr')?$cr_acnt_id:$dr_acnt_id);
+		}
+							
+		return true;
+	}
+	
+	
+	private function setAccountTransactionUpdate($attributes, $amount, $voucher_id, $type, $mod=null, $diffcost=null)
+	{
+		
+		if($type == 'Cr') {
+			$account_id = $attributes['account_cr'];
+			$amount = ($mod=='CD')?$diffcost:$amount;
+		} else if($type == 'Dr') {
+			if($mod=='CD') {
+				if(Session::get('department')==1) {
+					$acc = DB::table('department_accounts')->where('department_id', $attributes['department_id'])->select('costdif_acid')->first();
+					$dr_acnt_id = $acc->costdif_acid;
+				} else {
+					$acc = DB::table('other_account_setting')->where('account_setting_name', 'Cost Difference')->select('account_id')->first();
+					$account_id = $acc->account_id;
+				}
+				$amount = $diffcost;
+			} else
+				$account_id = $attributes['account_dr'];
+		}
+		
+		DB::table('account_transaction')
+				->where('voucher_type_id', $voucher_id)
+				->where('account_master_id', $account_id)
+				->where('voucher_type', 'STO')
+				->update([  'amount'   			=> $amount,
+							'modify_at' 		=> now(),
+							'modify_by' 		=> Auth::User()->id,
+							'description' 		=> $attributes['description'],
+							'reference'			=> $attributes['voucher_no'],
+							'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+							'department_id'		=> isset($attributes['department_id'])?$attributes['department_id']:''
+						]);
+						
+		
+		$this->objUtility->tallyClosingBalance($account_id);
+						
+		return true;
+	}
+	
+	
+	public function create($attributes)
+	{
+		if($this->isValid($attributes)) {
+			
+		  DB::beginTransaction();
+		  try {
+				if($this->setInputValue($attributes)) {
+					$this->stock_transferout->status = 1;
+					$this->stock_transferout->created_at = now();
+					$this->stock_transferout->created_by = 1;
+					$this->stock_transferout->fill($attributes)->save();
+				}
+				
+				//order items insert
+				if($this->stock_transferout->id && !empty( array_filter($attributes['item_id']))) {
+					$line_total = $item_total = $diffcost = 0;
+					
+					foreach($attributes['item_id'] as $key => $value) { 
+						$stockTransferinItem = new StockTransferoutItem();
+						$arrResult 		= $this->setItemInputValue($attributes, $stockTransferinItem, $key, $value);
+						if($arrResult['line_total']) {
+							$line_total	+= $arrResult['line_total'];
+							$item_total += $arrResult['item_total'];
+							$diffcost += $arrResult['diffcost'];
+							
+							$stockTransferinItem->status = 1;
+							$this->stock_transferout->transferItem()->save($stockTransferinItem);
+							
+							$sale_cost = $this->objUtility->updateItemQuantitySales($attributes, $key);
+								$CostAvg_log = $this->objUtility->updateLastPurchaseCostAndCostAvg($attributes, $key, 0);
+									$this->setSaleLog($attributes, $key, $this->stock_transferout->id, $CostAvg_log, $sale_cost, 'add' );
+						}
+					}
+					
+					$total_amt = $item_total;
+					
+					//update discount, total amount
+					DB::table('stock_transferout')
+								->where('id', $this->stock_transferout->id)
+								->update(['total_qty' => $line_total, 'total_amt' => $total_amt, 'net_total' => $total_amt]);
+					
+					$this->PurchaseAndSalesMethod($attributes, $item_total, $this->stock_transferout->id);
+					
+					//COST DIFFERENCE AC ENTRY....
+					if($diffcost > 0)
+						$this->PurchaseAndSalesMethod($attributes, $item_total, $this->stock_transferout->id, 'CD', $diffcost);
+				}
+				
+				//update voucher no........
+				if( ($this->stock_transferout->id) && ($attributes['curno'] <= $attributes['voucher_no']) ) { 
+					 if(Session::get('department')==1) {
+						DB::table('account_setting')
+							->where('voucher_type_id', 22) 
+							->where('department_id', $attributes['department_id'])
+							->update(['voucher_no' => $attributes['voucher_no'] + 1 ]);
+					 } else {
+						 DB::table('account_setting')
+							->where('voucher_type_id', 22) 
+							->update(['voucher_no' => $attributes['voucher_no'] + 1 ]);
+					 }
+				}
+					
+				
+				DB::commit();
+				return $this->stock_transferout->id;
+				
+		  } catch(\Exception $e) {
+				
+				DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
+				return false;
+		  }
+		  
+		}
+		
+	}
+	
+	
+	public function update($id, $attributes)
+	{  //echo '<pre>';print_r($attributes);exit;
+		$this->stock_transferout = $this->find($id); 
+		$line_total = $item_total = $diffcost = 0; 
+		
+		DB::beginTransaction();
+		try {
+			
+			if($this->stock_transferout->id && !empty( array_filter($attributes['item_id']))) {  
+				
+				foreach($attributes['item_id'] as $key => $value) { 
+					
+					if($attributes['transfer_item_id'][$key]!='') { 
+						
+						$item_total += $attributes['cost'][$key] * $attributes['quantity'][$key];
+						if($attributes['is_mfg'] == 1) {
+							$stockTransferinItem = StockTransferinItem::where('stock_transferin_id', $id)->where('item_id', $value)->firstOrFail();
+							//$stockTransferinItem = StockTransferoutItem::where('stock_transferout_id', $id)->where('item_id', $value)->firstOrFail();
+						} else 
+							$stockTransferinItem = StockTransferoutItem::find($attributes['transfer_item_id'][$key]); 
+						
+						//echo '<pre>';print_r($stockTransferinItem);exit;
+						
+						$exi_quantity = $stockTransferinItem->quantity;
+						
+						$items['item_name'] = $attributes['item_name'][$key];
+						$items['item_id'] = $value;
+						$items['unit_id'] = $attributes['unit_id'][$key];
+						$items['quantity'] = $attributes['quantity'][$key];
+						$items['price'] = $attributes['cost'][$key];
+						$items['item_total'] = $attributes['quantity'][$key] * $attributes['cost'][$key];
+						$stockTransferinItem->update($items);
+						
+						$line_total	+= $attributes['quantity'][$key];
+						
+						$bquantity = $attributes['quantity'][$key] - $exi_quantity; 
+						$attributes['sales_invoice_id'] = $this->stock_transferout->id;//JUL22
+						
+						if($attributes['cost'][$key] < $attributes['actcost'][$key]) {
+							$diffcost += $attributes['actcost'][$key] - $attributes['cost'][$key];
+						}
+		
+						$sale_cost = $this->objUtility->updateItemQuantitySales($attributes, $key, $bquantity);
+						$CostAvg_log = $this->objUtility->updateLastPurchaseCostAndCostAvgonEdit($attributes, $key, 0);
+						$this->setSaleLog($attributes, $key, $this->stock_transferout->id, $CostAvg_log, $sale_cost, 'update' );
+						
+						//$total_amt = $item_total;
+						
+					} else { //new entry...
+						$line_total_new = $item_total_new = 0;
+						
+						$stockTransferinItem = new StockTransferoutItem();
+						$arrResult 		= $this->setItemInputValue($attributes, $stockTransferinItem, $key, $value);
+						if($arrResult['line_total']) {
+							$line_total_new	+= $arrResult['line_total'];
+							$item_total_new	+= $arrResult['item_total'];
+							
+							$line_total	+= $arrResult['line_total'];
+							$item_total += $arrResult['item_total'];
+							
+							$diffcost += $arrResult['diffcost'];
+							
+							$stockTransferinItem->status = 1;
+							$this->stock_transferout->transferItem()->save($stockTransferinItem);
+							
+							$sale_cost = $this->objUtility->updateItemQuantitySales($attributes, $key);
+								$CostAvg_log = $this->objUtility->updateLastPurchaseCostAndCostAvg($attributes, $key, 0);
+									$this->setSaleLog($attributes, $key, $this->stock_transferout->id, $CostAvg_log, $sale_cost, 'add' );
+						}
+					}
+					
+				} 
+			}
+			
+			//manage removed items...
+			if($attributes['remove_item']!='')
+			{
+				$arrids = explode(',', $attributes['remove_item']);
+				$remline_total = $remtax_total = 0;
+				foreach($arrids as $row) {
+					
+					$res = DB::table('stock_transferout_item')->where('id', $row)->first();
+					DB::table('stock_transferout_item')->where('id', $row)->update(['status' => 0, 'deleted_at' => now()]);
+					
+					$this->objUtility->updateLastPurchaseCostAndCostAvgonDeleteGsec($res, $id, 'TO');
+				}
+			}
+			
+			if($this->setInputValue($attributes)) {
+				$this->stock_transferout->modify_at = now();
+				$this->stock_transferout->modify_by = Auth::User()->id;
+				$this->stock_transferout->fill($attributes)->save();
+			}
+			
+			$this->PurchaseAndSalesMethodUpdate($attributes, $item_total, $this->stock_transferout->id);
+			
+			//COST DIFFERENCE AC ENTRY....
+			if($diffcost > 0)
+				$this->PurchaseAndSalesMethodUpdate($attributes, $item_total, $this->stock_transferout->id, 'CD', $diffcost);
+					
+			//$total = $line_total + $line_total_new;
+			
+			//update discount, total amount
+			DB::table('stock_transferout')
+						->where('id', $id)
+						->update(['total_qty' => $line_total,'total_amt' => $item_total, 'net_total' => $item_total]); //CHG
+			
+			DB::commit();
+			return true;
+			
+		 } catch(\Exception $e) {
+			
+			DB::rollback(); echo 'Fr: '.$e->getLine().' '.$e->getMessage().' '.$e->getFile();exit;
+			return false;
+		}
+	}
+	
+	
+	public function stockUpdate($attributes,$key,$type)
+	{
+		if($type=='from') {
+		
+			DB::table('item_location')->where('item_id', $attributes['item_id'][$key])
+									  ->where('unit_id', $attributes['unit_id'][$key])
+									  ->where('location_id', $attributes['locfrom_id'])
+									  ->update(['quantity' => DB::raw('quantity - '.$attributes['quantity'][$key])]);
+		} else {
+			
+			DB::table('item_location')->where('item_id', $attributes['item_id'][$key])
+									  ->where('unit_id', $attributes['unit_id'][$key])
+									  ->where('location_id', $attributes['locto_id'])
+									  ->update(['quantity' => DB::raw('quantity + '.$attributes['quantity'][$key])]);
+		}
+		
+		return true;
+	}
+	
+	
+	
+	public function delete($id)
+	{
+		$this->stock_transferout = $this->stock_transferout->find($id);
+		
+		$items = DB::table('stock_transferout_item')->where('stock_transferout_id',$id)->get();
+		
+		//Transaction update....
+		DB::table('account_transaction')->where('voucher_type', 'STO')->where('voucher_type_id',$id)->update(['status' => 0,'deleted_at' => now(),'deleted_by' => Auth::User()->id ]);
+		
+		//reset account balance....
+		$this->objUtility->tallyClosingBalance($this->stock_transferout->account_dr);
+		
+		$this->objUtility->tallyClosingBalance($this->stock_transferout->account_cr);
+		
+		//inventory update...
+		foreach($items as $item) {
+			$this->objUtility->updateLastPurchaseCostAndCostAvgonDeleteGsec($item,$id,'TO');
+		}
+			
+		DB::table('stock_transferout_item')->where('stock_transferout_id',$id)->update(['status' => 0, 'deleted_at' => now()]);					  
+		$this->stock_transferout->delete($id);
+	}
+	
+	public function check_order($id)
+	{
+		$count = DB::table('stock_transferout')->where('id', $id)->where('is_editable',1)->count();
+		if($count > 0)
+			return false;
+		else
+			return true;
+	}
+	
+	public function stockTransList()
+	{
+		return $this->stock_transferout->where('status',1)
+					->orderBY('stock_transferout.id', 'DESC')->get();
+		
+	}
+	
+	
+	public function findRow($id)
+	{
+		return $this->stock_transferout->where('stock_transferout.id', $id)
+					->join('account_master AS AMD', function($join) {
+							$join->on('AMD.id','=','stock_transferout.account_dr');
+						} )
+					->join('account_master AS AMC', function($join) {
+							$join->on('AMC.id','=','stock_transferout.account_cr');
+						} )
+					->select('AMD.master_name AS name_dr','AMC.master_name AS name_cr','stock_transferout.*')
+					->first();
+	}
+	
+	public function activeStockTransferoutList()
+	{
+		return $this->stock_transferout->select('id','name')->where('status', 1)->orderBy('name', 'ASC')->get()->toArray();
+	}
+	
+	public function check_reference_no($refno, $id = null) { 
+		
+		if($id)
+			return $this->stock_transferout->where('reference_no',$refno)->where('id', '!=', $id)->count();
+		else
+			return $this->stock_transferout->where('reference_no',$refno)->count();
+	}
+		
+	
+	public function getItems($id)
+	{
+		
+		$query = $this->stock_transferout->where('stock_transferout.id',$id);
+		
+		return $query->join('stock_transferout_item AS ITM', function($join) {
+							$join->on('ITM.stock_transferout_id','=','stock_transferout.id');
+						} )
+					  ->join('units AS U', function($join){
+						  $join->on('U.id','=','ITM.unit_id');
+					  }) 
+					  ->join('itemmaster AS IM', function($join){
+						  $join->on('IM.id','=','ITM.item_id');
+					  })
+					  ->where('ITM.status',1)
+					  ->select('ITM.*','U.unit_name','IM.item_code')->get();
+	}
+	
+	public function getDoc($attributes)
+	{
+		$invoice = $this->stock_transferout->where('stock_transferout.id', $attributes['document_id'])
+								   ->join('account_master AS CR', function($join) {
+									   $join->on('CR.id','=','stock_transferout.account_cr');
+								   })
+								   ->join('account_master AS DR', function($join) {
+									   $join->on('DR.id','=','stock_transferout.account_dr');
+								   })
+								   ->select('CR.master_name AS cr_account','DR.master_name AS dr_account','stock_transferout.*','CR.address','CR.city','CR.state')
+								   ->orderBY('stock_transferout.id', 'ASC')
+								   ->first();
+								   
+		$items = $this->stock_transferout->where('stock_transferout.id', $attributes['document_id'])
+								   ->join('stock_transferout_item AS STO', function($join) {
+									   $join->on('STO.stock_transferout_id','=','stock_transferout.id');
+								   })
+								   ->join('itemmaster AS IM', function($join) {
+									   $join->on('IM.id','=','STO.item_id');
+								   })
+								   ->join('units AS U', function($join) {
+									   $join->on('U.id','=','STO.unit_id');
+								   })
+								   ->where('STO.status', 1)
+								   ->where('STO.deleted_at', '0000-00-00 00:00:00')
+								   ->select('STO.*','IM.item_code','U.unit_name')//'sales_invoice.id',
+								   ->get();
+								   
+		return $result = ['details' => $invoice, 'items' => $items];
+	}
+	
+	private function setSaleLog($attributes, $key, $document_id, $cost_avg, $sale_cost, $action)
+	{
+		if($action=='add') {
+								
+			DB::table('item_log')->insert([
+							 'document_type' => 'TO',
+							 'document_id'   => $document_id,
+							 'item_id' 	  => $attributes['item_id'][$key],
+							 'unit_id'    => $attributes['unit_id'][$key],
+							 'quantity'   => $attributes['quantity'][$key],
+							 'unit_cost'  => $attributes['cost'][$key],
+							 'trtype'	  => 0,
+							 'cost_avg' => $cost_avg,
+							 'pur_cost' => $sale_cost,
+							 'sale_cost' => $sale_cost,
+							 'packing' => 1,
+							 'status'     => 1,
+							 'created_at' => now(),
+							 'created_by' => Auth::User()->id,
+							 'voucher_date' => ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']))
+							]);
+			
+		} else if($action=='update') {
+			
+								
+			DB::table('item_log')->where('document_type','TO')
+							->where('document_id', $document_id)
+							->where('item_id', $attributes['item_id'][$key])
+							->where('unit_id', $attributes['unit_id'][$key])
+							->update([
+								 'quantity'   => $attributes['quantity'][$key],
+								 'unit_cost'  => (isset($attributes['is_fc']))?$attributes['cost'][$key]*$attributes['currency_rate']:$attributes['cost'][$key],
+								 'cur_quantity' => $attributes['quantity'][$key],
+								 'cost_avg' => $cost_avg,
+								 'pur_cost' => $sale_cost,
+								 'sale_cost' => $sale_cost,
+								 'voucher_date' => ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']))
+							]);
+			
+		}
+		
+		return true;
+	}
+	
+}
+

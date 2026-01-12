@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\LogDetails;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface LogDetailsInterface extends RepositoryInterface {
+	
+}
+

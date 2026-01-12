@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Category;
+
+use App\Interfaces\RepositoryInterface;
+
+Interface CategoryInterface extends RepositoryInterface {
+	
+}
+

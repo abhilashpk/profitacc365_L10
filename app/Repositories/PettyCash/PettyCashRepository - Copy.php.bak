@@ -1,0 +1,481 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\PettyCash;
+
+use App\Models\PettyCash;
+use App\Models\PettyCashEntry;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use App\Repositories\UpdateUtility;
+
+use Config;
+use Illuminate\Support\Facades\DB;
+
+class PettyCashRepository extends AbstractValidator implements PettyCashInterface {
+	
+	public $objUtility;
+	
+	protected $pettycash;
+	
+	protected static $rules = [];
+	
+	public function __construct(PettyCash $pettycash) {
+		$this->pettycash = $pettycash;
+		$this->objUtility = new UpdateUtility();
+	}
+	
+	public function all()
+	{
+		return $this->pettycash->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->pettycash->where('id', $id)->first();
+	}
+	
+	
+	//set input fields values
+	private function setInputValue($attributes)
+	{
+		$this->pettycash->voucher_type  = 'PC';
+		$this->pettycash->voucher_no  = $attributes['voucher_no'];
+		$this->pettycash->voucher_date  = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+		$this->pettycash->supplier_name = isset($attributes['supplier_name'])?$attributes['supplier_name']:'';
+		$this->pettycash->trn_no = isset($attributes['trn_no'])?$attributes['trn_no']:'';
+		$this->pettycash->group_id = $attributes['group_id'][0];
+		
+		return true;
+	}
+	
+	private function setTrInputValue($attributes, $pettycashEntryTr, $key) 
+	{
+		$cr_amount = 0; $dr_amount = 0;
+		if($attributes['account_type'][$key]=='Dr')
+			$dr_amount = $attributes['line_amount'][$key];
+		else if($attributes['account_type'][$key]=='Cr')
+			$cr_amount = $attributes['line_amount'][$key];
+		
+		$pettycashEntryTr->petty_cash_id = $this->pettycash->id;
+		$pettycashEntryTr->account_id = $attributes['account_id'][$key];
+		$pettycashEntryTr->description    		= $attributes['description'][$key];
+		$pettycashEntryTr->reference    		= $attributes['reference'][$key];
+		$pettycashEntryTr->entry_type    		= $attributes['account_type'][$key];
+		$pettycashEntryTr->amount    		= $attributes['line_amount'][$key];
+		//$pettycashEntryTr->fc_amount    		= $attributes['amount_fc'][$key];
+		//$pettycashEntryTr->fc_id    		= $attributes['fc'][$key];
+		//$pettycashEntryTr->currency_rate    		= $attributes['currency_rate'][$key];
+		$pettycashEntryTr->job_id    		= $attributes['job_id'][$key];
+		$pettycashEntryTr->department_id    = isset($attributes['department'][$key])?$attributes['department'][$key]:'';
+		$pettycashEntryTr->cheque_no    		= isset($attributes['cheque_no'][$key])?$attributes['cheque_no'][$key]:'';
+		$pettycashEntryTr->cheque_date    		=  isset($attributes['cheque_date'][$key])?date('Y-m-d', strtotime($attributes['cheque_date'][$key])):'';
+		$pettycashEntryTr->bank_id    		= isset($attributes['bank_id'][$key])?$attributes['bank_id'][$key]:'';
+		$pettycashEntryTr->party_account_id   = isset($attributes['partyac_id'][$key])?$attributes['partyac_id'][$key]:'';
+		
+		//PDCR list inserting....
+		if($attributes['group_id'][$key]=='PDCR') {
+			
+			$acrow = DB::table('account_master')->where('status',1)->where('category','BANK')->select('id')->first();
+			
+			DB::table('pdc_received')
+							->insert([ 'voucher_id' 	=>  $this->pettycash->id,
+										'voucher_type'   => 'DB',
+										'dr_account_id' => $acrow->id,
+										'cr_account_id' => $attributes['account_id'][$key],
+										'reference'  => $attributes['reference'][$key],
+										'amount'   			=> $attributes['line_amount'][$key],
+										'status' 			=> 0,
+										'created_at' 		=> now(),
+										'created_by' 		=> Auth::User()->id,
+										'voucher_date'		=> ($attributes['voucher_date']!='')?date('Y-m-d', strtotime($attributes['voucher_date'])):'',
+										'customer_id' => $attributes['partyac_id'][$key],
+										'cheque_no' => $attributes['cheque_no'][$key],
+										'cheque_date' => date('Y-m-d', strtotime($attributes['cheque_date'][$key])),
+										'voucher_no' => $attributes['voucher_no'],
+										'description' => $attributes['description'][$key]
+									]);
+		}
+		
+		return array('dr_amount' => $dr_amount, 'cr_amount' => $cr_amount);
+	}
+	
+	private function updateClosingBalance($account_id, $amount, $type)
+	{
+		/* if($type=='Dr') {
+			DB::table('account_master')
+						->where('id', $account_id)
+						->update(['cl_balance' => DB::raw('cl_balance + '.$amount)
+						]);
+		} else {
+			DB::table('account_master')
+						->where('id', $account_id)
+						->update(['cl_balance' => DB::raw('cl_balance - '.$amount)
+						]);
+		} */
+		
+		$this->objUtility->tallyClosingBalance($account_id);
+		return true;
+	}
+	
+	private function setAccountTransaction($attributes, $petty_cash_id, $key)
+	{
+		
+		DB::table('account_transaction')
+				->insert([  'voucher_type' 		=> 'PC',//pettycash entry
+						    'voucher_type_id'   => $petty_cash_id,
+							'account_master_id' => $attributes['account_id'][$key],
+							'transaction_type'  => $attributes['account_type'][$key],
+							'amount'   			=> $attributes['line_amount'][$key],
+							'status' 			=> 1,
+							'created_at' 		=> now(),
+							'created_by' 		=> 1,
+							'description' 		=> $attributes['description'][$key],
+							'reference'			=> $attributes['voucher_no'],
+							'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+							'reference_from'	=> $attributes['reference'][$key],
+							'department_id'    => isset($attributes['department'][$key])?$attributes['department'][$key]:''
+							]);
+		
+		return true;
+	}
+	
+	private function setAccountTransactionUpdate($attributes, $petty_cash_id, $key)
+	{
+		
+		DB::table('account_transaction')
+				->where('voucher_type', 'PC')
+				->where('voucher_type_id', $petty_cash_id)
+				->update([ 'account_master_id' => $attributes['account_id'][$key],
+							'transaction_type'  => $attributes['account_type'][$key],
+							'amount'   			=> $attributes['line_amount'][$key],
+							'modify_at' 		=> now(),
+							'modify_by' 		=> 1,
+							'description' 		=> $attributes['description'][$key],
+							'reference'			=> $attributes['voucher_no'],
+							'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+							'reference_from'	=> $attributes['reference'][$key],
+							'department_id'    => isset($attributes['department'][$key])?$attributes['department'][$key]:''
+							]);
+		
+		return true;
+	}
+	
+	private function setAccountTransactionDelete($attributes, $petty_cash_id)
+	{
+		
+		DB::table('account_transaction')
+				->where('voucher_type', 'PC')
+				->where('voucher_type_id', $petty_cash_id)
+				->update([ 'status' 		=> 0,
+						   'deleted_at' 	=> now()]);
+		
+		return true;
+	}
+	
+		
+	public function create($attributes)
+	{ //echo '<pre>';print_r($attributes);exit;
+		if($this->isValid($attributes)) {
+			
+			DB::beginTransaction();
+			try {
+				//VOUCHER NO INCREMENT LOGIC//
+			if( $attributes['curno'] == $attributes['voucher_no'] ) {
+				$cnt = 0;
+				do {
+					$jvset = DB::table('account_setting')->where('id', $attributes['voucher'])->select('prefix','is_prefix','voucher_no')->first();
+					
+					if($jvset) {
+						if($jvset->is_prefix==0) {
+							$attributes['voucher_no'] = $jvset->voucher_no + $cnt;
+							$attributes['vno'] = $jvset->voucher_no + $cnt;
+						} else {
+							$attributes['voucher_no'] = $jvset->prefix.($jvset->voucher_no + $cnt);
+							$attributes['vno'] = $jvset->voucher_no + $cnt;
+						}
+						$attributes['curno'] = $attributes['voucher_no'];
+					}
+					if(isset($attributes['department_id']) && Session::get('department')==1)
+						$inv = DB::table('petty_cash')->where('voucher_no',$attributes['voucher_no'])->where('voucher_type','PC')->where('department_id', $attributes['department_id'])->where('status',1)->whereNull('deleted_at')->count();
+					else
+						$inv = DB::table('petty_cash')->where('voucher_no',$attributes['voucher_no'])->where('voucher_type','PC')->where('status',1)->whereNull('deleted_at')->count();
+
+					$cnt++;
+				} while ($inv!=0);
+			} 
+			//VOUCHER NO INCREMENT LOGIC//
+				//JN13
+				/*do {
+					$jvset = DB::table('account_setting')->where('id', $attributes['voucher'])->select('prefix','is_prefix','voucher_no')->first();
+					if($jvset) {
+						if($jvset->is_prefix==0) {
+							$attributes['voucher_no'] = $jvset->voucher_no;
+							//$attributes['voucher_no'] = $jvset->voucher_no;
+						} else {
+							$attributes['voucher_no'] = $jvset->prefix.$jvset->voucher_no;
+							//$attributes['vno'] = $jvset->voucher_no;
+						}
+					}
+					$inv = DB::table('petty_cash')->where('voucher_no',$attributes['voucher_no'])->where('voucher_type','PC')->where('status',1)->whereNull('deleted_at')->count();
+				} while ($inv!=0);*/
+				
+				if($this->setInputValue($attributes)) {
+					$this->pettycash->status = 1;
+					$this->pettycash->created_at = now();
+					$this->pettycash->created_by = 1;
+					$this->pettycash->fill($attributes)->save();
+				}
+				
+				//transactions insert
+				if($this->pettycash->id && !empty( array_filter($attributes['line_amount']))) {
+					$cr_amount = 0; $dr_amount = 0;
+					foreach($attributes['line_amount'] as $key => $value) { 
+					  if($value!='' && $value!=0 && $attributes['account_id'][$key]!='' && $attributes['account_id'][$key]!=0) {
+						  
+						$pettycashEntryTr = new PettyCashEntry();
+						$arrResult = $this->setTrInputValue($attributes, $pettycashEntryTr, $key);
+						
+						if($arrResult) {
+							$cr_amount += $arrResult['cr_amount'];
+							$dr_amount += $arrResult['dr_amount'];
+							$pettycashEntryTr->status = 1;
+							$this->pettycash->PettyCashAdd()->save($pettycashEntryTr);
+						}
+						
+						$this->setAccountTransaction($attributes, $pettycashEntryTr->id, $key);
+						
+						//update closing balance of debitor/creditor account
+						$this->updateClosingBalance($attributes['account_id'][$key], $attributes['line_amount'][$key], $attributes['account_type'][$key]);
+						
+						if(isset($attributes['cheque_no'][$key]) && $attributes['cheque_no'][$key]!=''){
+							DB::table('cheque')->insert([ 'cheque_no' => $attributes['cheque_no'][$key], 'bank_id' => $attributes['bank_id'][$key] ]);
+						}
+					  }
+					  
+					}
+					
+					$difference = $dr_amount - $cr_amount;
+					if($difference==0.00) { //JN1
+						//update debit, credit, difference amount
+						DB::table('petty_cash')
+									->where('id', $this->pettycash->id)
+									->update(['debit'     => $dr_amount,
+											  'credit' 	  => $cr_amount,
+											  'difference' => $difference ]);
+											  
+						//update voucher no........
+						if( ($this->pettycash->id) && ($attributes['curno'] <= $attributes['voucher_no']) ) { 
+							DB::table('account_setting')
+									->where('id', $attributes['voucher'])
+									->update(['voucher_no' => DB::raw('voucher_no + 1') ]);
+						}	
+					} else {
+						throw new ValidationException('Petty cash entry validation error! Please try again.');
+					}
+									
+				}
+				
+						
+				
+				DB::commit();
+				return true;
+			
+			} catch (\Exception $e) {
+				DB::rollback();
+				return false;
+			}
+		}
+		//throw new ValidationException('pettycash validation error12!', $this->getErrors());
+	}
+	
+	public function update($id, $attributes)
+	{	//echo '<pre>';print_r($attributes);exit;
+		$this->pettycash = $this->find($id);
+		
+		DB::beginTransaction();
+		try {
+			
+			if($this->pettycash->id && !empty( array_filter($attributes['line_amount']))) {
+				$cr_amount = 0; $dr_amount = 0;
+				foreach($attributes['line_amount'] as $key => $value) {
+					
+					if($attributes['je_id'][$key]!='') {
+						if($attributes['account_id'][$key]!='' && $attributes['account_id'][$key]!=0) {
+							
+							$pettycashEntryTr = PettyCashEntry::find($attributes['je_id'][$key]);
+							
+							if($attributes['account_type'][$key]=='Dr')
+								$dr_amount += $attributes['line_amount'][$key];
+							else if($attributes['account_type'][$key]=='Cr')
+								$cr_amount += $attributes['line_amount'][$key];
+							
+							$jerow['account_id'] = $attributes['account_id'][$key];
+							$jerow['description']    		= $attributes['description'][$key];
+							$jerow['reference']    		= $attributes['reference'][$key];
+							$jerow['entry_type']    		= $attributes['account_type'][$key];
+							$jerow['amount']    		= $attributes['line_amount'][$key];
+							$jerow['job_id']    		= $attributes['job_id'][$key];
+							$jerow['department_id']    	= isset($attributes['department'][$key])?$attributes['department'][$key]:'';
+							$jerow['cheque_no']   		= isset($attributes['cheque_no'][$key])?$attributes['cheque_no'][$key]:'';
+							$jerow['cheque_date']    		=  isset($attributes['cheque_date'][$key])?date('Y-m-d', strtotime($attributes['cheque_date'][$key])):'';
+							$jerow['bank_id']   		= isset($attributes['bank_id'][$key])?$attributes['bank_id'][$key]:'';
+							$jerow['party_account_id']  = isset($attributes['partyac_id'][$key])?$attributes['partyac_id'][$key]:'';
+							
+							$pettycashEntryTr->update($jerow);
+							
+							if($value=='' || $value==0) {
+								DB::table('petty_cash_entry')->where('id',$attributes['je_id'][$key])->update(['status' => 0, 'deleted_at' => now()]);
+							}
+							
+							$this->setAccountTransactionUpdate($attributes, $pettycashEntryTr->id, $key);
+							
+							//update closing balance of debitor/creditor account
+							$this->updateClosingBalance($attributes['account_id'][$key], $attributes['line_amount'][$key], $attributes['account_type'][$key]);
+							
+							if(isset($attributes['cheque_no'][$key]) && $attributes['cheque_no'][$key]!=''){
+								DB::table('cheque')->insert([ 'cheque_no' => $attributes['cheque_no'][$key], 'bank_id' => $attributes['bank_id'][$key] ]);
+							}
+						}
+						
+					} else {
+						
+						//new entry....
+						if($value!='' && $value!=0 && $attributes['account_id'][$key]!='' && $attributes['account_id'][$key]!=0) {
+							$pettycashEntryTr = new PettyCashEntry();
+							$arrResult = $this->setTrInputValue($attributes, $pettycashEntryTr, $key);
+							
+							if($arrResult) {
+								$cr_amount += $arrResult['cr_amount'];
+								$dr_amount += $arrResult['dr_amount'];
+								$pettycashEntryTr->status = 1;
+								$this->pettycash->PettyCashAdd()->save($pettycashEntryTr);
+							}
+							
+							$this->setAccountTransaction($attributes, $pettycashEntryTr->id, $key);
+							
+							//update closing balance of debitor/creditor account
+							$this->updateClosingBalance($attributes['account_id'][$key], $attributes['line_amount'][$key], $attributes['account_type'][$key]);
+							
+							if(isset($attributes['cheque_no'][$key]) && $attributes['cheque_no'][$key]!=''){
+								DB::table('cheque')->insert([ 'cheque_no' => $attributes['cheque_no'][$key], 'bank_id' => $attributes['bank_id'][$key] ]);
+							}
+						}
+					}
+				}
+				
+				$difference = $dr_amount - $cr_amount;
+				
+				//manage removed items...
+				if($attributes['remove_item']!='')
+				{
+					$arrids = array_unique(explode(',', $attributes['remove_item']));
+					$remline_total = $remtax_total = 0;
+					foreach($arrids as $row) {
+						DB::table('petty_cash_entry')->where('id', $row)->update(['status' => 0, 'deleted_at' => now()]);
+						
+						$this->setAccountTransactionDelete($attributes, $row);
+			
+					}
+				}
+			}
+			
+			if($difference==0.00) { //JN1
+				//echo 'dr: '.$dr_amount.' cr: '.$cr_amount;//exit;
+				$this->pettycash->supplier_name = isset($attributes['supplier_name'])?$attributes['supplier_name']:'';
+				$this->pettycash->trn_no = isset($attributes['trn_no'])?$attributes['trn_no']:'';
+				$this->pettycash->voucher_date  = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+				$this->pettycash->debit = $dr_amount;
+				$this->pettycash->credit = $cr_amount;
+				$this->pettycash->difference = $difference;
+				$this->pettycash->modify_at = now();
+				$this->pettycash->modify_by = 1;
+				$this->pettycash->fill($attributes)->save();
+			} else {
+				throw new ValidationException('Petty cash entry validation error! Please try again.');
+			}
+			
+			DB::commit();
+			return true;
+			
+		} catch (\Exception $e) {
+			DB::rollback();  //echo $e->getLine().' '.$e->getMessage();exit;
+			return false;
+		}
+	}
+	
+	
+	public function delete($id)
+	{
+		$this->pettycash = $this->pettycash->find($id);
+		
+		DB::beginTransaction();
+		try {
+						
+			$rows = DB::table('petty_cash_entry')->where('petty_cash_id', $id)->select('id','account_id','entry_type','amount')->get();
+			foreach($rows as $row) {
+				//Transaction update....
+				DB::table('account_transaction')->where('voucher_type', 'PC')->where('voucher_type_id', $row->id)->update(['status' => 0,'deleted_at' => now() ]);
+			
+				$this->objUtility->tallyClosingBalance($row->account_id);
+				/* if($row->entry_type=='Dr')
+					DB::table('account_master')->where('id', $row->account_id)->update(['cl_balance' => DB::raw('cl_balance - '.$row->amount)]);
+				else
+					DB::table('account_master')->where('id', $row->account_id)->update(['cl_balance' => DB::raw('cl_balance + '.$row->amount)]); */
+			}
+			//...........ok
+			
+			DB::table('petty_cash_entry')->where('petty_cash_id', $id)->update(['status' => 0 ]);
+			$this->pettycash->delete();
+		
+			DB::commit();
+			return true;
+			
+		} catch (\Exception $e) {
+			DB::rollback();
+			return false;
+		}
+	}
+	
+	public function pettycashList()
+	{
+		$result = $this->pettycash->where('petty_cash.status', 1)
+							 ->join('petty_cash_entry AS PE', function($join) {
+								 $join->on('PE.petty_cash_id', '=', 'petty_cash.id');
+							 })
+							 ->where('voucher_type','PC')
+							 ->where('PE.status',1)
+							 ->where('PE.deleted_at','0000-00-00 00:00:00')
+							 ->select('petty_cash.*','PE.description')
+							 ->orderBy('petty_cash.id', 'DESC')
+							 ->groupBy('petty_cash.id')
+							 ->get();
+		return $result;
+	}
+	
+	public function findPEdata($id)
+	{
+		return DB::table('petty_cash_entry')->where('petty_cash_entry.petty_cash_id', $id)
+						->join('account_master', 'account_master.id', '=', 'petty_cash_entry.account_id')
+						->leftJoin('account_master AS AM', 'AM.id', '=', 'petty_cash_entry.party_account_id')
+						->where('petty_cash_entry.status', 1)
+						->select('petty_cash_entry.*','account_master.master_name','AM.master_name AS party_name','account_master.category')
+						->orderBY('petty_cash_entry.id','ASC')->get();
+	}
+	
+	public function check_voucher_no($refno, $id = null) { 
+		
+		if($id)
+			return $this->pettycash->where('voucher_no',$refno)->where('id', '!=', $id)->count();
+		else
+			return $this->pettycash->where('voucher_no',$refno)->count();
+	}
+
+	public function getLastId() {
+		
+		return $this->pettycash->where('status',1)
+					->select('id')
+					->orderBY('id', 'DESC')
+					->first();
+
+	}
+}

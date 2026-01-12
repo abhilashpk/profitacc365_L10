@@ -1,0 +1,2370 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Repositories\Area\AreaInterface;
+use App\Repositories\Itemmaster\ItemmasterInterface;
+use App\Repositories\Terms\TermsInterface;
+use App\Repositories\Jobmaster\JobmasterInterface;
+use App\Repositories\AccountMaster\AccountMasterInterface;
+use App\Repositories\Currency\CurrencyInterface;
+use App\Repositories\VoucherNo\VoucherNoInterface;
+use App\Repositories\PurchaseOrder\PurchaseOrderInterface;
+use App\Repositories\SupplierDo\SupplierDoInterface;
+use App\Repositories\Location\LocationInterface;
+use App\Repositories\PurchaseInvoice\PurchaseInvoiceInterface;
+use App\Repositories\AccountSetting\AccountSettingInterface;
+use App\Repositories\Country\CountryInterface;
+use App\Repositories\Acgroup\AcgroupInterface;
+use App\Repositories\Forms\FormsInterface;
+use App\Repositories\MaterialRequisition\MaterialRequisitionInterface;
+use App\Repositories\UpdateUtility;
+use App\Repositories\PaymentVoucher\PaymentVoucherInterface;
+use App\Repositories\Bank\BankInterface;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests;
+use Session;
+use Response;
+use Input;
+use Excel;
+use App;
+use DB;
+use Auth;
+use Mail;
+use PDF;
+
+class PurchaseInvoiceController extends Controller
+{
+
+	protected $area;
+	protected $itemmaster;
+	protected $terms;
+	protected $jobmaster;
+	protected $accountmaster;
+	protected $currency;
+	protected $voucherno;
+	protected $purchase_order;
+	protected $supplierdo;
+	protected $location;
+	protected $purchase_invoice;
+	protected $accountsetting;
+	protected $country;
+	protected $group;
+	protected $forms;
+	protected $formData;
+	protected $material_requisition;
+	protected $mod_autocost;
+	protected $mod_mpqty;
+	protected $payment_voucher;
+	protected $bank;
+	
+	public function __construct(PurchaseInvoiceInterface $purchase_invoice, SupplierDOInterface $supplierdo, PurchaseOrderInterface $purchase_order, ItemmasterInterface $itemmaster, TermsInterface $terms, JobmasterInterface $jobmaster, AccountMasterInterface $accountmaster, CurrencyInterface $currency, VoucherNoInterface $voucherno, AreaInterface $area,CountryInterface $country,AcgroupInterface $group, LocationInterface $location, AccountSettingInterface $accountsetting, FormsInterface $forms, MaterialRequisitionInterface $material_requisition,PaymentVoucherInterface $payment_voucher, BankInterface $bank) {
+		
+		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
+		
+		$this->middleware('auth');
+		$this->area = $area;
+		$this->itemmaster = $itemmaster;
+		$this->terms = $terms;
+		$this->jobmaster = $jobmaster;
+		$this->accountmaster = $accountmaster;
+		$this->currency = $currency;
+		$this->voucherno = $voucherno;
+		$this->purchase_order = $purchase_order;
+		$this->supplierdo = $supplierdo;
+		$this->location = $location;
+		$this->purchase_invoice = $purchase_invoice;
+		$this->accountsetting = $accountsetting;
+		$this->country = $country;
+		$this->group = $group;
+		$this->forms = $forms;
+		$this->formData = $this->forms->getFormData('PI');
+		$this->material_requisition = $material_requisition;
+		$this->payment_voucher = $payment_voucher;
+		$this->bank = $bank;
+		
+		$this->mod_autocost = DB::table('parameter2')->where('keyname', 'mod_autocost_refresh')->where('status',1)->select('is_active')->first();
+		$this->mod_mpqty = DB::table('parameter2')->where('keyname', 'mod_mp_qty')->where('status',1)->select('is_active')->first();
+		$this->mod_location = DB::table('parameter2')->where('keyname', 'mod_location')->where('status',1)->select('is_active')->first();
+		$this->objUtility = new UpdateUtility();
+	}
+	
+    public function index() {
+		
+		//Session::put('cost_accounting', 0);
+		$data = array();
+		//$this->purchase_invoice->InvoiceLogProcess();
+		$orders = [];//$this->purchase_invoice->purchaseInvoiceList();
+		
+		//DEPT CHECK...
+		if(Session::get('department')==1) {
+			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$is_dept = true;
+		} else {
+			$departments = []; $is_dept = false;
+		}
+		
+		$supplier = [];//$this->accountmaster->getSupplierList();
+		//echo '<pre>';print_r($suppliers);exit;
+	
+        $item = DB::table('itemmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		
+		$category = [];//DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$subcategory = [];//DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$group = [];//DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$subgroup = [];//DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$sup =DB::table('account_master')->where('category','SUPPLIER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		->select('id','master_name')->get(); 
+
+		return view('body.purchaseinvoice.index')
+					->withOrders($orders)
+					->withCategory($category)
+		            ->withSubcategory($subcategory)
+		            ->withGroup($group)
+		            ->withSubgroup($subgroup)
+	                ->withItem($item)
+					->withDepartments($departments)
+					->withSupplier($supplier)
+					->withSup($sup)
+					->withType('')
+					->withDepartments($departments)
+					->withSettings($this->acsettings)
+					->withIsdept($is_dept)
+					->withJobs($jobs)
+					->withData($data);
+	}
+	
+	public function ajaxPaging(Request $request)
+	{
+		$columns = array( 
+                            0 =>'purchase_invoice.id', 
+                            1 =>'voucher_no',
+							2 =>'reference_no',
+                            3 => 'voucher_date',
+							4 => 'job',
+                            5 => 'supplier',
+                            6 => 'net_amount'
+                        );
+						
+		$totalData = $this->purchase_invoice->purchaseInvoiceListCount();
+            
+        $totalFiltered = $totalData; 
+
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = $columns[$request->input('order.0.column')]; //'purchase_invoice.id';
+        $dir = $request->input('order.0.dir'); //'desc';
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+		$dept = $request->input('dept');
+        
+		$invoices = $this->purchase_invoice->purchaseInvoiceList('get', $start, $limit, $order, $dir, $search, $dept);
+		
+		if($search)
+			$totalFiltered =  $this->purchase_invoice->purchaseInvoiceList('count', $start, $limit, $order, $dir, $search, $dept);
+		
+		$prints = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','PI')
+							->select('report_view_detail.name','report_view_detail.id')
+							->get();
+							
+        $data = array();
+        if(!empty($invoices))
+        {
+           
+			foreach ($invoices as $row)
+            {
+                $edit =  '"'.url('purchase_invoice/edit/'.$row->id).'"';
+                $delete =  'funDelete("'.$row->id.'")';
+				$print = url('purchase_invoice/print/'.$row->id);
+				$viewonly =  url('purchase_invoice/viewonly/'.$row->id);
+				
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['reference_no'] = $row->reference_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['job'] = $row->job;
+				$nestedData['supplier'] = ($row->supplier=='CASH CUSTOMERS') ? (($row->supplier_name!='')?$row->supplier.'('.$row->supplier_name.')':$row->supplier) : $row->supplier;
+				$nestedData['net_total'] = $row->net_amount;
+                $nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
+												<span class='glyphicon glyphicon-pencil'></span></button></p>";
+												
+				$nestedData['viewonly'] = "<p><a href='{$viewonly}' class='btn btn-info btn-xs' target='_blank'><i class='glyphicon glyphicon-eye-open'></i></a></p>";
+				$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+												<span class='glyphicon glyphicon-trash'></span>";
+				
+				$opts = '';					
+				foreach($prints as $doc) {
+					$opts .= "<li role='presentation'><a href='{$print}/".$doc->id."' target='_blank' role='menuitem'>".$doc->name."</a></li>";
+				}
+				$printfc = url('purchase_invoice/printfc/'.$row->id.'/'.$prints[0]->id);
+				if($row->is_fc==1) {		
+					$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>"; //<a href='{$printfc}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a>
+										
+					/* $nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a>
+											<a href='{$print}/FC' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a></p>"; */
+				} else {
+					$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>";
+					
+					//$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";
+				}
+											
+                $data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	public function add(Request $request, $id=null, $doctype = null) {
+			
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		
+		$pideptid = (Session::has('PI_deptid'))?Session::get('PI_deptid'):'';
+		$pivchrid = (Session::has('PI_vchrid'))?Session::get('PI_vchrid'):'';
+		$pipurac = (Session::has('PI_purac'))?Session::get('PI_purac'):'';
+		$piamid = (Session::has('PI_amid'))?Session::get('PI_amid'):'';
+		
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$location = $this->location->locationList();
+		//$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=1);//'Purchase Stock' voucher from account settings...
+		if($this->mod_location->is_active==1) {
+			$lcrow = DB::table('default_loc')->select('pur_loc AS id')->first();
+			$locdefault = ($lcrow)?$lcrow:0;
+		} else
+			$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+
+		$pur_location = DB::table('parameter3')
+							 ->join('location', 'location.id', '=', 'parameter3.location_id')
+							 ->join('account_master', 'account_master.id', '=', 'parameter3.account_id')
+							 ->select('location.name','location.id','account_master.master_name','account_master.id AS account_id')
+							 ->get();
+		$bcurrency = DB::table('parameter1')
+							 ->join('currency', 'currency.id', '=', 'parameter1.bcurrency_id')
+							  ->select('currency.code')
+							 ->first();					 
+					 
+		$lastid = DB::table('purchase_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+	    $footertxt = DB::table('header_footer')->where('doc','PI')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','PI')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+	//RV Entry
+		$vchrdata = $this->getVoucherPV(10,'CASH');
+		$banks = $this->bank->activeBankList();
+
+		//CHECK DEPARTMENT.......
+			
+		if(Session::get('department') == 1) { //if active...
+	
+			$deptid = Auth::user()->department_id;
+				
+			if($deptid!=0)
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			else {
+				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$deptid = $departments[0]->id;
+			}
+			$deptid = ($pideptid!='')?$pideptid:$deptid;
+			$is_dept = true;
+		} else {
+			$is_dept = false;
+			$departments = [];
+			$deptid = '';
+		}
+		
+		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=1,$is_dept,$deptid); //'Purchase Stock' voucher from account settings...
+		
+		$cid=$this->acsettings->bcurrency_id;
+	    $fcurrency=DB::table('currency')->where('id','!=',$cid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name','code')->get();
+	
+	//echo '<pre>';print_r($fcurrency);exit;
+		if($id) {
+		    $batch_items = null;
+			$ids = explode(',', $id); //
+		    $docnos = '';//AUG24
+			$ocrow = $getItemLocation = $itemlocedit = [];
+			if($doctype=='PO') {
+				$docRow = $this->purchase_order->findPOdata($ids[0]);
+				$docItems = $this->purchase_order->getPOitems($ids);
+				$ocrow = $this->purchase_order->getOtherCost($ids[0]);
+				
+				//AUG24
+				$resdo = DB::table('purchase_order')->whereIn('id',$ids)->select('voucher_no')->get();
+				foreach($resdo as $rw) {
+					$docnos = ($docnos=='')?$rw->voucher_no:$docnos.','.$rw->voucher_no;
+				}
+			}else if($doctype=='PI') {
+				$docRow = $this->purchase_invoice->findPOdata($ids[0]);
+				$docItems = $this->purchase_invoice->getItems($ids);
+				$ocrow = $this->purchase_invoice->getOtherCost($ids[0]);
+			} 
+			else if($doctype=='MR') {
+				$docRow = $this->material_requisition->findMRdata($ids[0]);
+				//echo '<pre>';print_r($docRow);exit;
+				$docItems = $this->material_requisition->getMRitems($ids);
+			} else if($doctype=='SDO') {
+				$docRow = $this->supplierdo->findSDOdata($ids[0]);
+				$docItems = $this->supplierdo->getSDOitems($ids);
+				$ocrow = $this->supplierdo->getOtherCost($ids);
+				//echo '<pre>';print_r($ocrow);exit;
+				$getItemLocation = $this->itemmaster->getItemLocation($id,'SDO');
+				$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($id,'SDO') ); //echo '<pre>'; print_r($itemlocedit); exit;
+				
+				
+        		//MAY25 BATCH ENTRY.....	
+        		$batch_res = $batchs = $batch_items = null;
+        		$batch_res = DB::table('batch_log')->whereNull('batch_log.deleted_at')
+        		                    ->Join('item_batch AS IB', function($join) {
+                                		$join->on('IB.id','=','batch_log.batch_id');
+                                	})
+                                	->where('batch_log.document_type', 'SDO')
+                                	->where('batch_log.document_id', $ids[0])
+                                	->whereNull('IB.deleted_at')
+                                	->select('IB.*','batch_log.doc_row_id','batch_log.log_id','batch_log.id AS batch_log_id','batch_log.batch_id')
+                                	->orderBy('batch_log.doc_row_id','ASC')->get();
+                                	
+                $batchs = $this->batchGrouping($batch_res);
+                
+                $pis = DB::table('purchase_invoice')->where('document_id', $ids[0])->select('id')->first();
+                if($pis) {
+                    $res_pi = DB::table('batch_log')->whereNull('batch_log.deleted_at')
+        		                    ->Join('item_batch AS IB', function($join) {
+                                		$join->on('IB.id','=','batch_log.batch_id');
+                                	})
+                                	->where('batch_log.document_type', 'PI')
+                                	->where('batch_log.document_id', $pis->id)
+                                	->whereNull('IB.deleted_at')
+                                	->select('batch_log.batch_id','batch_log.quantity')
+                                	->orderBy('batch_log.doc_row_id','ASC')->get();
+                                	
+                    $batch_res_pi = array();
+            		foreach($res_pi as $item)
+            			$batch_res_pi[$item->batch_id] = $item;
+            		
+                }
+                
+        //echo '<pre>';print_r($batchs); print_r($batch_res_pi); exit;
+        
+        		foreach($batchs as $key => $batchrow) {
+        		    $batchArr = $mfgArr = $expArr = $qtyArr = '';
+            		foreach($batchrow as $ky => $batch) {
+            		    
+            		    $batchArr = ($batchArr=='')?$batch->batch_no:$batchArr.','.$batch->batch_no;
+            		    $mfgArr = ($mfgArr=='')?date('d-m-Y',strtotime($batch->mfg_date)):$mfgArr.','.date('d-m-Y',strtotime($batch->mfg_date));
+            		    $expArr = ($expArr=='')?date('d-m-Y',strtotime($batch->exp_date)):$expArr.','.date('d-m-Y',strtotime($batch->exp_date));
+
+            		    if($pis) {
+            		        if(isset($batch_res_pi[$batch->batch_id]->quantity)) {
+            		            $bquantity = ($batch_res_pi[$batch->batch_id]->quantity > $batch->quantity)?($batch_res_pi[$batch->batch_id]->quantity - $batch->quantity):($batch->quantity - $batch_res_pi[$batch->batch_id]->quantity);
+            		        } else
+            		            $bquantity = $batch->quantity;
+            		    } else
+            		        $bquantity = $batch->quantity;
+            		    
+            		    $qtyArr = ($qtyArr=='')?$bquantity:$qtyArr.','.$bquantity;
+            		}
+            		$batch_items[$key] = ['batches' => $batchArr, 'mfgs' => $mfgArr, 'exps' => $expArr, 'qtys' => $qtyArr];
+        	    }
+			}
+			
+			$total = 0; $discount = 0; $nettotal = 0; $vat_total = 0;
+			foreach($docItems as $item) {
+				$total += $item->total_price;
+				$discount += $item->discount;
+				$vat_total += $item->vat_amount;
+			}
+			$nettotal = $total - $discount + $vat_total;
+				//echo '<pre>';print_r($batch_items);exit;
+			$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=1,$is_dept,Session::get('dpt_id')); 
+		
+			return view('body.purchaseinvoice.addsdo')
+						->withItems($itemmaster)
+						->withTerms($terms)
+						->withJobs($jobs)
+						->withCurrency($currency)
+						->withDocrow($docRow)
+						->withDocitems($docItems)
+						->withLocation($location)
+						->withPordid($id)
+						->withTotal($total)
+						->withDiscount($discount)
+						->withVattotal($vat_total)
+						->withVouchers($vouchers)
+						->withDoctype($doctype)
+						->withVoucherid(Session::get('voucher_id'))
+						->withVoucherno(Session::get('voucher_no'))
+						->withReferenceno(Session::get('reference_no'))
+						->withVoucherdt(Session::get('voucher_date'))
+						->withLpodt(Session::get('lpo_date'))
+						->withAccountmstr(Session::get('acnt_master'))
+						->withPurchaseac(Session::get('purchase_acnt'))
+						->withSettings($this->acsettings)
+						->withOcrow($ocrow)
+						->withVatdata($this->vatdata)
+						->withFormdata($this->formData)
+						->withDptid(Session::get('dpt_id'))
+						->withDepartments($departments)
+						->withIsdept($is_dept)
+						->withItemloc($getItemLocation)
+						->withItemlocedit($itemlocedit)
+						->withIsmpqty($this->mod_mpqty->is_active)
+						->withDocnos($docnos) //AUG24
+						->withPvvoucher($vchrdata)
+					    ->withPvid($pvid=10)
+					     ->withBanks($banks)
+					     ->withFcurrency($fcurrency)
+					     ->withBcurrency(($bcurrency!='')?$bcurrency->code:'')
+						->withBatchitems($batch_items);
+		}
+		return view('body.purchaseinvoice.add')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withLocation($location)
+					->withVouchers($vouchers)
+					->withSettings($this->acsettings)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withLocdefault($locdefault)
+					->withPurlocation($pur_location)
+					->withPrintid($lastid)
+					->withFormdata($this->formData)
+					->withPrint($print)
+					->withIsdept($is_dept)
+					->withDepartments($departments)
+					->withDeptid($deptid)
+					->withPideptid($pideptid)
+					->withPivchrid($pivchrid)
+					->withPipurac($pipurac)
+					->withPiamid($piamid)
+					->withIsmpqty($this->mod_mpqty->is_active)
+					->withFooter(isset($footertxt)?$footertxt->description:'')
+					->withPvvoucher($vchrdata)
+					->withPvid($pvid=10)
+					->withBcurrency(($bcurrency!='')?$bcurrency->code:'')
+					->withBanks($banks)
+					->withFcurrency($fcurrency)
+					->withData($data);
+	}
+	
+		
+	public function getVoucher($id) {
+		
+		 $row = $this->accountsetting->getVoucherByID($id);
+		 if($row->voucher_no != '' || $row->voucher_no != null) {
+			 if($row->is_prefix==0)
+				 $voucher = $row->voucher_no;
+			 else {
+				 $no = (int)$row->voucher_no;
+				 $voucher = $row->prefix.''.$no;
+			 }
+		 }
+		 return $result = array('voucher_no' => $voucher, 
+								'account_id' => $row->account_id, 
+								'account_name' => $row->master_name, 
+								'id' => $row->id,
+								'caccount_id' => $row->caccount_id,
+								'caccount_name' => $row->cmaster_name,
+								'cid'	=> $row->cid,
+								'cash_voucher' => $row->is_cash_voucher,
+								'default_account' => $row->default_account,
+								'cash_account' => $row->default_account_id
+								);//print_r($ob);
+
+	}
+	
+		public function getVoucherPV($id,$type) {
+		
+		 $row = $this->accountsetting->getDrVoucherByID2($id);//return $row;//print_r($row);
+		 $voucher = $master_name = $id = null;
+		 if($row) {
+			 if($row->voucher_no != '' || $row->voucher_no != null) {
+				 if($row->is_prefix==0)
+					 $voucher = $row->voucher_no;
+				 else {
+					 $no = (int)$row->voucher_no;
+					 $voucher = $row->prefix.''.$no;
+				 }
+			 }
+			 
+			 if($type=='CASH') {
+				 $master_name = $row->cashaccount;
+				 $id = $row->cash_account_id;
+			 } else if($type=='BANK') {
+				 $master_name = $row->bankaccount;
+				 $id = $row->bank_account_id;
+			 } else if($type=='PDCR') {
+				 $master_name = $row->pdcaccount;
+				 $id = $row->pdc_account_id;
+			} else if($type=='PDCI') {
+				 $master_name = $row->pdcaccount;
+				 $id = $row->pdc_account_id;
+			}
+			$rid = $row->asid;
+		 }
+		 
+		 return $result = array('voucher_no' => $voucher,
+								'account_name' => $master_name, 
+								'id' => $id,
+								'rid' => $rid);
+		
+	}
+	
+	public function save(Request $request) {
+		
+		//echo '<pre>';print_r($request->input());exit;
+		
+		if( $this->validate(
+			$request, 
+			['reference_no' => ($this->formData['reference_no']==1)?'required':'nullable',
+			 'supplier_name' => 'required','supplier_id' => 'required',
+			 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required',
+			 'dr_acnt' => 'sometimes|required'
+			],
+			['reference_no.required' => 'Reference no. is required.',
+			 'supplier_name.required' => 'Supplier name is required.','supplier_id.required' => 'Supplier name is invalid.',
+			 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.',
+			 'dr_acnt.required' => 'Debit a/c. is required.',
+			]
+		)) {
+
+			return redirect('purchase_invoice/add')->withInput()->withErrors();
+		  }
+		
+		if(Session::has('dpt_id')) 
+			Session::forget('dpt_id');
+		if(Session::has('voucher_id'))
+			Session::forget('voucher_id');
+		if(Session::has('voucher_no'))
+			Session::forget('voucher_no');
+		if(Session::has('reference_no'))
+			Session::forget('reference_no');
+		if(Session::has('voucher_date'))
+			Session::forget('voucher_date');
+		if(Session::has('lpo_date'))
+			Session::forget('lpo_date');
+		if(Session::has('purchase_acnt'))
+			Session::forget('purchase_acnt');
+		if(Session::has('acnt_master'))
+			Session::forget('acnt_master');
+			
+		  $attributes=Input::all();
+		  $id=$this->purchase_invoice->create($attributes);
+		  
+		 // echo '<pre>';print_r($id);exit;
+		if($id) {
+			//AUTO COST REFRESH CHECK ENABLE OR NOT
+			 if($this->mod_autocost->is_active==1) {
+				$this->objUtility->reEvalItemCostQuantity(Input::get('item_id'),$this->acsettings);
+				app('App\Http\Controllers\UtilityController')->updateItemCurrentQty(Input::get('item_id')); //OCT24
+			} 
+			
+				if( isset($attributes['is_pv']) && $attributes['is_pv']==1 ) { 
+			    //echo '<pre>';print_r(Input::all());exit;
+				$this->RVformSet($attributes, $id);
+				$this->payment_voucher->create(Input::all());
+			}
+
+			#### mail
+			if($attributes['send_email']==1) {
+			$amount=$attributes['net_amount'];
+			$vid=$attributes['voucher_no'];
+			$data['words'] = $this->number_to_word($amount);
+			$data['purchaseitems'] = DB::table('purchase_invoice')
+						->where('purchase_invoice.voucher_no', $vid)
+						->join('purchase_invoice_item AS PI', function($join) {
+					   $join->on('PI.purchase_invoice_id','=','purchase_invoice.id');
+							})
+						->join('itemmaster AS IM', function($join) {
+					   $join->on('IM.id','=','PI.item_id');
+						   })
+					   ->join('units AS U', function($join) {
+					   $join->on('U.id','=','PI.unit_id');
+						})
+						->leftjoin('users', function($join) {
+						   $join->on('users.id','=','purchase_invoice.created_by');
+							})
+						->where('PI.status', 1)
+						->where('PI.deleted_at', '0000-00-00 00:00:00')
+						->select('PI.*','IM.item_code','U.unit_name','purchase_invoice.voucher_no','purchase_invoice.total','purchase_invoice.vat_amount','purchase_invoice.net_amount','purchase_invoice.created_at','users.name')
+						 ->orderBY('PI.id','ASC')->get();
+					   //echo '<pre>';print_r($data['salesitems']);exit;
+					   //$pdfnew = PDF::loadView('body.salesinvoice.pdfupdateprintnw',$data);
+					   //return view('body.salesinvoice.pdfupdateprintnw')->withSalesitems($data['salesitems'])->withWords($data['words']);
+
+					   $email='numaktech@gmail.com ';
+					   $no=$data['purchaseitems'][0]->voucher_no;
+					   $body='Purchase Invoice created with voucher no: %s';
+						$text= sprintf($body,$no);						
+						   try{
+								   Mail::send(['html'=>'body.purchaseinvoice.emailadd'], $data,function($message) use ($email,$text) {
+								   $message->from(env('MAIL_USERNAME'));	
+								   $message->to($email);
+								   $message->subject($text);
+								   });
+							   
+							   }catch(JWTException $exception){
+							   $this->serverstatuscode = "0";
+							   $this->serverstatusdes = $exception->getMessage();
+							   //echo '<pre>';print_r($this->serverstatusdes);exit;
+						   }
+					   
+				}
+
+	   #### End 
+			Session::flash('message', 'Purchase Invoice added successfully.');
+		} else {
+			Session::flash('error', 'Something went wrong, Invoice failed to add!');
+		}
+		return redirect('purchase_invoice/add');
+	}
+	
+	
+		private function RVformSet($attributes,$id) {
+		
+		$ispdc = false; 
+		$ar = [1,2]; $rv_amount = 0; $voucherno = '';
+		$remrv = (isset($attributes['remove_rv']))?$attributes['remove_rv']:'';
+		$vt = DB::table('account_setting')->where('id',$attributes['voucher_id'])->select('voucher_name')->first();
+		foreach($ar as $val) {
+			if($val==1) {
+				foreach($attributes['voucher_type'] as $rkey => $rval) {
+					$acname[] = $attributes['rv_dr_account'][$rkey];
+					$acid[] = $attributes['rv_dr_account_id'][$rkey];
+					$grparr[] = $attributes['voucher_type'][$rkey];
+					if($attributes['voucher_type'][$rkey]=='CASH') {
+						$pryarr[] = ''; $vtype = 'CASH'; $pmode[] = 0;
+					} else if($attributes['voucher_type'][$rkey]=='PDCR') {
+						$ispdc = true; $vtype = 'PDCR';
+						$pryarr[] = $attributes['dr_account_id']; $pmode[] = 2;
+					} else if($attributes['voucher_type'][$rkey]=='BANK') {
+						$ispdc = true; $vtype = 'BANK';
+						$pryarr[] = $attributes['dr_account_id']; $pmode[] = 1;
+					}
+					$siarr[] = $id; $btarr[] = 'PI'; $invarr[] = $id; $actypearr[] = 'Cr';
+					$desarr[] = isset($attributes['description'])?(($attributes['description']=='')?$vt->voucher_name:$attributes['description']):$vt->voucher_name;
+					$refarr[] = $attributes['voucher_no']; $voucherno .= ($voucherno=='')?$attributes['voucher_no']:','.$attributes['voucher_no'];
+					$lnarr[] = $attributes['rv_amount'][$rkey];
+					$bnkarr[] = (isset($attributes['bank_id'][$rkey]))?$attributes['bank_id'][$rkey]:'';
+					$chqarr[] = (isset($attributes['cheque_no'][$rkey]))?$attributes['cheque_no'][$rkey]:'';
+					$chqdtarr[] = (isset($attributes['cheque_date'][$rkey]) && $attributes['cheque_date'][$rkey]!='')?date('Y-m-d', strtotime($attributes['cheque_date'][$rkey])):'';
+					$jearr[] = (isset($attributes['rowid'][$rkey]))?$attributes['rowid'][$rkey]:'';
+					$vatamt[] = ''; $actarr[] = $attributes['net_amount']; $jbarr[] = ''; $dptarr[] = ''; $prtnarr[] = ''; $trarr[] = ''; 
+					$rv_amount += $attributes['rv_amount'][$rkey];
+				}
+			} else {
+				//$ispdc = false;
+				$acname[] = $attributes['supplier_name'];
+				$acid[] = $attributes['dr_account_id'];
+				$grparr[] = 'SUPPLIER'; //$vtype = 9;
+				$siarr[] = $id; $btarr[] = 'PI'; $invarr[] = $id; $actypearr[] = 'Dr';
+				$desarr[] = isset($attributes['description'])?(($attributes['description']=='')?$vt->voucher_name:$attributes['description']):$vt->voucher_name;
+				$jearr[] = (isset($attributes['rowidcr']))?$attributes['rowidcr']:'';
+				$refarr[] = $voucherno; 
+				$lnarr[] = $rv_amount;
+				$pryarr[] = ''; $vatamt[] = ''; $actarr[] = $attributes['net_amount']; $jbarr[] = ''; $dptarr[] = ''; $prtnarr[] = ''; $trarr[] = ''; $pmode[] = '';
+				$bnkarr[] = ''; $chqarr[] = ''; $chqdtarr[] = '';
+			}
+		}
+		
+		Input::merge(['from_jv' => 1]);
+		Input::merge(['chktype' => ($ispdc)?'PDCR':'']);
+		Input::merge(['is_onaccount' => 1]);
+		Input::merge(['voucher' => $attributes['rv_voucher'][0] ]);
+		Input::merge(['voucher_type' => $vtype]);
+		Input::merge(['voucher_date' => ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])) ]);
+		Input::merge(['voucher_no' => $attributes['rv_voucher_no'][0] ]); 
+		Input::merge(['account_name' => $acname]);
+		Input::merge(['account_id' => $acid]);
+		Input::merge(['group_id' => $grparr]);
+		Input::merge(['vatamt' => $vatamt]);
+		Input::merge(['purchase_invoice_id' => $siarr]);
+		Input::merge(['bill_type' => $btarr]);
+		Input::merge(['description' => $desarr]);
+		Input::merge(['reference' => $refarr]);
+		Input::merge(['je_id' => $jearr]);
+		Input::merge(['inv_id' => $invarr]);
+		Input::merge(['actual_amount' => $actarr]);
+		Input::merge(['account_type' => $actypearr]);
+		Input::merge(['line_amount' => $lnarr]);
+		Input::merge(['job_id' => $jbarr]);
+		Input::merge(['bank_id' => $bnkarr]);
+		Input::merge(['cheque_no' => $chqarr]);
+		Input::merge(['cheque_date' => $chqdtarr]);
+		Input::merge(['department' => $dptarr]);
+		Input::merge(['partyac_id' => $pryarr]);
+		Input::merge(['party_name' => $prtnarr]);
+		Input::merge(['tr_id' => $trarr]);
+		Input::merge(['difference' => 0]);
+		Input::merge(['remove_item' => $remrv]);
+		Input::merge(['trn_no' => '']);
+		Input::merge(['curno' => '']);
+		Input::merge(['debit' => $rv_amount]);
+		Input::merge(['credit' => $rv_amount]);
+		Input::merge(['currency_id' => $pmode]);
+		
+		DB::table('purchase_invoice')->where('id',$id)->update(['advance' => $rv_amount,
+								'balance_amount' => DB::raw('net_amount - '.$rv_amount) ]);
+		/* DB::table('sales_invoice')->where('id',$id)->update(['advance' => DB::raw('advance + '.$rv_amount),
+							'balance' => (DB::raw('balance' > 0)?DB::raw('balance - '.$rv_amount):DB::raw('net_total - '.$rv_amount) ]); */
+		
+		return true;
+	}
+	
+	
+	public function destroy($id)
+	{
+							
+		if( $this->purchase_invoice->check_invoice($id) ) {
+			
+			if($this->purchase_invoice->delete($id)) {
+				
+				//AUTO COST REFRESH CHECK ENABLE OR NOT
+				if($this->mod_autocost->is_active==1) {
+					$arritems = [];
+					$items = DB::table('purchase_invoice_item')->where('purchase_invoice_id',$id)->select('item_id')->get();
+					foreach($items as $rw) {
+						$arritems[] = $rw->item_id;
+					}
+					$this->objUtility->reEvalItemCostQuantity($arritems,$this->acsettings);
+				}
+			
+				Session::flash('message', 'Purchase invoice deleted successfully.');
+			} else
+				Session::flash('error', 'Something went wrong, Invoice failed to delete!');
+			
+		} else {
+			Session::flash('error', 'Purchase invoice is already in use, you can\'t delete this!');
+		}
+		return redirect('purchase_invoice');
+	}
+	
+	public function checkRefNo() {
+
+		$check = $this->purchase_invoice->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	
+	public function checkInvoice() {
+
+		$check = $this->purchase_invoice->check_invoice_id( Input::get('purchase_invoice_id') );
+		$isAvailable = ($check) ? false : true;
+		echo $isAvailable;
+	}
+	
+	public function edit($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->purchase_invoice->findPOdata($id);
+		$orditems = $this->purchase_invoice->getItems($id); 
+		$ocrow = $this->purchase_invoice->getOtherCost($id);
+		$location = $this->location->locationList();
+		$getItemLocation = $this->itemmaster->getItemLocation($id,'PI');
+		$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($id,'PI') ); 
+		$voucher = $this->accountsetting->find($orderrow->voucher_id); //echo '<pre>';print_r($orditems);exit;//print_r($itemlocedit);exit;
+		//$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=1);
+		
+		//RV FORM ENTRY............
+		$rventry = [];
+		$banks = $this->bank->activeBankList();
+		$vchrdata = $this->getVoucherPV(10,'CASH');
+		if($orderrow->is_pventry==1) {
+			$rventry = DB::table('payment_voucher')->where('payment_voucher.purchase_invoice_id',$orderrow->id)
+							->join('payment_voucher_entry', 'payment_voucher_entry.payment_voucher_id', '=', 'payment_voucher.id')
+							->join('account_master', 'account_master.id', '=', 'payment_voucher_entry.account_id')
+							//->where('receipt_voucher_entry.entry_type','Dr')
+							->select('payment_voucher_entry.*','account_master.master_name','payment_voucher.voucher_type','payment_voucher.id AS rvid',
+									'payment_voucher.voucher_no')
+							->get(); //echo '<pre>';print_r($rventry);exit;
+		}
+		//
+		$bcurrency = DB::table('parameter1')
+							 ->join('currency', 'currency.id', '=', 'parameter1.bcurrency_id')
+							  ->select('currency.code')
+							 ->first();	
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','PI')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+		
+		//CHECK DEPARTMENT.......
+		if(Session::get('department')==1) { //if active...
+			$deptid = Auth::user()->department_id;
+			if($deptid!=0) {
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			} else {
+				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$deptid = $departments[0]->id;
+			}
+			$is_dept = true;
+		} else {
+			$is_dept = false;
+			$departments = [];
+			$deptid = '';
+		}
+		
+		//MAY25 BATCH ENTRY.....	
+		$batch_res = $batchs = $batch_items = null;
+		$batch_res = DB::table('batch_log')->whereNull('batch_log.deleted_at')
+		                    ->Join('item_batch AS IB', function($join) {
+                        		$join->on('IB.id','=','batch_log.batch_id');
+                        	})
+                        	->where('batch_log.document_type', 'PI')
+                        	->where('batch_log.document_id', $id)
+                        	->whereNull('IB.deleted_at')
+                        	->select('IB.*','batch_log.doc_row_id','batch_log.log_id','batch_log.id AS batch_log_id')
+                        	->orderBy('batch_log.doc_row_id','ASC')->get();
+                        	
+        $batchs = $this->batchGrouping($batch_res);
+
+		foreach($batchs as $key => $batchrow) {
+		    $batchArr = $mfgArr = $expArr = $qtyArr = $idArr = '';
+    		foreach($batchrow as $ky => $batch) {
+    		    $idArr = ($idArr=='')?$batch->id:$idArr.','.$batch->id;
+    		    $batchArr = ($batchArr=='')?$batch->batch_no:$batchArr.','.$batch->batch_no;
+    		    $mfgArr = ($mfgArr=='')?date('d-m-Y',strtotime($batch->mfg_date)):$mfgArr.','.date('d-m-Y',strtotime($batch->mfg_date));
+    		    $expArr = ($expArr=='')?date('d-m-Y',strtotime($batch->exp_date)):$expArr.','.date('d-m-Y',strtotime($batch->exp_date));
+    		    $qtyArr = ($qtyArr=='')?$batch->quantity:$qtyArr.','.$batch->quantity;
+    		}
+    		$batch_items[$key] = ['ids' => $idArr, 'batches' => $batchArr, 'mfgs' => $mfgArr, 'exps' => $expArr, 'qtys' => $qtyArr];
+	    }
+		
+		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=1,$is_dept,$deptid);
+		return view('body.purchaseinvoice.edit')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withOrditems($orditems)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOcrow($ocrow)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withLocation($location)
+					->withItemloc($getItemLocation)
+					->withItemlocedit($itemlocedit)
+					->withFormdata($this->formData)
+					->withVouchers($vouchers)
+					->withVoucher($voucher)
+					->withPrint($print)
+					->withIsdept($is_dept)
+					->withDepartments($departments)
+					->withDeptid($deptid)
+					->withIsmpqty($this->mod_mpqty->is_active)
+					->withBanks($banks)
+					->withPvvoucher($vchrdata)
+					->withPvid($pvid=10)
+					->withRventry($rventry)
+					->withBcurrency(($bcurrency!='')?$bcurrency->code:'')
+					->withBatchitems($batch_items);
+
+	}
+	
+	//MAY25
+	protected function batchGrouping($result) {
+	    
+	    $childs = array();
+		foreach($result as $item)
+		    $childs[$item->doc_row_id][] = $item;
+			
+		return $childs;
+	}
+	
+	private function makeTreeArr($result) {
+		
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item->invoice_id][] = $item;
+		
+		return $childs;
+	}
+		
+	public function update(Request $request)
+	{ 	//echo '<pre>';print_r($request->all());exit;
+		$id = $request->input('purchase_invoice_id');
+		if( $this->validate(
+			$request, 
+			['reference_no' => ($this->formData['reference_no']==1)?'required':'nullable',
+			 'supplier_name' => 'required','supplier_id' => 'required',
+			 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required'
+			],
+			['reference_no.required' => 'Reference no. is required.',
+			 'supplier_name.required' => 'Supplier name is required.','supplier_id.required' => 'Supplier name is invalid.',
+			 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.'
+			]
+		)) {
+
+			return redirect('purchase_invoice/edit/'.$id)->withInput()->withErrors();
+		}
+		
+		if( $this->purchase_invoice->update($id, Input::all()) ) {
+			//AUTO COST REFRESH CHECK ENABLE OR NOT
+			if($this->mod_autocost->is_active==1) {
+				$this->objUtility->reEvalItemCostQuantity(Input::get('item_id'),$this->acsettings);
+				app('App\Http\Controllers\UtilityController')->updateItemCurrentQty(Input::get('item_id')); //OCT24
+			}
+			
+			$attributes = Input::all();
+			if( isset($attributes['is_pv']) && $attributes['is_pv']==1 ) { 
+				$sirv = DB::table('payment_voucher')->where('purchase_invoice_id',$id)->select('id')->first();//echo '<pre>';print_r($attributes);exit;
+				if($sirv) {
+				    
+					$this->RVformSet($attributes, $id);
+					$this->payment_voucher->update($request->get('rvedit_id'), Input::all());
+				} else {
+					$this->RVformSet($attributes, $id);
+					$this->payment_voucher->create(Input::all());
+				}
+			}
+
+			#### mail
+			if(Input::get('send_email')==1){
+			$attributes=Input::all();
+			$amount=$attributes['net_amount'];
+			
+			$data['words'] = $this->number_to_word($amount);
+			$data['purchaseitems'] = DB::table('purchase_invoice')
+						->where('purchase_invoice.id', $id)
+						->join('purchase_invoice_item AS PI', function($join) {
+					   $join->on('PI.purchase_invoice_id','=','purchase_invoice.id');
+							})
+						->join('itemmaster AS IM', function($join) {
+					   $join->on('IM.id','=','PI.item_id');
+						   })
+					   ->join('units AS U', function($join) {
+					   $join->on('U.id','=','PI.unit_id');
+						})
+						->leftjoin('users', function($join) {
+						   $join->on('users.id','=','purchase_invoice.modify_by');
+							})
+						->where('PI.status', 1)
+						->where('PI.deleted_at', '0000-00-00 00:00:00')
+						->select('PI.*','IM.item_code','U.unit_name','purchase_invoice.voucher_no','purchase_invoice.total','purchase_invoice.vat_amount','purchase_invoice.net_amount','purchase_invoice.modify_at','users.name')
+						 ->orderBY('PI.id','ASC')->get();
+					   //echo '<pre>';print_r($data['purchaseitems']);exit;
+					   //$pdfnew = PDF::loadView('body.salesinvoice.pdfupdateprintnw',$data);
+					   //return view('body.salesinvoice.pdfupdateprintnw')->withSalesitems($data['salesitems'])->withWords($data['words']);
+
+					   $email='numaktech@gmail.com ';
+					   $no=$data['purchaseitems'][0]->voucher_no;
+					   $body='Purchase Invoice modified with voucher no: %s';
+						$text= sprintf($body,$no);						
+						   try{
+								   Mail::send(['html'=>'body.purchaseinvoice.emailupdate'], $data,function($message) use ($email,$text) {
+								   $message->from(env('MAIL_USERNAME'));	
+								   $message->to($email);
+								   $message->subject($text);
+								   });
+							   
+							   }catch(JWTException $exception){
+							   $this->serverstatuscode = "0";
+							   $this->serverstatusdes = $exception->getMessage();
+							   //echo '<pre>';print_r($this->serverstatusdes);exit;
+						   }
+					   
+}
+
+	   #### End 
+			
+			Session::flash('message', 'Purchase invoice updated successfully');
+		} else
+			Session::flash('error', 'Something went wrong, Invoice failed to update!');
+		
+		return redirect('purchase_invoice');
+	}
+	
+	/* public function ajax_getcode($group_id)
+	{
+		$group = $this->group->getGroupCode($group_id);
+		$row = $this->accountmaster->getGroupCode($group_id);
+		if($row)
+			$no = intval(preg_replace('/[^0-9]+/', '', $row->account_id), 10);
+		else 
+			$no = 0;
+		
+		$no++;
+		return $code = strtoupper($group->code).''.$no;
+		//return $group->account_id;
+
+	} */
+	
+	
+	public function viewonly($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->purchase_invoice->findPOdata($id);
+		$orditems = $this->purchase_invoice->getItems($id); 
+		$ocrow = $this->purchase_invoice->getOtherCost($id);
+		$location = $this->location->locationList();
+		$getItemLocation = $this->itemmaster->getItemLocation($id,'PI');
+		$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($id,'PI') ); 
+		$voucher = $this->accountsetting->find($orderrow->voucher_id); //echo '<pre>';print_r($orditems);exit;//print_r($itemlocedit);exit;
+		//$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=1);
+		
+		//RV FORM ENTRY............
+		$rventry = [];
+		$banks = $this->bank->activeBankList();
+		$vchrdata = $this->getVoucherPV(10,'CASH');
+		if($orderrow->is_pventry==1) {
+			$rventry = DB::table('payment_voucher')->where('payment_voucher.purchase_invoice_id',$orderrow->id)
+							->join('payment_voucher_entry', 'payment_voucher_entry.payment_voucher_id', '=', 'payment_voucher.id')
+							->join('account_master', 'account_master.id', '=', 'payment_voucher_entry.account_id')
+							//->where('receipt_voucher_entry.entry_type','Dr')
+							->select('payment_voucher_entry.*','account_master.master_name','payment_voucher.voucher_type','payment_voucher.id AS rvid',
+									'payment_voucher.voucher_no')
+							->get(); //echo '<pre>';print_r($rventry);exit;
+		}
+		//
+		$bcurrency = DB::table('parameter1')
+							 ->join('currency', 'currency.id', '=', 'parameter1.bcurrency_id')
+							  ->select('currency.code')
+							 ->first();	
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','PI')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+		
+		//CHECK DEPARTMENT.......
+		if(Session::get('department')==1) { //if active...
+			$deptid = Auth::user()->department_id;
+			if($deptid!=0) {
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			} else {
+				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$deptid = $departments[0]->id;
+			}
+			$is_dept = true;
+		} else {
+			$is_dept = false;
+			$departments = [];
+			$deptid = '';
+		}
+		
+		//MAY25 BATCH ENTRY.....	
+		$batch_res = $batchs = $batch_items = null;
+		$batch_res = DB::table('batch_log')->whereNull('batch_log.deleted_at')
+		                    ->Join('item_batch AS IB', function($join) {
+                        		$join->on('IB.id','=','batch_log.batch_id');
+                        	})
+                        	->where('batch_log.document_type', 'PI')
+                        	->where('batch_log.document_id', $id)
+                        	->whereNull('IB.deleted_at')
+                        	->select('IB.*','batch_log.doc_row_id','batch_log.log_id','batch_log.id AS batch_log_id')
+                        	->orderBy('batch_log.doc_row_id','ASC')->get();
+                        	
+        $batchs = $this->batchGrouping($batch_res);
+
+		foreach($batchs as $key => $batchrow) {
+		    $batchArr = $mfgArr = $expArr = $qtyArr = $idArr = '';
+    		foreach($batchrow as $ky => $batch) {
+    		    $idArr = ($idArr=='')?$batch->id:$idArr.','.$batch->id;
+    		    $batchArr = ($batchArr=='')?$batch->batch_no:$batchArr.','.$batch->batch_no;
+    		    $mfgArr = ($mfgArr=='')?date('d-m-Y',strtotime($batch->mfg_date)):$mfgArr.','.date('d-m-Y',strtotime($batch->mfg_date));
+    		    $expArr = ($expArr=='')?date('d-m-Y',strtotime($batch->exp_date)):$expArr.','.date('d-m-Y',strtotime($batch->exp_date));
+    		    $qtyArr = ($qtyArr=='')?$batch->quantity:$qtyArr.','.$batch->quantity;
+    		}
+    		$batch_items[$key] = ['ids' => $idArr, 'batches' => $batchArr, 'mfgs' => $mfgArr, 'exps' => $expArr, 'qtys' => $qtyArr];
+	    }
+		
+		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=1,$is_dept,$deptid);
+		return view('body.purchaseinvoice.viewonly')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withOrditems($orditems)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOcrow($ocrow)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withLocation($location)
+					->withItemloc($getItemLocation)
+					->withItemlocedit($itemlocedit)
+					->withFormdata($this->formData)
+					->withVouchers($vouchers)
+					->withVoucher($voucher)
+					->withPrint($print)
+					->withIsdept($is_dept)
+					->withDepartments($departments)
+					->withDeptid($deptid)
+					->withIsmpqty($this->mod_mpqty->is_active)
+					->withBanks($banks)
+					->withPvvoucher($vchrdata)
+					->withPvid($pvid=10)
+					->withRventry($rventry)
+					->withBcurrency(($bcurrency!='')?$bcurrency->code:'')
+					->withBatchitems($batch_items);
+
+	}
+	
+	public function ajax_getcode($category)
+	{
+		$group = $this->group->getGroupCode($category);
+		$row = $this->accountmaster->getGroupCode($category);
+		if($row)
+			$no = intval(preg_replace('/[^0-9]+/', '', $row->account_id), 10);
+		else 
+			$no = 0;
+		
+		$no++;
+		return json_encode(array(
+							'code' => strtoupper($group->code).''.$no,
+							'category' => $group->category
+						));
+	}
+	
+	public function show($id) { 
+
+		$data = array();
+		$acmasterrow = $this->accountmaster->accountMasterView($id);
+		//echo '<pre>';print_r($acmasterrow);exit;
+		return view('body.accountmaster.view')
+					->withMasterrow($acmasterrow)
+					->withData($data);
+	}
+	
+	public function getSupplier($num=null)
+	{
+		$data = array();
+		$suppliers = $this->accountmaster->getSupplierList();
+		$country = $this->country->activeCountryList();
+		$area = $this->area->activeAreaList();
+		$sup_code = json_decode($this->ajax_getcode($category='SUPPLIER'));
+		return view('body.purchaseinvoice.supplier')
+					->withSuppliers($suppliers)
+					->withArea($area)
+					->withSupid($sup_code->code)
+					->withCategory($sup_code->category)
+					->withFormdata($this->formData)
+					->withCountry($country)
+					->withNum($num)
+					->withData($data);
+	}
+	
+	public function getAccount($num,$cr=null)
+	{
+		$data = array();
+		$accounts = $this->accountmaster->activeAccountList();
+		return view('body.purchaseinvoice.account')
+					->withAccounts($accounts)
+					->withNum($num)
+					->withCr($cr)
+					->withData($data);
+	}
+	
+	public function getPI($did=null)
+	{
+		$data = array();
+		$pidata = $this->purchase_invoice->getPIdata($did);//echo '<pre>';print_r($pidata);exit;
+		return view('body.purchaseinvoice.pidata')
+					->withPidata($pidata)
+					->withDid($did)
+					->withData($data);
+	}
+
+	public function getPurchaseInvoice()
+	{
+		$data = array();
+		$invoices = $this->purchase_invoice->getPIdata();
+		
+		//echo '<pre>';print_r($orders);exit;
+		return view('body.purchaseinvoice.pi')
+					->withInvoices($invoices)
+					->withData($data);
+	}
+	
+	//ED12
+	public function getInvoiceBySupplier($supplier_id,$no=null,$ref=null,$pvid=null)
+	{
+		$pvdat = ''; $pvrefdat = $pvarr = [];
+		$invoices = $this->purchase_invoice->getSupplierInvoice($supplier_id,null,$pvid);
+		$openbalances = $this->purchase_invoice->getOpenBalances($supplier_id);
+		$ocbills = $this->purchase_invoice->getOtherCostBills($supplier_id,null,$pvid); //echo '<pre>';print_r($ocbills);exit;
+		$pinbills = [];//$this->purchase_invoice->getPINbills($supplier_id,null,$pvid); 
+		$otbills = $this->purchase_invoice->getOthrBills($supplier_id,null,$pvid); //May 15
+		$splitbills = $this->purchase_invoice->getSplitBills($supplier_id);
+		
+		if($pvid) {
+			$pvdat = DB::table('payment_voucher_entry')->where('id', $pvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			
+			if($pvdat) {
+				$pvref = DB::table('payment_voucher_entry')->where('entry_type', 'Cr')->where('payment_voucher_id',$pvdat->payment_voucher_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference')->first();
+				$pvrefdat = ($pvref)?explode(',',$pvref->reference):[];
+				
+				$pvarr = $this->makeArr(DB::table('payment_voucher_entry')->where('entry_type', 'Dr')->where('payment_voucher_id',$pvdat->payment_voucher_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference','amount')->get());
+			}
+			
+		}
+		
+		return view('body.purchaseinvoice.supinvoice')
+					->withNum($no)
+					->withOpenbalances($openbalances)
+					->withPinbills($pinbills)
+					->withOcbills($ocbills)
+					->withInvoices($invoices)
+					->withPvdata($pvdat)
+					->withPvref($pvrefdat)
+					->withPvarr($pvarr)
+					->withRefno($ref)
+					->withSbills($splitbills)
+					->withOtbills($otbills); //May 15
+	}
+	
+	public function getInvoiceBySupplierEdit($supplier_id,$no,$pvid)
+	{
+		$ref = $pvdat = ''; $pvrefdat = $pvarr = [];
+		$invoices = $this->purchase_invoice->getSupplierInvoice($supplier_id,null,null);
+		$openbalances = $this->purchase_invoice->getOpenBalances($supplier_id);
+		$pinbills = $this->purchase_invoice->getPINbills($supplier_id,null,null);
+		$ocbills = $this->purchase_invoice->getOtherCostBills($supplier_id,null,null);
+		
+		$pvref = DB::table('payment_voucher_entry')->where('entry_type', 'Cr')->where('payment_voucher_id',$pvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference')->first();
+		$pvrefdat = ($pvref)?explode(',',$pvref->reference):[];
+		
+		$pvarr = $this->makeArr(DB::table('payment_voucher_entry')->where('entry_type', 'Dr')->where('payment_voucher_id',$pvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference','amount')->get());
+		
+		return view('body.purchaseinvoice.supinvoiceedit')
+					->withNum($no)
+					->withOpenbalances($openbalances)
+					->withPinbills($pinbills)
+					->withOcbills($ocbills)
+					->withInvoices($invoices)
+					->withPvdata($pvdat)
+					->withPvref($pvrefdat)
+					->withPvarr($pvarr)
+					->withRefno($ref);
+	}
+	
+	private function makeArr($res)
+	{	$ar = [];
+		foreach($res as $val) {
+			$ar[$val->reference][] = $val->amount;
+			
+		}
+		return $ar;
+	}
+	
+	public function setSessionVal()
+	{
+		//print_r(Input::all());
+		Session::put('voucher_id', Input::get('vchr_id'));
+		Session::put('voucher_no', Input::get('vchr_no'));
+		Session::put('reference_no', Input::get('ref_no'));
+		Session::put('voucher_date', Input::get('vchr_dt'));
+		Session::put('lpo_date', Input::get('lpo_dt'));
+		Session::put('purchase_acnt', Input::get('pur_ac'));
+		Session::put('acnt_master', Input::get('ac_mstr'));
+		Session::put('dpt_id', Input::get('dpt_id'));
+
+	}
+	
+	public function getPrint($id,$rid=null)
+	{
+		//$viewfile = DB::table('report_view')->where('code', 'PI')->where('status',1)->select('view_name')->first();
+		$viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first();
+		if($viewfile->print_name=='') {
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = ($fc)?1:'';
+			$result = $this->purchase_invoice->getInvoice($attributes);
+			$titles = ['main_head' => 'Purchase Invoice','subhead' => 'Purchase Invoice'];
+			return view('body.purchaseinvoice.print')
+						->withDetails($result['details'])
+						->withTitles($titles)
+						->withFc($attributes['is_fc'])
+						->withId($id)
+						->withItems($result['items']);
+		} else {
+					
+			$path = app_path() . '/stimulsoft/helper.php';
+			if(env('STIMULSOFT_VER')==2)
+		        return view('body.reports')->withPath($path)->withView($viewfile->print_name);
+		   else
+		        return view('body.purchaseinvoice.viewer')->withPath($path)->withView($viewfile->print_name);
+			
+			//return view('body.purchaseinvoice.viewer')->withPath($path)->withView($viewfile->print_name);
+		}
+		
+	}
+	
+	public function getPrintFc($id,$rid=null)
+	{
+		$viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first();
+		if($viewfile->print_name=='') {
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = ($fc)?1:'';
+			$result = $this->purchase_invoice->getInvoice($attributes);
+			$titles = ['main_head' => 'Purchase Invoice','subhead' => 'Purchase Invoice'];
+			return view('body.purchaseinvoice.print')
+						->withDetails($result['details'])
+						->withTitles($titles)
+						->withFc($attributes['is_fc'])
+						->withId($id)
+						->withItems($result['items']);
+		} else {
+					
+			$path = app_path() . '/stimulsoft/helper.php';
+			$arr = explode('.',$viewfile->print_name);
+			$viewname = $arr[0].'FC.mrt';
+			
+			return view('body.salesinvoice.viewer')->withPath($path)->withView($viewname);
+		}
+		
+	}
+	
+	public function getOrderHistory($supplier_id)
+	{
+		$data = array();
+		$items = $this->purchase_invoice->getOrderHistory($supplier_id);//echo '<pre>';print_r($items);exit;
+		return view('body.purchaseinvoice.history')
+					->withItems($items)
+					->withData($data);
+	}
+	
+	public function checkVchrNo() {
+
+		$check = $this->purchase_invoice->check_voucher_no(Input::get('voucher_no'), Input::get('deptid'), Input::get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	public function getCustomer()
+	{
+		$data = array();
+		$suppliers = $this->accountmaster->getSupplierList();
+		return view('body.purchaseinvoice.multiselect')
+		            ->withSuppliers($suppliers) 
+					
+					->withType('CUST')
+					->withData($data);
+					
+		
+		
+	}
+	protected function makeTreeSup($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+		//echo '<pre>';print_r($$item); exit();
+		$childs[$item->supplier_id][] = $item;
+		
+			//$childs[$item['supplier_id']][] = $item;
+			//$childs[$item->cid][] = $item;
+		return $childs;
+	}
+	public function getInvoiceSetBySupplier($supplier_id,$no=null)
+	{
+		$invoices = $this->purchase_invoice->getSupplierInvoice($supplier_id);
+		$openbalances = $this->purchase_invoice->getOpenBalances($supplier_id);
+		$advance = $this->purchase_invoice->getAdvance($supplier_id); //echo '<pre>';print_r($advance);exit;
+		$otbills = $this->purchase_invoice->getOthrBills($supplier_id,null,null); //May 15
+		return view('body.purchaseinvoice.supinvoiceset')
+					->withNum($no)
+					->withOpenbalances($openbalances)
+					->withInvoices($invoices)
+					->withAdvance($advance)
+					->withOtbills($otbills); //May 15
+	}
+	
+	protected function makeTree($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item->amount_transfer][] = $item;
+		
+		return $childs;
+	}
+	protected function groupbyItemwise($result)
+	{
+		$childs = array();
+		foreach($result as $items)
+			foreach($result as $item)
+				$childs[$item->item_id][] = $item;
+		
+		return $childs;
+	}
+	protected function makeTreeName($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+		$childs[$item->supplier][] = $item;
+			//$childs[$item->voucher_name][$item->voucher_no][] = $item;
+			//echo '<pre>';print_r($childs);exit;
+		return $childs;
+	}
+	protected function makeTreeVoucher($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+		
+		$childs[$item->voucher_no][] = $item;
+			//$childs[$item->voucher_name][] = $item;
+			//echo '<pre>';print_r($childs);exit;
+		return $childs;
+	}
+	protected function makeTreeTC($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item->tax_code][] = $item;
+		
+		return $childs;
+	}
+	
+	protected function sortByVoucherNo($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		return $childs;
+	}
+		public function getJob($id)
+	    {
+		$data = array();
+	
+			$data = DB::table('purchase_invoice')->where('purchase_invoice.supplier_id',$id)
+			                    ->join('jobmaster', 'jobmaster.id', '=', 'purchase_invoice.job_id')
+			                   ->where('purchase_invoice.status',1)->where('purchase_invoice.deleted_at','0000-00-00 00:00:00')
+			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
+			return $data;
+		}
+	
+	public function getSearch()
+	{
+		$data = array();
+		$dname = '';
+	//	echo '<pre>';print_r(Input::all());exit;
+		$reports = $this->purchase_invoice->getReport(Input::all());
+		if(Session::get('department')==1) {
+			if(Input::get('department_id')!='') {
+				$rec = DB::table('department')->where('id', Input::get('department_id'))->select('name')->first();
+				$dname = $rec->name;
+			}
+		}
+		
+		if(Input::get('search_type')=="summary")
+			$voucher_head = 'Purchase Invoice Summary';
+		elseif(Input::get('search_type')=="purchase_register") {
+			$voucher_head = 'Purchase Invoice Details';
+			$reports = $this->sortByVoucherNo($reports);
+		} else if(Input::get('search_type')=="tax_code") {
+			$voucher_head = 'Purchase Invoice by Tax Code';
+			$reports = $this->makeTreeTC($reports);
+		}
+		//echo '<pre>';print_r($reports);exit;
+		return view('body.purchaseinvoice.preprint')
+					->withReports($reports)
+					->withVoucherhead($voucher_head)
+					->withType(Input::get('search_type'))
+					->withFromdate(Input::get('date_from'))
+					->withTodate(Input::get('date_to'))
+					->withI(0)
+					->withIsimport(Input::get('isimport'))
+					->withSettings($this->acsettings)
+					->withJobids(json_encode(Input::get('job_id')))
+					->withSupplierid(Input::get('supplier_id'))
+					->withDname($dname)
+					->withData($data);
+	}
+	
+	public function getSearch2()
+	{
+		$data = array();
+		$dname = '';
+		$supid = $itemid = '';
+		$voucher_head  = '';
+		//echo '<pre>';print_r(Input::get('search_type'));exit;
+		$report = $this->purchase_invoice->getReport(Input::all());
+		//echo '<pre>';print_r($reports);exit;
+		if(Session::get('department')==1) {
+			if(Input::get('department_id')!='') {
+				$rec = DB::table('department')->where('id', Input::get('department_id'))->select('name')->first();
+				$dname = $rec->name;
+			}
+		}
+		
+		if(Input::get('search_type')=="summary")
+		{
+			$voucher_head = 'Purchase Invoice Summary';
+			$report = $this->purchase_invoice->getReport(Input::all());
+			$reports = $this->makeTreeName($report);
+			//echo '<pre>';print_r($reports);exit;
+			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
+			if(Input::get('supplier_id')!==null)
+				$supid = implode(',', Input::get('supplier_id'));
+			else
+				$supid = '';
+			}
+		
+		else if(Input::get('search_type')=="detail") {
+			$voucher_head = 'Purchase Invoice Detail';
+			$report = $this->purchase_invoice->getReport(Input::all());
+		    $reports = $this->makeTreeName($report);
+			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
+			
+		} else if(Input::get('search_type')=="item") {
+			$voucher_head = 'Purchase Invoice by Itemwise';
+			$report = $this->purchase_invoice->getReport(Input::all());
+			$reports = $this->groupbyItemwise($report);
+			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
+			//echo '<pre>';print_r($reports);exit;
+			if(Input::get('item_id')!==null)
+				$itemid = implode(',', Input::get('item_id'));
+			else
+				$itemid = '';
+		
+		//else if(Input::get('search_type')=="tax_code") {
+			//$voucher_head = 'Purchase Invoice by Tax Code';
+			//$reports = $this->makeTreeTC($reports);
+		//}
+	}else if(Input::get('search_type')=='supplier') {
+	//	echo '<pre>';print_r($reports);exit;
+			$voucher_head = 'Purchase Invoice by supplierwise';
+			
+		    $reports = $this->makeTreeSup($report);
+			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
+			if(Input::get('supplier_id')!==null)
+				$supid = implode(',', Input::get('supplier_id'));
+			else
+				$supid = '';
+		}
+		//echo '<pre>';print_r($reports);exit;
+		return view('body.purchaseinvoice.preprint')
+					->withReports($reports)
+					->withVoucherhead($voucher_head)
+					->withType(Input::get('search_type'))
+					->withFromdate(Input::get('date_from'))
+					->withTodate(Input::get('date_to'))
+					->withI(0)
+					->withTitles($titles)
+					->withIsimport(Input::get('isimport'))
+					->withSettings($this->acsettings)
+					->withSupplier($supid)
+					->withItem($itemid)
+					->withDname($dname)
+					->withData($data);
+	}
+	
+	public function dataExport()
+	{
+		$data = array();
+		$datareport[] = ['','','','',strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+	
+		Input::merge(['type' => 'export']);
+		Input::merge(['job_id' => json_decode(Input::get('job_id'))]);
+		//	echo '<pre>';print_r(Input::all());exit;
+		$reports = $this->purchase_invoice->getReport(Input::all());
+		
+		if(Input::get('search_type')=="summary")
+			$voucher_head = 'Purchase Invoice Summary';
+		elseif(Input::get('search_type')=="purchase_register") {
+			$voucher_head = 'Purchase Invoice Details';
+			//$reports = $this->makeTree($reports);
+		}
+		
+		$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
+		$datareport[] = ['','','','','','',''];
+		//echo '<pre>';print_r($reports);exit;
+		if(Input::get('search_type')=='purchase_register') {
+			
+			$datareport[] = ['SI.No.','PI#', 'PI.Ref#', 'Job No', 'Supplier','Item Code','Description','PI.Qty','Rate','Total Amt.','Vat Amt.','Net Amt.'];
+			$i=0;
+			foreach ($reports as $row) {
+				$i++;
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'jobno' => $row['jobcode'],
+								  'supplier' => $row['master_name'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => number_format($row['unit_price'],2),
+								  'total' => number_format($row['quantity']*$row['unit_price'],2),
+								  'unit_vat' => number_format($row['unit_vat'],2),
+								  'net_amount' => number_format($row['unit_vat']+$row['item_total'],2)
+								];
+			}
+		} else {
+			
+			$datareport[] = ['SI.No.','PI#','Vchr.Date','PI.Ref#', 'Job No',  'Supplier','Gross Amt.','Discount','Total Amt','VAT Amt.','Net Total'];
+			$i=0;
+			$total=0;$gross=0;$vat=$amt=$net_amt=0;	
+		    $tot=0;$gs=0;$vt=$namt=0;
+			foreach ($reports as $row) {
+					$i++;
+					$amt=$row['total']-$row['discount'];
+					$datareport[] = [ 'si' => $i,
+									  'po' => $row['voucher_no'],
+									  'vdate' => date('d-m-Y',strtotime($row['voucher_date'])),
+									  'ref' => $row['reference_no'],
+									  'jobno' => $row['jobcode'],
+									  'supplier' => $row['master_name'],
+									  
+									  'gross' =>number_format($row['total'],2),
+									  'disc' =>number_format( $row['discount'],2),
+									  'amt' =>number_format($amt,2),
+									  'vat' => number_format($row['vat_amount'],2),
+									  'total' => number_format($row['net_amount'],2)
+									];
+									$total+= $row['net_amount'];
+							        $tot=number_format($total,2) ;
+									$gross+= $row['total'];
+							        $gs=number_format($gross,2) ;
+									$vat+= $row['vat_amount'];
+							        $vt=number_format($vat,2) ;
+							        $net_amt+=$amt;
+							        $namt=number_format($net_amt,2) ;
+							      }
+								  $datareport[] = ['','','','','','',''];			
+			                 $datareport[] = ['','','','','','Total:',$gs,'',$namt,$vt,$tot];
+		}
+		 //echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('Profit Acc 365')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		});
+
+		})->download('xlsx');
+		
+	}
+	
+	
+public function dataExportBkp()
+	{
+		$data = array();
+		$datareport[] = [strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		Input::merge(['type' => 'export']);
+	//	$reports = $this->purchase_invoice->getReportExcel(Input::all());
+		
+		if(Input::get('search_type')=="summary")
+		{
+			$voucher_head = 'Purchase Invoice Summary';
+			$reports = $this->purchase_invoice->getReportExcel(Input::all());
+		
+				$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
+		     $datareport[] = ['','','','','','',''];
+		
+			$datareport[] = [ 'Supplier','Gross Amt.','VAT Amt.','Net Total'];
+			$i=0;
+			foreach ($reports as $row) {
+					$i++;
+					$datareport[] = [ 
+									 'supplier' => $row['master_name'],
+									 
+									  'gross' => $row['total'],
+									  'ref' => $row['reference_no'],
+									  'total' => $row['net_amount']
+									];
+			}
+		}
+		elseif(Input::get('search_type')=="detail") {
+			$voucher_head = 'Purchase Invoice Detail';
+			$reports = $this->purchase_invoice->getReportExcel(Input::all());
+				$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
+		     $datareport[] = ['','','','','','',''];
+		
+			$datareport[] = ['SI.No.','PI#','Vchr.Date','PI.Ref#', 'Supplier','Gross Amt.','VAT Amt.','Net Total'];
+			$i=0;
+			foreach ($reports as $row) {
+					$i++;
+					$datareport[] = [ 'si' => $i,
+									  'po' => $row['voucher_no'],
+									  'vdate' => date('d-m-Y',strtotime($row['voucher_date'])),
+									  'ref' => $row['reference_no'],
+									  'supplier' => $row['master_name'],
+									 
+									  'gross' => $row['unit_price'],
+									 'vat' => $row['vat_amount'],
+									  'total' => $row['total_price']
+									];
+			}
+			//$reports = $this->makeTree($reports);
+		}
+		
+	
+		//echo '<pre>';print_r($reports);exit;
+		/* if(Input::get('search_type')=='purchase_register') {
+			
+			$datareport[] = ['SI.No.','PI#','Vchr.Date','PI.Ref#', 'Supplier','TRN No','PI.Qty','Rate','Total Amt.'];
+			$i=0;
+			foreach ($reports as $row) {
+				$i++;
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'],
+								  'vdate' => date('d-m-Y',strtotime($row['voucher_date'])),
+								  'ref' => $row['reference_no'],
+								  'supplier' => $row['master_name'],
+								  'vat_no' => $row['vat_no'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => $row['unit_price'],
+								  'net_amount' => $row['net_amount']
+								];
+			}
+		} else { */
+			
+		
+			
+		//}
+		 //echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('NumakPro ERP')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		});
+
+		})->download('xlsx');
+		
+	}
+	
+	
+	
+	private function createItem($row) {
+		
+	  DB::beginTransaction();
+	  try {
+		
+		//GET category
+		if($row->category!='') {
+			$cat = DB::table('category')->where( function ($query) use($row) {
+											$query->where('category_name', '=', $row->category)
+											  ->orWhere('description', '=', $row->category);
+									})->select('id')->first();
+							   
+			if(!$cat) { //IF category NOT EXIST...
+				$category_id = DB::table('category')->insertGetId(['category_name' => strtoupper($row->category),'description' => strtoupper($row->category),'status' => 1]);
+			} else
+				$category_id = $cat->id;
+		} else 
+			$category_id = '';
+		
+		//GET subcategory
+		if($row->subcategory!='') {
+			$subcat = DB::table('category')->where( function ($query) use($row) {
+											$query->where('category_name', '=', $row->subcategory)
+											  ->orWhere('description', '=', $row->subcategory);
+									})->select('id')->first();
+							   
+			if(!$subcat) { //IF category NOT EXIST...
+				$subcategory_id = DB::table('category')->insertGetId(['category_name' => strtoupper($row->subcategory),'description' => strtoupper($row->subcategory), 'parent_id' => $category_id, 'status' => 1]);
+			} else
+				$subcategory_id = $subcat->id;
+		} else 
+			$subcategory_id = '';
+		
+		
+		//GET group
+		if($row->group!='') {
+			$grp = DB::table('groupcat')->where( function ($query) use($row) {
+											$query->where('group_name', '=', $row->group)
+											  ->orWhere('description', '=', $row->group);
+									})->select('id')->first();
+							   
+			if(!$grp) { //IF groupcat NOT EXIST...
+				$group_id = DB::table('groupcat')->insertGetId(['group_name' => strtoupper($row->group),'description' => strtoupper($row->group),'status' => 1]);
+			} else
+				$group_id = $grp->id;
+		} else 
+			$group_id = '';
+		
+		
+		//GET subgroup
+		if($row->subgroup!='') {
+			$subgrp = DB::table('groupcat')->where( function ($query) use($row) {
+											$query->where('group_name', '=', $row->subgroup)
+											  ->orWhere('description', '=', $row->subgroup);
+									})->select('id')->first();
+							   
+			if(!$subgrp) { //IF subgroupcat NOT EXIST...
+				$subgroup_id = DB::table('groupcat')->insertGetId(['group_name' => strtoupper($row->subgroup),'description' => strtoupper($row->subgroup), 'parent_id' => $group_id, 'status' => 1]);
+			} else
+				$subgroup_id = $subgrp->id;
+		} else 
+			$subgroup_id = '';
+		
+		$insert = ['item_code' => $row->item_code, 
+									 'description' => $row->description,
+									 'class_id' => 1,
+									 'group_id' => $group_id,
+									 'subgroup_id' => $subgroup_id,
+									 'category_id' => $category_id,
+									 'subcategory_id' => $subcategory_id,
+									 'status'   => 1,
+									 'created_at' => date('Y-m-d H:i:s')
+								  ];
+								  
+		
+		//GET UNIT ID
+		if($row->unit!='') {
+			$unit = DB::table('units')->where('unit_name', strtoupper($row->unit))->select('id','unit_name')->first();
+			if(!$unit) { //IF UNIT NOT EXIST...
+				$unit_id = DB::table('units')->insertGetId(['unit_name' => strtoupper($row->unit),'description' => strtoupper($row->unit),'status' => 1]);
+				$unit_name = strtoupper($row->unit);
+			} else {
+				$unit_id = $unit->id;
+				$unit_name = $unit->unit_name;
+			}
+		} else {
+			$unit = DB::table('units')->where('unit_name', 'NOS')->select('id','unit_name')->first();
+			$unit_id = $unit->id;
+			$unit_name = $unit->unit_name;
+		}
+		//echo '<pre>';print_r($insert);exit;
+		$item_id = DB::table('itemmaster')->insertGetId($insert);
+		DB::table('item_unit')->insert(['itemmaster_id' => $item_id,
+										'unit_id' => $unit_id,
+										'packing' => strtoupper($unit_name),
+										//'opn_quantity' => ($row->quantity=='')?0:$row->quantity,
+										//'opn_cost' => ($row->cost_avg=='')?0:$row->cost_avg,
+										//'sell_price' => ($row->sales_price=='')?0:$row->sales_price,
+										'vat' => 5,
+										'status' => 1,
+										//'cur_quantity' => ($row->quantity=='')?0:$row->quantity,
+										'is_baseqty' => 1
+										//'received_qty' => ($row->quantity=='')?0:$row->quantity
+										//'cost_avg' => ($row->cost_avg=='')?0:$row->cost_avg
+										]);
+										
+		DB::table('item_log')->insert([
+								'document_type' => 'OQ',
+								'document_id' => 0,
+								'item_id' => $item_id,
+								'unit_id' => $unit_id,
+								'trtype' => 1,
+								'packing' => 1,
+								'status' => 1,
+								'created_at' => date('Y-m-d H:i:s'),
+								'voucher_date' => date('Y-m-d')
+								]);
+		 DB::commit();
+		 return $item = (object)['item_id' => $item_id, 'item_code' => $row->item_code, 'item_name' => $row->description, 'unit_id' => $unit_id, 'unit_name' => $unit_name, 'vat' => 5, 'quantity' => $row->quantity, 'cost' => $row->rate,'opn_cost' => $row->rate];
+		
+	  } catch(\Exception $e) { 
+		
+			DB::rollback(); echo $e->getLine().' - '.$e->getMessage();exit;
+			return false;
+		}
+						
+						
+	}
+	
+	//EXCEL FORMAT:   Item Code|Description|Unit|Quantity|Rate
+	public function getImport(Request $request) {
+		  //echo '<pre>';print_r($request->all());exit;
+		if(Input::hasFile('import_file')){
+			
+			if($this->mod_location->is_active==1) {
+				$lcrow = DB::table('default_loc')->select('pur_loc AS id')->first();
+				$locdefault = ($lcrow)?$lcrow:0;
+			} else
+				$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+
+			$path = Input::file('import_file')->getRealPath();
+			$data = Excel::load($path, function($reader) { })->get();
+			//echo '<pre>';print_r($data);exit;
+			//$items = array();
+			foreach ($data as $row) {
+				 if($row->item_code!='' && $row->description!='') {
+					 //CHECK ITEM EXIST OR NOT
+					$cost = ($row->rate!='')?DB::raw($row->rate.' AS cost'):0;
+					 $item = DB::table('itemmaster')->where('itemmaster.item_code', '=', $row->item_code)
+									->where( function ($query) use($row) {
+										$query->where('itemmaster.item_code', '=', $row->item_code)
+											  ->orWhere('itemmaster.description', '=', $row->description);
+								   })
+							   ->join('item_unit', 'item_unit.itemmaster_id', '=', 'itemmaster.id')
+							   ->where('item_unit.is_baseqty',1)
+							   ->select('itemmaster.id AS item_id','itemmaster.item_code','itemmaster.description AS item_name',
+										'item_unit.unit_id','item_unit.packing AS unit_name','item_unit.vat','item_unit.opn_cost',
+										DB::raw($row->quantity.' AS quantity'),'item_unit.last_purchase_cost AS cost')
+							   ->first(); //echo '<pre>';print_r($item);exit;
+						//$item->quantity = $row->quantity;	
+						
+						//$items = array_push($item,$itm);
+						   
+					//echo '<pre>';print_r($item);exit;
+					 
+					 if(!$item) {
+						 $item = $this->createItem($row);
+					 } else {
+						 //if($item->cost==0 && $row->rate!='')
+							$item->cost = $row->rate;
+					 }
+					 
+					 $items[] = $item;
+				 }
+			}
+			
+		}
+		
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$location = $this->location->locationList();
+		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=1);
+		
+		$docRow = (object)['voucher_id' => $request->input('voucher_id'),
+						   'voucher_no' => $request->input('voucher_no'),
+						   'curno' => $request->input('curno'),
+						   'reference_no' => $request->input('reference_no'),
+						   'voucher_date' => ($request->input('voucher_date')=='')?date('d-m-Y'):$request->input('voucher_date'),
+						   'lpo_no' => $request->input('lpo_no'),
+						   'lpo_date' => $request->input('lpo_date'),
+						   'purchase_account' => $request->input('purchase_account'),
+						   'account_master_id' => $request->input('account_master_id'),
+						   'supplier_name' => $request->input('supplier_name'),
+						   'supplier_id' => $request->input('supplier_id'),
+						   'description' => $request->input('description'),
+						   'terms_id' => $request->input('terms_id'),
+						   'job_id' => $request->input('job_id'),
+						   'is_fc' => $request->input('is_fc'),
+						   'currency_id' => $request->input('currency_id'),
+						   'currency_rate' => $request->input('currency_rate'),
+						   'po_no' => $request->input('po_no')
+						  ];
+						  
+		//echo '<pre>';print_r($items);exit;
+		
+		return view('body.purchaseinvoice.additms')
+						->withTerms($terms)
+						->withJobs($jobs)
+						->withCurrency($currency)
+						->withDocrow($docRow)
+						->withDocitems($items)
+						->withLocation($location)
+						->withVatdata($this->vatdata)
+						->withSettings($this->acsettings)
+						->withFormdata($this->formData)
+						->withVouchers($vouchers)
+						->withLocdefault($locdefault)
+						->withData($data);
+		
+		
+	}
+	
+	public function dataExportPo()
+	{
+		$data = array();
+		$datareport[] = [strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		$attributes['document_id'] = Input::get('id');
+		$attributes['is_fc'] = Input::get('fc');
+		$result = $this->purchase_invoice->getInvoice($attributes);
+		
+		$voucher_head = 'PURCHASE INVOICE';
+		
+		 //echo '<pre>';print_r($result);exit;
+		
+		$datareport[] = ['','', 'PURCHASE INVOICE', '','','',''];	
+		$details = $result['details'];
+		$supname = ($details->supplier=='CASH CUSTOMER' || $details->supplier=='Cash Customer')?'CASH CUSTOMER:'.$details->customer_name:$details->supplier;
+		$vat_no = ($details->vat_no=='')?$details->customer_trn:$details->vat_no;
+		
+		$datareport[] = ['Supplier No:',$details->account_id, '', '','','','PO.No:',$details->voucher_no];
+		$datareport[] = ['Supplier Name:',$supname, '', '','','','Date:',date('d-m-Y',strtotime($details->voucher_date))];
+		$datareport[] = ['Address:',$details->address, '', '','','','Contact Person:',$details->contact_name];
+		$datareport[] = ['Telephone No:',$details->phone, '', '','','','',''];
+		$datareport[] = ['Supplier TRN:',$vat_no, '', '','','','',''];
+		$datareport[] = ['','', '', '','','','',''];
+		
+		$datareport[] = ['Si.#.','Item Code', 'Description', 'Unit','Quantity','Unit Price','VAT','Total'];
+		
+		$i=0;
+		foreach ($result['items'] as $row) {
+				$i++;
+				
+				if($attributes['is_fc']==1) {
+					$unit_price = $row->unit_price / $details->currency_rate;
+					$vat_amount = $row->vat_amount / $details->currency_rate;
+					$total_price = $row->total_price / $details->currency_rate;
+				} else {
+					$unit_price = $row->unit_price;
+					$vat_amount = $row->vat_amount;
+					$total_price = $row->total_price;
+				}
+				
+				$datareport[] = [ 'si' => $i,
+								  'code' => $row->item_code,
+								  'description' => $row->item_name,
+								  'unit' => $row->unit_name,
+								  'qty' => $row->quantity,
+								  'price' => number_format($unit_price,2),
+								  'vat' => number_format($vat_amount,2),
+								  'total' => number_format($total_price,2)
+								];
+		}
+		
+		if($attributes['is_fc']==1) {
+			$total = $details->total / $details->currency_rate;
+			$vat_amount_net = $details->vat_amount / $details->currency_rate;
+			$net_amount = $details->net_amount / $details->currency_rate;
+		} else {
+			$total = $details->total;
+			$vat_amount_net = $details->vat_amount;
+			$net_amount = $details->net_amount;
+		}
+		$cur = ($attributes['is_fc']==1)?' ('.$details->currency.')':':';
+		$datareport[] = ['','', '', '','','','',''];									
+		$datareport[] = ['','', 'Gross Total'.$cur, '','','','',number_format($total,2)];
+		$datareport[] = ['','', 'Vat Total'.$cur, '','','','',number_format($vat_amount_net,2)];
+		$datareport[] = ['','', 'Total Inclusive VAT'.$cur, '','','','',number_format($net_amount,2)];
+			
+		 //echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('Profit ACC 365 - ERP')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		});
+
+		})->download('xlsx');
+		
+	}
+	
+	public function getItemDetails($id) 
+	{
+		$data = array();
+		$items = $this->purchase_invoice->getItems(array($id));
+		return view('body.purchaseinvoice.itemdetails')
+					->withItems($items)
+					->withData($data);
+	}
+	
+	public function getDeptVoucher($id) {
+		
+		$depts = $this->accountsetting->getVoucherByDeptPI($vid=1,$id); 
+		
+		foreach($depts as $row) {
+			
+			 if($row->voucher_no != '' || $row->voucher_no != null) {
+				 if($row->is_prefix==0)
+					 $voucher = $row->voucher_no;
+				 else {
+					 $no = (int)$row->voucher_no;
+					 $voucher = $row->prefix.''.$no;
+				 }
+			 }
+			
+			  $result[] = array('voucher_name' => $row->voucher_name,
+								'voucher_id' => $row->voucher_id,
+								'voucher_no' => $voucher,
+								'account_id' => $row->account_id, 
+								'account_name' => $row->master_name, 
+								'id' => $row->id,
+								'cash_voucher' => $row->is_cash_voucher,
+								'cash_account' => $row->default_account_id,
+								'default_account' => $row->default_account );
+		}
+		
+		return $result;
+	}
+	public function getItems()
+	{
+		$data = array();
+	
+		$item = $this->itemmaster->activeItemmasterList();
+		// $group= $this->group->groupList();
+		// $subGroup= $this->group->subgroupList();
+		//echo '<pre>';print_r($item);exit;
+		//$group= $this->group->groupList();
+		//echo '<pre>';print_r($group);exit;
+		//$subgroup= $this->group->subgroupList();
+	//	echo '<pre>';print_r($subgroup);exit;
+		//$category= $this->category->categoryList();
+		//echo '<pre>';print_r($category);exit;
+		//  $category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		//  $subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		// //  $group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		//  //echo '<pre>';print_r($group);exit;
+		//  $subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		
+		return view('body.purchaseinvoice.multiselect')
+		            //     ->withCategory($category)
+		            //    ->withSubcategory($subcategory)
+		                // ->withGroup($group)
+						// ->withSubGroup($subGroup)
+					->withItem($item)
+					->withType('ITEM')
+					->withData($data);
+
+	}
+	private function number_to_word( $num = '' )
+	{
+		$num    = ( string ) ( ( int ) $num );
+	   
+		if( ( int ) ( $num ) && ctype_digit( $num ) )
+		{
+			$words  = array( );
+		   
+			$num    = str_replace( array( ',' , ' ' ) , '' , trim( $num ) );
+		   
+			$list1  = array('','one','two','three','four','five','six','seven',
+				'eight','nine','ten','eleven','twelve','thirteen','fourteen',
+				'fifteen','sixteen','seventeen','eighteen','nineteen');
+		   
+			$list2  = array('','ten','twenty','thirty','forty','fifty','sixty',
+				'seventy','eighty','ninety','hundred');
+		   
+			$list3  = array('','thousand','million','billion','trillion',
+				'quadrillion','quintillion','sextillion','septillion',
+				'octillion','nonillion','decillion','undecillion',
+				'duodecillion','tredecillion','quattuordecillion',
+				'quindecillion','sexdecillion','septendecillion',
+				'octodecillion','novemdecillion','vigintillion');
+		   
+			$num_length = strlen( $num );
+			$levels = ( int ) ( ( $num_length + 2 ) / 3 );
+			$max_length = $levels * 3;
+			$num    = substr( '00'.$num , -$max_length );
+			$num_levels = str_split( $num , 3 );
+		   
+			foreach( $num_levels as $num_part )
+			{
+				$levels--;
+				$hundreds   = ( int ) ( $num_part / 100 );
+				$hundreds   = ( $hundreds ? ' ' . $list1[$hundreds] . ' Hundred' . ( $hundreds == 1 ? '' : 's' ) . ' ' : '' );
+				$tens       = ( int ) ( $num_part % 100 );
+				$singles    = '';
+			   
+				if( $tens < 20 )
+				{
+					$tens   = ( $tens ? ' ' . $list1[$tens] . ' ' : '' );
+				}
+				else
+				{
+					$tens   = ( int ) ( $tens / 10 );
+					$tens   = ' ' . $list2[$tens] . ' ';
+					$singles    = ( int ) ( $num_part % 10 );
+					$singles    = ' ' . $list1[$singles] . ' ';
+				}
+				$words[]    = $hundreds . $tens . $singles . ( ( $levels && ( int ) ( $num_part ) ) ? ' ' . $list3[$levels] . ' ' : '' );
+			}
+		   
+			$commas = count( $words );
+		   
+			if( $commas > 1 )
+			{
+				$commas = $commas - 1;
+			}
+		   
+			$words  = implode( ', ' , $words );
+		   
+			//Some Finishing Touch
+			//Replacing multiples of spaces with one space
+			$words  = trim( str_replace( ' ,' , ',' , $this->trim_all( ucwords( $words ) ) ) , ', ' );
+			if( $commas )
+			{
+				$words  = $this->str_replace_last( ',' , ' and' , $words );
+			}
+		   
+			return $words;
+		}
+		else if( ! ( ( int ) $num ) )
+		{
+			return 'Zero';
+		}
+		return '';
+	}
+	
+	private function trim_all( $str , $what = NULL , $with = ' ' )
+	{
+		if( $what === NULL )
+		{
+			//  Character      Decimal      Use
+			//  "\0"            0           Null Character
+			//  "\t"            9           Tab
+			//  "\n"           10           New line
+			//  "\x0B"         11           Vertical Tab
+			//  "\r"           13           New Line in Mac
+			//  " "            32           Space
+		   
+			$what   = "\x00-\x20";    //all white-spaces and control chars
+		}
+	   
+		return trim( preg_replace( "/[".$what."]+/" , $with , $str ) , $what );
+	}
+	
+	private function str_replace_last( $search , $replace , $str ) {
+		if( ( $pos = strrpos( $str , $search ) ) !== false ) {
+			$search_length  = strlen( $search );
+			$str    = substr_replace( $str , $replace , $pos , $search_length );
+		}
+		return $str;
+	}
+	
+	public function getSupplierDpt($deptid=null)
+	{
+		$data = array();
+		$suppliers = $this->accountmaster->getSupplierListDept($deptid);
+		$country = $this->country->activeCountryList();
+		$area = $this->area->activeAreaList();
+		$sup_code = json_decode($this->ajax_getcode($category='SUPPLIER'));
+		return view('body.purchaseinvoice.supplier')
+					->withSuppliers($suppliers)
+					->withArea($area)
+					->withSupid($sup_code->code)
+					->withCategory($sup_code->category)
+					->withCountry($country)
+					->withNum('')
+					->withData($data);
+	}
+	
+	
+	public function refreshDO($siId) { //SI id
+	    
+		//GETTING SALES INVOICE ITEMS WITH TOTAL QUANTITY TRANSFERED...
+		$itms = DB::table('purchase_invoice')->where('purchase_invoice.id', $siId)
+					->join('purchase_invoice_item','purchase_invoice_item.purchase_invoice_id','=','purchase_invoice.id')
+					->select('purchase_invoice_item.item_id', 'purchase_invoice_item.quantity','purchase_invoice_item.doc_row_id','purchase_invoice.document_id','purchase_invoice.document_type')
+					->get();
+//echo '<pre>';print_r($itms);
+		if($itms) {
+			foreach($itms as $row) {
+			    
+			    //$id = $row->document_id;
+			    if($row->document_type=='SDO' && $row->doc_row_id != 0) {
+			        
+    			    $doRow = DB::table('supplier_do_item')->where('id',$row->doc_row_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','quantity','balance_quantity')->first();
+    			    //echo '<pre>';print_r($doRow);
+    			    if($doRow) {
+    			        
+    			        if($row->quantity==$doRow->quantity) {
+    			            DB::table('supplier_do_item')
+    								->where('id',$doRow->id)
+    								->update(['is_transfer' => 0, 'balance_quantity' => 0]);
+    			        } else {
+    			            
+    			            $balqty = ($doRow->balance_quantity > $row->quantity)?($doRow->balance_quantity - $row->quantity):($row->quantity - $doRow->balance_quantity);
+    						
+    					    //CHECKE ANY MORE SI IS CREATED AGAINST THIS DO IEM....
+    					    $siRow = DB::table('purchase_invoice_item')->where('doc_row_id',$doRow->id)->where('purchase_invoice_id','!=',$siId)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+    					    if($siRow==0) {
+    					        DB::table('supplier_do_item')->where('id',$doRow->id)
+    									->update(['is_transfer' => 0, 'balance_quantity' => 0]);
+    					    } else {
+    					        DB::table('supplier_do_item')->where('id',$doRow->id)
+    									->update(['is_transfer' => 2, 'balance_quantity' => $balqty]);
+    					    }
+    			        }
+    			        
+    			    }
+			    }
+
+			}
+            
+            $doIdArr = explode(',', $itms[0]->document_id);
+
+            foreach($doIdArr as $id) {
+    			$row1 = DB::table('supplier_do_item')->where('supplier_do_id', $id)->count();
+    			$row2 = DB::table('supplier_do_item')->where('supplier_do_id', $id)->where('is_transfer',1)->count();
+    			$row3 = DB::table('supplier_do_item')->where('supplier_do_id', $id)->where('is_transfer',2)->count();
+    			if($row1==$row2) {
+    				DB::table('supplier_do')
+    						->where('id', $id)
+    						->update(['is_editable' => 1, 'is_transfer' => 1]);
+    			} else if($row1 > 0 && $row2==0 && $row3==0) {
+    			    DB::table('supplier_do')
+    						->where('id', $id)
+    						->update(['is_editable' => 0, 'is_transfer' => 0]);
+    			} else if($row3 > 0) {
+    			    DB::table('supplier_do')
+    						->where('id', $id)
+    						->update(['is_editable' => 1, 'is_transfer' => 0]);
+    			}
+            }
+		}
+			
+	//return true;
+	}
+	
+}
+
+//SELECT itemmaster.weight,itemmaster.serial_no,itemmaster.other_info,sales_invoice.created_at,itemmaster.item_code,groupcat.group_name AS brand,itemmaster.weight ,sales_invoice.voucher_no,reference_no,sales_invoice.voucher_date,sales_invoice.lpo_no,sales_invoice.total,sales_invoice.discount,sales_invoice.vat_amount,sales_invoice.net_total,sales_invoice.total_fc,sales_invoice.discount_fc,sales_invoice.vat_amount_fc,sales_invoice.net_total_fc,sales_invoice.customer_name,sales_invoice.customer_phone,sales_invoice.subtotal,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.area_id AS area_code,account_master.vat_no,terms.description AS terms,salesman.name AS salesman,sales_invoice_item.item_name,sales_invoice_item.quantity,sales_invoice_item.unit_price,sales_invoice_item.vat,sales_invoice_item.vat,sales_invoice_item.vat_amount AS line_vat,sales_invoice_item.line_total,sales_invoice_item.tax_include,sales_invoice_item.item_total,itemmaster.other_info AS cod,units.unit_name,sales_invoice_item.id AS sii_id FROM sales_invoice JOIN account_master ON(account_master.id=sales_invoice.customer_id) LEFT JOIN terms ON(terms.id=sales_invoice.terms_id) LEFT JOIN salesman ON(salesman.id=sales_invoice.salesman_id) JOIN sales_invoice_item ON(sales_invoice_item.sales_invoice_id=sales_invoice.id) JOIN itemmaster ON(itemmaster.id=sales_invoice_item.item_id) JOIN units ON(units.id=sales_invoice_item.unit_id) LEFT JOIN groupcat ON(groupcat.id=itemmaster.group_id) WHERE sales_invoice_item.status=1 AND sales_invoice_item.deleted_at='0000-00-00 00:00:00' AND sales_invoice.id={id}   ORDER BY sales_invoice_item.id ASC

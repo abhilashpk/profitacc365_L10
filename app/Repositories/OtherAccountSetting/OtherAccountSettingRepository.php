@@ -1,0 +1,205 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\OtherAccountSetting;
+
+use App\Models\OtherAccountSetting;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Image;
+use Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Session;
+
+class OtherAccountSettingRepository extends AbstractValidator implements OtherAccountSettingInterface {
+	
+	protected $other_account;
+	
+	protected static $rules = [];
+	
+	public function __construct(OtherAccountSetting $other_account) {
+		$this->other_account = $other_account;
+
+	}
+	
+	public function all()
+	{
+		
+	}
+	
+	public function paginate($page = 1, $limit = 10, $all = false)
+	{
+		
+	}
+	
+	public function find($id)
+	{
+		return $this->other_account->where('id', $id)->first();
+	}
+	
+	public function create($attributes)
+	{
+		
+	}
+	
+	public function update($id,$parameter)
+	{
+		foreach($parameter['id'] as $key => $row) { //num
+			$this->other_account = $this->find($parameter['id'][$key]); 
+			$this->other_account->account_id = $parameter['account_id'][$key];
+			$this->other_account->save();
+			
+			if($parameter['account_id'][$key] != $parameter['old_account_id'][$key]) {
+				
+				if($parameter['actype'][$key]=='Discount in Purchase') {
+					$this->resetDiscountAccountPI($parameter,$key);
+				} 
+				
+				if($parameter['actype'][$key]=='Discount in Sales') {
+					$this->resetDiscountAccountSI($parameter,$key);
+				}
+				
+				if($parameter['actype'][$key]=='Stock Account'||$parameter['actype'][$key]=='Stock Excess'||$parameter['actype'][$key]=='Stock Storage'||$parameter['actype'][$key]=='Cost Difference'||$parameter['actype'][$key]=='Cost of Sales') {
+					$this->resetOtherAccounts($parameter,$key);
+				}
+			}
+		}
+		
+		
+		//Deprtment Accounts update...
+		if(Session::get('department')==1) {
+			
+			foreach($parameter['did'] as $k => $rw) {
+				//add
+				if($rw=='') {
+						DB::table('department_accounts')
+									->insert(['department_id' => $parameter['department_id'][$k],
+											  'stock_acid' => $parameter['stock_acid'][$k],
+											  'cost_acid' => $parameter['cost_acid'][$k],
+											  'costdif_acid' => $parameter['costdif_acid'][$k],
+											  'purdis_acid' => $parameter['purdis_acid'][$k],
+											  'saledis_acid' => $parameter['saledis_acid'][$k],
+											  'stock_excess_acid' => $parameter['stockexcs_acid'][$k],
+											  'stock_shortage_acid' => $parameter['stockshrtg_acid'][$k]
+											 ]);
+				} else { //update
+						DB::table('department_accounts')
+									->where('id', $rw)
+									->update(['department_id' => $parameter['department_id'][$k],
+											  'stock_acid' => $parameter['stock_acid'][$k],
+											  'cost_acid' => $parameter['cost_acid'][$k],
+											  'costdif_acid' => $parameter['costdif_acid'][$k],
+											  'purdis_acid' => $parameter['purdis_acid'][$k],
+											  'saledis_acid' => $parameter['saledis_acid'][$k],
+											  'stock_excess_acid' => $parameter['stockexcs_acid'][$k],
+											  'stock_shortage_acid' => $parameter['stockshrtg_acid'][$k]
+											 ]);
+											 
+						if($parameter['stock_acid'][$k]!=$parameter['stock_acid_old'][$k]) {
+							$this->resetDepAccounts($parameter['stock_acid'][$k],$parameter['stock_acid_old'][$k],$parameter['department_id'][$k]);
+						}
+						
+						if($parameter['cost_acid'][$k]!=$parameter['cost_acid_old'][$k]) {
+							$this->resetDepAccounts($parameter['cost_acid'][$k],$parameter['cost_acid_old'][$k],$parameter['department_id'][$k]);
+						}
+						
+						if($parameter['costdif_acid'][$k]!=$parameter['costdif_acid_old'][$k]) {
+							$this->resetDepAccounts($parameter['costdif_acid'][$k],$parameter['costdif_acid_old'][$k],$parameter['department_id'][$k]);
+						}
+						
+						if($parameter['purdis_acid'][$k]!=$parameter['purdis_acid_old'][$k]) {
+							$this->resetDepAccounts($parameter['purdis_acid'][$k],$parameter['purdis_acid_old'][$k],$parameter['department_id'][$k]);
+						}
+						
+						if($parameter['saledis_acid'][$k]!=$parameter['saledis_acid_old'][$k]) {
+							$this->resetDepAccounts($parameter['saledis_acid'][$k],$parameter['saledis_acid_old'][$k],$parameter['department_id'][$k]);
+						}
+						
+						if($parameter['stockexcs_acid'][$k]!=$parameter['stockexcs_acid_old'][$k]) {
+							$this->resetDepAccounts($parameter['stockexcs_acid'][$k],$parameter['stockexcs_acid_old'][$k],$parameter['department_id'][$k]);
+						}
+						
+						if($parameter['stockshrtg_acid'][$k]!=$parameter['stockshrtg_acid_old'][$k]) {
+							$this->resetDepAccounts($parameter['stockshrtg_acid'][$k],$parameter['stockshrtg_acid_old'][$k],$parameter['department_id'][$k]);
+						}
+				}
+			}
+		} else {
+			
+			foreach($parameter['caccount_id'] as $k => $rw) {
+				DB::table('voucher_account')->where('id', $k+1)->update(['account_id' => $parameter['caccount_id'][$k]]);
+				
+				if($parameter['caccount_id'][$k]!=$parameter['caccount_id_old'][$k]) {
+					$this->resetCostAccounts($parameter['caccount_id'][$k],$parameter['caccount_id_old'][$k]);
+				}
+			}
+		}
+		
+		return true;
+	}
+	
+	public function delete($id)
+	{
+			
+	}
+
+	public function getOtherAccountSetting()
+	{
+		return $this->other_account->where('other_account_setting.status', 1)
+						->leftJoin('account_master AS am', function($join) {
+							$join->on('am.id','=','other_account_setting.account_id');
+						} )
+						->select('other_account_setting.*','am.master_name','am.account_id as code')
+						->orderBy('other_account_setting.id','ASC')->get();
+	}
+	
+	public function getOtherAccountSettingCheck()
+	{
+		return $this->other_account->where('other_account_setting.status', 1)
+						->leftJoin('account_master AS am', function($join) {
+							$join->on('am.id','=','other_account_setting.account_id');
+							$join->where('am.status','=',1);
+							$join->where('am.deleted_at','=','0000-00-00 00:00:00');
+						} )
+						->select('other_account_setting.*','am.master_name','am.account_id as code')
+						->orderBy('other_account_setting.id','ASC')->get();
+	}
+	
+	private function resetDiscountAccountPI($parameter,$key) {
+		
+		DB::table('account_transaction')->whereIn('voucher_type',['PI','PR'])
+										->where('account_master_id', $parameter['old_account_id'][$key])
+										//->where('transaction_type','Cr')
+										->update(['account_master_id' => $parameter['account_id'][$key]]);
+	}
+	
+	private function resetDiscountAccountSI($parameter,$key) {
+		
+		DB::table('account_transaction')->whereIn('voucher_type',['SI','SR'])
+										->where('account_master_id', $parameter['old_account_id'][$key])
+										->update(['account_master_id' => $parameter['account_id'][$key]]);
+	}
+	
+	private function resetOtherAccounts($parameter,$key) {
+		
+		DB::table('account_transaction')->where('voucher_type','!=','OB')
+										->where('account_master_id', $parameter['old_account_id'][$key])
+										->update(['account_master_id' => $parameter['account_id'][$key]]);
+	}
+	
+	private function resetDepAccounts($accountid,$old_accountid,$department) {
+		
+		DB::table('account_transaction')->where('voucher_type','!=','OB')
+										->where('account_master_id', $old_accountid)
+										->where('department_id', $department)
+										->update(['account_master_id' => $accountid]);
+	}
+	
+	private function resetCostAccounts($accountid,$old_accountid) {
+		
+		DB::table('account_transaction')->where('voucher_type','!=','OB')
+										->where('account_master_id', $old_accountid)
+										->update(['account_master_id' => $accountid]);
+	}
+}
+

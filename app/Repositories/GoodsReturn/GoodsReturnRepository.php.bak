@@ -1,0 +1,997 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\GoodsReturn;
+
+use App\Models\GoodsReturn;
+use App\Models\GoodsReturnItem;
+use App\Models\ItemLocationGR;
+use App\Models\ItemStock;
+use App\Models\AccountTransaction;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use App\Repositories\UpdateUtility;
+use Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
+use Auth; 	
+
+class GoodsReturnRepository extends AbstractValidator implements GoodsReturnInterface {
+	
+	protected $goods_return;
+	public $objUtility;
+	
+	protected static $rules = [];
+	
+	public function __construct(GoodsReturn $goods_return) {
+		$this->goods_return = $goods_return;
+		$this->objUtility = new UpdateUtility();
+	}
+	
+	public function all()
+	{
+		return $this->goods_return->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->goods_return->where('id', $id)->first();
+	}
+	
+	//set input fields values
+	private function setInputValue($attributes)
+	{
+		$this->goods_return->voucher_id = $attributes['voucher_id']; 
+		$this->goods_return->voucher_no = $attributes['voucher_no']; 
+		$this->goods_return->voucher_date = ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']));
+		$this->goods_return->job_id = $attributes['job_id'];
+		$this->goods_return->description = $attributes['description'];
+		$this->goods_return->account_master_id = $attributes['account_master_id'];
+		$this->goods_return->job_account_id = $attributes['job_account_id'];
+		$this->goods_return->department_id   = isset($attributes['department_id'])?$attributes['department_id']:'';
+		
+		return true;
+	}
+	
+	private function getOtherCostSum($attributes)
+	{
+		return array_sum(array_map( function($var) {
+					return $var;
+					}, $attributes) );
+	}
+	
+	private function getTotalQuantity($attributes)
+	{
+		return array_sum(array_map( function($var) {
+					return $var;
+					}, $attributes) );
+	}
+	
+	private function setItemInputValue($attributes, $goodsReturnItem, $key, $value, $total_quantity=null)
+	{
+		//echo '<pre>';print_r($attributes); exit();
+		$line_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]);
+				
+		$goodsReturnItem->goods_return_id = $this->goods_return->id;
+		$goodsReturnItem->item_id = $attributes['item_id'][$key];
+		$goodsReturnItem->unit_id = $attributes['unit_id'][$key];
+		$goodsReturnItem->item_name = $attributes['item_name'][$key];
+		$goodsReturnItem->quantity = $attributes['quantity'][$key];
+		$goodsReturnItem->unit_price = $attributes['cost'][$key];
+		$goodsReturnItem->discount = $attributes['line_discount'][$key];
+		$goodsReturnItem->total_price = $attributes['line_total'][$key];
+		
+		$diffcost = 0;
+		// if($attributes['cost'][$key] < $attributes['actcost'][$key]) {
+		// 	$diffcost = ($attributes['actcost'][$key] - $attributes['cost'][$key]) * $attributes['quantity'][$key];
+		// }
+		if($attributes['cost'][$key]) {
+			$diffcost = ( $attributes['cost'][$key]) * $attributes['quantity'][$key];
+		}
+		
+		return array('line_total' => $line_total, 'diffcost' => $diffcost);
+		
+	}
+	
+	
+	
+	private function setOtherCostInputValue($attributes, $purchaseInvoiceOC, $key)
+	{
+		$purchaseInvoiceOC->goods_return_id = $this->goods_return->id;
+		$purchaseInvoiceOC->dr_account_id = $attributes['dr_acnt'][$key];
+		$purchaseInvoiceOC->oc_reference = $attributes['oc_reference'][$key];
+		$purchaseInvoiceOC->oc_description = $attributes['oc_description'][$key];
+		$purchaseInvoiceOC->cr_account_id = $attributes['cr_acnt'][$key];
+		$purchaseInvoiceOC->oc_amount = $attributes['oc_amount'][$key];
+		$purchaseInvoiceOC->oc_fc_amount = $attributes['oc_fc_amount'][$key];
+		
+		return true;
+	}
+	
+	private function setAccountTransaction($attributes, $amount, $voucher_id, $type, $amount_type=null, $key=null)
+	{
+		$cr_acnt_id = $dr_acnt_id = '';
+		if($amount_type == 'LNTOTAL') {
+			$dr_acnt_id = $attributes['account_master_id'];
+		} else if($amount_type == 'NTAMT') {
+			$cr_acnt_id = $attributes['job_account_id'];
+		}
+		
+		DB::table('account_transaction')
+				->insert([  'voucher_type' 		=> 'GR', //JUL22
+						    'voucher_type_id'   => $voucher_id,
+							'account_master_id' => ($type=='Cr')?$cr_acnt_id:$dr_acnt_id,
+							'transaction_type'  => $type,
+							'amount'   			=> $amount,
+							'status' 			=> 1,
+							'created_at' 		=> now(),
+							'created_by' 		=> 1,
+							'description' 		=> $attributes['description'],
+							'reference'			=> '',
+							'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+							'department_id'		=> (isset($attributes['department_id']))?$attributes['department_id']:''
+					]);
+		
+		$this->objUtility->tallyClosingBalance(($type=='Cr')?$cr_acnt_id:$dr_acnt_id);
+		
+		return true;
+	}
+	
+	
+	//JUL22...
+	private function setAccountTransactionUpdate($attributes, $amount, $voucher_id, $type, $amount_type=null)
+	{
+		$cr_acnt_id = $dr_acnt_id = '';
+		if($amount_type == 'LNTOTAL') {
+			$account_id = $attributes['account_master_id'];
+		} else if($amount_type == 'NTAMT') {
+			$account_id = $attributes['job_account_id'];
+			
+			//CHANGING Job account..
+			if($attributes['job_account_id'] != $attributes['job_account_id_old']) {
+				DB::table('account_transaction')
+						->where('voucher_type_id', $voucher_id)
+						->where('voucher_type', 'GR')
+						->where('account_master_id', $attributes['job_account_id_old'])
+						->update( ['account_master_id' => $attributes['job_account_id'] ]);
+						
+				$this->objUtility->tallyClosingBalance($attributes['job_account_id_old']);
+			}
+		}
+		
+		DB::table('account_transaction')
+				->where('voucher_type_id', $voucher_id)
+				->where('account_master_id', $account_id)
+				->where('voucher_type', 'GR')
+				->update([  'amount'   			=> $amount,
+							'modify_at' 		=> now(),
+							'modify_by' 		=> Auth::User()->id,
+							'description' 		=> $attributes['description'],
+							'reference'			=> $attributes['voucher_no'],
+							'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date'])),
+							'department_id'		=> (isset($attributes['department_id']))?$attributes['department_id']:''
+						]);
+						
+		$this->objUtility->tallyClosingBalance($account_id);
+		
+						
+		return true;
+	}
+	//...JUL22
+	
+		
+	//Accounting Method function............
+	private function AccountingMethod($attributes, $line_total, $net_amount, $goods_return_id)
+	{
+		//Debit Stock in Hand
+		$this->setAccountTransaction($attributes, $line_total, $goods_return_id, $type='Dr', $amount_type='LNTOTAL');
+		
+		//Credit Supplier Accounting
+		$this->setAccountTransaction($attributes, $net_amount, $goods_return_id, $type='Cr', $amount_type='NTAMT');
+		
+		//set account Cr/Dr discount amount transaction....**********needed to implement
+	}
+	
+	
+	//JUL22... Accounting Method function............
+	private function AccountingMethodUpdate($attributes, $line_total, $goods_issued_id)
+	{
+		//Debit Stock in Hand
+		$this->setAccountTransactionUpdate($attributes, $line_total, $goods_issued_id, $type='Cr', $amount_type='LNTOTAL');
+		
+		//Credit Supplier Accounting
+		$this->setAccountTransactionUpdate($attributes, $line_total, $goods_issued_id, $type='Dr', $amount_type='NTAMT');
+		
+		//set account Cr/Dr discount amount transaction....**********needed to implement
+	}
+	//...JUL22
+	
+	
+	public function create($attributes)
+	{ 
+		if($this->isValid($attributes)) {
+			
+			DB::beginTransaction();
+			try {
+				if($this->setInputValue($attributes)) {
+					$this->goods_return->status = 1;
+					$this->goods_return->created_at = now();
+					$this->goods_return->created_by = 1;
+					$this->goods_return->fill($attributes)->save();
+				}
+				
+				//invoice items insert
+				if($this->goods_return->id && !empty( array_filter($attributes['item_id']))) {
+					
+					$line_total = 0; $total_quantity = $diffcost = 0;
+					
+					foreach($attributes['item_id'] as $key => $value){ 
+						$goodsReturnItem = new GoodsReturnItem();
+						$arrResult 	= $this->setItemInputValue($attributes, $goodsReturnItem, $key, $value, $total_quantity);
+						if($arrResult['line_total']) {
+							$line_total			   += $arrResult['line_total'];
+							$diffcost 			   += $arrResult['diffcost'];
+							
+							$goodsReturnItem->status = 1;
+							$itemObj = $this->goods_return->doItem()->save($goodsReturnItem);
+							
+							$CostAvg_log = $this->updateLastPurchaseCostAndCostAvg($attributes, $key);
+							//update logs
+							$logid = $this->setPurchaseLog($attributes, $key, $this->goods_return->id, $CostAvg_log,'add');
+							if($logid)
+								$this->updateItemQuantity($attributes, $key);
+							
+							
+							//################ Location Stock Entry ####################
+							//Item Location specific add....
+							$updated = false;
+							if(isset($attributes['locqty'][$key])) {
+								foreach($attributes['locqty'][$key] as $lk => $lq) {
+									if($lq!='') {
+										$updated = true;
+										$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
+																	  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
+																	  ->whereNull('deleted_at')->select('id')->first();
+										if($qtys)
+											DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$lq) ]);
+										
+										$itemLocationGR = new ItemLocationGR();
+										$itemLocationGR->location_id = $attributes['locid'][$key][$lk];
+										$itemLocationGR->item_id = $value;
+										$itemLocationGR->unit_id = $attributes['unit_id'][$key];
+										$itemLocationGR->quantity = $lq;
+										$itemLocationGR->status = 1;
+										$itemLocationGR->gr_id = $itemObj->id;
+										$itemLocationGR->logid = $logid;
+										$itemLocationGR->save();
+									}
+								}
+							}
+							
+							
+							//Item default location add...
+							if(isset($attributes['default_location']) && ($attributes['default_location'] > 0) && ($updated == false)) {
+									
+								$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
+																  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
+																  ->whereNull('deleted_at')->select('id')->first();
+								if($qtys)
+									DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$attributes['quantity'][$key]) ]);
+									
+								$itemLocationGR = new ItemLocationGR();
+								$itemLocationGR->location_id = $attributes['default_location'];
+								$itemLocationGR->item_id = $value;
+								$itemLocationGR->unit_id = $attributes['unit_id'][$key];
+								$itemLocationGR->quantity = $attributes['quantity'][$key];
+								$itemLocationGR->status = 1;
+								$itemLocationGR->gr_id = $itemObj->id;
+								$itemLocationGR->logid = $logid;
+								$itemLocationGR->save();
+								
+							}
+						}
+					}
+					
+					$net_amount = (int)$line_total - (int)$attributes['discount'];
+					
+					//update discount, total amount, vat and other cost....
+					DB::table('goods_return')
+								->where('id', $this->goods_return->id)
+								->update(['total'    	  => $line_total,
+										  'discount' 	  => $attributes['discount'],
+										  'net_amount'	  => $net_amount ]
+										 );
+										  
+					//Cost Accounting or Purchase and Sales Method .....
+					$this->AccountingMethod($attributes, $line_total, $net_amount, $this->goods_return->id);
+					
+					//COST DIFFERENCE AC ENTRY....
+					if($diffcost > 0)
+						$this->CostDifferenceEntry($attributes, $this->goods_return->id, $diffcost);
+					
+					if($this->goods_return->id) {
+						if(Session::get('department')==1) { //if dept active...
+							 DB::table('account_setting')
+								->where('voucher_type_id', 14) 
+								->where('department_id', $attributes['department_id'])
+								->update(['voucher_no' => $attributes['voucher_no'] + 1]);
+						 } else {
+							 DB::table('account_setting')
+								->where('voucher_type_id', 14)
+								->update(['voucher_no' => $attributes['voucher_no'] + 1]);
+						 }
+					}
+					
+				}
+				
+				DB::commit();
+				return true;
+		  } catch(\Exception $e) {
+				
+			DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
+			return false;
+		  }
+		}
+	}
+	
+	public function update($id, $attributes)
+	{
+		$this->goods_return = $this->find($id);
+		$line_total = 0;
+		if($this->goods_return->id && !empty( array_filter($attributes['item_id']))) {
+			foreach($attributes['item_id'] as $key => $value) { 
+				
+				if($attributes['order_item_id'][$key]!='') {
+					
+					//$lntotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key];
+					$lntotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) ;
+					
+					
+					$line_total += $lntotal;
+					
+					$goodsReturnItem = GoodsReturnItem::find($attributes['order_item_id'][$key]);//print_r($goodsReturnItem);exit;//$attributes['order_item_id'][$key]);echo $attributes['order_item_id'][$key].'<pre>';
+					$exi_quantity = $goodsReturnItem->quantity;//JUL22
+					
+					$items['item_name'] = $attributes['item_name'][$key];
+					$items['item_id'] = $value;
+					$items['unit_id'] = $attributes['unit_id'][$key];
+					$items['quantity'] = $attributes['quantity'][$key];
+					$items['unit_price'] = $attributes['cost'][$key];
+					$items['discount'] = $attributes['line_discount'][$key];
+					$items['total_price'] = $lntotal;
+					$goodsReturnItem->update($items);
+					
+					$bquantity = $attributes['quantity'][$key] - $exi_quantity;//JUL22
+					$attributes['purchase_invoice_id'] = $this->goods_return->id;//JUL22
+					
+					$CostAvg_log = $this->updateLastPurchaseCostAndCostAvgonEdit($attributes, $key);
+					if($this->setPurchaseLog($attributes, $key, $this->goods_return->id, $CostAvg_log,'update'))
+						$this->updateItemQuantity($attributes, $key, $bquantity); //JUL22
+					
+					//################ Location Stock Entry ####################
+					//Item Location specific add....
+					$updated = false;
+					if(isset($attributes['locqty'][$key])) {
+						foreach($attributes['locqty'][$key] as $lk => $lq) {
+							if($lq!='') {
+								$updated = true;
+								$edit = DB::table('item_location_gr')->where('id', $attributes['editid'][$key][$lk])->first();
+								$idloc = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
+															  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
+															  ->whereNull('deleted_at')->select('id')->first();
+								if($edit) {
+									if($edit->quantity < $lq) {
+										$balqty = $lq - $edit->quantity;
+										DB::table('item_location')->where('id', $idloc->id)->update(['quantity' => DB::raw('quantity + '.$balqty)]);
+									} else {
+										$balqty = $edit->quantity - $lq;
+										DB::table('item_location')->where('id', $idloc->id)->update(['quantity' => DB::raw('quantity - '.$balqty)]);
+									}
+								}
+								
+								DB::table('item_location_gr')->where('id', $attributes['editid'][$key][$lk])->update(['quantity' => $lq]);
+							}
+						}
+					}
+					
+					//Item default location add...
+					//if(($attributes['location_id']!='') && ($updated == false)) {
+					if(isset($attributes['default_location']) && ($attributes['default_location'] > 0) && ($updated == false)) {
+						$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
+														  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
+														  ->whereNull('deleted_at')->select('*')->first();
+						if($qtys) {
+							DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$attributes['quantity'][$key]) ]);
+							DB::table('item_location_gr')->where('invoice_id', $attributes['order_item_id'][$key] )
+														 ->where('location_id', $qtys->location_id)
+														 ->where('item_id', $qtys->item_id)
+														 ->where('unit_id', $qtys->unit_id)
+														 ->update(['quantity' => DB::raw('quantity + '.$attributes['quantity'][$key]) ]);
+						} 
+					}
+					//################ Location Stock Entry End ####################
+					
+				} else { //new entry...
+					$goodsReturnItem = new GoodsReturnItem();
+					$arrResult 		= $this->setItemInputValue($attributes, $goodsReturnItem, $key, $value);
+					if($arrResult['line_total']) {
+						$line_total			     += $arrResult['line_total'];
+						$goodsReturnItem->status = 1;
+						$this->goods_return->doItem()->save($goodsReturnItem);
+						
+						
+						$CostAvg_log = $this->updateLastPurchaseCostAndCostAvg($attributes, $key);
+							//update logs
+							$logid = $this->setPurchaseLog($attributes, $key, $this->goods_return->id, $CostAvg_log,'add');
+							if($logid)
+								$this->updateItemQuantity($attributes, $key);
+						
+							//################ Location Stock Entry ####################
+							//Item Location specific add....
+							$updated = false;
+							if(isset($attributes['locqty'][$key])) {
+								foreach($attributes['locqty'][$key] as $lk => $lq) {
+									if($lq!='') {
+										$updated = true;
+										$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
+																	  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
+																	  ->whereNull('deleted_at')->select('id')->first();
+										if($qtys)
+											DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$lq) ]);
+										
+										$itemLocationGR = new ItemLocationGR();
+										$itemLocationGR->location_id = $attributes['locid'][$key][$lk];
+										$itemLocationGR->item_id = $value;
+										$itemLocationGR->unit_id = $attributes['unit_id'][$key];
+										$itemLocationGR->quantity = $lq;
+										$itemLocationGR->status = 1;
+										$itemLocationGR->gr_id = $itemObj->id;
+										$itemLocationGR->logid = $logid;
+										$itemLocationGR->save();
+									}
+								}
+							}
+							
+							
+							//Item default location add...
+							if(isset($attributes['default_location']) && ($attributes['default_location'] > 0) && ($updated == false)) {
+									
+								$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
+																  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
+																  ->whereNull('deleted_at')->select('id')->first();
+								if($qtys)
+									DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$attributes['quantity'][$key]) ]);
+									
+								$itemLocationGR = new ItemLocationGR();
+								$itemLocationGR->location_id = $attributes['default_location'];
+								$itemLocationGR->item_id = $value;
+								$itemLocationGR->unit_id = $attributes['unit_id'][$key];
+								$itemLocationGR->quantity = $attributes['quantity'][$key];
+								$itemLocationGR->status = 1;
+								$itemLocationGR->gr_id = $itemObj->id;
+								$itemLocationGR->logid = $logid;
+								$itemLocationGR->save();
+								
+							}
+					}
+				}
+				
+			}
+		}
+		
+		if($this->setInputValue($attributes)) {
+			$this->goods_return->modify_at = now();
+			$this->goods_return->modify_by = Auth::User()->id;
+			$this->goods_return->fill($attributes)->save();
+		}
+		
+		//Cost Accounting or Purchase and Sales Method ..... JUL22..
+		$this->AccountingMethodUpdate($attributes, $line_total, $this->goods_return->id);
+		
+		//manage removed items...
+		if($attributes['remove_item']!='')
+		{
+			$arrids = explode(',', $attributes['remove_item']);
+			$remline_total = $remtax_total = 0;
+			foreach($arrids as $row) {
+				
+				$res = DB::table('goods_return_item')->where('id',$row)->first();
+				DB::table('goods_return_item')->where('id', $row)->update(['status' => 0,'deleted_at' => now()]);
+				
+				$this->objUtility->updateLastPurchaseCostAndCostAvgonDeleteGsec($res, $this->goods_return->id, 'GR');
+				
+				//DB::table('goods_return_item')->where('id', $row)->update(['status' => 0]);
+			}
+		}
+		$this->goods_return->fill($attributes)->save();
+		
+	//	$net_amount = $line_total - $attributes['discount'];
+		
+		$net_amount = $line_total ;
+		//update discount, total amount
+		DB::table('goods_return')
+					->where('id', $this->goods_return->id)
+					->update(['total'    	  => $line_total,
+							  'discount' 	  => $attributes['discount'],
+							  'net_amount'	  => $net_amount,
+							 ]);
+									  
+		return true;
+	}
+	
+	
+	public function delete($id)
+	{
+		$this->goods_return = $this->goods_return->find($id);
+		
+		//inventory update...
+		$items = DB::table('goods_return_item')->where('goods_return_id', $id)->select('item_id','unit_id','quantity')->get();
+		
+		foreach($items as $item) {
+			$this->objUtility->updateLastPurchaseCostAndCostAvgonDeleteGsec($item,$id,'GR');
+		}
+		DB::table('goods_return_item')->where('goods_return_id', $id)
+								->update(['status' => 0, 'deleted_at' => now()]);
+		
+		//Transaction update.... JUL22
+		DB::table('account_transaction')->where('voucher_type', 'GR')->where('voucher_type_id',$id)->update(['status' => 0,'deleted_at' => now(),'deleted_by' => Auth::User()->id ]);
+		
+		//reset account balance....
+		$this->objUtility->tallyClosingBalance($this->goods_return->account_master_id);
+		
+		$this->objUtility->tallyClosingBalance($this->goods_return->job_account_id);
+			DB::table('goods_return')->where('id', $id)
+									  ->update(['status' => 0, 'deleted_at' => now(),'deleted_by' => Auth::User()->id ]);	
+					
+		$this->goods_return->delete();
+	}
+	
+	public function delete2($id)
+	{
+		$this->goods_return = $this->goods_return->find($id);
+		$this->goods_return->delete();
+	}
+	
+
+	public function purchaseReturnList()
+	{
+		$query = $this->goods_return->where('goods_return.status',1);
+		return $query->join('jobmaster AS J', function($join) {
+							$join->on('J.id','=','goods_return.job_id');
+						} )
+					->select('goods_return.*','J.name AS jobname')
+					->orderBY('goods_return.id', 'DESC')
+					->get();
+	}
+	
+	public function getTransactionList($attributes) 
+	{
+		//echo '<pre>';print_r($attributes);exit;
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		
+		$qry = $this->goods_return
+								   ->join('goods_return_item AS GI', function($join) {
+									   $join->on('GI.goods_return_id','=','goods_return.id');
+								   })
+								   ->join('itemmaster AS IM', function($join) {
+									   $join->on('IM.id','=','GI.item_id');
+								   })
+								   ->where('GI.status',1)
+								   ->where('GI.deleted_at','0000-00-00 00:00:00')
+								   ->where('goods_return.status',1);
+							
+							if($date_from !='' && $date_to != '')	   
+								$qry->whereBetween('goods_return.voucher_date',[$date_from, $date_to]);
+
+					       
+
+		$result = $qry->select('goods_return.id','goods_return.voucher_no','goods_return.voucher_date',
+								'IM.item_code','IM.description','GI.quantity','GI.unit_price',DB::raw('"" AS vat_amount'),'GI.total_price')
+								   ->orderBY('goods_return.voucher_date', 'ASC')
+								   ->get();
+								   
+		return $result;
+	}
+	
+	public function activePurchaseInvoiceList()
+	{
+		return $this->goods_return->select('id','name')->where('status', 1)->orderBy('name', 'ASC')->get()->toArray();
+	}
+	
+	public function check_reference_no($refno, $id = null) { 
+		
+		if($id)
+			return $this->goods_return->where('reference_no',$refno)->where('id', '!=', $id)->count();
+		else
+			return $this->goods_return->where('reference_no',$refno)->count();
+	}
+	
+	public function check_invoice_id($invoice_id) { 
+		
+		return $this->goods_return->where('voucher_no', $invoice_id)->count();
+	}
+	
+	public function getPIdata()
+	{
+		$query = $this->goods_return->where('goods_return.status',1);
+		
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','goods_return.job_account_id');
+						} )
+					->where('goods_return.is_return',0)
+					->select('goods_return.*','am.master_name AS supplier')
+					->orderBY('goods_return.id', 'ASC')
+					->get();
+	}
+		
+	public function getSDOitems($id)
+	{
+		$query = $this->goods_return->where('goods_return.voucher_no',$id);
+		
+		return $query->join('purchase_invoice_item AS poi', function($join) {
+							$join->on('poi.goods_return_id','=','goods_return.id');
+						} )
+					  ->join('units AS u', function($join){
+						  $join->on('u.id','=','poi.unit_id');
+					  }) 
+					  ->select('poi.*','u.unit_name')->get();
+		//return $this->itemmaster->where('status', 1)->orderBy('description','ASC')->select('id','item_code','description')->get();
+	}
+	
+	public function getSupplierInvoice($supplier_id)
+	{
+		return $this->goods_return->where('status',1)
+								   ->where('supplier_id', $supplier_id)
+								   ->whereIn('amount_transfer',[0,2])
+								   ->orderBY('id', 'ASC')
+								   ->get();
+	}
+	
+	public function getInvoiceReport($attributes) 
+	{
+		$result = array();
+		
+		if($attributes['date_from']!=null && $attributes['date_to']!=null) {
+			$date_from = (isset($attributes['date_from']))?date('Y-m-d', strtotime($attributes['date_from'])):'';
+			$date_to = (isset($attributes['date_to']))?date('Y-m-d', strtotime($attributes['date_to'])):'';
+			
+			$result = $this->goods_return->where('goods_return.status',1)
+								   ->join('account_master AS AM', function($join) {
+									   $join->on('AM.id','=','goods_return.job_account_id');
+								   })
+								   ->leftJoin('jobmaster AS JM', function($join) {
+									   $join->on('JM.id','=','goods_return.job_id');
+								   })
+								   ->whereBetween('voucher_date', array($date_from, $date_to))
+								    ->select('AM.master_name AS supplier','AM.vat_no','goods_return.*','JM.name AS job')
+								   ->orderBY('id', 'ASC')
+								   ->get();
+		} else {
+			$result = $this->goods_return->where('goods_return.status',1)
+								   ->join('account_master AS AM', function($join) {
+									   $join->on('AM.id','=','goods_return.job_account_id');
+								   })
+								   ->leftJoin('jobmaster AS JM', function($join) {
+									   $join->on('JM.id','=','goods_return.job_id');
+								   })
+								   ->select('AM.master_name AS supplier','AM.vat_no','goods_return.*','JM.name AS job')
+								   ->orderBY('goods_return.id', 'ASC')
+								   ->get();
+		}
+		
+		return $result; 
+	}
+	
+	public function getInvoice($attributes)
+	{
+		$invoice = $this->goods_return->where('goods_return.id', $attributes['document_id'])
+								   ->join('jobmaster AS J', function($join) {
+									   $join->on('J.id','=','goods_return.job_id');
+								   })
+								   ->select('J.name AS supplier','goods_return.*','J.code')
+								   ->orderBY('goods_return.id', 'ASC')
+								   ->first();
+								   
+		$items = $this->goods_return->where('goods_return.id', $attributes['document_id'])
+								   ->join('goods_return_item AS GI', function($join) {
+									   $join->on('GI.goods_return_id','=','goods_return.id');
+								   })
+								   ->join('itemmaster AS IM', function($join) {
+									   $join->on('IM.id','=','GI.item_id');
+								   })
+								   ->join('units AS U', function($join) {
+									   $join->on('U.id','=','GI.unit_id');
+								   })
+								   ->select('GI.*','goods_return.id','IM.item_code','U.unit_name')
+								   ->get();
+								   
+		return $result = ['details' => $invoice, 'items' => $items];
+	}
+	
+	public function findPOdata($id)
+	{
+		$query = $this->goods_return->where('goods_return.id', $id);
+		return $query->join('account_master AS am', function($join) {
+							$join->on('am.id','=','goods_return.job_account_id');
+						} )
+						->join('account_master AS am2', function($join){
+							  $join->on('am2.id','=','goods_return.account_master_id');
+						  })
+						->leftjoin('jobmaster AS J', function($join){
+						  $join->on('J.id','=','goods_return.job_id');
+						})
+					->select('goods_return.*','am.master_name AS jobaccount','am2.master_name AS account','J.name')
+					->orderBY('goods_return.id', 'ASC')
+					->first();
+	}
+	
+	
+	
+	public function getItems($id)
+	{
+		$query = $this->goods_return->where('goods_return.id',$id);
+		
+		return $query->join('goods_return_item AS GI', function($join) {
+							$join->on('GI.goods_return_id','=','goods_return.id');
+						} )
+					  ->join('units AS u', function($join){
+						  $join->on('u.id','=','GI.unit_id');
+					  }) 
+					  ->join('itemmaster AS im', function($join){
+						  $join->on('im.id','=','GI.item_id');
+					  })
+					  ->where('GI.status',1)
+					  ->where('GI.deleted_at','0000-00-00 00:00:00')
+					  ->select('GI.*','u.unit_name','im.item_code')->get();
+	}
+	
+	private function updateLastPurchaseCostAndCostAvg($attributes, $key)
+	{
+							 
+		$itmlogs = DB::table('item_log')->where('item_id', $attributes['item_id'][$key])
+										->where('status', 1)
+										->where('trtype', 1)
+										->where('cur_quantity', '>', 0)
+										->whereNull('deleted_at')
+										->select('cur_quantity','pur_cost')
+										->get();
+										
+		//$itmcost = $itmqty = 0;
+		$itmcost = $attributes['quantity'][$key] * $attributes['cost'][$key];
+		$itmqty = $attributes['quantity'][$key];
+		foreach($itmlogs as $log) {
+			$itmcost += ($log->cur_quantity * $log->pur_cost);
+			$itmqty += $log->cur_quantity;
+		}
+		
+		$cost_avg = round(($itmcost / $itmqty), 3);
+		$cost = $attributes['cost'][$key];
+		
+					
+		DB::table('item_unit')
+				->where('id', $attributes['item_id'][$key])
+				->update(['last_purchase_cost' => $cost,
+						  'pur_count' 		   => DB::raw('pur_count + 1'),
+						  'cost_avg'		   => $cost_avg
+						]);
+							
+		return $cost_avg;
+		
+	}
+	
+	private function setPurchaseLog($attributes, $key, $document_id, $cost_avg, $action)
+	{
+		if($action=='add') {
+			$logid = DB::table('item_log')->insertGetId([
+							 'document_type' => 'GR',
+							 'document_id'   => $document_id,
+							 'item_id' 	  => $attributes['item_id'][$key],
+							 'unit_id'    => $attributes['unit_id'][$key],
+							 'quantity'   => $attributes['quantity'][$key],
+							 'unit_cost'  => $attributes['cost'][$key],
+							 'trtype'	  => 1,
+							 'cur_quantity' => $attributes['quantity'][$key],
+							 'cost_avg' => $cost_avg,
+							 'pur_cost' => $attributes['cost'][$key],
+							 'packing' => 1,
+							 'status'     => 1,
+							 'created_at' => now(),
+							 'created_by' => Auth::User()->id,
+							 'voucher_date' => ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']))
+							]);
+			
+		} else if($action=='update') {
+			
+			$logid = true;	
+			DB::table('item_log')->where('document_type','GR')
+							->where('document_id', $document_id)
+							->where('item_id', $attributes['item_id'][$key])
+							->where('unit_id', $attributes['unit_id'][$key])
+							->update([
+								 'quantity'   => $attributes['quantity'][$key],
+								 'unit_cost'  => $attributes['cost'][$key],
+								 'cur_quantity' => $attributes['quantity'][$key],
+								 'cost_avg' => $cost_avg,
+								 'pur_cost' => $attributes['cost'][$key],
+								 'voucher_date' => ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']))
+							]);
+		}
+							
+		return $logid;
+	}
+	
+	//JUL22..
+	private function updateItemQuantity($attributes, $key, $bquantity=null)
+	{
+		$item = DB::table('item_unit')->where('itemmaster_id', $attributes['item_id'][$key])
+									  ->where('is_baseqty', 1)->first();
+									  
+		if($item) {
+			//$qty = $attributes['quantity'][$key];
+			$baseqty = ($bquantity!=null)?$bquantity:$attributes['quantity'][$key];
+			//$baseqty = $attributes['quantity'][$key];
+			DB::table('item_unit')
+				->where('id', $item->id)
+				->update([ 'cur_quantity' => $item->cur_quantity + $baseqty,
+						   'received_qty' => DB::raw('received_qty + '.$baseqty) ]);
+							
+		}
+									  
+		return true;
+	}
+	//..JUL22
+	
+	
+	private function updateLastPurchaseCostAndCostAvgonEdit($attributes, $key)
+	{	
+		$pid = $attributes['purchase_invoice_id'];
+		$itmlogs = DB::table('item_log')->where('item_id', $attributes['item_id'][$key])
+										->where('status', 1)
+										->where('trtype', 1)
+										->where('cur_quantity', '>', 0)
+										->whereNull('deleted_at')
+										->where(function ($query) use($pid) {
+											$query->where('document_id','!=',$pid)
+												  ->orWhere('document_type','!=','PI');
+										})
+										->select('cur_quantity','pur_cost')
+										->get();
+		//echo '<pre>';print_r($itmlogs);exit;								
+		//$itmcost = $itmqty = 0;
+		$itmcost = $attributes['quantity'][$key] * $attributes['cost'][$key];
+		$itmqty = $attributes['quantity'][$key];
+		foreach($itmlogs as $log) {
+			$itmcost += ($log->cur_quantity * $log->pur_cost);
+			$itmqty += $log->cur_quantity;
+		}
+		
+		//$cost_avg = round( (($itmcost / $itmqty) + $other_cost), 3);
+		//JUL22..
+		$cost_avg = round( ($itmcost / $itmqty), 3);
+		$cost = $attributes['cost'][$key];
+		//..JUL22
+		
+					
+		DB::table('item_unit')
+				->where('id', $attributes['item_id'][$key])
+				->update(['last_purchase_cost' => $cost, //JUL22..
+						  'cost_avg'		   => $cost_avg
+						]);
+							
+		return $cost_avg;
+	}
+	
+	public function getReport($attributes)
+	{
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		
+	
+			
+		$query = DB::table('goods_return')//$this->sales_invoice deleted_at
+						->join('goods_return_item AS POI', function($join) {
+							$join->on('POI.goods_return_id','=','goods_return.id');
+						})
+							->join('jobmaster AS JB', function($join) {
+								$join->on('JB.id','=','goods_return.job_id');
+							})
+							->join('account_master AS am2', function($join){
+								$join->on('am2.id','=','goods_return.account_master_id');
+							})
+							->join('account_master AS am', function($join) {
+								$join->on('am.id','=','goods_return.job_account_id');
+							} )
+							->where('POI.status',1);
+		
+							
+	if(isset($attributes['job_id']) && $attributes['job_id']!='')
+					$query->whereIn('goods_return.job_id', $attributes['job_id']);	
+	if(isset($attributes['dept_id']) && $attributes['dept_id']!=''){
+			$query->whereIn('goods_return.department_id', $attributes['dept_id']);	
+		}
+						
+ $query->select('goods_return.voucher_no','goods_return.total','goods_return.net_amount',
+								  'goods_return.voucher_date','am2.master_name AS account','am.master_name AS jobaccount','POI.item_name',
+								  'POI.quantity','POI.total_price','POI.unit_price','JB.code','JB.name AS jobname',
+								  'goods_return.net_amount');
+								  
+	return $query->get();
+
+		
+	}
+	
+	public function goodsReturnListCount()
+	{
+		$query = $this->goods_return->where('goods_return.status',1);
+		return $query->leftjoin('jobmaster AS J', function($join) {
+							$join->on('J.id','=','goods_return.job_id');
+						} )
+					->count();
+	}
+	
+	public function goodsReturnList($type,$start,$limit,$order,$dir,$search)
+	{
+		$query = $this->goods_return->where('goods_return.status',1);
+		$query->leftjoin('jobmaster AS J', function($join) {
+							$join->on('J.id','=','goods_return.job_id');
+						} );
+						
+		if($search) {
+				
+			$query->where(function($qry) use($search) {
+				$qry->where('goods_return.voucher_no','LIKE',"%{$search}%")
+					->orWhere('J.name', 'LIKE',"%{$search}%");
+			});
+		}
+			
+		$query->select('goods_return.*','J.name AS jobname')
+					->offset($start)
+                    ->limit($limit)
+                    ->orderBy($order,$dir);
+					
+		if($type=='get')
+			return $query->get();
+		else
+			return $query->count();
+	}
+	
+	private function CostDifferenceEntry($attributes,$voucher_id,$amount) {
+		
+		$costac = DB::table('other_account_setting')->where('account_setting_name','Cost Difference')->where('status',1)->select('account_id')->first();
+		
+		$stockac = DB::table('voucher_account')->where('account_field','stock')->select('account_id')->first();
+		
+		DB::table('account_transaction')
+					->insert([  'voucher_type' 		=> 'GR',
+								'voucher_type_id'   => $voucher_id,
+								'account_master_id' => $costac->account_id,
+								'transaction_type'  => 'Dr',
+								'amount'   			=> $amount,
+								'status' 			=> 1,
+								'created_at' 		=> now(),
+								'created_by' 		=> Auth::User()->id,
+								'description' 		=> $attributes['description'],
+								'reference'			=> $attributes['voucher_no'],
+								'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']))
+								]);
+				
+		$this->objUtility->tallyClosingBalance($costac->account_id);
+		
+		DB::table('account_transaction')
+					->insert([  'voucher_type' 		=> 'GR',
+								'voucher_type_id'   => $voucher_id,
+								'account_master_id' => $stockac->account_id,
+								'transaction_type'  => 'Cr',
+								'amount'   			=> $amount,
+								'status' 			=> 1,
+								'created_at' 		=> now(),
+								'created_by' 		=> Auth::User()->id,
+								'description' 		=> $attributes['description'],
+								'reference'			=> $attributes['voucher_no'],
+								'invoice_date'		=> ($attributes['voucher_date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['voucher_date']))
+								]);
+				
+		$this->objUtility->tallyClosingBalance($costac->account_id);
+	}
+	
+}

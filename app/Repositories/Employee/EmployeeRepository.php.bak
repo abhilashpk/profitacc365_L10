@@ -1,0 +1,1245 @@
+<?php
+declare(strict_types=1);
+namespace App\Repositories\Employee;
+
+use App\Models\Employee;
+use App\Repositories\AbstractValidator;
+use App\Exceptions\Validation\ValidationException;
+use Config;
+use Image;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\DB;
+use DateTime;
+use Illuminate\Support\Facades\File; 
+
+class EmployeeRepository extends AbstractValidator implements EmployeeInterface {
+	
+	protected $employee;
+	
+	protected static $rules = [
+		/* 'code' => 'required|unique:employee',
+		'name' => 'required|unique:employee' */
+	];
+	
+	public function __construct(Employee $employee) {
+		$this->employee = $employee;
+		$config = Config::get('siteconfig');
+		
+		$this->width = $config['modules']['employee']['image_size']['width'];
+        $this->height = $config['modules']['employee']['image_size']['height'];
+        $this->thumbWidth = $config['modules']['employee']['thumb_size']['width'];
+        $this->thumbHeight = $config['modules']['employee']['thumb_size']['height'];
+        $this->imgDir = $config['modules']['employee']['image_dir'];
+		
+		$this->pwidth = $config['modules']['psport']['image_size']['width'];
+        $this->pheight = $config['modules']['psport']['image_size']['height'];
+        $this->pthumbWidth = $config['modules']['psport']['thumb_size']['width'];
+        $this->pthumbHeight = $config['modules']['psport']['thumb_size']['height'];
+        $this->pimgDir = $config['modules']['psport']['image_dir'];
+		
+		$this->vwidth = $config['modules']['visa']['image_size']['width'];
+        $this->vheight = $config['modules']['visa']['image_size']['height'];
+        $this->vthumbWidth = $config['modules']['visa']['thumb_size']['width'];
+        $this->vthumbHeight = $config['modules']['visa']['thumb_size']['height'];
+        $this->vimgDir = $config['modules']['visa']['image_dir'];
+		
+		$this->lwidth = $config['modules']['labour']['image_size']['width'];
+        $this->lheight = $config['modules']['labour']['image_size']['height'];
+        $this->lthumbWidth = $config['modules']['labour']['thumb_size']['width'];
+        $this->lthumbHeight = $config['modules']['labour']['thumb_size']['height'];
+        $this->limgDir = $config['modules']['labour']['image_dir'];
+		
+		$this->hwidth = $config['modules']['health']['image_size']['width'];
+        $this->hheight = $config['modules']['health']['image_size']['height'];
+        $this->hthumbWidth = $config['modules']['health']['thumb_size']['width'];
+        $this->hthumbHeight = $config['modules']['health']['thumb_size']['height'];
+        $this->himgDir = $config['modules']['health']['image_dir'];
+		
+		$this->iwidth = $config['modules']['idcard']['image_size']['width'];
+        $this->iheight = $config['modules']['idcard']['image_size']['height'];
+        $this->ithumbWidth = $config['modules']['idcard']['thumb_size']['width'];
+        $this->ithumbHeight = $config['modules']['idcard']['thumb_size']['height'];
+        $this->iimgDir = $config['modules']['idcard']['image_dir'];
+		
+		//$this->mewidth = $config['modules']['medical']['image_size']['width'];
+        //$this->meheight = $config['modules']['medical']['image_size']['height'];
+        //$this->methumbWidth = $config['modules']['medical']['thumb_size']['width'];
+        //$this->methumbHeight = $config['modules']['medical']['thumb_size']['height'];
+       // $this->meimgDir = $config['modules']['medical']['image_dir'];
+
+		$this->fwidth = $config['modules']['medical']['image_size']['width'];
+        $this->fheight = $config['modules']['medical']['image_size']['height'];
+        $this->fthumbWidth = $config['modules']['medical']['thumb_size']['width'];
+        $this->fthumbHeight = $config['modules']['medical']['thumb_size']['height'];
+        $this->fimgDir = $config['modules']['medical']['image_dir'];
+	}
+	
+	public function all()
+	{
+		return $this->employee->get();
+	}
+	
+	public function find($id)
+	{
+		return $this->employee->where('id', $id)->first();
+	}
+	
+	public function ajax_upload($file)
+	{ 
+		$photo = '';
+		$fname = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+		
+		if($file) {
+			$ext = $file->getClientOriginalExtension();
+			if($ext=='.jpg' ||$ext=='.JPG' || $ext=='.png' || $ext=='.PNG') {
+				$photo = rand(1, 999).$fname.'.'.$ext;
+				$destinationPath = public_path() . $this->imgDir.'/'.$photo;
+				$destinationPathThumb = public_path() . $this->imgDir.'/thumb_'.$photo;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->width, $this->height, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->thumbWidth, $this->thumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			} else {
+				 $photo = rand(1, 999).$fname.'.'.$ext;
+				 $destinationPath = public_path() . $this->imgDir;
+				 $file->move($destinationPath,$photo);
+			}
+		}
+		
+		return $photo;
+
+	}
+	
+	public function ajax_pupload($file)
+	{ 
+		$pimage = '';
+		$fname = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+		
+		if($file) {
+			$ext = $file->getClientOriginalExtension();
+			if($ext=='.jpg' ||$ext=='.JPG' || $ext=='.png' || $ext=='.PNG') {
+				$pimage = rand(1, 999).$fname.'.'.$ext;
+				$destinationPath = public_path() . $this->pimgDir.'/'.$pimage;
+				$destinationPathThumb = public_path() . $this->pimgDir.'/thumb_'.$pimage;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->pwidth, $this->pheight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->pthumbWidth, $this->pthumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			} else {
+				 $pimage = rand(1, 999).$fname.'.'.$ext;
+				 $destinationPath = public_path() . $this->pimgDir;
+				 $file->move($destinationPath, $pimage);
+			}
+		}
+		
+		return $pimage;
+
+	}
+	
+	public function ajax_vupload($file)
+	{ 
+		$vimage = '';
+		$fname = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+		if($file) {
+			$ext = $file->getClientOriginalExtension();
+			if($ext=='.jpg' ||$ext=='.JPG' || $ext=='.png' || $ext=='.PNG') {
+				
+				$vimage = rand(1, 999).$fname.'.'.$ext;
+				$destinationPath = public_path() . $this->vimgDir.'/'.$vimage;
+				$destinationPathThumb = public_path() . $this->vimgDir.'/thumb_'.$vimage;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->vwidth, $this->vheight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->vthumbWidth, $this->vthumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			} else {
+				$vimage = rand(1, 999).$fname.'.'.$ext;
+				 $destinationPath = public_path() . $this->vimgDir;
+				 $file->move($destinationPath, $vimage);
+			}
+		}
+		
+		return $vimage;
+
+	}
+	
+	public function ajax_lupload($file)
+	{ 
+		$limage = '';
+		$fname = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+		if($file) {
+			$ext = $file->getClientOriginalExtension();
+			if($ext=='.jpg' ||$ext=='.JPG' || $ext=='.png' || $ext=='.PNG') {
+				$limage = rand(1, 999).$fname.'.'.$ext;
+				$destinationPath = public_path() . $this->limgDir.'/'.$limage;
+				$destinationPathThumb = public_path() . $this->limgDir.'/thumb_'.$limage;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->lwidth, $this->lheight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->lthumbWidth, $this->lthumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			} else {
+				$limage = rand(1, 999).$fname.'.'.$ext;
+				 $destinationPath = public_path() . $this->limgDir;
+				 $file->move($destinationPath, $limage);
+			}
+		}
+		
+		return $limage;
+
+	}
+	
+	public function ajax_hupload($file)
+	{ 
+		$himage = '';
+		$fname = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+		if($file) {
+			$ext = $file->getClientOriginalExtension();
+			if($ext=='.jpg' ||$ext=='.JPG' || $ext=='.png' || $ext=='.PNG') {
+				$himage = rand(1, 999).$fname.'.'.$ext;
+				$destinationPath = public_path() . $this->himgDir.'/'.$himage;
+				$destinationPathThumb = public_path() . $this->himgDir.'/thumb_'.$himage;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->hwidth, $this->hheight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->hthumbWidth, $this->hthumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			} else {
+				$himage = rand(1, 999).$fname.'.'.$ext;
+				 $destinationPath = public_path() . $this->himgDir;
+				 $file->move($destinationPath, $himage);
+			}
+		}
+		
+		return $himage;
+
+	}
+	
+	public function ajax_iupload($file)
+	{ 
+		$iimage = '';
+		$fname = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+		if($file) {
+			$ext = $file->getClientOriginalExtension();
+			if($ext=='.jpg' ||$ext=='.JPG' || $ext=='.png' || $ext=='.PNG') {
+				$iimage = rand(1, 999).$fname.'.'.$ext;
+				$destinationPath = public_path() . $this->iimgDir.'/'.$iimage;
+				$destinationPathThumb = public_path() . $this->iimgDir.'/thumb_'.$iimage;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->iwidth, $this->iheight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->ithumbWidth, $this->ithumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			} else {
+				$iimage = rand(1, 999).$fname.'.'.$ext;
+				 $destinationPath = public_path() . $this->iimgDir;
+				 $file->move($destinationPath, $iimage);
+			}
+		}
+		
+		return $iimage;
+
+	}
+	
+	public function ajax_meupload($file)
+	{ 
+		$meimage = '';
+		$fname = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+		if($file) {
+			$ext = $file->getClientOriginalExtension();
+			if($ext=='.jpg' ||$ext=='.JPG' || $ext=='.png' || $ext=='.PNG') {
+				$meimage = rand(1, 999).$fname.'.'.$ext;
+				$destinationPath = public_path() . $this->meimgDir.'/'.$meimage;
+				$destinationPathThumb = public_path() . $this->meimgDir.'/thumb_'.$meimage;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->mewidth, $this->meheight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->methumbWidth, $this->methumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			} else {
+				$meimage = rand(1, 999).$fname.'.'.$ext;
+				 $destinationPath = public_path() . $this->meimgDir;
+				 $file->move($destinationPath, $meimage);
+			}
+		}
+	
+		
+		return $meimage;
+
+	}
+
+	public function ajax_fupload($file)
+	{ 
+		$fimage = '';
+		$fname = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+		if($file) {
+			$ext = $file->getClientOriginalExtension();
+			if($ext=='.jpg' ||$ext=='.JPG' || $ext=='.png' || $ext=='.PNG') {
+				$fimage = rand(1, 999).$fname.'.'.$ext;
+				$destinationPath = public_path() . $this->fimgDir.'/'.$fimage;
+				$destinationPathThumb = public_path() . $this->fimgDir.'/thumb_'.$fimage;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->fwidth, $this->fheight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->fthumbWidth, $this->fthumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			} else {
+				$fimage = rand(1, 999).$fname.'.'.$ext;
+				 $destinationPath = public_path() . $this->fimgDir;
+				 $file->move($destinationPath, $fimage);
+			}
+		}
+	
+		
+		return $fimage;
+
+	}
+	
+	public function create($attributes)
+	{ //
+		//echo '<pre>';print_r($attributes);exit;
+		if($this->isValid($attributes)) {
+						
+			$pimage = '';
+			$file = (isset($attributes['pimage'])) ? $attributes['pimage'] : null;
+			//---------------image uploading section-----------------
+			if($file) {
+				$pimage = time().'.'.$file->getClientOriginalExtension();
+				$destinationPath = public_path() . $this->pimgDir.'/'.$pimage;
+				$destinationPathThumb = public_path() . $this->pimgDir.'/thumb_'.$pimage;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->pwidth, $this->pheight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->pthumbWidth, $this->pthumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			}
+			
+			$image = '';
+			$file = (isset($attributes['image'])) ? $attributes['image'] : null;
+			//---------------image uploading section-----------------
+			if($file) {
+				$image = time().'.'.$file->getClientOriginalExtension();
+				$destinationPath = public_path() . $this->iimgDir.'/'.$image;
+				$destinationPathThumb = public_path() . $this->iimgDir.'/thumb_'.$image;
+
+				// resizing an uploaded file
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->iwidth, $this->iheight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPath);
+
+				// thumb
+				Intervention\Image\Facades\Image::make($file->getRealPath())->resize($this->ithumbWidth, $this->ithumbHeight, function($constraint) { $constraint->aspectRatio(); })->save($destinationPathThumb);
+			}
+			
+			$this->employee->department_id = $attributes['department_id'];
+			$this->employee->code = $attributes['code'];
+			$this->employee->name = $attributes['name'];
+			$this->employee->designation = $attributes['designation'];
+			$this->employee->division_id = $attributes['division_id'];
+			$this->employee->category_id = isset($attributes['category_id'])?$attributes['category_id']:'';
+			$this->employee->nationality = $attributes['nationality'];
+			$this->employee->dob = ($attributes['dob']!='')?date('Y-m-d', strtotime($attributes['dob'])):'';
+			$this->employee->gender = isset($attributes['gender'])?$attributes['gender']:0;
+			$this->employee->address1 = $attributes['address1'];
+			$this->employee->address2 = $attributes['address2'];
+			$this->employee->address3 = $attributes['address3'];
+			$this->employee->email = $attributes['email'];
+			$this->employee->phone = $attributes['phone'];
+			$this->employee->join_date = ($attributes['join_date']!='')?date('Y-m-d', strtotime($attributes['join_date'])):'';
+			$this->employee->photo = $photo;
+			$this->employee->pp_id = $attributes['pp_id'];
+			$this->employee->pp_issue_date = ($attributes['pp_issue_date']!='')?date('Y-m-d', strtotime($attributes['pp_issue_date'])):'';
+			$this->employee->pp_expiry_date = ($attributes['pp_expiry_date']!='')?date('Y-m-d', strtotime($attributes['pp_expiry_date'])):'';
+			$this->employee->pp_issue_place = $attributes['pp_issue_place'];
+			$this->employee->v_designation = $attributes['v_designation'];
+			$this->employee->v_id = $attributes['v_id'];
+			$this->employee->v_issue_date = ($attributes['v_issue_date']!='')?date('Y-m-d', strtotime($attributes['v_issue_date'])):'';
+			$this->employee->v_expiry_date = ($attributes['v_expiry_date']!='')?date('Y-m-d', strtotime($attributes['v_expiry_date'])):''; 
+			$this->employee->v_image = $image;
+			$this->employee->lc_id = $attributes['lc_id'];
+			$this->employee->lc_issue_date = ($attributes['lc_issue_date']!='')?date('Y-m-d', strtotime($attributes['lc_issue_date'])):'';
+			$this->employee->lc_expiry_date = ($attributes['lc_expiry_date']!='')?date('Y-m-d', strtotime($attributes['lc_expiry_date'])):'';
+			$this->employee->hc_id = $attributes['hc_id'];
+			$this->employee->hc_issue_date = ($attributes['hc_issue_date']!='')?date('Y-m-d', strtotime($attributes['hc_issue_date'])):'';
+			$this->employee->hc_expiry_date = ($attributes['hc_expiry_date']!='')?date('Y-m-d', strtotime($attributes['hc_expiry_date'])):'';
+			$this->employee->hc_info = $attributes['hc_info'];
+			$this->employee->ic_id = $attributes['ic_id'];
+			$this->employee->ic_issue_date = ($attributes['ic_issue_date']!='')?date('Y-m-d', strtotime($attributes['ic_issue_date'])):'';
+			$this->employee->ic_expiry_date = ($attributes['ic_expiry_date']!='')?date('Y-m-d', strtotime($attributes['ic_expiry_date'])):'';
+			//$this->employee->wages = $attributes['wages'];
+			$this->employee->contract_status = $attributes['contract_status'];
+			$this->employee->emp_detail_type = isset($attributes['emp_type'])?$attributes['emp_type']:'';
+			$this->employee->routing_code = isset($attributes['routing_code'])?$attributes['routing_code']:'';
+			$this->employee->account_number = isset($attributes['account_number'])?$attributes['account_number']:'';
+			$this->employee->j_start_date = ($attributes['salary_start_date']!='')?date('Y-m-d', strtotime($attributes['salary_start_date'])):'';
+			$this->employee->j_end_date =($attributes['salary_end_date']!='')?date('Y-m-d', strtotime($attributes['salary_end_date'])):'';
+			$this->employee->e_company = isset($attributes['cname'])?$attributes['cname']:'';
+			$this->employee->mol_no = isset($attributes['mol_no'])?$attributes['mol_no']:'';
+		
+			//$this->employee->nwh = $attributes['nwh'];
+			//$this->employee->ot_general = $attributes['ot_general'];
+			//$this->employee->ot_holiday = $attributes['ot_holiday'];
+			$this->employee->contract_salary = $attributes['contract_salary'];
+			$this->employee->basic_pay = $attributes['basic_pay'];
+			$this->employee->hra = $attributes['hra'];
+			$this->employee->transport = $attributes['transport'];
+			$this->employee->allowance = $attributes['allowance'];
+			$this->employee->allowance2 = $attributes['allowance2'];
+			//$this->employee->payment_method = isset($attributes['payment_method'])?$attributes['payment_method']:0;
+			//$this->employee->loan = $attributes['loan'];
+			//$this->employee->advance_salary = $attributes['advance_salary'];
+			//$this->employee->wage_calculation = isset($attributes['wage_calculation'])?$attributes['wage_calculation']:0;
+			//$this->employee->ot_calculation = isset($attributes['ot_calculation'])?$attributes['ot_calculation']:0;
+			$this->employee->remarks = $attributes['remarks'];
+			$this->employee->duty_status = $attributes['duty_status'];
+			$this->employee->other_info = $attributes['other_info'];
+			$this->employee->department = $attributes['department'];
+			$this->employee->p_image = $pimage;
+			$this->employee->nwage = $attributes['nwc'];
+			//$this->employee->otwage = $attributes['otwage'];
+			$this->employee->basic_pay_nw = isset($attributes['basic_pay_nw'])?$attributes['basic_pay_nw']:0;
+			$this->employee->hra_nw = isset($attributes['hra_nw'])?$attributes['hra_nw']:0;
+			$this->employee->transport_nw =isset($attributes['transport_nw'])?$attributes['transport_nw']:0;
+			$this->employee->allowance1_nw = isset($attributes['allowance1_nw'])?$attributes['allowance1_nw']:0;
+			$this->employee->allowance2_nw = isset($attributes['allowance2_nw'])?$attributes['allowance2_nw']:0;
+			$this->employee->basic_pay_otw = isset($attributes['basic_pay_otw'])?$attributes['basic_pay_otw']:0;
+			$this->employee->hra_otw = isset($attributes['hra_otw'])?$attributes['hra_otw']:0;
+			$this->employee->transport_otw = isset($attributes['transport_otw'])?$attributes['transport_otw']:0;
+			$this->employee->allowance1_otw = isset($attributes['allowance1_otw'])?$attributes['allowance1_otw']:0;
+			$this->employee->allowance2_otw = isset($attributes['allowance2_otw'])?$attributes['allowance2_otw']:0;
+			$this->employee->status = 1;
+			$this->employee->created_at = now();
+			$this->employee->l_image = $limage;
+			$this->employee->h_image = $himage;
+			$this->employee->i_image = $iimage;
+			$this->employee->f_image = $fimage;
+			$this->employee->fill($attributes)->save();
+			return true;
+		}
+	}
+	
+	public function update($id, $attributes)
+	{
+		//echo '<pre>';print_r($attributes);exit;
+		$this->employee->department_id = $attributes['department_id'];
+		$this->employee = $this->find($id);
+		$this->employee->dob = ($attributes['dob']!='')?date('Y-m-d', strtotime($attributes['dob'])):'';
+		$this->employee->gender = isset($attributes['gender'])?$attributes['gender']:0;
+		$this->employee->division_id = isset($attributes['division_id'])?$attributes['division_id']:'';
+			$this->employee->category_id = isset($attributes['category_id'])?$attributes['category_id']:'';
+		$this->employee->join_date = ($attributes['join_date']!='')?date('Y-m-d', strtotime($attributes['join_date'])):'';
+		$this->employee->pp_issue_date = ($attributes['pp_issue_date']!='')?date('Y-m-d', strtotime($attributes['pp_issue_date'])):'';
+		$this->employee->pp_expiry_date = ($attributes['pp_expiry_date']!='')?date('Y-m-d', strtotime($attributes['pp_expiry_date'])):'';
+		$this->employee->v_issue_date = ($attributes['v_issue_date']!='')?date('Y-m-d', strtotime($attributes['v_issue_date'])):'';
+		$this->employee->v_expiry_date = ($attributes['v_expiry_date']!='')?date('Y-m-d', strtotime($attributes['v_expiry_date'])):''; 
+		$this->employee->lc_issue_date = ($attributes['lc_issue_date']!='')?date('Y-m-d', strtotime($attributes['lc_issue_date'])):'';
+		$this->employee->lc_expiry_date = ($attributes['lc_expiry_date']!='')?date('Y-m-d', strtotime($attributes['lc_expiry_date'])):'';
+		$this->employee->hc_issue_date = ($attributes['hc_issue_date']!='')?date('Y-m-d', strtotime($attributes['hc_issue_date'])):'';
+		$this->employee->hc_expiry_date = ($attributes['hc_expiry_date']!='')?date('Y-m-d', strtotime($attributes['hc_expiry_date'])):'';
+		$this->employee->ic_issue_date = ($attributes['ic_issue_date']!='')?date('Y-m-d', strtotime($attributes['ic_issue_date'])):'';
+		$this->employee->ic_expiry_date = ($attributes['ic_expiry_date']!='')?date('Y-m-d', strtotime($attributes['ic_expiry_date'])):'';
+		$this->employee->contract_status = $attributes['contract_status'];
+		$this->employee->contract_salary = isset($attributes['contract_salary'])?$attributes['contract_salary']:'';
+		$this->employee->basic_pay = $attributes['basic_pay'];
+		$this->employee->hra = $attributes['hra'];
+		$this->employee->transport = $attributes['transport'];
+		$this->employee->allowance = $attributes['allowance'];
+		$this->employee->allowance2 = $attributes['allowance2'];
+		$this->employee->nwage = isset($attributes['nwc'])?$attributes['nwc']:'';
+			$this->employee->otwage = isset($attributes['otwc'])?$attributes['otwc']:'';
+			$this->employee->basic_pay_nw = isset($attributes['basic_pay_nw'])?$attributes['basic_pay_nw']:0;
+			$this->employee->hra_nw = isset($attributes['hra_nw'])?$attributes['hra_nw']:0;
+			$this->employee->transport_nw =isset($attributes['transport_nw'])?$attributes['transport_nw']:0;
+			$this->employee->allowance1_nw = isset($attributes['allowance1_nw'])?$attributes['allowance1_nw']:0;
+			$this->employee->allowance2_nw = isset($attributes['allowance2_nw'])?$attributes['allowance2_nw']:0;
+			$this->employee->basic_pay_otw = isset($attributes['basic_pay_otw'])?$attributes['basic_pay_otw']:0;
+			$this->employee->hra_otw = isset($attributes['hra_otw'])?$attributes['hra_otw']:0;
+			$this->employee->transport_otw = isset($attributes['transport_otw'])?$attributes['transport_otw']:0;
+			$this->employee->allowance1_otw = isset($attributes['allowance1_otw'])?$attributes['allowance1_otw']:0;
+			$this->employee->allowance2_otw = isset($attributes['allowance2_otw'])?$attributes['allowance2_otw']:0;
+			$this->employee->net_salary = isset($attributes['net_salary'])?$attributes['net_salary']:0;
+			$this->employee->nwh = isset($attributes['nwh'])?$attributes['nwh']:'';
+		$this->employee->routing_code = isset($attributes['routing_code'])?$attributes['routing_code']:'';
+			$this->employee->account_number = isset($attributes['account_number'])?$attributes['account_number']:'';
+			//$this->employee->j_start_date = ($attributes['salary_start_date']!='')?date('Y-m-d', strtotime($attributes['salary_start_date'])):'';
+		//	$this->employee->j_end_date =($attributes['salary_end_date']!='')?date('Y-m-d', strtotime($attributes['salary_end_date'])):'';
+			
+			$this->employee->lev_per_mth = isset($attributes['lev_per_mth'])?$attributes['lev_per_mth']:0;
+			$this->employee->air_tkt = isset($attributes['air_tkt'])?$attributes['air_tkt']:0;
+			$this->employee->anual_ml = isset($attributes['anual_ml'])?$attributes['anual_ml']:0;
+			$this->employee->anual_cl = isset($attributes['anual_cl'])?$attributes['anual_cl']:0;
+		//$this->employee->payment_method = isset($attributes['payment_method'])?$attributes['payment_method']:0;
+		//$this->employee->wage_calculation = isset($attributes['wage_calculation'])?$attributes['wage_calculation']:0;
+		//$this->employee->ot_calculation = isset($attributes['ot_calculation'])?$attributes['ot_calculation']:0;
+		$this->employee->remarks = $attributes['remarks'];
+			$this->employee->duty_status = $attributes['duty_status'];
+			$this->employee->other_info = $attributes['other_info'];
+		$this->employee->fill($attributes)->save();
+		return true;
+	}
+	
+	
+	public function delete($id)
+	{
+		$this->employee = $this->employee->find($id);
+		$this->employee->delete();
+	}
+	
+	public function employeeListCount()
+	{
+		return $this->employee->where('status',1)->count();
+	}
+	
+	public function employeeList($type,$start,$limit,$order,$dir,$search)
+	{
+		$query = $this->employee->where('status',1);
+						
+			if($search) {
+				$query->where(function($query) use($search){
+					$query->where('code','LIKE',"%{$search}%")
+					  ->orWhere('name', 'LIKE',"%{$search}%")
+					  ->orWhere('designation', 'LIKE',"%{$search}%")
+					  ->orWhere('nationality', 'LIKE',"%{$search}%");
+				});
+			}
+				
+			$query->select('id','code','name','designation','nationality','phone')
+				->offset($start)
+				->limit($limit)
+				->orderBy($order,$dir);
+				
+			if($type=='get')
+				return $query->get();
+			else
+				return $query->count();
+	}
+	
+	public function activeEmployeeList()
+	{
+		return $this->employee->select('id','name')->where('status', 1)->orderBy('name', 'ASC')->get()->toArray();
+	}
+	
+	public function check_employee_code($code, $id = null) {
+		
+		if($id)
+			return $this->employee->where('code',$code)->where('id', '!=', $id)->count();
+		else
+			return $this->employee->where('code',$code)->count();
+	}
+		
+	public function check_employee_name($name, $id = null) {
+		
+		if($id)
+			return $this->employee->where('name',$name)->where('id', '!=', $id)->count();
+		else
+			return $this->employee->where('name',$name)->count();
+	}
+	
+	public function getEmployees() {
+		
+		return $this->employee->select('id','name')->where('status', 1)->select('id','code','name','designation')->orderBy('name', 'ASC')->get();
+	}
+	
+	public function getPayslip($id) {
+		
+		//return $this->employee->;
+	}
+	
+	public function ajax_create($attributes)
+	{ 
+		//echo '<pre>';print_r($attributes);exit;
+		if($attributes['frm']==1) { //duty_status
+			if(isset($attributes['id'])) {
+				$this->employee = $this->find($attributes['id']);
+				$this->employee->code = $attributes['code2'];
+			} else {
+				$this->employee->code = $attributes['code'];
+			}
+			
+			$photos = explode(',',$attributes['photo_name']);
+
+			$this->employee->department_id = $attributes['department_id'];
+			$this->employee->name = $attributes['name'];
+			$this->employee->designation = $attributes['designation'];
+			$this->employee->division_id = isset($attributes['division_id']);
+			$this->employee->category_id = isset($attributes['category_id'])?$attributes['category_id']:'';
+			$this->employee->nationality = $attributes['nationality'];
+			$this->employee->dob = ($attributes['dob']!='')?date('Y-m-d', strtotime($attributes['dob'])):'';
+			$this->employee->gender = isset($attributes['gender'])?$attributes['gender']:0;
+			$this->employee->address1 = $attributes['address1'];
+			$this->employee->address2 = $attributes['address2'];
+			$this->employee->department = isset($attributes['department'])?$attributes['department']:'';
+			//$this->employee->address3 = $attributes['address3']; paste here diviion ok?
+			
+			
+		
+			$this->employee->email = $attributes['email'];
+			$this->employee->phone = $attributes['phone'];
+			$this->employee->phone2 = $attributes['phone2'];
+			$this->employee->join_date = ($attributes['join_date']!='')?date('Y-m-d', strtotime($attributes['join_date'])):'';
+			$this->employee->rejoin_date = ($attributes['rejoin_date']!='')?date('Y-m-d', strtotime($attributes['rejoin_date'])):'';
+			$this->employee->photo = $photos[0];
+			$this->employee->status = 1;
+			$this->employee->created_at = now();
+			$this->employee->fill($attributes)->save();
+			
+			//Update photos...
+			if(isset($attributes['old_photo_name']) && $attributes['old_photo_name']!='') {
+				$exi_photos = explode(',',$attributes['old_photo_name']);
+				
+				foreach($photos as $ky => $val) {
+					if(isset($exi_photos[$ky])) {
+						if($val!='') {
+							DB::table('emp_photos')
+									->where('employee_id', $this->employee->id)
+									->where('photo', $photos[$ky])->where('type','PF')
+									->update(['photo' => $val]);
+						}
+					} else {
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $val, 'type' => 'PF']);
+					}
+				}
+				
+			} else { //Add photos
+				foreach($photos as $photo) {
+					if($photo!='')
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $photo, 'type' => 'PF']);
+				}
+			}
+			
+			//Remove photos
+			if(isset($attributes['rem_photo_name'])) {
+				$rem_photos = explode(',',$attributes['rem_photo_name']);
+				foreach($rem_photos as $photo) {
+					DB::table('emp_photos')->where('employee_id', $this->employee->id)
+								->where('photo', $photo)
+								->where('type', 'PF')
+								->delete();
+								
+					$fPath = public_path() . $this->imgDir.'/'.$photo;
+					File::delete($fPath);
+				}
+			}
+			
+			return $this->employee->id;
+			
+		} else if($attributes['frm']==2) {
+			
+			$pphotos = explode(',',$attributes['pimage_name']); 
+			$vphotos = explode(',',$attributes['vimage_name']); 
+			$lphotos = explode(',',$attributes['limage_name']); 
+			$hphotos = explode(',',$attributes['himage_name']); 
+			$iphotos = explode(',',$attributes['iimage_name']); 
+			$mphotos = explode(',',$attributes['meimage_name']); 
+			
+			$this->employee = $this->find($attributes['emp_id']);
+			$this->employee->pp_issue_date = ($attributes['pp_issue_date']!='')?date('Y-m-d', strtotime($attributes['pp_issue_date'])):'';
+			$this->employee->pp_expiry_date = ($attributes['pp_expiry_date']!='')?date('Y-m-d', strtotime($attributes['pp_expiry_date'])):'';
+			$this->employee->v_issue_date = ($attributes['v_issue_date']!='')?date('Y-m-d', strtotime($attributes['v_issue_date'])):'';
+			$this->employee->v_expiry_date = ($attributes['v_expiry_date']!='')?date('Y-m-d', strtotime($attributes['v_expiry_date'])):''; 
+			$this->employee->lc_issue_date = ($attributes['lc_issue_date']!='')?date('Y-m-d', strtotime($attributes['lc_issue_date'])):'';
+			$this->employee->lc_expiry_date = ($attributes['lc_expiry_date']!='')?date('Y-m-d', strtotime($attributes['lc_expiry_date'])):'';
+			$this->employee->hc_issue_date = ($attributes['hc_issue_date']!='')?date('Y-m-d', strtotime($attributes['hc_issue_date'])):'';
+			$this->employee->hc_expiry_date = ($attributes['hc_expiry_date']!='')?date('Y-m-d', strtotime($attributes['hc_expiry_date'])):'';
+			$this->employee->hc_info = $attributes['hc_info'];
+			$this->employee->ic_id = $attributes['ic_id'];
+			$this->employee->ic_issue_date = ($attributes['ic_issue_date']!='')?date('Y-m-d', strtotime($attributes['ic_issue_date'])):'';
+			$this->employee->ic_expiry_date = ($attributes['ic_expiry_date']!='')?date('Y-m-d', strtotime($attributes['ic_expiry_date'])):'';
+			$this->employee->p_image = $pphotos[0];
+			$this->employee->me_id = $attributes['me_id'];
+			$this->employee->me_issue_date = ($attributes['me_issue_date']!='')?date('Y-m-d', strtotime($attributes['me_issue_date'])):'';
+			$this->employee->me_expiry_date = ($attributes['me_expiry_date']!='')?date('Y-m-d', strtotime($attributes['me_expiry_date'])):'';
+			$this->employee->me_image = $attributes['meimage_name'];
+			$this->employee->v_image = $attributes['vimage_name'];
+			$this->employee->l_image = $attributes['limage_name'];
+			$this->employee->h_image = $attributes['himage_name'];
+			$this->employee->i_image = $attributes['iimage_name'];
+			
+			//Update photos...
+			if(isset($attributes['old_pimage_name']) && $attributes['old_pimage_name']!='') {
+				$exi_pphotos = explode(',',$attributes['old_pimage_name']);
+				
+				foreach($pphotos as $ky => $val) {
+					if(isset($exi_pphotos[$ky])) {
+						if($val!='') {
+							DB::table('emp_photos')
+									->where('employee_id', $this->employee->id)
+									->where('photo', $pphotos[$ky])->where('type','PSP')
+									->update(['photo' => $val]);
+						}
+					} else {
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $val, 'type' => 'PSP']);
+					}
+				}
+				
+			} else { //Add photos
+				foreach($pphotos as $pphoto) {
+					if($pphoto!='')
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $pphoto, 'type' => 'PSP']);
+				}
+			}
+			
+			//Remove photos
+			if(isset($attributes['rem_pimage_name'])) {
+				$rem_pphotos = explode(',',$attributes['rem_pimage_name']);
+				foreach($rem_pphotos as $photo) {
+					DB::table('emp_photos')->where('employee_id', $this->employee->id)
+								->where('photo', $photo)
+								->where('type', 'PSP')
+								->delete();
+								
+					$fPath = public_path() . $this->pimgDir.'/'.$photo;
+					File::delete($fPath);
+				}
+			}
+			
+			
+			//Update photos...
+			if(isset($attributes['old_vimage_name']) && $attributes['old_vimage_name']!='') {
+				$exi_vphotos = explode(',',$attributes['old_vimage_name']);
+				
+				foreach($vphotos as $ky => $val) {
+					if(isset($exi_vphotos[$ky])) {
+						if($val!='') {
+							DB::table('emp_photos')
+									->where('employee_id', $this->employee->id)
+									->where('photo', $vphotos[$ky])->where('type','VS')
+									->update(['photo' => $val]);
+						}
+					} else {
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $val, 'type' => 'VS']);
+					}
+				}
+				
+			} else { //Add photos
+				foreach($vphotos as $vphoto) {
+					if($vphoto!='')
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $vphoto, 'type' => 'VS']);
+				}
+			}
+			
+			//Remove photos
+			if(isset($attributes['rem_vimage_name'])) {
+				$rem_vphotos = explode(',',$attributes['rem_vimage_name']);
+				foreach($rem_vphotos as $photo) {
+					DB::table('emp_photos')->where('employee_id', $this->employee->id)
+								->where('photo', $photo)
+								->where('type', 'VS')
+								->delete();
+								
+					$fPath = public_path() . $this->vimgDir.'/'.$photo;
+					File::delete($fPath);
+				}
+			}
+			
+			//Update photos...
+			if(isset($attributes['old_limage_name']) && $attributes['old_limage_name']!='') {
+				$exi_lphotos = explode(',',$attributes['old_limage_name']);
+				
+				foreach($lphotos as $ky => $val) {
+					if(isset($exi_lphotos[$ky])) {
+						if($val!='') {
+							DB::table('emp_photos')
+									->where('employee_id', $this->employee->id)
+									->where('photo', $lphotos[$ky])->where('type','LB')
+									->update(['photo' => $val]);
+						}
+					} else {
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $val, 'type' => 'LB']);
+					}
+				}
+				
+			} else { //Add photos
+				foreach($lphotos as $lphoto) {
+					if($lphoto!='')
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $lphoto, 'type' => 'LB']);
+				}
+			}
+			
+			//Remove photos
+			if(isset($attributes['rem_limage_name'])) {
+				$rem_lphotos = explode(',',$attributes['rem_limage_name']);
+				foreach($rem_lphotos as $photo) {
+					DB::table('emp_photos')->where('employee_id', $this->employee->id)
+								->where('photo', $photo)
+								->where('type', 'LB')
+								->delete();
+								
+					$fPath = public_path() . $this->limgDir.'/'.$photo;
+					File::delete($fPath);
+				}
+			}
+			
+			
+			//Update photos...
+			if(isset($attributes['old_himage_name']) && $attributes['old_himage_name']!='') {
+				$exi_hphotos = explode(',',$attributes['old_himage_name']);
+				
+				foreach($hphotos as $ky => $val) {
+					if(isset($exi_hphotos[$ky])) {
+						if($val!='') {
+							DB::table('emp_photos')
+									->where('employee_id', $this->employee->id)
+									->where('photo', $hphotos[$ky])->where('type','HL')
+									->update(['photo' => $val]);
+						}
+					} else {
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $val, 'type' => 'HL']);
+					}
+				}
+				
+			} else { //Add photos
+				foreach($hphotos as $hphoto) {
+					if($hphoto!='')
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $hphoto, 'type' => 'HL']);
+				}
+			}
+			
+			//Remove photos
+			if(isset($attributes['rem_himage_name'])) {
+				$rem_hphotos = explode(',',$attributes['rem_himage_name']);
+				foreach($rem_hphotos as $photo) {
+					DB::table('emp_photos')->where('employee_id', $this->employee->id)
+								->where('photo', $photo)
+								->where('type', 'HL')
+								->delete();
+								
+					$fPath = public_path() . $this->himgDir.'/'.$photo;
+					File::delete($fPath);
+				}
+			}
+			
+			
+			//Update photos...
+			if(isset($attributes['old_iimage_name']) && $attributes['old_iimage_name']!='') {
+				$exi_iphotos = explode(',',$attributes['old_iimage_name']);
+				
+				foreach($iphotos as $ky => $val) {
+					if(isset($exi_iphotos[$ky])) {
+						if($val!='') {
+							DB::table('emp_photos')
+									->where('employee_id', $this->employee->id)
+									->where('photo', $iphotos[$ky])->where('type','IDC')
+									->update(['photo' => $val]);
+						}
+					} else {
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $val, 'type' => 'IDC']);
+					}
+				}
+				
+			} else { //Add photos
+				foreach($iphotos as $iphoto) {
+					if($iphoto!='')
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $iphoto, 'type' => 'IDC']);
+				}
+			}
+			
+			//Remove photos
+			if(isset($attributes['rem_iimage_name'])) {
+				$rem_iphotos = explode(',',$attributes['rem_iimage_name']);
+				foreach($rem_iphotos as $photo) {
+					DB::table('emp_photos')->where('employee_id', $this->employee->id)
+								->where('photo', $photo)
+								->where('type', 'IDC')
+								->delete();
+								
+					$fPath = public_path() . $this->iimgDir.'/'.$photo;
+					File::delete($fPath);
+				}
+			}
+			
+			//Update photos...
+			if(isset($attributes['old_meimage_name']) && $attributes['old_meimage_name']!='') {
+				$exi_mphotos = explode(',',$attributes['old_meimage_name']);
+				
+				foreach($mphotos as $ky => $val) {
+					if(isset($exi_mphotos[$ky])) {
+						if($val!='') {
+							DB::table('emp_photos')
+									->where('employee_id', $this->employee->id)
+									->where('photo', $mphotos[$ky])->where('type','MD')
+									->update(['photo' => $val]);
+						}
+					} else {
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $val, 'type' => 'MD']);
+					}
+				}
+				
+			} else { //Add photos
+				foreach($mphotos as $mphoto) {
+					if($mphoto!='')
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $mphoto, 'type' => 'MD']);
+				}
+			}
+			
+			//Remove photos
+			if(isset($attributes['rem_meimage_name'])) {
+				$rem_mphotos = explode(',',$attributes['rem_meimage_name']);
+				foreach($rem_mphotos as $photo) {
+					DB::table('emp_photos')->where('employee_id', $this->employee->id)
+								->where('photo', $photo)
+								->where('type', 'MD')
+								->delete();
+								
+					$fPath = public_path() . $this->meimgDir.'/'.$photo;
+					File::delete($fPath);
+				}
+			}
+			
+			if(DB::table('expiry_docs')->where('employee_id', $attributes['emp_id'])->count() > 0) {
+				
+				DB::table('expiry_docs')->where('employee_id', $attributes['emp_id'])->where('doc_type',1)->update([ 'expiry_date'=> ($attributes['pp_expiry_date']!='')?date('Y-m-d', strtotime($attributes['pp_expiry_date'])):'' ]);
+				DB::table('expiry_docs')->where('employee_id', $attributes['emp_id'])->where('doc_type',2)->update([ 'expiry_date'=> ($attributes['v_expiry_date']!='')?date('Y-m-d', strtotime($attributes['v_expiry_date'])):'' ]);
+				DB::table('expiry_docs')->where('employee_id', $attributes['emp_id'])->where('doc_type',3)->update([ 'expiry_date'=> ($attributes['lc_expiry_date']!='')?date('Y-m-d', strtotime($attributes['lc_expiry_date'])):'' ]);
+				DB::table('expiry_docs')->where('employee_id', $attributes['emp_id'])->where('doc_type',4)->update([ 'expiry_date'=> ($attributes['hc_expiry_date']!='')?date('Y-m-d', strtotime($attributes['hc_expiry_date'])):'' ]);
+				DB::table('expiry_docs')->where('employee_id', $attributes['emp_id'])->where('doc_type',5)->update([ 'expiry_date'=> ($attributes['ic_expiry_date']!='')?date('Y-m-d', strtotime($attributes['ic_expiry_date'])):'' ]);
+				DB::table('expiry_docs')->where('employee_id', $attributes['emp_id'])->where('doc_type',6)->update([ 'expiry_date'=> ($attributes['me_expiry_date']!='')?date('Y-m-d', strtotime($attributes['me_expiry_date'])):'' ]);
+			
+			} else {
+				
+				DB::table('expiry_docs')->insert(['employee_id' =>$attributes['emp_id'],'doc_type'=>1,'expiry_date'=> ($attributes['pp_expiry_date']!='')?date('Y-m-d', strtotime($attributes['pp_expiry_date'])):'' ]);
+				DB::table('expiry_docs')->insert(['employee_id' =>$attributes['emp_id'],'doc_type'=>2,'expiry_date'=> ($attributes['v_expiry_date']!='')?date('Y-m-d', strtotime($attributes['v_expiry_date'])):'' ]);
+				DB::table('expiry_docs')->insert(['employee_id' =>$attributes['emp_id'],'doc_type'=>3,'expiry_date'=> ($attributes['lc_expiry_date']!='')?date('Y-m-d', strtotime($attributes['lc_expiry_date'])):'' ]);
+				DB::table('expiry_docs')->insert(['employee_id' =>$attributes['emp_id'],'doc_type'=>4,'expiry_date'=> ($attributes['hc_expiry_date']!='')?date('Y-m-d', strtotime($attributes['hc_expiry_date'])):'' ]);
+				DB::table('expiry_docs')->insert(['employee_id' =>$attributes['emp_id'],'doc_type'=>5,'expiry_date'=> ($attributes['ic_expiry_date']!='')?date('Y-m-d', strtotime($attributes['ic_expiry_date'])):'' ]);
+				DB::table('expiry_docs')->insert(['employee_id' =>$attributes['emp_id'],'doc_type'=>6,'expiry_date'=> ($attributes['me_expiry_date']!='')?date('Y-m-d', strtotime($attributes['me_expiry_date'])):'' ]);
+			}
+			
+			
+			$this->employee->fill($attributes)->save();
+			return 3;
+		} else if($attributes['frm']==3) {
+			
+			$this->employee = $this->find($attributes['emp_id']);
+			$this->employee->contract_salary = isset($attributes['contract_salary'])?$attributes['contract_salary']:0;
+			$this->employee->basic_pay = isset($attributes['basic_pay'])?$attributes['basic_pay']:'';
+			$this->employee->hra = isset($attributes['hra'])?$attributes['hra']:'';
+			$this->employee->transport = isset($attributes['transport'])?$attributes['transport']:'';
+			$this->employee->allowance = isset($attributes['allowance'])?$attributes['allowance']:'';
+			$this->employee->allowance2 = isset($attributes['allowance2'])?$attributes['allowance2']:'';
+			
+			$this->employee->nwage = isset($attributes['nwc'])?$attributes['nwc']:'';
+			$this->employee->otwage = isset($attributes['otwc'])?$attributes['otwc']:'';
+			$this->employee->basic_pay_nw = isset($attributes['basic_pay_nw'])?$attributes['basic_pay_nw']:0;
+			$this->employee->hra_nw = isset($attributes['hra_nw'])?$attributes['hra_nw']:0;
+			$this->employee->transport_nw =isset($attributes['transport_nw'])?$attributes['transport_nw']:0;
+			$this->employee->allowance1_nw = isset($attributes['allowance1_nw'])?$attributes['allowance1_nw']:0;
+			$this->employee->allowance2_nw = isset($attributes['allowance2_nw'])?$attributes['allowance2_nw']:0;
+			$this->employee->basic_pay_otw = isset($attributes['basic_pay_otw'])?$attributes['basic_pay_otw']:0;
+			$this->employee->hra_otw = isset($attributes['hra_otw'])?$attributes['hra_otw']:0;
+			$this->employee->transport_otw = isset($attributes['transport_otw'])?$attributes['transport_otw']:0;
+			$this->employee->allowance1_otw = isset($attributes['allowance1_otw'])?$attributes['allowance1_otw']:0;
+			$this->employee->allowance2_otw = isset($attributes['allowance2_otw'])?$attributes['allowance2_otw']:0;
+			$this->employee->net_salary = isset($attributes['net_salary'])?$attributes['net_salary']:0;
+			$this->employee->nwh = isset($attributes['nwh'])?$attributes['nwh']:'';
+		$this->employee->routing_code = isset($attributes['routing_code'])?$attributes['routing_code']:'';
+			$this->employee->account_number = isset($attributes['account_number'])?$attributes['account_number']:'';
+			//$this->employee->j_start_date = ($attributes['salary_start_date']!='')?date('Y-m-d', strtotime($attributes['salary_start_date'])):'';
+		//	$this->employee->j_end_date =($attributes['salary_end_date']!='')?date('Y-m-d', strtotime($attributes['salary_end_date'])):'';
+			
+			$this->employee->lev_per_mth = isset($attributes['lev_per_mth'])?$attributes['lev_per_mth']:0;
+			$this->employee->air_tkt = isset($attributes['air_tkt'])?$attributes['air_tkt']:0;
+			$this->employee->anual_ml = isset($attributes['anual_ml'])?$attributes['anual_ml']:0;
+			$this->employee->anual_cl = isset($attributes['anual_cl'])?$attributes['anual_cl']:0;
+			$this->employee->fill($attributes)->save();
+			return 4;
+			
+		} else if($attributes['frm']==4) {
+			$fphotos = explode(',',$attributes['fimage_name']);
+			$this->employee = $this->find($attributes['emp_id']);	
+			$this->employee->remarks = $attributes['remarks'];
+			$this->employee->e_company = isset($attributes['cname'])?$attributes['cname']:'';
+			$this->employee->mol_no = isset($attributes['mol_no'])?$attributes['mol_no']:'';
+			
+			//$this->employee->duty_status = $attributes['duty_status'];
+			$this->employee->other_info = $attributes['other_info'];
+			$this->employee->f_image = $attributes['fimage_name'];
+			//Update photos...
+			if(isset($attributes['old_fimage_name']) && $attributes['old_fimage_name']!='') {
+				$exi_fphotos = explode(',',$attributes['old_fimage_name']);
+				
+				foreach($fphotos as $ky => $val) {
+					if(isset($exi_fphotos[$ky])) {
+						if($val!='') {
+							DB::table('emp_photos')
+									->where('employee_id', $this->employee->id)
+									->where('photo', $fphotos[$ky])->where('type','OF')
+									->update(['photo' => $val]);
+						}
+					} else {
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $val, 'type' => 'OF']);
+					}
+				}
+				
+			} else { //Add photos
+				foreach($fphotos as $fphoto) {
+					if($fphoto!='')
+						DB::table('emp_photos')->insert(['employee_id' => $this->employee->id, 'photo' => $fphoto, 'type' => 'OF']);
+				}
+			}
+			
+			//Remove photos
+			if(isset($attributes['rem_fimage_name'])) {
+				$rem_fphotos = explode(',',$attributes['rem_fimage_name']);
+				foreach($rem_fphotos as $photo) {
+					DB::table('emp_photos')->where('employee_id', $this->employee->id)
+								->where('photo', $photo)
+								->where('type', 'OF')
+								->delete();
+								
+					$fPath = public_path() . $this->fimgDir.'/'.$photo;
+					File::delete($fPath);
+				}
+			}
+			
+			$this->employee->fill($attributes)->save();
+			Session::flash('message', 'Employee added successfully.');
+			//return redirect('employee');
+			return 'finish';
+		}
+	}
+	
+	public function getDocumentReport($attributes)
+	{
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+			
+		$qry = $this->employee->where('status',1);
+		$qry->whereBetween('pp_expiry_date', [$date_from, $date_to])
+			->orWhereBetween('v_expiry_date', [$date_from, $date_to])
+			->orWhereBetween('lc_expiry_date', [$date_from, $date_to])
+			->orWhereBetween('hc_expiry_date', [$date_from, $date_to])
+			->orWhereBetween('ic_expiry_date', [$date_from, $date_to])
+			->orWhereBetween('me_expiry_date', [$date_from, $date_to]);
+			
+		return $qry->select('*')->get();
+		
+			/* switch($attributes['search_type']) {
+				case 'passport':
+					if($date_from!='' && $date_to!='')
+						$qry->whereBetween('pp_expiry_date', [$date_from, $date_to]);
+				break;
+				
+				case 'visa':
+					if($date_from!='' && $date_to!='')
+						$qry->whereBetween('v_expiry_date', [$date_from, $date_to]);
+				break;
+				
+				case 'labour':
+					if($date_from!='' && $date_to!='')
+						$qry->whereBetween('lc_expiry_date', [$date_from, $date_to]);
+				break;
+				
+				case 'health':
+					if($date_from!='' && $date_to!='')
+						$qry->whereBetween('hc_expiry_date', [$date_from, $date_to]);
+				break;
+				
+				case 'idcard':
+					if($date_from!='' && $date_to!='')
+						$qry->whereBetween('ic_expiry_date', [$date_from, $date_to]);
+				break;
+			} */
+			
+		
+						
+	}
+	
+	public function getExpiryInfo() {
+		
+		$fromdate = date('Y-m-d');
+		
+		$parameter1 = DB::table('parameter1')->first();
+		$doc_warndays = $parameter1->doc_warndays;
+		
+		$todate = date('Y-m-d', strtotime("+".$doc_warndays." days"));
+		
+		return DB::table('expiry_docs')
+						->join('employee AS E', function($join) {
+							$join->on('E.id','=','expiry_docs.employee_id');
+						})
+						->where('E.status',1)
+						->where('E.deleted_at','0000-00-00 00:00:00')
+						->whereBetween('expiry_docs.expiry_date', array($fromdate, $todate))
+						->select('E.name','E.code','expiry_docs.*')
+						->get();
+						
+		
+		/* return $this->employee->where('status',1)
+						->where( function ($query) use ($fromdate, $todate) {
+							$query->whereBetween('pp_expiry_date', array($fromdate, $todate))
+								  ->orWhereBetween('v_expiry_date',array($fromdate, $todate))
+								  ->orWhereBetween('lc_expiry_date',array($fromdate, $todate))
+								  ->orWhereBetween('hc_expiry_date',array($fromdate, $todate))
+								  ->orWhereBetween('ic_expiry_date',array($fromdate, $todate))
+								  ->orWhereBetween('me_expiry_date',array($fromdate, $todate));
+						})
+						->select('id','name','pp_id','v_id','lc_id','hc_id','ic_id','me_id','pp_expiry_date','v_expiry_date','lc_expiry_date',
+								 'hc_expiry_date','ic_expiry_date','me_expiry_date')
+						->get(); */
+						
+		 /* return $this->employee->where('employee.status',1)
+						->join('employee AS E1', function($join) {
+							$join->on('E1.id','=','employee.id');
+						})
+						->join('employee AS E2', function($join) {
+							$join->on('E2.id','=','employee.id');
+						})
+						->join('employee AS E3', function($join) {
+							$join->on('E3.id','=','employee.id');
+						})
+						->join('employee AS E4', function($join) {
+							$join->on('E4.id','=','employee.id');
+						})
+						->join('employee AS E5', function($join) {
+							$join->on('E5.id','=','employee.id');
+						})
+						->join('employee AS E6', function($join) {
+							$join->on('E6.id','=','employee.id');
+						})
+						->where( function ($query) use ($fromdate, $todate) {
+							$query->whereBetween('E1.pp_expiry_date', array($fromdate, $todate))
+								  ->orWhereBetween('E2.v_expiry_date',array($fromdate, $todate))
+								  ->orWhereBetween('E3.lc_expiry_date',array($fromdate, $todate))
+								  ->orWhereBetween('E4.hc_expiry_date',array($fromdate, $todate))
+								  ->orWhereBetween('E5.ic_expiry_date',array($fromdate, $todate))
+								  ->orWhereBetween('E6.me_expiry_date',array($fromdate, $todate));
+						})
+						->select('E1.*',DB::raw('E1.pp_id AS "doc1"'),'E2.*',DB::raw('E2.v_id AS "doc2"'),'E3.*','E4.*','E5.*','E6.*')->get(); */
+	}
+	
+	public function saveLeave($attributes)
+	{ 
+		//$date = DateTime::createFromFormat("m-d-Y", $attributes['start_date']);
+		DB::table('employee')->where('id', $attributes['id'])->update(['duty_status' => 0]);
+		
+		return DB::table('onleave')
+				  ->insertGetId(['employee_id' => $attributes['id'],
+							'start_date' => date('Y-m-d',strtotime($attributes['start_date'])),
+							'airtkt_amount' => $attributes['airtkt_amount'],
+							'alo_leave_days' => $attributes['alo_leave_days'],
+							'months_worked' => $attributes['months_worked'],
+							'cal_leave_days' => $attributes['cal_leave_days'],
+							'cal_leave_salary' => $attributes['cal_leave_salary'],
+							'leave_advance' => $attributes['leave_advance'],
+							'paid_leave_salary' => $attributes['paid_leave_salary'],
+							'leave_status' => 1,
+							'status' => 1,
+							'rejoin_date' => date('Y-m-d',strtotime($attributes['rejoin_date']))
+						]);
+	}
+	
+	
+	public function saveRejoin($attributes)
+	{ 
+		//$date = DateTime::createFromFormat("m-d-Y", $attributes['start_date']);
+		
+		DB::table('employee')->where('id',$attributes['employee_id'])->update(['duty_status' => 1, 'rejoin_date' => date('Y-m-d',strtotime($attributes['start_date'])) ]);
+		DB::table('onleave')->where('id',$attributes['id'])->update(['leave_status' => 0 ]);
+	}
+	
+	public function saveResign($attributes)
+	{ 
+		//$date = DateTime::createFromFormat("m-d-Y", $attributes['start_date']);
+		DB::table('employee')->where('id', $attributes['id'])->update(['duty_status' => -1]);
+		
+		return DB::table('resign')
+				  ->insertGetId(['employee_id' => $attributes['id'],
+							'resign_date' =>date('Y-m-d',strtotime($attributes['start_date'])),
+							'airtkt_amount' => $attributes['airtkt_amount'],
+							'resign_type' => $attributes['type'],
+							'months_worked' => $attributes['months_worked'],
+							'cal_leave_days' => $attributes['cal_leave_days'],
+							'cal_leave_salary' => $attributes['cal_leave_salary'],
+							'years_worked' => $attributes['years_worked'],
+							'gratuity' => $attributes['gratuity'],
+							'leave_advance' => $attributes['leave_advance'],
+							'status' => 1
+						]);
+	}
+	
+	public function undoRejoin($id)
+	{ 
+		
+		$row = DB::table('onleave')->where('employee_id',$id)
+							->where('leave_status', 0)
+							->where('status',1)
+							->whereNull('deleted_at')
+							->orderBy('id','DESC')
+							->first();
+							
+		if($row) {
+			DB::table('onleave')->where('id',$row->id)->update(['leave_status' => 1 ]);
+			DB::table('employee')->where('id',$id)->update(['duty_status' => 0, 'rejoin_date' => $row->rejoin_date ]);
+		}
+							//echo '<pre>';print_r($row);exit;
+	}
+	public function getwpsReport($attributes)
+	{
+		
+		//$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+	//	$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		
+		
+		$query = $this->employee->where('status',1);
+		return $query->select('*')	->orderBy('employee.id','ASC')->get();	
+	//	if($date_from!='' && $date_to!='')
+		//		$query->whereBetween('join_date', array($date_from, $date_to));
+				
+			//	echo '<pre>';print_r($result);exit;
+			 //$result ;
+	}
+	
+
+	public function getReport($attributes)
+	{
+		//echo '<pre>';print_r($attributes);exit;	
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		$nationality = $attributes['nationality'];
+		$designation = $attributes['designation'];
+		$department_id = isset($attributes['department_id']);
+		
+            // if(isset($_GET['department_id'])){
+            //        $name = $_GET['department_id']; 
+			// 	   $department_id = $attributes['department_id'];
+			// 	   if($department_id!='') {
+			// 		$query->where('department_id', $attributes['department_id']);
+			// 	}
+            // }else{
+            //       $name = "department_id not set in GET Method";
+            //  }
+			//  echo $name;
+			 
+
+		
+		
+		$query = $this->employee->where('status',1);
+			
+			if($date_from!='' && $date_to!='')
+				$query->whereBetween('join_date', array($date_from, $date_to));
+			
+			if($nationality!='') {
+				$query->where('nationality', 'LIKE',"%{$nationality}%");
+			}
+			
+			if($designation!='') {
+				$query->where('designation', 'LIKE',"%{$designation}%");
+			}
+			if($department_id!='') {
+				$query->where('department_id', $attributes['department_id']);
+			}
+			
+			return $result = $query->select('*')->orderBy('name','ASC')->get();
+	}
+	
+}

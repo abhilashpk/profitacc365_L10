@@ -1,0 +1,1179 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Repositories\Area\AreaInterface;
+use App\Repositories\Itemmaster\ItemmasterInterface;
+use App\Repositories\Terms\TermsInterface;
+use App\Repositories\Jobmaster\JobmasterInterface;
+use App\Repositories\AccountMaster\AccountMasterInterface;
+use App\Repositories\Currency\CurrencyInterface;
+use App\Repositories\VoucherNo\VoucherNoInterface;
+use App\Repositories\SalesOrder\SalesOrderInterface;
+use App\Repositories\CustomerDo\CustomerDoInterface;
+use App\Repositories\Location\LocationInterface;
+use App\Repositories\QuotationSales\QuotationSalesInterface;
+use App\Repositories\Salesman\SalesmanInterface;
+use App\Repositories\Forms\FormsInterface;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests;
+use Session;
+use Response;
+use Excel;
+use App;
+use DB;
+use Mail;
+use PDF;
+
+class CustomersDOController extends Controller
+{
+
+	protected $area;
+	protected $itemmaster;
+	protected $terms;
+	protected $jobmaster;
+	protected $accountmaster;
+	protected $currency;
+	protected $voucherno;
+	protected $sales_order;
+	protected $customerdo;
+	protected $location;
+	protected $quotation_sales;
+	protected $salesman;
+	protected $forms;
+	protected $formData;
+	protected $title;
+	
+	public function __construct(CustomerDOInterface $customerdo, QuotationSalesInterface $quotation_sales, SalesOrderInterface $sales_order,ItemmasterInterface $itemmaster, TermsInterface $terms, JobmasterInterface $jobmaster, AccountMasterInterface $accountmaster, CurrencyInterface $currency, VoucherNoInterface $voucherno, AreaInterface $area, SalesmanInterface $salesman, LocationInterface $location,FormsInterface $forms) {
+		
+		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
+		
+		$this->middleware('auth');
+		$this->area = $area;
+		$this->itemmaster = $itemmaster;
+		$this->terms = $terms;
+		$this->jobmaster = $jobmaster;
+		$this->accountmaster = $accountmaster;
+		$this->currency = $currency;
+		$this->voucherno = $voucherno;
+		$this->sales_order = $sales_order;
+		$this->customerdo = $customerdo;
+		$this->location = $location;
+		$this->quotation_sales = $quotation_sales;
+		$this->salesman = $salesman;
+		$this->forms = $forms;
+		$this->formData = $this->forms->getFormData('DO');
+		$this->title = (Session::get('trip_entry')==1)?'Daily Entry':'Delivery Order';
+		
+		$this->mod_con_loc = DB::table('parameter2')->where('keyname', 'mod_con_location')->where('status',1)->select('is_active')->first();
+	}
+	
+    public function index() {
+		
+		$data = array(); //echo '<pre>';print_r($this->acsettings);exit;
+		$orders = [];//$this->customerdo->customerDOList();
+		$salesmans = $this->salesman->getSalesmanList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		->select('id','master_name')->get(); //$this->accountmaster->customerList();
+		return view('body.customersdo.index')
+					->withOrders($orders)
+					->withSalesman($salesmans)
+					->withSettings($this->acsettings)
+					->withJobs($jobs)
+					->withCus($cus)
+					->withData($data);
+	}
+	
+	public function ajaxPaging(Request $request)
+	{
+		$columns = array( 
+                            0 =>'customer_do.id', 
+                            1 =>'voucher_no',
+                            2=> 'customer',
+                            3=> 'voucher_date',
+                            4=> 'net_total',
+							5=> 'status'
+                        );
+						
+		$totalData = $this->customerdo->customerDOListCount();
+            
+        $totalFiltered = $totalData; 
+
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'customer_do.id';
+        $dir = 'desc';
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+        
+		$invoices = $this->customerdo->customerDOList('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->customerdo->customerDOList('count', $start, $limit, $order, $dir, $search);
+		
+		$prints = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','DO')
+							->select('report_view_detail.name','report_view_detail.id')
+							->get();
+							
+        $data = array();
+        if(!empty($invoices))
+        {
+           
+			foreach ($invoices as $row)
+            {
+                $edit =  '"'.url('customers_do/edit/'.$row->id).'"';
+                $delete =  'funDelete("'.$row->id.'","'.$row->is_editable.'")';
+				$print = url('customers_do/print/'.$row->id);
+				$refresh =  '"'.url('customers_do/refresh_do/'.$row->id).'"';
+				$viewonly =  url('customers_do/viewonly/'.$row->id);
+				
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['customer'] = ($row->customer=='CASH CUSTOMERS') ? (($row->customer_name!='')?$row->customer.'('.$row->customer_name.')':$row->customer) : $row->customer;
+				$nestedData['net_total'] = $row->net_total;
+                /*$nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
+												<span class='glyphicon glyphicon-pencil'></span></button></p>";*/
+				
+					$nestedData['viewonly'] = "<p><a href='{$viewonly}' class='btn btn-info btn-xs' target='_blank'><i class='glyphicon glyphicon-eye-open'></i></a></p>";
+										
+				$nestedData['edit'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='glyphicon glyphicon-pencil' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												<li role='presentation'><a href='customers_do/edit/{$row->id}' role='menuitem'>Edit</a></li>
+												<li role='presentation'><a href='customers_do/refresh_do/{$row->id}' role='menuitem'>Refresh</a></li>
+											</ul>
+										</div>";
+												
+				$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+												<span class='glyphicon glyphicon-trash'></span>";
+				
+				$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+				
+				$opts = '';					
+				foreach($prints as $doc) {
+					$opts .= "<li role='presentation'><a href='{$print}/".$doc->id."' target='_blank' role='menuitem'>".$doc->name."</a></li>";
+				}
+				
+				if(in_array($row->doc_status, $apr))	 {							
+					if($row->is_fc==1) {
+						$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a>
+												<a href='{$print}/FC' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a></p>";
+					} else {
+						//$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";
+						
+						$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
+											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+												<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+											</button>
+											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+												".$opts."
+											</ul>
+										</div>";
+					}
+				} else {
+					$nestedData['print'] = '';
+				}
+				
+				if($this->acsettings->doc_approve==1) {
+					if($row->doc_status==1)
+						$status = '<span class="label label-sm label-success">Approved</span>';
+					else if($row->doc_status==0)
+						$status = '<span class="label label-sm label-warning">Pending</span>';
+					else if($row->doc_status==2)
+						$status = '<span class="label label-sm label-danger">Rejected</span>';
+					
+					$nestedData['status'] = $status;
+				} else 
+					$nestedData['status'] = '';
+				
+				 //$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";
+                $data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
+	private function makeTreeArrLoc($result) {
+		
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item->invoice_id][] = $item;
+		
+		return $childs;
+	}
+	
+	public function add($id=null, $doctype=null) {
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$location = $this->location->locationList();
+		$res = $this->voucherno->getVoucherNo('CDO');
+		$vno = $res->no;
+		$lastid = DB::table('customer_do')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$footertxt = DB::table('header_footer')->where('doc','CDO')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','DO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+							
+		if($id) {
+			$ids = explode(',', $id); $getItemLocation = $itemlocedit = [];
+			if($doctype=='QS') {
+				$quoteRow = $this->quotation_sales->findQuoteData($ids[0]);
+				$quoteItems = $this->quotation_sales->getQSItems($ids);//echo '<pre>';print_r($quoteRow);exit;
+			} else if($doctype=='DO') {
+				$quoteRow = $this->customerdo->findCDOdata($ids[0]);
+				$quoteItems = $this->customerdo->getSDOitems($ids);//echo '<pre>';print_r($quoteRow);exit;
+			} 
+			else if($doctype=='SO') {
+				$quoteRow = $this->sales_order->findOrderData($ids[0]);
+				$quoteItems = $this->sales_order->getSOItems($ids);//echo '<pre>';print_r($quoteItems);exit;
+				$getItemLocation = $this->itemmaster->getItemLocation($id,'CDO');
+				$itemlocedit = $this->makeTreeArrLoc( $this->itemmaster->getItemLocEdit($id,'CDO') );
+			}
+			
+			$total = 0; $vat_amount = 0; $nettotal = 0;
+			foreach($quoteItems as $item) {
+				if($item->balance_quantity==0)
+					$quantity = $item->quantity;
+				else
+					$quantity = $item->balance_quantity;
+				
+				$total 		+= ($quantity * $item->unit_price) - $item->discount;
+				$vat_amount += ($total * $item->vat) / 100;
+			}
+			$nettotal = $total + $vat_amount;
+			return view('body.customersdo.addcdo')
+						->withItems($itemmaster)
+						->withTerms($terms)
+						->withJobs($jobs)
+						->withCurrency($currency)
+						->withQuoterow($quoteRow)
+						->withVoucherno($vno)
+						->withQuoteitems($quoteItems)
+						->withDocid($id)
+						->withTotal($total)
+						->withVatamount($vat_amount)
+						->withLocation($location)
+						->withNettotal($nettotal)
+						->withDoctype($doctype)
+						//->withVoucherno(Session::get('voucher_no'))
+						->withReferenceno(Session::get('reference_no'))
+						->withVoucherdt(Session::get('voucher_date'))
+						->withLpodt(Session::get('lpo_date'))
+						->withVatdata($this->vatdata)
+						->withSettings($this->acsettings)
+						->withFormdata($this->formData)
+						->withItemloc($getItemLocation)
+						->withItemlocedit($itemlocedit)
+						->withIsconloc(($this->mod_con_loc->is_active==1)?true:false)
+						->withData($data);
+		}
+		//echo '<pre>';print_r($this->formData);exit;
+		return view('body.customersdo.add')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withLocation($location)
+					->withVoucherno($vno)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withPrintid($lastid)
+					->withFormdata($this->formData)
+					->withPrint($print)
+					->withFooter(isset($footertxt)?$footertxt->description:'')
+					->withIsconloc(($this->mod_con_loc->is_active==1)?true:false)
+					->withData($data);
+	}
+	
+	public function save(Request $request) {
+		
+		//echo '<pre>';print_r($request->all());exit;
+		
+		$this->validate(
+			$request, 
+			['customer_name' => 'required','customer_id' => 'required',
+			 /* 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required' */
+			],
+			['customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
+			 /* 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.' */
+			]
+		);
+		$id = $this->customerdo->create($request->all());
+		if($id) {
+			Session::flash('message', $this->title.' added successfully.');
+			return redirect('customers_do/add');
+		} else {
+			Session::flash('error', 'Something went wrong, Order failed to add!');
+			return redirect('customers_do/add');
+		}
+	}
+	
+	public function destroy($id)
+	{
+		$row = DB::table('customer_do')->where('id',$id)->select('is_editable')->first();
+		if($row->is_editable==0) {
+		    $this->customerdo->delete($id);
+		    Session::flash('message', $this->title.' deleted successfully.');
+		    return redirect('customers_do');
+		} else {
+		    Session::flash('error', 'This '.$this->title.' is transfered to invoice, you cannot edit or delete!');
+		    return redirect('customers_do');
+		}
+	}
+	
+	public function checkRefNo(Request $request) {
+
+		$check = $this->customerdo->check_reference_no($request->get('reference_no'), $request->get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+
+	public function checkVchrNo(Request $request) { 
+
+		$check = $this->customerdo->check_voucher_no($request->get('voucher_no'), $request->get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	
+	private function makeTreeArr($result) {
+		
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item->item_detail_id][] = $item;
+		
+		return $childs;
+	}
+	
+	//NOV24
+	protected function makeTreeItmLoc($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item->invoice_id][$item->location_id]= $item;
+		
+		return $childs;
+	}
+	
+	public function edit($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->customerdo->findPOdata($id);
+		$orditems = $this->customerdo->getItems($id);
+		$getItemLocation = $this->itemmaster->getItemLocation($id,'CDO');
+		$itemlocedit = $this->makeTreeItmLoc( $this->itemmaster->getItemLocEdit($id,'CDO') );
+		$location = $this->location->locationList();
+		
+		$item_unit = $this->itemmaster->getItemUnitsArr($orditems);
+		$munits = DB::table('form_details')->whereIn('id',[202,203])->where('status',1)->select('active')->get();
+		
+		$cngetItemLocation = $this->itemmaster->getcnItemLocations();
+		$cnitemlocedit = $this->makeTreeArrLoc( $this->itemmaster->getcnItemLocEdit($id,'CDO') );
+		$itemdesc = $this->makeTreeArr($this->customerdo->getItemDesc($id));
+		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+		if(in_array($orderrow->doc_status, $apr))
+			$isprint = true;
+		else
+			$isprint = null;
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','DO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+		//DEC22
+		$infodata = DB::table('customer_do_info')->where('customer_do_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();	
+		
+							
+	//	echo '<pre>';print_r($item_unit); exit;
+	
+	/*
+														      @if(sizeof($itemunits[$item->id]) > 1 && isset($itemunits[$item->id][1]))
+                                                        		    $packing = $itemunits[$item->id][1]->packing;
+                                                        			   $base = $itemunits[$item->id][0]->packing;
+                                                        			   $sub = $itemunits[$item->id][1]->unit_name;
+                                                        			   $sub = ' '.$sub.' =';
+                                                        			   $pkno = $itemunits[$item->id][1]->pkno;
+                                                        		
+                                                        	@else
+                                                        		 $pkno = $packing = $item_unit_id = $base = $sub = ''; 
+                                                        	@endif
+                                                        	
+                                                        	@if(sizeof($itemunits[$item->id]) > 2)
+                                                        		 $packing2 = $itemunits[$item->id][2]->packing;
+                                                        			   $pkno = $itemunits[$item->id][2]->pkno;
+                                                        			   $sub2 = $itemunits[$item->id][2]->unit_name;
+                                                        		
+                                                        	@else
+                                                        		 $packing2 = $sub2 = '';  
+                                                        	@endif
+                                                        
+                                                        	<div>** @if($munits[0]->active==1){{$pkno}} {{$sub}} {{ $packing }} {{$base}},@endif @if($munits[1]->active==1){{$pkno}} {{$sub2}} = {{ $packing2 }} {{$base}}@endif</div>
+                                                        	*/
+			
+		//MAY25 BATCH ENTRY.....	
+		$batch_res = $batchs = $batch_items = null;
+		$batch_res = DB::table('batch_log')->whereNull('batch_log.deleted_at')
+		                    ->Join('item_batch AS IB', function($join) {
+                        		$join->on('IB.id','=','batch_log.batch_id');
+                        	})
+                        	->where('batch_log.document_type', 'CDO')
+                        	->where('batch_log.document_id', $id)
+                        	->whereNull('IB.deleted_at')
+                        	->select('IB.*','batch_log.doc_row_id','batch_log.log_id','batch_log.id AS batch_log_id','batch_log.quantity AS log_qty')
+                        	->orderBy('batch_log.doc_row_id','ASC')->get();
+                        	
+        $batchs = $this->batchGrouping($batch_res);
+			
+		foreach($batchs as $key => $batchrow) {
+		    $batchArr = $qtyArr = $idArr = '';
+    		foreach($batchrow as $ky => $batch) {
+    		    $idArr = ($idArr=='')?$batch->id:$idArr.','.$batch->id;
+    		    $batchArr = ($batchArr=='')?$batch->batch_no:$batchArr.','.$batch->batch_no;
+    		    $qtyArr = ($qtyArr=='')?$batch->log_qty:$qtyArr.','.$batch->log_qty;
+    		}
+    		$batch_items[$key] = ['ids' => $idArr, 'batches' => $batchArr, 'qtys' => $qtyArr];
+	    }
+			//echo '<pre>';print_r($batch_items);exit;
+			
+			return view('body.customersdo.edit')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withFormdata($this->formData)
+					->withIsprint($isprint)
+					->withPrint($print)
+					->withItemloc($getItemLocation)
+					->withItemlocedit($itemlocedit)
+					->withLocation($location)
+					->withCnitemloc($cngetItemLocation)
+					->withCnitemlocedit($cnitemlocedit)
+					->withInfos($infodata)//DEC22
+					->withIsconloc(($this->mod_con_loc->is_active==1)?true:false)
+					->withItemdesc($itemdesc)
+					->withItemunits($item_unit)
+					->withBatchitems($batch_items) //MAY25
+					->withMunits($munits);
+
+	}
+	
+	//MAY25
+	protected function batchGrouping($result) {
+	    
+	    $childs = array();
+		foreach($result as $item)
+		    $childs[$item->doc_row_id][] = $item;
+			
+		return $childs;
+	}
+	
+	public function update(Request $request)
+	{	//echo '<pre>';print_r($request->all());exit;
+		$id = $request->input('customer_do_id');
+		$this->validate(
+			$request, 
+			[//'reference_no' => 'required',
+			 'customer_name' => 'required','customer_id' => 'required',
+			 /* 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 'unit_id.*' => 'required',
+			 'quantity.*' => 'required',
+			 'cost.*' => 'required' */
+			],
+			[//'reference_no.required' => 'Reference no. is required.',
+			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
+			 /* 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 'unit_id.*' => 'Item unit is required.',
+			 'quantity.*' => 'Item quantity is required.',
+			 'cost.*' => 'Item cost is required.' */
+			]
+		);
+		
+		$this->customerdo->update($id, $request->all());
+		
+		########## email script #############
+		if($this->acsettings->doc_approve==1 && $request->get('doc_status')==1 && $request->get('chkmail')==1) {
+				
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = '';
+			$result = $this->customerdo->getOrder($attributes); //echo '<pre>';print_r($result);exit;
+			
+			$data = array('details'=> $result['details'], 'fc' => $attributes['is_fc'], 'items' => $result['items']);
+			$pdf = PDF::loadView('body.customersdo.pdfprint', $data); 
+			
+			$mailmessage = $request->get('email_message');
+			$emails = explode(',', $request->get('email'));
+			
+			if($emails[0]!='') {
+				$data = array('name'=> $request->get('customer_name'), 'mailmessage' => $mailmessage );
+				try{
+					Mail::send('body.customersdo.email', $data, function($message) use ($emails,$pdf) {
+						$message->to($emails[0]);
+						
+						if(count($emails) > 1) {
+							foreach($emails as $k => $row) {
+								if($k!=0)
+									$cc[] = $row;
+							}
+							$message->cc($cc);
+						}
+						
+						$message->subject('Delivery Order');
+						$message->attachData($pdf->output(), "delivery-ord.pdf");
+					});
+					
+				}catch(JWTException $exception){
+					$this->serverstatuscode = "0";
+					$this->serverstatusdes = $exception->getMessage();
+					echo '<pre>';print_r($this->serverstatusdes);exit;
+				}
+			}
+		}
+		
+		//CHECK DO ALREADY TRANSFERED TO SI....  MY22
+		/*$chkrow = DB::table('sales_invoice')->where('document_id',$id)->where('document_type','CDO')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+		if($chkrow) {
+			Session::flash('message', 'DO updated successfully. Please update this invoice for make the changes as in DO.');
+			return redirect('sales_invoice/edit/'.$chkrow->id.'/CDO/'.$id);
+		
+		} */
+		
+		Session::flash('message', $this->title.' updated successfully');
+		return redirect('customers_do');
+	}
+	
+		public function viewonly($id) { 
+
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->customerdo->findPOdata($id);
+		$orditems = $this->customerdo->getItems($id);
+		$getItemLocation = $this->itemmaster->getItemLocation($id,'CDO');
+		$itemlocedit = $this->makeTreeItmLoc( $this->itemmaster->getItemLocEdit($id,'CDO') );
+		$location = $this->location->locationList();
+		
+		$item_unit = $this->itemmaster->getItemUnitsArr($orditems);
+		$munits = DB::table('form_details')->whereIn('id',[202,203])->where('status',1)->select('active')->get();
+		
+		$cngetItemLocation = $this->itemmaster->getcnItemLocations();
+		$cnitemlocedit = $this->makeTreeArrLoc( $this->itemmaster->getcnItemLocEdit($id,'CDO') );
+		$itemdesc = $this->makeTreeArr($this->customerdo->getItemDesc($id));
+		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+		if(in_array($orderrow->doc_status, $apr))
+			$isprint = true;
+		else
+			$isprint = null;
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','DO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+		//DEC22
+		$infodata = DB::table('customer_do_info')->where('customer_do_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();	
+		
+							
+	//	echo '<pre>';print_r($item_unit); exit;
+	
+	
+			
+		//MAY25 BATCH ENTRY.....	
+		$batch_res = $batchs = $batch_items = null;
+		$batch_res = DB::table('batch_log')->whereNull('batch_log.deleted_at')
+		                    ->Join('item_batch AS IB', function($join) {
+                        		$join->on('IB.id','=','batch_log.batch_id');
+                        	})
+                        	->where('batch_log.document_type', 'CDO')
+                        	->where('batch_log.document_id', $id)
+                        	->whereNull('IB.deleted_at')
+                        	->select('IB.*','batch_log.doc_row_id','batch_log.log_id','batch_log.id AS batch_log_id','batch_log.quantity AS log_qty')
+                        	->orderBy('batch_log.doc_row_id','ASC')->get();
+                        	
+        $batchs = $this->batchGrouping($batch_res);
+			
+		foreach($batchs as $key => $batchrow) {
+		    $batchArr = $qtyArr = $idArr = '';
+    		foreach($batchrow as $ky => $batch) {
+    		    $idArr = ($idArr=='')?$batch->id:$idArr.','.$batch->id;
+    		    $batchArr = ($batchArr=='')?$batch->batch_no:$batchArr.','.$batch->batch_no;
+    		    $qtyArr = ($qtyArr=='')?$batch->log_qty:$qtyArr.','.$batch->log_qty;
+    		}
+    		$batch_items[$key] = ['ids' => $idArr, 'batches' => $batchArr, 'qtys' => $qtyArr];
+	    }
+			//echo '<pre>';print_r($batch_items);exit;
+			
+			return view('body.customersdo.viewonly')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withFormdata($this->formData)
+					->withIsprint($isprint)
+					->withPrint($print)
+					->withItemloc($getItemLocation)
+					->withItemlocedit($itemlocedit)
+					->withLocation($location)
+					->withCnitemloc($cngetItemLocation)
+					->withCnitemlocedit($cnitemlocedit)
+					->withInfos($infodata)//DEC22
+					->withIsconloc(($this->mod_con_loc->is_active==1)?true:false)
+					->withItemdesc($itemdesc)
+					->withItemunits($item_unit)
+					->withBatchitems($batch_items) //MAY25
+					->withMunits($munits);
+
+	}
+	
+	
+	public function ajax_getcode($group_id)
+	{
+		$group = $this->group->getGroupCode($group_id);
+		$row = $this->accountmaster->getGroupCode($group_id);
+		if($row)
+			$no = intval(preg_replace('/[^0-9]+/', '', $row->account_id), 10);
+		else 
+			$no = 0;
+		
+		$no++;
+		return $code = strtoupper($group->code).''.$no;
+		//return $group->account_id;
+
+	}
+	
+	public function show($id) { 
+
+		$data = array();
+		$acmasterrow = $this->accountmaster->accountMasterView($id);
+		//echo '<pre>';print_r($acmasterrow);exit;
+		return view('body.accountmaster.view')
+					->withMasterrow($acmasterrow)
+					->withData($data);
+	}
+	
+	public function getSupplier()
+	{
+		$data = array();
+		$suppliers = $this->accountmaster->getSupplierList();//echo '<pre>';print_r($suppliers);exit;
+		return view('body.customersdo.supplier')
+					->withSuppliers($suppliers)
+					->withData($data);
+	}
+	
+	public function getItem($num)
+	{
+		$data = array();
+		$itemmaster = $this->itemmaster->getActiveItemmasterList();
+		return view('body.customersdo.item')
+					->withItems($itemmaster)
+					->withNum($num)
+					->withData($data);
+	}
+	
+		public function getJob($id)
+	{
+		$data = array();
+	
+			$data = DB::table('customer_do')->where('customer_do.customer_id',$id)
+			                    ->join('jobmaster', 'jobmaster.id', '=', 'customer_do.job_id')
+			                   ->where('customer_do.status',1)->where('customer_do.deleted_at','0000-00-00 00:00:00')
+			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
+			return $data;
+		}
+	
+	//JUL7
+	public function getOrder($customer_id, $url, $sid=null)
+	{
+		$data = array();
+		$orders = $this->customerdo->getCustomerOrder($customer_id);//echo '<pre>';print_r($orders);exit;
+		return view('body.customersdo.order')
+					->withOrders($orders)
+					->withUrl($url)
+					->withSid($sid)
+					->withData($data);
+	}
+	public function getCustomerDo()
+	{
+		$data = array();
+		$sdodata = $this->customerdo->getCustomerOrder();
+		//echo '<pre>';print_r($sdodata);exit; 
+		return view('body.customersdo.cdo')
+					->withSdodata($sdodata)
+					->withData($data);
+	}
+	
+	public function getPrint($id,$rid=null)
+	{
+		//$viewfile = DB::table('report_view')->where('code', 'DO')->where('status',1)->select('view_name')->first();
+		$viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first(); 
+		if($viewfile->print_name=='') {
+			$attributes['document_id'] = $id;
+			$attributes['is_fc'] = ($fc)?1:'';
+			$result = $this->customerdo->getOrder($attributes);
+			return view('body.customersdo.print')
+						->withDetails($result['details'])
+						->withFc($attributes['is_fc'])
+						->withItems($result['items']);
+		} else {
+			$path = app_path() . '/stimulsoft/helper.php';
+			if(env('STIMULSOFT_VER')==2)
+			        return view('body.reports')->withPath($path)->withView($viewfile->print_name);
+			   else
+			       return view('body.customersdo.viewer')->withPath($path)->withView($viewfile->print_name);
+			
+		}
+		
+	}
+	
+	public function setSessionVal()
+	{
+		Session::put('voucher_no', $request->get('vchr_no'));
+		Session::put('reference_no', $request->get('ref_no'));
+		Session::put('voucher_date', $request->get('vchr_dt'));
+		Session::put('lpo_date', $request->get('lpo_dt'));
+	}
+	
+	protected function makeTree($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		return $childs;
+	}
+	
+	protected function makeArrGroup($result)
+	{
+		$childs = array();
+		foreach($result as $item)
+			$childs[$item['voucher_no']][] = $item;
+		
+		$arr = array();
+		foreach($childs as $child) {
+			$pending_qty = $pending_amt = $vat_amount = $net_amount = $discount = 0;
+			foreach($child as $row) {
+			    $pending_qty = ($row->balance_quantity==0)?$row->quantity:$row->balance_quantity;
+			    $pending_amt += $pending_qty * $row->unit_price;
+				$vat = $row->unit_vat / $row->quantity;
+				$vat_amount += $vat * $pending_qty;
+				$net_amount = $vat_amount + $pending_amt;
+				$voucher_no = $row->voucher_no;
+				$voucher_date = $row->voucher_date;
+				$refno = $row->reference_no;
+				$suppname = $row->master_name;
+				$salesman = $row->salesman;
+				$discount = $row->discount;
+				$jobcode= $row->jobcode;
+			}
+			$arr[] = ['voucher_no' => $voucher_no,'reference_no' => $refno, 'master_name' => $suppname, 'discount' => $discount, 'jobcode' => $jobcode,
+					  'total' => $pending_amt,'vat_amount' => $vat_amount, 'net_total' => $net_amount, 'salesman' => $salesman, 'voucher_date' => $voucher_date];
+			
+		}
+
+		return $arr;
+	}
+
+	public function getSearch(Request $request)
+	{
+		$data = array();
+		$pending=($request->get('pending'))?$request->get('pending'):0;
+		$reports = $this->customerdo->getPendingReport($request->all());
+//echo '<pre>';print_r($reports);exit;
+		if($request->get('search_type')=="summary" && $pending==0)
+			$voucher_head = $this->title.' Summary';
+		elseif($request->get('search_type')=="summary" && $pending==1) {
+			$voucher_head = $this->title.' Pending Summary';
+			$request->merge(['search_type' => 'summary_pending']); 
+			$reports = $this->makeArrGroup($reports);
+		} elseif($request->get('search_type')=="detail" && $pending==0) {
+			$voucher_head = $this->title.' Detail';
+			$reports = $this->makeTree($reports);
+		} else {
+		    if($request->get('search_type')=="detail" && $pending==1){
+			$voucher_head = $this->title.' Pending Detail';
+			$request->merge(['search_type' => 'detail_pending']); 
+		    }
+		    else{
+		       $voucher_head = $this->title.' Quantity Detail'; 
+		    }
+			$reports = $this->makeTree($reports);
+		}
+		
+		//echo '<pre>';print_r($reports);exit;
+		return view('body.customersdo.preprint')
+					->withReports($reports)
+					->withVoucherhead($voucher_head)
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withSalesman($request->get('salesman'))
+					->withCustomerid($request->get('customer_id'))
+					->withSettings($this->acsettings)
+					->withJobids(json_encode($request->get('job_id')))
+					->withData($data);
+	}
+	
+	public function dataExport(Request $request)
+	{
+		$data = array();
+		$datareport[] = [strtoupper(Session::get('company')),'','',''];
+		$datareport[] = ['','','','','','',''];
+		
+		$request->merge(['type' => 'export']);
+		$request->merge(['job_id' => json_decode($request->get('job_id'))]);
+		$reports = $this->customerdo->getPendingReport($request->all());
+		
+		if($request->get('search_type')=="summary")
+			$voucher_head = $this->title.' Summary';
+		elseif($request->get('search_type')=="summary_pending") {
+			$voucher_head = $this->title.' Pending Summary';
+			$reports = $this->makeArrGroup($reports);
+		} elseif($request->get('search_type')=="detail") {
+			$voucher_head = $this->title.' Detail';
+		} elseif($request->get('search_type')=="detail_pending") {
+			$voucher_head = $this->title.' Pending Detail';
+		}else{
+		    $voucher_head = $this->title.' Quantity Detail';
+		}
+		
+		$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
+		$datareport[] = ['','','','','','',''];
+		 //echo '<pre>';print_r($reports);exit;
+		
+		if($request->get('search_type')=='detail' ) {
+			
+			$datareport[] = ['SI.No.','DO.#', 'DO.Ref#', 'Job No',  'Customer','Salesman','Item Code','Description','DO.Qty','Rate','Total Amt.','Vat Amt.','Net Amt.'];
+			$i=$net_amount=0;
+			foreach ($reports as $row) {
+				$i++;
+				$net_amount = $row->unit_vat + $row->line_total;
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'jobcode' => $row['jobcode'],
+								  'supplier' => $row['master_name'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => $row['unit_price'],
+								 'total_amt' => number_format($row['line_total'],2),
+								  'vat_amt' => number_format($row['unit_vat'],2),
+								  'net_amount' => number_format($net_amount,2)
+								];
+			}
+		} 
+			else if( $request->get('search_type')=='detail_pending') {
+			
+			$datareport[] = ['SI.No.','DO.#', 'DO.Ref#', 'Job No',  'Customer','Salesman','Item Code','Description','DO.Qty','Rate','Total Amt.','Inv.Qty','Pending_qty','Rate','Total Amt'];
+			$i=$total_amt=$inv_qty=$pending_qty=$pending_amt=0;
+			foreach ($reports as $row) {
+				$i++;
+				$total_amt = $row['quantity'] * $row['unit_price'];
+				$inv_qty = ($row['balance_quantity']==0)?0:$row['quantity'] - $row['balance_quantity'];
+				$pending_qty = ($row['balance_quantity']==0)?$row['quantity']:$row['balance_quantity'];
+				$pending_amt = $pending_qty * $row['unit_price'];
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'jobcode' => $row['jobcode'],
+								  'supplier' => $row['master_name'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								  'unit_price' => $row['unit_price'],
+								 'total_amt' => number_format($total_amt,2),
+								    'inv_qty' => $inv_qty,
+								    'pending_qty' => $pending_qty,
+								  'unit_amt' => number_format($row['unit_price'],2),
+								  'pend_amount' => number_format($pending_amt,2)
+								];
+			}
+		} 
+		
+			else if( $request->get('search_type')=='qty_report') {
+			
+			$datareport[] = ['SI.No.','DO.#', 'DO.Ref#', 'Job No.', 'Customer','Salesman','Item Code','Description','Ordered','Processed','Balance'];
+			$i=$total_amt=$inv_qty=$pending_qty=$pending_amt=0;
+			foreach ($reports as $row) {
+				$i++;
+				$total_amt = $row['quantity'] * $row['unit_price'];
+				$inv_qty = ($row['balance_quantity']==0)?0:$row['quantity'] - $row['balance_quantity'];
+				$pending_qty = ($row['balance_quantity']==0)?$row['quantity']:$row['balance_quantity'];
+				$pending_amt = $pending_qty * $row['unit_price'];
+			
+				$datareport[] = [ 'si' => $i,
+								  'po' => $row['voucher_no'], 
+								  'ref' => $row['reference_no'],
+								  'jobno' => $row['jobcode'],
+								  'supplier' => $row['master_name'],
+								  'salesman' => $row['salesman'],
+								  'item_code' => $row['item_code'],
+								  'description' => $row['description'],
+								  'quantity' => $row['quantity'],
+								   'inv_qty' => $inv_qty,
+								   'pending_qty' => $pending_qty,
+								  
+								];
+			}
+		} 
+		
+		
+		
+		else {
+			
+			$datareport[] = ['SI.No.','DO.#', 'DO.Ref#', 'Jo No', 'Customer','Salesman','Gross Amt.','Discount','Total Amt.','VAT Amt.','Net Total'];
+			$i=$total=0;$gross=0;$vat=$total_amt=$discount=0;
+			$tot=0;$gs=0;$vt=$tam=$tot_amt=$dis=0;
+			foreach ($reports as $row) {
+					$i++;
+					$total_amt=$row['total']-$row['discount'];
+					$datareport[] = [ 'si' => $i,
+									  'po' => $row['voucher_no'],
+									  'ref' => $row['reference_no'],
+									  'jobcode' => $row['jobcode'],
+									  'supplier' => $row['master_name'],
+									  'salesman' => $row['salesman'],
+									  'gross' => $row['total'],
+									   'disc' => number_format($row['discount'],2),
+									  'tot_amt' => number_format($total_amt,2),
+									  'vat' => $row['vat_amount'],
+									  'total' => $row['net_total']
+									];
+									$total+= $row['net_total'];
+							        $tot=number_format($total,2) ;
+									$gross+= $row['total'];
+							        $gs=number_format($gross,2) ;
+									$vat+= $row['vat_amount'];
+							        $vt=number_format($vat,2) ;
+							        $tot_amt+=$total_amt;
+							        $tam=number_format($tot_amt,2);
+							        $discount+=$row['discount'];
+							        $dis=number_format($discount,2);
+			}
+			$datareport[] = ['','','','','','',''];			
+		    $datareport[] = ['','','','','','Total:',$gs,$dis,$tam,$vt,$tot];
+
+		}
+		 //echo $voucher_head.'<pre>';print_r($datareport);exit;
+		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
+
+        // Set the spreadsheet title, creator, and description
+        $excel->setTitle($voucher_head);
+        $excel->setCreator('Profit Acc 365 ERP')->setCompany(Session::get('company'));
+        $excel->setDescription($voucher_head);
+
+        // Build the spreadsheet, passing in the payments array
+		$excel->sheet('sheet1', function($sheet) use ($datareport) {
+			$sheet->fromArray($datareport, null, 'A1', false, false);
+		});
+
+		})->download('xlsx');
+		
+	}
+	
+	public function getItemDetails($id) 
+	{
+		$data = array();
+		$items = $this->customerdo->getItems(array($id));
+		return view('body.customersdo.itemdetails')
+					->withItems($items)
+					->withData($data);
+	}
+	
+	public function getPending() {
+		$data = [];
+		$fromdate = $this->acsettings->from_date;
+		$todate = date('Y-m-d');
+		$request->merge(['date_from' => $fromdate]); 
+		$request->merge(['date_to' => $todate]); 
+		$request->merge(['search_type' => 'summary_pending']); 
+		$request->merge(['salesman' => '']); 
+		$reports = $this->customerdo->getPendingReport($request->all());
+		$result = $this->makeArrGroup($reports);
+							
+		return view('body.customersdo.depending')
+					->withDocs($result)
+					->withData($data);
+	}
+	
+	
+	//JUL7
+	public function editForce($id) { 
+
+		DB::table('customer_do')->where('id',$id)->update(['is_transfer' => 0, 'is_editable' => 0]);
+		DB::table('customer_do_item')->where('customer_do_id',$id)->update(['is_transfer' => 0]);
+		$data = array();
+		$itemmaster = $this->itemmaster->activeItemmasterList();
+		$terms = $this->terms->activeTermsList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$currency = $this->currency->activeCurrencyList();
+		$orderrow = $this->customerdo->findPOdata($id);
+		$orditems = $this->customerdo->getItems($id);
+		$getItemLocation = $this->itemmaster->getItemLocation($id,'CDO');
+		$itemlocedit = $this->makeTreeArrLoc( $this->itemmaster->getItemLocEdit($id,'CDO') );
+		$location = $this->location->locationList();
+		
+		$cngetItemLocation = $this->itemmaster->getcnItemLocations();
+		$cnitemlocedit = $this->makeTreeArrLoc( $this->itemmaster->getcnItemLocEdit($id,'CDO') );
+		$itemdesc = $this->makeTreeArr($this->customerdo->getItemDesc($id));
+		
+		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
+		if(in_array($orderrow->doc_status, $apr))
+			$isprint = true;
+		else
+			$isprint = null;
+		
+		$print = DB::table('report_view_detail')
+							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+							->where('report_view.code','DO')
+							->where('report_view_detail.is_default',1)
+							->select('report_view_detail.id')
+							->first();
+							
+		$infodata = DB::table('customer_do_info')->where('customer_do_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();	
+		//echo '<pre>';print_r($cngetItemLocation); print_r($cnitemlocedit); exit;
+		return view('body.customersdo.edit')
+					->withItems($itemmaster)
+					->withTerms($terms)
+					->withJobs($jobs)
+					->withCurrency($currency)
+					->withOrderrow($orderrow)
+					->withOrditems($orditems)
+					->withVatdata($this->vatdata)
+					->withSettings($this->acsettings)
+					->withFormdata($this->formData)
+					->withIsprint($isprint)
+					->withPrint($print)
+					->withItemloc($getItemLocation)
+					->withItemlocedit($itemlocedit)
+					->withLocation($location)
+					->withCnitemloc($cngetItemLocation)
+					->withCnitemlocedit($cnitemlocedit)
+					->withIsconloc(($this->mod_con_loc->is_active==1)?true:false)
+					->withItemdesc($itemdesc) //MY22
+					->withInfos($infodata)//DEC22
+					->withData($data);
+
+	}
+	
+	
+	public function refreshDO($id) { //SI id
+	    
+		$itms = DB::table('customer_do')->where('customer_do.id', $id)
+					->join('customer_do_item','customer_do_item.customer_do_id','=','customer_do.id')
+					->select('customer_do_item.id','customer_do_item.item_id','customer_do_item.quantity','customer_do_item.balance_quantity','customer_do.id AS do_id')
+					->get();
+//echo '<pre>';print_r($itms); exit;
+
+		if($itms) {
+			foreach($itms as $row) {
+			    
+			    $itmsPI = DB::table('sales_invoice')
+					->join('sales_invoice_item','sales_invoice_item.sales_invoice_id','=','sales_invoice.id')
+					//->where('sales_invoice.document_id', $row->do_id)
+					->where('sales_invoice.document_type','CDO')
+					->where('sales_invoice_item.doc_row_id', $row->id)
+					->where('sales_invoice_item.status', 1)
+					->where('sales_invoice_item.deleted_at', '0000-00-00 00:00:00')
+					->where('sales_invoice.deleted_at', '0000-00-00 00:00:00')
+					->select(DB::raw('SUM(sales_invoice_item.quantity) AS si_quantity'))
+					->get();
+					
+				//	echo '<pre>';print_r($itmsPI); exit; 
+					
+				if(isset($itmsPI[0])) {
+				    
+				    if($itmsPI[0]->si_quantity == $row->quantity) {
+				         DB::table('customer_do_item')->where('id', $row->id)->update(['balance_quantity' => 0, 'is_transfer' => 1]);
+				    } else {
+				        if($itmsPI[0]->si_quantity > 0) {
+				            $balqty = $row->quantity - $itmsPI[0]->si_quantity;
+				            DB::table('customer_do_item')->where('id', $row->id)->update(['balance_quantity' => $balqty, 'is_transfer' => 2]);
+				        } else {
+				            DB::table('customer_do_item')->where('id', $row->id)->update(['balance_quantity' => 0, 'is_transfer' => 0]);
+				        }
+				    }
+				}
+				
+			}
+            
+
+			$row1 = DB::table('customer_do_item')->where('customer_do_id', $id)->count();
+			$row2 = DB::table('customer_do_item')->where('customer_do_id', $id)->where('is_transfer',1)->count();
+			$row3 = DB::table('customer_do_item')->where('customer_do_id', $id)->where('is_transfer',2)->count(); 
+			if($row1==$row2) {
+				DB::table('customer_do')
+						->where('id', $id)
+						->update(['is_editable' => 1, 'is_transfer' => 1]);
+			} else if($row1 > 0 && $row2==0 && $row3==0) {
+			    DB::table('customer_do')
+						->where('id', $id)
+						->update(['is_editable' => 0, 'is_transfer' => 0]);
+			} else if($row3 > 0) {
+			    DB::table('customer_do')
+						->where('id', $id)
+						->update(['is_editable' => 1, 'is_transfer' => 0]);
+			}
+		}
+		
+		return redirect('customers_do');
+			
+	//return true;
+	}
+	
+	
+}
+
+
+
