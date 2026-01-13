@@ -182,9 +182,9 @@ input[type=number]::-webkit-outer-spin-button {
 												<option value="">Select Area...</option>
 												@foreach ($area as $ar)
 												@if($masterrow->area_id==$ar['id'])
-												{{--*/ $sel = "selected" /*--}}
+												@php $sel = "selected" @endphp
 												@else
-												{{--*/ $sel = "" /*--}}	
+												@php $sel = "" @endphp	
 												@endif
 												<option value="{{ $ar['id'] }}" {{$sel}}>{{ $ar['name'] }}</option>
 												@endforeach
@@ -233,9 +233,9 @@ input[type=number]::-webkit-outer-spin-button {
 													<option value="">Select Country...</option>
 													@foreach ($country as $con)
 													@if($masterrow->country_id==$con['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $con['id'] }}" {{$sel}}>{{ $con['name'] }}</option>
 													@endforeach
@@ -279,9 +279,9 @@ input[type=number]::-webkit-outer-spin-button {
 												<option value="">Select Salesman...</option>
 												@foreach ($salesman as $sal)
 												@if($masterrow->salesman_id==$sal['id'])
-												{{--*/ $sel = "selected" /*--}}
+												@php $sel = "selected" @endphp
 												@else
-												{{--*/ $sel = "" /*--}}	
+												@php $sel = "" @endphp	
 												@endif
 												<option value="{{ $sal['id'] }}" {{ $sel }}>{{ $sal['name'] }}</option>
 												@endforeach
@@ -308,9 +308,9 @@ input[type=number]::-webkit-outer-spin-button {
 												<option value="">Select Terms...</option>
 												@foreach ($terms as $tem)
 												@if($masterrow->terms_id==$tem['id'])
-												{{--*/ $sel = "selected" /*--}}
+												@php $sel = "selected" @endphp
 												@else
-												{{--*/ $sel = "" /*--}}	
+												@php $sel = "" @endphp	
 												@endif
 												<option value="{{ $tem['id'] }}" {{ $sel }}>{{ $tem['description'] }}</option>
 												@endforeach
@@ -327,9 +327,9 @@ input[type=number]::-webkit-outer-spin-button {
 											<option value="">Select Currency...</option>
 											@foreach ($bcurrency as $cur)
 											@if($masterrow->currency_id==$cur->id)
-											{{--*/ $sel = "selected" /*--}}
+											@php $sel = "selected" @endphp
 											@else
-											{{--*/ $sel = "" /*--}}	
+											@php $sel = "" @endphp	
 											@endif
 											<option value="{{ $cur->id }}" {{ $sel }}>{{ $cur->name }}</option>
 											@endforeach
@@ -340,7 +340,7 @@ input[type=number]::-webkit-outer-spin-button {
 								<?php if($masterrow->category == 'CUSTOMER' || $masterrow->category == 'SUPPLIER') { ?>
 								<fieldset>
 								<legend><h5>Opening Balance Details</h5></legend>
-								{{--*/ $i = 0; $num = count($opnbalance); /*--}}
+								@php $i = 0; $num = count($opnbalance); @endphp
 								<input type="hidden" id="rowNum" value="{{($num==0)?1:$num}}">
 								<input type="hidden" id="remitem" name="remove_item">
 								<div class="itemdivPrnt">
@@ -416,7 +416,7 @@ input[type=number]::-webkit-outer-spin-button {
 								<?php } else { ?>
 								
 								@foreach($opnbalance as $row)
-								{{--*/ $i++; /*--}}
+								@php $i++; @endphp
 									
 									<div class="itemdivChld">							
 										<div>
@@ -500,7 +500,7 @@ input[type=number]::-webkit-outer-spin-button {
 									<fieldset>
 									<legend><h5>Opening Balance Details</h5></legend>
 									<div class="itemdivPrntch">
-										{{--*/ $i = 0; $num = count($opnbalance); /*--}}
+										@php $i = 0; $num = count($opnbalance); @endphp
 										<input type="hidden" id="rowNum" value="{{($num==0)?1:$num}}">
 										<input type="hidden" id="remitem" name="remove_item">
 										<?php if($num==0) { ?>
@@ -559,7 +559,7 @@ input[type=number]::-webkit-outer-spin-button {
 											</div>
 										<?php } else { ?>
 										@foreach($opnbalance as $row)
-										{{--*/ $i++; /*--}}
+										@php $i++; @endphp
 										<div class="itemdivChldch">							
 											<div class="col-xs-12">
 												<input type="hidden" name="tr_id[]" id="trid_{{$i}}" value="{{$row->id}}">
@@ -657,9 +657,9 @@ input[type=number]::-webkit-outer-spin-button {
 											<option value="">Select Department...</option>
 											@foreach ($department as $dep)
 											@if($masterrow->department_id==$dep['id'])
-											{{--*/ $sel = "selected" /*--}}
+											@php $sel = "selected" @endphp
 											@else
-											{{--*/ $sel = "" /*--}}	
+											@php $sel = "" @endphp	
 											@endif
 											<option value="{{ $dep['id'] }}" {{ $sel }}>{{ $dep['name'] }}</option>
 											@endforeach

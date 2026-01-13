@@ -692,14 +692,18 @@
 										<div class="form-group">
 											<label for="input-text" class="col-sm-1 control-label">RV No.</label>
 											<div class="col-sm-1">
-												<input type="text" class="form-control" name="rv_no" id="drv_no" readonly value="{{($drvs)?$drvs[0]->voucher_no:$rvrow->voucher_no}}">
+												<input type="text" class="form-control" name="rv_no" id="drv_no" readonly value="{{ !empty($drvs[0]->voucher_no) ? $drvs[0]->voucher_no : $rvrow->voucher_no }}
+">
 											</div>
 											<label for="input-text" class="col-sm-1 control-label">RV Date</label>
 											<div class="col-sm-2" style="width:12%;">
-												<input type="text" class="form-control" name="drv_date" id="drv_date" value="{{($drvs)?date('d-m-Y',strtotime($drvs[0]->voucher_date)):date('d-m-Y')}}" autocomplete="off" data-language='en' readonly />
+												<input type="text" class="form-control" name="drv_date" id="drv_date" value="{{ optional($drvs->first())->voucher_date
+    ? \Carbon\Carbon::parse($drvs->first()->voucher_date)->format('d-m-Y')
+    : now()->format('d-m-Y') }}
+" autocomplete="off" data-language='en' readonly />
 											</div>
 											@php
-												$drvs_amt = ($drvs)?$drvs[0]->amount:(($depo)?$depo->amount:'');
+												$drvs_amt = $drvs[0]->amount ?? $depo->amount ?? '';
 												$rdoly = ($drvs_amt==0.00 || $drvs_amt=='')?'readonly':'';
 											@endphp
 											<label for="input-text" class="col-sm-1 control-label">Amount</label>
@@ -862,7 +866,7 @@
 										<input type="hidden" name="pd_acid" id="pd_acid" value="{{($rvrow)?$rvrow->pdcid:''}}">
 										<input type="hidden" name="bk_ac" id="bk_ac" value="{{($rvrow)?$rvrow->bank:''}}">
 										<input type="hidden" name="bk_acid" id="bk_acid" value="{{($rvrow)?$rvrow->bankid:''}}">
-										<input type="hidden" name="rv_id" id="rv_id" value="{{($orvs)?$orvs[0]->rv_id:''}}">
+										<input type="hidden" name="rv_id" id="rv_id" value="{{$orvs[0]->rv_id ?? ''}}">
 										<input type="hidden" id="rnum" value="{{count($orvs)}}">
 										<input type="hidden" id="name" value="add">
 										<br/>
@@ -1054,7 +1058,8 @@
 												 <a href="{{ url('contractbuilding') }}" class="btn btn-danger">Cancel</a>
 												 
 												@if($prvs)
-												<a href="{{ url('contractbuilding/printrv/ORV/'.$prvs[0]->id) }}" target="_blank" class="btn btn-info">Print</a> 
+												<a href="{{ isset($prvs[0]) ? url('contractbuilding/printrv/ORV/'.$prvs[0]->id) : '' }}
+" target="_blank" class="btn btn-info">Print</a> 
 												
 												@endif
 												
@@ -1070,7 +1075,7 @@
 										<input type="hidden" name="_token" value="{{ csrf_token() }}">
 										<input type="hidden" name="con_id" id="conid" value="{{($crow)?$crow->id:''}}">
 										<input type="hidden" name="cash_ac" id="cash_ac" value="{{($rvrow)?$rvrow->cash:''}}">
-										<input type="hidden" name="pv_id" id="pv_id" value="{{($orvs)?$orvs[0]->rv_id:''}}">
+										<input type="hidden" name="pv_id" id="pv_id" value="{{optional($orvs->first())->rv_id ?? ''}}">
 										<input type="hidden" id="rnum" value="{{count($orvs)}}">
 										<input type="hidden" name="type" value="add">
 										<br/>

@@ -22,7 +22,7 @@ class AreaController extends Controller
 		
 	}
 	
-	public function index() {
+	public function index() { 
 		$data = array();
 		$areas = $this->area->areaList();
 		return view('body.area.index')

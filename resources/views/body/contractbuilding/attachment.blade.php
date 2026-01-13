@@ -103,7 +103,7 @@
 								<div id="gallery-content-center1">
 									@if(count($files)>0)
 										@foreach($files as $prow)
-										<a href="{{asset('uploads/contract/'.$prow->file_name)}}" data-group="mygroup" class="html5lightbox" title="{{$prow->name}}">{{$prow->name}}</a>
+										<a href="{{ asset('uploads/contract/'.($prow->file_name ?? '')) }}" data-group="mygroup" class="html5lightbox" title="{{$prow->name ?? ''}}">{{$prow->name ?? ''}}</a>
 										| @endforeach
 									@endif
 								</div>
@@ -131,16 +131,16 @@
 									@foreach($files as $prow)
 									<div class="rClass">
 									<div class="col-sm-3">
-									<input type="text" class="form-control" name="curname[]" placeholder="Document Name" value="{{$prow->name}}" autocomplete="off">
-									<input type="hidden" name="fid[]" value="{{$prow->id}}">
+									<input type="text" class="form-control" name="curname[]" placeholder="Document Name" value="{{$prow->name ?? ''}}" autocomplete="off">
+									<input type="hidden" name="fid[]" value="{{$prow->id ?? ''}}">
 									</div>
 									<div class="col-sm-9">
 										<div class="file-preview">
-											<div class="close fileinput-remove removeDoc" data-val="{{$prow->id}}">×</div>
+											<div class="close fileinput-remove removeDoc" data-val="{{$prow->id ?? ''}}">×</div>
 											<div class="file-drop-disabled">
 												<div class="file-preview-thumbnails">
 													<div class="file-live-thumbs">
-														<a href="{{asset('uploads/contract/'.$prow->file_name)}}" target="_blank">{{$prow->name}}</a>
+														<a href="{{asset('uploads/contract/'.$prow->file_name ?? '')}}" target="_blank">{{$prow->name ?? ''}}</a>
 													</div>
 												</div>
 												<div class="clearfix"></div><div class="file-preview-status text-center text-success"></div>

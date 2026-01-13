@@ -680,26 +680,29 @@
 										<div class="form-group">
 											<label for="input-text" class="col-sm-1 control-label">RV No.</label>
 											<div class="col-sm-1">
-												<input type="text" class="form-control" name="rv_no" id="drv_no" readonly value="{{($drvs)?$drvs[0]->voucher_no:$rvrow->voucher_no}}">
+												<input type="text" class="form-control" name="rv_no" id="drv_no" readonly value="{{ $drvs[0]->voucher_no ?? $rvrow->voucher_no ?? '' }}
+">
 											</div>
 											<label for="input-text" class="col-sm-1 control-label">RV Date</label>
 											<div class="col-sm-2" style="width:12%;">
-												<input type="text" class="form-control" name="drv_date" id="drv_date" value="{{($drvs)?date('d-m-Y',strtotime($drvs[0]->voucher_date)):date('d-m-Y')}}" autocomplete="off" data-language='en' readonly />
+												<input type="text" class="form-control" name="drv_date" id="drv_date" value="{{ \Carbon\Carbon::parse($drvs[0]->voucher_date ?? now())->format('d-m-Y') }}
+" autocomplete="off" data-language='en' readonly />
 											</div>
 											@php
-												$pyamt = (isset($payacnts[1]->amount))?$payacnts[1]->amount:0;
-												$drvs_amt = ($drvs)?(($drvs[0]->amount==$pyamt)?$drvs[0]->amount:$pyamt):$pyamt;
+												$pyamt = $payacnts[1]->amount ?? 0;
+												$drvs_amt = $drvs[0]->amount ?? $pyamt;
 												$rdoly = ($drvs_amt==0.00 || $drvs_amt=='')?'readonly':'';
 											@endphp
 											<label for="input-text" class="col-sm-1 control-label">Amount</label>
 											<div class="col-sm-2" style="width:12%;">
-												<input type="number" class="form-control" step="any" id="drv_amount" name="rv_amount" {{$rdoly}} value="{{($drvs)?(($drvs[0]->amount==$pyamt)?$drvs[0]->amount:$pyamt):$pyamt}}" placeholder="Amount">
+												<input type="number" class="form-control" step="any" id="drv_amount" name="rv_amount" {{$rdoly}} value="{{ $drvs[0]->amount ?? $pyamt }}
+" placeholder="Amount">
 											</div>
 											<label for="input-text" class="col-sm-1 control-label">Tenant(Cr)</label>
 											<div class="col-sm-4">
 												<input type="text" class="form-control" name="tenant" readonly value="{{($crow)?$crow->master_name:''}}">
 												<input type="hidden" name="tenant_id" readonly value="{{($crow)?$crow->customer_id:''}}">
-												<input type="hidden" name="je_id[]" value="{{($drvs)?$drvs[0]->id:''}}">
+												<input type="hidden" name="je_id[]" value="{{ $drvs[0]->id ?? '' }}">
 											</div>	
 										</div>
 										
@@ -852,7 +855,7 @@
 										<input type="hidden" name="pd_acid" id="pd_acid" value="{{($rvrow)?$rvrow->pdcid:''}}">
 										<input type="hidden" name="bk_ac" id="bk_ac" value="{{($rvrow)?$rvrow->bank:''}}">
 										<input type="hidden" name="bk_acid" id="bk_acid" value="{{($rvrow)?$rvrow->bankid:''}}">
-										<input type="hidden" name="rv_id" id="rv_id" value="{{($orvs)?$orvs[0]->rv_id:''}}">
+										<input type="hidden" name="rv_id" id="rv_id" value="{{ isset($orvs[0]->rv_id) ? $orvs[0]->rv_id : '' }}">
 										<input type="hidden" id="rnum" value="{{count($orvs)}}">
 										<input type="hidden" name="type" value="edit">
 										<br/>
@@ -1052,7 +1055,7 @@
 												 <a href="{{ url('contractbuilding') }}" class="btn btn-danger">Cancel</a>
 												 @endif
 												 @if($prvs)
-												<a href="{{ url('contractbuilding/printrv/ORV/'.$prvs[0]->id) }}" target="_blank" class="btn btn-info">Print</a> 
+												<a href="{{ isset($prvs[0]->id) ? url('contractbuilding/printrv/ORV/'.$prvs[0]->id) : '' }}" target="_blank" class="btn btn-info">Print</a> 
 												@endif
 											</div>
 										</div>

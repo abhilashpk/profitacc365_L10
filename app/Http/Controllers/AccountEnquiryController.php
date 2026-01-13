@@ -1699,7 +1699,6 @@ class AccountEnquiryController extends Controller
 						$resultPdc[$key] = $this->accountmaster->getPDCs($dat);
 					}
 				}
-				
 				//echo '<pre>';print_r($resultPdc);exit;
 				/* $results = $this->accountmaster->getPrintViewByAccount($request->all());  
 				$transactions = $this->makeSummary($this->makeTree($results));

@@ -2584,7 +2584,7 @@ public function destroy2($id)
 	}
 	
 	public function saveRentAllocation(Request $request) {
-		
+		ini_set('max_execution_time', 300); 
 		//echo '<pre>';print_r($request->all());exit; 
 		//JN16
 		DB::beginTransaction();
