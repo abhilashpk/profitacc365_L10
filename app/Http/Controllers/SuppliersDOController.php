@@ -68,12 +68,12 @@ class SuppliersDOController extends Controller
 		$data = array();
 		$orders = $this->supplierdo->suppliersDOList();//echo '<pre>';print_r($orders);exit;
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
 		}
-		$sup =DB::table('account_master')->where('category','SUPPLIER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$sup =DB::table('account_master')->where('category','SUPPLIER')->where('status',1)->whereNull('deleted_at')
 		->select('id','master_name')->get(); 
 		$supplier = [];//$this->accountmaster->getSupplierList();
 		$jobs = $this->jobmaster->activeJobmasterList();
@@ -105,8 +105,8 @@ class SuppliersDOController extends Controller
 		$location = $this->location->locationList();
 		$res = $this->voucherno->getVoucherNo('SDO');
 		$location = $this->location->locationList();
-		$footertxt = DB::table('header_footer')->where('doc','SDO')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
-		$lastid = DB::table('supplier_do')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$footertxt = DB::table('header_footer')->where('doc','SDO')->where('status',1)->whereNull('deleted_at')->first();
+		$lastid = DB::table('supplier_do')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
 							->where('report_view.code','SDO')
@@ -849,7 +849,7 @@ class SuppliersDOController extends Controller
 	
 			$data = DB::table('supplier_do')->where('supplier_do.supplier_id',$id)
 			                    ->join('jobmaster', 'jobmaster.id', '=', 'supplier_do.job_id')
-			                   ->where('supplier_do.status',1)->where('supplier_do.deleted_at','0000-00-00 00:00:00')
+			                   ->where('supplier_do.status',1)->whereNull('deleted_at')
 			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
 			return $data;
 		}
@@ -976,8 +976,8 @@ class SuppliersDOController extends Controller
 					->where('purchase_invoice.document_type','SDO')
 					->where('purchase_invoice_item.doc_row_id', $row->id)
 					->where('purchase_invoice_item.status', 1)
-					->where('purchase_invoice_item.deleted_at', '0000-00-00 00:00:00')
-					->where('purchase_invoice.deleted_at', '0000-00-00 00:00:00')
+					->whereNull('deleted_at')
+					->whereNull('deleted_at')
 					->select(DB::raw('SUM(purchase_invoice_item.quantity) AS pi_quantity'))
 					->get();
 					
@@ -1024,4 +1024,6 @@ class SuppliersDOController extends Controller
 	}
 	
 }
+
+
 

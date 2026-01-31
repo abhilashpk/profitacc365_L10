@@ -806,11 +806,11 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 					
 					//REMOVE FROM TRANSACTION TABLE..
 					DB::table('account_transaction')->where('voucher_type','PS')->where('voucher_type_id',$itm->purchase_split_id)->where('account_master_id',$itm->account_id)
-							->where('other_info',$itm->id)->update(['status'=>0,'deleted_at'=>'0000-00-00 00:00:00']);
+							->where('other_info',$itm->id)->update(['status'=>0,'deleted_at' => null]);
 							
 					//IF VAT ALSO
 					DB::table('account_transaction')->where('voucher_type','PS')->where('voucher_type_id',$itm->purchase_split_id)
-							->where('other_info',$itm->id.'VAT')->update(['status'=>0,'deleted_at'=>'0000-00-00 00:00:00']);
+							->where('other_info',$itm->id.'VAT')->update(['status'=>0,'deleted_at' => null]);
 				}
 			}
 			
@@ -900,7 +900,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 				$this->objUtility->tallyClosingBalance( $row->account_id );
 			}
 			
-			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();//DB::table('account_master')->where('master_name', 'VAT INPUT')->where('status', 1)->first();
+			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();//DB::table('account_master')->where('master_name', 'VAT INPUT')->where('status', 1)->first();
 			if($vatrow) {
 				$this->objUtility->tallyClosingBalance($vatrow->collection_account);
 			}
@@ -977,7 +977,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 			return $this->purchase_split->where('purchase_split.status',1)
 									   ->leftJoin('payment_voucher_tr AS PV', function($join){
 										   $join->on('PV.purchase_split_id','=','purchase_split.id');
-										   $join->where('PV.deleted_at','=','0000-00-00 00:00:00');
+										   $join->whereNull('deleted_at');
 										   $join->where('PV.status','=',1);
 									   }) 
 									   ->where('purchase_split.supplier_id', $supplier_id)
@@ -1005,7 +1005,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 								   ->where('status',1)
 								   ->where('account_master_id', $supplier_id)
 								   ->where('amount','>',0)
-								   ->where('deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->whereIn('amount_transfer',$arr)
 								   ->orderBY('tr_date', 'ASC')
 								   ->select('*','amount AS net_amount')
@@ -1025,11 +1025,11 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 								})
 								->leftJoin('payment_voucher_tr AS PV', function($join){
 								   $join->on('PV.purchase_split_id','=','journal.id');
-								   $join->where('PV.deleted_at','=','0000-00-00 00:00:00');
+								   $join->whereNull('deleted_at');
 								   $join->where('PV.status','=',1);
 							   }) 
 								//->where('JE.entry_type','Cr')
-								->where('journal.deleted_at','=','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('journal.voucher_type','PIN')
 								->where('JE.account_id',$supplier_id)
 								->whereIn('journal.is_transfer',$arr)
@@ -1044,7 +1044,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 									$join->on('JE.journal_id','=','journal.id');
 								})
 								//->where('JE.entry_type','Cr')
-								->where('journal.deleted_at','=','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('journal.voucher_type','PIN')
 								->where('JE.account_id',$supplier_id)
 								->whereIn('journal.is_transfer',$arr)
@@ -1061,7 +1061,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 		$arr = ($mod)?[0,1,2]:[0,2];
 		return DB::table('other_voucher_tr')->where('account_master_id', $supplier_id)
 										 ->whereIn('amount_transfer', $arr)
-										 ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+										 ->where('status',1)->whereNull('deleted_at')
 										 ->get();
 		
 	} //......May 15
@@ -1077,7 +1077,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 							   ->join('purchase_split AS PI', function($join) {
 								   $join->on('PI.id','=','pi_other_cost.purchase_split_id');
 							   })
-								->where('pi_other_cost.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('pi_other_cost.cr_account_id',$supplier_id)
 								->whereIn('pi_other_cost.is_transfer',$arr)
 								->select('pi_other_cost.*','PI.voucher_no','PI.voucher_date')
@@ -1089,7 +1089,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 							   ->join('purchase_split AS PI', function($join) {
 								   $join->on('PI.id','=','pi_other_cost.purchase_split_id');
 							   })
-								->where('pi_other_cost.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('pi_other_cost.cr_account_id',$supplier_id)
 								->whereIn('pi_other_cost.is_transfer',$arr)
 								->select('pi_other_cost.*','PI.voucher_no','PI.voucher_date')
@@ -1126,7 +1126,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 									   $join->on('U.id','=','PI.unit_id');
 								   })
 								   ->where('PI.status',1)
-								   //->where('PI.deleted_at','0000-00-00 00:00:00')
+								   //->whereNull('deleted_at')
 								   ->select('PI.*','purchase_split.id','IM.item_code','U.unit_name')
 								   ->orderBY('PI.id')
 								   ->get();
@@ -1163,7 +1163,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 					  })
 					  ->where('PSI.status',1)
 					  ->whereIn('PSI.is_transfer',[0,2])
-					  ->where('PSI.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('PSI.*','AM.account_id AS account_code','AM.master_name','J.code AS jobcode','J.transport_type')
 					  ->orderBY('PSI.id')
 					  ->groupBY('PSI.id')
@@ -1184,7 +1184,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 						  $join->on('J.id','=','PSI.item_jobid');
 					  })
 					  ->where('PSI.status',1)
-					  ->where('PSI.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('PSI.*','AM.account_id AS account_code','AM.master_name','J.code AS jobcode','J.transport_type')
 					  ->orderBY('PSI.id')
 					  ->groupBY('PSI.id')
@@ -1312,7 +1312,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 		 						'purchase_split.amount_transfer','purchase_split.discount','purchase_split.total','purchase_split.id AS id','purchase_split.net_amount',
 		 						'purchase_split.voucher_date','POI.quantity','AM.id AS cid','POI.unit_price','AM.account_id','AM.master_name','AM.master_name AS supplier',
 								'AM.vat_no','POI.tax_code','J.code AS jobcode','purchase_split.amount_transfer AS amount_transfer',
-								DB::raw("(SELECT SUM(SI.quantity) FROM purchase_split_item SI WHERE (SI.purchase_split_id=purchase_split.id) AND (SI.status=1) AND (SI.deleted_at='0000-00-00 00:00:00')
+								DB::raw("(SELECT SUM(SI.quantity) FROM purchase_split_item SI WHERE (SI.purchase_split_id=purchase_split.id) AND (SI.status=1) AND (deleted_at IS NULL)
 		 						)AS quantity") )
 		 						->groupBy('purchase_split.id')
 								->orderBY('purchase_split.voucher_date','ASC')
@@ -1380,7 +1380,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 	
 	public function getItemLocation($id) {
 		
-		return DB::table('item_location_pi')->where('invoice_id', $id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		return DB::table('item_location_pi')->where('invoice_id', $id)->where('status',1)->whereNull('deleted_at')->get();
 	}
 	
 	
@@ -1399,10 +1399,10 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 						->join('account_transaction', 'account_transaction.account_master_id', '=', 'account_master.id')
 						->where('account_transaction.voucher_type','!=','OBD')
 						->where('account_transaction.status',1)
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('account_master.status',1)
-						->where('account_master.deleted_at','0000-00-00 00:00:00')
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
+						->whereNull('deleted_at')
 						->whereBetween('account_transaction.invoice_date',[$date->from_date, $date->to_date])
 						->select('account_master.id','account_master.master_name','account_master.cl_balance','account_master.category',
 								 'account_transaction.transaction_type','account_transaction.amount','account_master.op_balance','account_transaction.invoice_date')
@@ -1563,7 +1563,7 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 									   $join->on('IM.id','=','PI.item_id');
 								   })
 								   ->where('PI.status',1)
-								   ->where('PI.deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->where('purchase_split.status',1);
 							
 							if($date_from !='' && $date_to != '')	   
@@ -1583,9 +1583,12 @@ class PurchaseSplitRepository extends AbstractValidator implements PurchaseSplit
 		if(Session::get('department')==1 && $department_id!=null) {
 			return DB::table('vat_department')->where('department_id', $department_id)->first();
 		} else {
-			return DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			return DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 		}
 	}
 	
 	
 }
+
+
+

@@ -28,7 +28,7 @@ class DailySettingController extends Controller
 	public function index() { 
 		$data = array();
 		$forms =$this->acgroup->acgroupsetting();
-		$accounts = $this->sortByGroupId( DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','account_group_id','master_name')->get());
+		$accounts = $this->sortByGroupId( DB::table('account_master')->where('status',1)->whereNull('deleted_at')->select('id','account_group_id','master_name')->get());
 		$groupdata = DB::table('daily_report_setting')->first();
 		$groups = ($groupdata->group_ids!='')?unserialize($groupdata->group_ids):null;
 		$accountdat = ($groupdata->account_ids!='')?unserialize($groupdata->account_ids):null;
@@ -68,4 +68,6 @@ class DailySettingController extends Controller
 	
 	
 }
+
+
 

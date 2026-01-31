@@ -13,7 +13,7 @@
 
   <script type="text/javascript">
     (async function () {
-      const HANDLER_URL = "{{ url('stimulsoftV2/sti-handler.php') }}"; // <-- must match your handler
+      const HANDLER_URL = "{{ url('stimulsoftV2/handler') }}"; // <-- must match your handler
       const LICENSE_URL = "{{ url('/stimulsoftV2/license') }}";
       const REPORT_FILE = "{{ asset('stimulsoftV2/reports/'.$view) }}";
 

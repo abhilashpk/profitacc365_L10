@@ -63,13 +63,13 @@
                             </h3>
                            
 						   <div class="pull-right">
-								@permission('pv-print')
+								@can('pv-print')
 								 <a href="{{ url('supplier_payment/printgrp/'.$crrow->id) }}" target="_blank" class="btn btn-info btn-sm">
 									<span class="btn-label">
 										<i class="fa fa-fw fa-print"></i>
 									</span>
 								 </a>
-								@endpermission
+								@endcan
 							</div>
                         </div>
                         <div class="panel-body">

@@ -39,7 +39,7 @@ class TemplateNameController extends Controller
 	
 	public function save() {
 		//try {
-			$this->template_name->create(Input::all());
+			$this->template_name->create($request->all());
 			Session::flash('message', 'Email Template added successfully.');
 			return redirect('template_name/add');
 		/* } catch(ValidationException $e) { 
@@ -58,7 +58,7 @@ class TemplateNameController extends Controller
 	
 	public function update($id)
 	{
-		$this->template_name->update($id, Input::all());//print_r(Input::all());exit;
+		$this->template_name->update($id, $request->all());//print_r($request->all());exit;
 		Session::flash('message', 'Email Template updated successfully');
 		return redirect('template_name');
 	}

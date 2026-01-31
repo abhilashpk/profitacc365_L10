@@ -106,22 +106,22 @@ class SalesRentalController extends Controller
 		//Session::put('cost_accounting', 0);
 		$data = array();
 		//$this->sales_invoice->InvoiceLogProcess();
-		$invoices = DB::table('sales_invoice')->where('status',1)->where('id','=',6)->where('is_rental',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$invoices = DB::table('sales_invoice')->where('status',1)->where('id','=',6)->where('is_rental',1)->whereNull('deleted_at')->get();
 		$salesmans = $this->salesman->getSalesmanList();
 		
 		$customer = $this->accountmaster->getCustomerList();
 		
 	
-        $item = DB::table('itemmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+        $item = DB::table('itemmaster')->where('status',1)->whereNull('deleted_at')->get();
 		
-		$category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$category = DB::table('category')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
+		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
 		
 		//DEPT CHECK...
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('id','=',6)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->orderBY('id', 'ASC')->get();
+			$departments = DB::table('department')->where('status',1)->where('id','=',6)->whereNull('deleted_at')->select('id','name')->orderBY('id', 'ASC')->get();
 		     //echo '<pre>';print_r($departments);exit;
 		
 			$is_dept = true;
@@ -300,7 +300,7 @@ class SalesRentalController extends Controller
 		$res = $this->voucherno->getVoucherNo('SRL');
 		//echo '<pre>';print_r($res);exit;
 		$lastid = $this->sales_invoice->getLastId();
-		$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+		$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->whereNull('deleted_at')->select('id')->first();
 		$sales_location = DB::table('parameter3')
 							 ->join('location', 'location.id', '=', 'parameter3.location_id')
 							 ->join('account_master', 'account_master.id', '=', 'parameter3.account_id')
@@ -322,9 +322,9 @@ class SalesRentalController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('id','=',6)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('id','=',6)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('id','=',6)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->where('id','=',6)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -441,7 +441,7 @@ class SalesRentalController extends Controller
 
 	}
 	
-	public function save(Request $request) { //echo '<pre>';print_r(Input::all());exit;
+	public function save(Request $request) { //echo '<pre>';print_r($request->all());exit;
 		
 		if(Session::get('department')==1) {
 			if( $this->validate(
@@ -489,7 +489,7 @@ class SalesRentalController extends Controller
 		//if dept active... set department cost and stock account...
 		if(Session::get('department')==1 && Session::get('cost_accounting')==1) { 
 			
-			$dept_accounts = $this->accountsetting->getCostAccountsDept(Input::get('department_id'));
+			$dept_accounts = $this->accountsetting->getCostAccountsDept($request->get('department_id'));
 			if($dept_accounts) {
 				Session::put('stock', $dept_accounts->stock_acid);
 				Session::put('cost_of_sale', $dept_accounts->cost_acid);
@@ -519,10 +519,10 @@ class SalesRentalController extends Controller
 		if(Session::has('lpo_no'))
 			Session::forget('lpo_no');
 					
-		if( $this->sales_invoice->create(Input::all()) ) {
+		if( $this->sales_invoice->create($request->all()) ) {
 			//AUTO COST REFRESH CHECK ENABLE OR NOT
 			if($this->mod_autocost->is_active==1) {
-				$this->objUtility->reEvalItemCostQuantity(Input::get('item_id'),$this->acsettings);
+				$this->objUtility->reEvalItemCostQuantity($request->get('item_id'),$this->acsettings);
 			}
 			
 			Session::flash('message', 'Sales Invoice added successfully.');
@@ -556,7 +556,7 @@ class SalesRentalController extends Controller
 	
 	public function checkRefNo() {
 
-		$check = $this->sales_invoice->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$check = $this->sales_invoice->check_reference_no($request->get('reference_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -619,9 +619,9 @@ class SalesRentalController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -699,15 +699,15 @@ class SalesRentalController extends Controller
 			return redirect('salesrental/edit/'.$id)->withInput()->withErrors();
 		}
 		
-		if( $this->sales_invoice->update($id, Input::all()) ) {
+		if( $this->sales_invoice->update($id, $request->all()) ) {
 			
 			//AUTO COST REFRESH CHECK ENABLE OR NOT
 			if($this->mod_autocost->is_active==1) {
-				$this->objUtility->reEvalItemCostQuantity(Input::get('item_id'),$this->acsettings);
+				$this->objUtility->reEvalItemCostQuantity($request->get('item_id'),$this->acsettings);
 			}
 			
 			########## email script #############
-			if($this->acsettings->doc_approve==1 && Input::get('doc_status')==1 && Input::get('chkmail')==1) {
+			if($this->acsettings->doc_approve==1 && $request->get('doc_status')==1 && $request->get('chkmail')==1) {
 					
 				$attributes['document_id'] = $id; //echo "892 : ".$this->number_to_word(12495);exit;
 				$attributes['is_fc'] = $fc = '';
@@ -750,11 +750,11 @@ class SalesRentalController extends Controller
 									'vatamtwords' => $vat_words, 'itemdesc' => $itemdesc, 'id' => $id, 'items' => $result['items']);
 				$pdf = PDF::loadView('body.salesrental.pdfprint', $data); 
 				
-				$mailmessage = Input::get('email_message');
-				$emails = explode(',', Input::get('email'));
+				$mailmessage = $request->get('email_message');
+				$emails = explode(',', $request->get('email'));
 				
 				if($emails[0]!='') {
-					$data = array('name'=> Input::get('customer_name'), 'mailmessage' => $mailmessage );
+					$data = array('name'=> $request->get('customer_name'), 'mailmessage' => $mailmessage );
 					try{
 						Mail::send('body.salesrental.email', $data, function($message) use ($emails,$pdf) {
 							$message->to($emails[0]);
@@ -932,7 +932,7 @@ class SalesRentalController extends Controller
 	
 	public function checkInvoice() {
 
-		$check = $this->sales_invoice->check_invoice_id( Input::get('purchase_invoice_id') );
+		$check = $this->sales_invoice->check_invoice_id( $request->get('purchase_invoice_id') );
 		$isAvailable = ($check) ? false : true;
 		echo $isAvailable;
 	}
@@ -1018,12 +1018,12 @@ class SalesRentalController extends Controller
 		$splitbills = $this->sales_invoice->getSplitBills($customer_id);
 		//echo '<pre>';print_r($splitbills);exit;
 		if($rvid) {
-			$rvdat = DB::table('receipt_voucher_entry')->where('id', $rvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			$rvdat = DB::table('receipt_voucher_entry')->where('id', $rvid)->where('status',1)->whereNull('deleted_at')->first();
 			if($rvdat) {
-				$rvref = DB::table('receipt_voucher_entry')->where('entry_type', 'Dr')->where('receipt_voucher_id',$rvdat->receipt_voucher_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference')->first();
+				$rvref = DB::table('receipt_voucher_entry')->where('entry_type', 'Dr')->where('receipt_voucher_id',$rvdat->receipt_voucher_id)->where('status',1)->whereNull('deleted_at')->select('reference')->first();
 				$rvrefdat = ($rvref)?explode(',',$rvref->reference):[];
 				
-				$rvarr = $this->makeArr(DB::table('receipt_voucher_entry')->where('entry_type', 'Cr')->where('receipt_voucher_id',$rvdat->receipt_voucher_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference','amount')->get());
+				$rvarr = $this->makeArr(DB::table('receipt_voucher_entry')->where('entry_type', 'Cr')->where('receipt_voucher_id',$rvdat->receipt_voucher_id)->where('status',1)->whereNull('deleted_at')->select('reference','amount')->get());
 				
 			}
 		}
@@ -1048,10 +1048,10 @@ class SalesRentalController extends Controller
 		$openbalances = $this->sales_invoice->getOpenBalances($customer_id);
 		$sinbills = $this->sales_invoice->getSINbills($customer_id,null,null);
 		
-		$rvref = DB::table('receipt_voucher_entry')->where('entry_type', 'Dr')->where('receipt_voucher_id',$rvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference')->first();
+		$rvref = DB::table('receipt_voucher_entry')->where('entry_type', 'Dr')->where('receipt_voucher_id',$rvid)->where('status',1)->whereNull('deleted_at')->select('reference')->first();
 		$rvrefdat = ($rvref)?explode(',',$rvref->reference):[];
 		
-		$rvarr = $this->makeArr(DB::table('receipt_voucher_entry')->where('entry_type', 'Cr')->where('receipt_voucher_id',$rvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference','amount')->get());
+		$rvarr = $this->makeArr(DB::table('receipt_voucher_entry')->where('entry_type', 'Cr')->where('receipt_voucher_id',$rvid)->where('status',1)->whereNull('deleted_at')->select('reference','amount')->get());
 		
 		return view('body.salesrental.custinvoiceedit')
 					->withNum($no)
@@ -1078,7 +1078,7 @@ class SalesRentalController extends Controller
 				print_r($rvrefdat);
 			}
 			
-			$rvarr = $this->makeArr(DB::table('receipt_voucher_entry')->where('entry_type', 'Cr')->where('receipt_voucher_id',$rvdat->receipt_voucher_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference','amount')->get());
+			$rvarr = $this->makeArr(DB::table('receipt_voucher_entry')->where('entry_type', 'Cr')->where('receipt_voucher_id',$rvdat->receipt_voucher_id)->where('status',1)->whereNull('deleted_at')->select('reference','amount')->get());
 		}
 		//$advance = $this->sales_invoice->getAdvance($customer_id); 	
 		return view('body.salesrental.custinvoice')
@@ -1104,16 +1104,16 @@ class SalesRentalController extends Controller
 	
 	public function setSessionVal()
 	{
-		//print_r(Input::all());
-		Session::put('voucher_id', Input::get('vchr_id'));
-		Session::put('voucher_no', Input::get('vchr_no'));
-		Session::put('reference_no', Input::get('ref_no'));
-		Session::put('voucher_date', Input::get('vchr_dt'));
-		Session::put('lpo_date', Input::get('lpo_dt'));
-		Session::put('sales_acnt', Input::get('sales_ac'));
-		Session::put('acnt_master', Input::get('ac_mstr'));
-		Session::put('lpo_no', Input::get('ref_no'));
-		Session::put('dpt_id', Input::get('dpt_id'));
+		//print_r($request->all());
+		Session::put('voucher_id', $request->get('vchr_id'));
+		Session::put('voucher_no', $request->get('vchr_no'));
+		Session::put('reference_no', $request->get('ref_no'));
+		Session::put('voucher_date', $request->get('vchr_dt'));
+		Session::put('lpo_date', $request->get('lpo_dt'));
+		Session::put('sales_acnt', $request->get('sales_ac'));
+		Session::put('acnt_master', $request->get('ac_mstr'));
+		Session::put('lpo_no', $request->get('ref_no'));
+		Session::put('dpt_id', $request->get('dpt_id'));
 
 	}
 	
@@ -1269,7 +1269,7 @@ class SalesRentalController extends Controller
 	
 	public function checkVchrNo() {
 
-		$check = $this->sales_invoice->check_voucher_no(Input::get('voucher_no'), Input::get('id'));
+		$check = $this->sales_invoice->check_voucher_no($request->get('voucher_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -1379,82 +1379,82 @@ class SalesRentalController extends Controller
 	
 	public function getSearch()
 	{
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		$data = array();
 		$dname = '';
 		
 		$cusid = $itemid = '';
 		$voucher_head  = '';
-		$report = $this->sales_invoice->getReportsalesrent(Input::all());
+		$report = $this->sales_invoice->getReportsalesrent($request->all());
 		//echo '<pre>';print_r($report);exit;
 		if(Session::get('department')==1) {
-			if(Input::get('department_id')!='') {
-				$rec = DB::table('department')->where('id', Input::get('department_id'))->select('name')->first();
+			if($request->get('department_id')!='') {
+				$rec = DB::table('department')->where('id', $request->get('department_id'))->select('name')->first();
 				$dname = $rec->name;
 			}
 		}
 		//echo '<pre>';print_r($reports);exit;
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 		{
 			$voucher_head = 'Purchase Invoice Summary';
-			$report = $this->sales_invoice->getReportsalesinvorent(Input::all());
+			$report = $this->sales_invoice->getReportsalesinvorent($request->all());
 			$reports = $this->makeTreeSup($report);
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-			if(Input::get('supplier_id')!==null)
-				$supid = implode(',', Input::get('supplier_id'));
+			if($request->get('supplier_id')!==null)
+				$supid = implode(',', $request->get('supplier_id'));
 			else
 				$supid = '';
 			}
 		
-		else if(Input::get('search_type')=="detail") {
+		else if($request->get('search_type')=="detail") {
 			$voucher_head = 'Purchase Invoice Detail';
-			$report = $this->sales_invoice->getReportsalesinvorent(Input::all());
+			$report = $this->sales_invoice->getReportsalesinvorent($request->all());
 		    $reports = $this->makeTreeSup($report);
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
-		} else if(Input::get('search_type')=="item") {
+		} else if($request->get('search_type')=="item") {
 			$voucher_head = 'Sales Invoice by Itemwise';
-			$report = $this->sales_invoice->getReportsalesrent(Input::all());
+			$report = $this->sales_invoice->getReportsalesrent($request->all());
 			$reports = $this->groupbyItemwise($report);
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			//echo '<pre>';print_r($reports);exit;
-			if(Input::get('item_id')!==null)
-				$itemid = implode(',', Input::get('item_id'));
+			if($request->get('item_id')!==null)
+				$itemid = implode(',', $request->get('item_id'));
 			else
 				$itemid = '';
 		
 		
-	}else if(Input::get('search_type')=='customer') {
+	}else if($request->get('search_type')=='customer') {
 	//	
 			$voucher_head = 'Sales Invoice by customerwise';
 			
 		    $reports = $this->makeTreeSup($report);
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-			if(Input::get('supplier_id')!==null)
-				$cusid = implode(',', Input::get('supplier_id'));
+			if($request->get('supplier_id')!==null)
+				$cusid = implode(',', $request->get('supplier_id'));
 			else
 				$cusid = '';
 		}
 		//echo '<pre>';print_r($reports);exit;
-		// if(Input::get('search_type')=="summary")
+		// if($request->get('search_type')=="summary")
 		// 	$voucher_head = 'Sales Invoice Summary';
-		// else if(Input::get('search_type')=="sales_register") {
+		// else if($request->get('search_type')=="sales_register") {
 		// 	$voucher_head = 'Sales Register Summary';
 		// 	$reports = $this->makeTree($reports);
-		// } else if(Input::get('search_type')=="tax_code") {
+		// } else if($request->get('search_type')=="tax_code") {
 		// 	$voucher_head = 'Sales Invoice by Tax Code';
 		// 	$reports = $this->makeTreeTC($reports);
-		// } else if(Input::get('search_type')=="cash") {
+		// } else if($request->get('search_type')=="cash") {
 		// 	$voucher_head = 'Sales Register Summary(Cash)';
 		// 	//$reports = $this->makeTree($reports);
-		// } else if(Input::get('search_type')=="credit") {
+		// } else if($request->get('search_type')=="credit") {
 		// 	$voucher_head = 'Sales Register Summary(Credit)';
 		// 	//$reports = $this->makeTree($reports);
-		// } elseif(Input::get('search_type')=="jobwise") {
+		// } elseif($request->get('search_type')=="jobwise") {
 		// 	$voucher_head = 'Sales Invoice - Jobwise';
-		// } elseif(Input::get('search_type')=="customer_wise") {
+		// } elseif($request->get('search_type')=="customer_wise") {
 		// 	$voucher_head = 'Sales Invoice - Customer Wise';
-		// } elseif(Input::get('search_type')=="itemwise") {
+		// } elseif($request->get('search_type')=="itemwise") {
 		// 	$voucher_head = 'Sales Invoice - Itemwise';
 		// 	$reports = $this->OrderByVchr($reports);
 		// }
@@ -1463,14 +1463,14 @@ class SalesRentalController extends Controller
 		return view('body.salesrental.preprint')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withI(0)
 					->withCustomer($cusid)
 					->withItem($itemid)
 					->withTitles($titles)
-					->withSalesman(Input::get('salesman'))
+					->withSalesman($request->get('salesman'))
 					->withSettings($this->acsettings)
 					->withDname($dname)
 					->withData($data);
@@ -1482,13 +1482,13 @@ public function dataExport()
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		Input::merge(['type' => 'export']);
-		//$reports = $this->purchase_invoice->getReportExcel(Input::all());
+		$request->merge(['type' => 'export']);
+		//$reports = $this->purchase_invoice->getReportExcel($request->all());
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 		{
 			$voucher_head = 'Sales Invoice Summary';
-			$reports = $this->sales_invoice->getReportExcel(Input::all());
+			$reports = $this->sales_invoice->getReportExcel($request->all());
 		
 				$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
 		     $datareport[] = ['','','','','','',''];
@@ -1506,9 +1506,9 @@ public function dataExport()
 									];
 			}
 		}
-		elseif(Input::get('search_type')=="detail") {
+		elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Sales Invoice Detail';
-			$reports = $this->sales_invoice->getReportExcel(Input::all());
+			$reports = $this->sales_invoice->getReportExcel($request->all());
 				$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
 		     $datareport[] = ['','','','','','',''];
 		
@@ -1532,7 +1532,7 @@ public function dataExport()
 		
 	
 		//echo '<pre>';print_r($reports);exit;
-		/* if(Input::get('search_type')=='purchase_register') {
+		/* if($request->get('search_type')=='purchase_register') {
 			
 			$datareport[] = ['SI.No.','PI#','Vchr.Date','PI.Ref#', 'Supplier','TRN No','PI.Qty','Rate','Total Amt.'];
 			$i=0;
@@ -1587,11 +1587,11 @@ public function dataExport()
 	//	echo '<pre>';print_r($subgroup);exit;
 		//$category= $this->category->categoryList();
 		//echo '<pre>';print_r($category);exit;
-		 //$category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		 //$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		// $group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		 //$category = DB::table('category')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		 //$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
+		// $group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
 		 //echo '<pre>';print_r($group);exit;
-	//	 $subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+	//	 $subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
 		
 		return view('body.salesrental.multiselect')
 		               // ->withCategory($category)
@@ -1790,8 +1790,8 @@ public function dataExport()
 	{
 		$data = array();
 		
-		$attributes['document_id'] = Input::get('id');
-		$attributes['is_fc'] = Input::get('fc');
+		$attributes['document_id'] = $request->get('id');
+		$attributes['is_fc'] = $request->get('fc');
 		$result = $this->sales_invoice->getInvoiceById($attributes);
 		
 		$voucher_head = 'SALES INVOICE';
@@ -1855,7 +1855,7 @@ public function dataExport()
 		$datareport[] = ['','', 'Gross Total'.$cur, '','','','',number_format($total,2)];
 		$datareport[] = ['','', 'Vat Total'.$cur, '','','','',number_format($vat_amount_net,2)];
 		$datareport[] = ['','', 'Total Inclusive VAT'.$cur, '','','','',number_format($net_amount,2)];
-		$datareport[] = ['Amount in words:',Input::get('amtwrds'), '', '','','','',''];
+		$datareport[] = ['Amount in words:',$request->get('amtwrds'), '', '','','','',''];
 			
 		 //echo $voucher_head.'<pre>';print_r($datareport);exit;
 		Excel::create($voucher_head, function($excel) use ($datareport,$voucher_head) {
@@ -1909,6 +1909,8 @@ public function dataExport()
 					->withData($data);
 	}
 }
+
+
 
 
 

@@ -91,7 +91,7 @@ class SalesSplitController extends Controller
 		//print_r($customer);exit;
 		//DEPT CHECK...
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
@@ -217,22 +217,22 @@ class SalesSplitController extends Controller
 			
 		$data = array();
 		$itemmaster = $this->itemmaster->activeItemmasterList();
-		$units = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$units = DB::table('units')->where('status',1)->whereNull('deleted_at')->get();
 		
 		$terms = $this->terms->activeTermsList();
 		$jobs = $this->jobmaster->activeJobmasterList();
 		$currency = $this->currency->activeCurrencyList();
 		$location = $this->location->locationList();
 		//$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=1);//'Purchase Stock' voucher from account settings...
-		$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+		$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->whereNull('deleted_at')->select('id')->first();
 		$pur_location = DB::table('parameter3')
 							 ->join('location', 'location.id', '=', 'parameter3.location_id')
 							 ->join('account_master', 'account_master.id', '=', 'parameter3.account_id')
 							 ->select('location.name','location.id','account_master.master_name','account_master.id AS account_id')
 							 ->get();
 					 
-		$lastid = DB::table('sales_split')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
-		$footertxt = DB::table('header_footer')->where('doc','SS')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$lastid = DB::table('sales_split')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
+		$footertxt = DB::table('header_footer')->where('doc','SS')->where('status',1)->whereNull('deleted_at')->first();
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
 							->where('report_view.code','SS')
@@ -245,9 +245,9 @@ class SalesSplitController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -258,9 +258,9 @@ class SalesSplitController extends Controller
 		}
 		
 		$did = ($deptid=='')?0:$deptid;
-		$vouchers = DB::table('account_setting')->where('voucher_type_id',24)->where('status',1)->where('department_id',$did)->where('deleted_at','0000-00-00 00:00:00')->get(); //'Purchase Stock' voucher from account settings...
+		$vouchers = DB::table('account_setting')->where('voucher_type_id',24)->where('status',1)->where('department_id',$did)->whereNull('deleted_at')->get(); //'Purchase Stock' voucher from account settings...
 		//echo '<pre>';print_r($vouchers);exit;
-		$account_name=DB::table('account_master')->where('id',$vouchers[0]->dr_account_master_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$account_name=DB::table('account_master')->where('id',$vouchers[0]->dr_account_master_id)->where('status',1)->whereNull('deleted_at')->first();
 		if($account_name!=''){
 		    $accountname=$account_name->master_name;
 		    $accountid=$account_name->id;
@@ -428,7 +428,7 @@ class SalesSplitController extends Controller
 		$orderrow = $this->sales_split->findPOdata($id);
 		$orditems = $this->sales_split->getItems($id); 
 		$voucher = $this->accountsetting->find($orderrow->voucher_id); 
-		$units = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$units = DB::table('units')->where('status',1)->whereNull('deleted_at')->get();
 		
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
@@ -441,9 +441,9 @@ class SalesSplitController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0) {
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			} else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -454,7 +454,7 @@ class SalesSplitController extends Controller
 		}
 		
 		$did = ($deptid=='')?0:$deptid;
-		$vouchers = DB::table('account_setting')->where('voucher_type_id',24)->where('status',1)->where('department_id',$did)->where('deleted_at','0000-00-00 00:00:00')->get(); //'Purchase Stock' voucher from account settings...
+		$vouchers = DB::table('account_setting')->where('voucher_type_id',24)->where('status',1)->where('department_id',$did)->whereNull('deleted_at')->get(); //'Purchase Stock' voucher from account settings...
 		$views=	($orderrow->is_pettycash==1)?'editsp':'edit';
 		return view('body.salessplit.'.$views)
 					->withItems($itemmaster)
@@ -678,13 +678,13 @@ class SalesSplitController extends Controller
 		$otbills = $this->sales_split->getOthrBills($supplier_id,null,$pvid); //May 15
 		
 		if($pvid) {
-			$pvdat = DB::table('payment_voucher_entry')->where('id', $pvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			$pvdat = DB::table('payment_voucher_entry')->where('id', $pvid)->where('status',1)->whereNull('deleted_at')->first();
 			
 			if($pvdat) {
-				$pvref = DB::table('payment_voucher_entry')->where('entry_type', 'Cr')->where('payment_voucher_id',$pvdat->payment_voucher_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference')->first();
+				$pvref = DB::table('payment_voucher_entry')->where('entry_type', 'Cr')->where('payment_voucher_id',$pvdat->payment_voucher_id)->where('status',1)->whereNull('deleted_at')->select('reference')->first();
 				$pvrefdat = ($pvref)?explode(',',$pvref->reference):[];
 				
-				$pvarr = $this->makeArr(DB::table('payment_voucher_entry')->where('entry_type', 'Dr')->where('payment_voucher_id',$pvdat->payment_voucher_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference','amount')->get());
+				$pvarr = $this->makeArr(DB::table('payment_voucher_entry')->where('entry_type', 'Dr')->where('payment_voucher_id',$pvdat->payment_voucher_id)->where('status',1)->whereNull('deleted_at')->select('reference','amount')->get());
 			}
 			
 		}
@@ -710,10 +710,10 @@ class SalesSplitController extends Controller
 		$pinbills = $this->sales_split->getPINbills($supplier_id,null,null);
 		$ocbills = $this->sales_split->getOtherCostBills($supplier_id,null,null);
 		
-		$pvref = DB::table('payment_voucher_entry')->where('entry_type', 'Cr')->where('payment_voucher_id',$pvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference')->first();
+		$pvref = DB::table('payment_voucher_entry')->where('entry_type', 'Cr')->where('payment_voucher_id',$pvid)->where('status',1)->whereNull('deleted_at')->select('reference')->first();
 		$pvrefdat = ($pvref)?explode(',',$pvref->reference):[];
 		
-		$pvarr = $this->makeArr(DB::table('payment_voucher_entry')->where('entry_type', 'Dr')->where('payment_voucher_id',$pvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference','amount')->get());
+		$pvarr = $this->makeArr(DB::table('payment_voucher_entry')->where('entry_type', 'Dr')->where('payment_voucher_id',$pvid)->where('status',1)->whereNull('deleted_at')->select('reference','amount')->get());
 		
 		return view('body.salessplit.supinvoiceedit')
 					->withNum($no)
@@ -1568,5 +1568,7 @@ class SalesSplitController extends Controller
 	}
 	
 }
+
+
 
 

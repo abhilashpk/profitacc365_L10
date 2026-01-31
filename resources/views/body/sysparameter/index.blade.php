@@ -97,17 +97,8 @@
 												<label for="input-text" class="col-sm-3 control-label">Item Class</label>
 												<div class="col-sm-8">
 													<select id="item_class" class="form-control select2" style="width:100%" name="item_class">
-														@if($parameter1->item_class==1)
-														{{--*/ $sel1 = "selected";
-																$sel2="";
-														/*--}}
-														@else
-														{{--*/ $sel2 = "selected";
-															$sel1="";
-														/*--}}	
-														@endif
-														<option value="1" {{ $sel1 }}>Stock</option>
-														<option value="2" {{ $sel2 }}>Service</option>
+														<option value="1" {{ $parameter1->item_class == 1 ? 'selected' : '' }}>Stock</option>
+														<option value="2" {{ $parameter1->item_class == 2 ? 'selected' : '' }}>Service</option>
 													</select>
 												</div>
 											</div>
@@ -116,12 +107,7 @@
 												<div class="col-sm-8">
 													<select id="bcurrency_id" class="form-control select2" style="width:100%" name="bcurrency_id">
 														@foreach ($currency as $curr)
-														@if($parameter1->bcurrency_id==$curr['id'])
-														{{--*/ $sel = "selected" /*--}}
-														@else
-														{{--*/ $sel = "" /*--}}	
-														@endif
-														<option value="{{ $curr['id'] }}" {{ $sel }}>{{ $curr['name'] }}</option>
+														<option value="{{ $curr['id'] }}" {{ $parameter1->bcurrency_id == $curr['id'] ? 'selected' : '' }}>{{ $curr['name'] }}</option>
 														@endforeach
 													</select>
 												</div>
@@ -138,12 +124,7 @@
 													<select id="fcurrency_id" class="form-control select2" style="width:100%" name="fcurrency_id">
 														<option value="">Select Currency...</option>
 														@foreach ($currency as $curr)
-														@if($parameter1->fcurrency_id==$curr['id'])
-														{{--*/ $sel = "selected" /*--}}
-														@else
-														{{--*/ $sel = "" /*--}}	
-														@endif
-														<option value="{{ $curr['id'] }}" {{ $sel }}>{{ $curr['name'] }}</option>
+														<option value="{{ $curr['id'] }}" {{ $parameter1->fcurrency_id == $curr['id'] ? 'selected' : '' }}>{{ $curr['name'] }}</option>
 														@endforeach
 													</select>
 												</div>
@@ -177,40 +158,20 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Costing Method</label>
 												<div class="col-sm-8">
-													@if($parameter1->cost_method==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = ""; $chk3 = "";
-													/*--}}
-													@elseif($parameter1->cost_method==2)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = ""; $chk3 = "";
-													/*--}}	
-													@elseif($parameter1->cost_method==3)
-													{{--*/ $chk3 = "checked";
-														   $chk2 = ""; $chk1 = "";
-													/*--}}
-													@endif
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio1" name="cost_method" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradio1" name="cost_method" value="1" {{ $parameter1->cost_method == 1 ? 'checked' : '' }}>
 														FIFO
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio2" name="cost_method" value="2" {{ $chk2 }}>
+														<input type="radio" id="inlineradio2" name="cost_method" value="2" {{ $parameter1->cost_method == 2 ? 'checked' : '' }}>
 														Weighted Avg.
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio3" name="cost_method" value="3" {{ $chk3 }}>
+														<input type="radio" id="inlineradio3" name="cost_method" value="3" {{ $parameter1->cost_method == 3 ? 'checked' : '' }}>
 														LIFO
 													</label>
 													<label class="radio-inline iradio">
-														@if($parameter1->is_refresh==1)
-														{{--*/ $chk = "checked";
-														/*--}}
-														@else
-														{{--*/ $chk = "";
-														/*--}}
-														@endif
-														&nbsp;&nbsp; <input type="checkbox" class="custom_icheck" id="terms" name="is_refresh" value="1" {{ $chk }}>
+														&nbsp;&nbsp; <input type="checkbox" class="custom_icheck" id="terms" name="is_refresh" value="1" {{ $parameter1->is_refresh == 1 ? 'checked' : '' }}>
 														Refresh after Purchase/Sale
 													</label>
 												</div>
@@ -219,32 +180,18 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">VAT Entry</label>
 												<div class="col-sm-8">
-													@if($parameter1->vat_entry==0)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = ""; $chk3 = "";
-													/*--}}
-													@elseif($parameter1->vat_entry==1)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = ""; $chk3 = "";
-													/*--}}	
-													@elseif($parameter1->vat_entry==2)
-													{{--*/ $chk3 = "checked";
-														   $chk2 = ""; $chk1 = "";
-													/*--}}
-													@endif
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio1" name="vat_entry" value="0" {{ $chk1 }}>
+														<input type="radio" id="inlineradio1" name="vat_entry" value="0" {{ $parameter1->vat_entry == 0 ? 'checked' : '' }}>
 														None
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio2" name="vat_entry" value="1" {{ $chk2 }}>
+														<input type="radio" id="inlineradio2" name="vat_entry" value="1" {{ $parameter1->vat_entry == 1 ? 'checked' : '' }}>
 														Item wise
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio3" name="vat_entry" value="2" {{ $chk3 }}>
+														<input type="radio" id="inlineradio3" name="vat_entry" value="2" {{ $parameter1->vat_entry == 2 ? 'checked' : '' }}>
 														Total Amount
 													</label>
-													
 													<label class="radio-inline iradio">
 														&nbsp;&nbsp; <input type="number" step="any"  id="vat_value" name="vat_value" value="{{$parameter1->vat_value}}"> %
 													</label>
@@ -253,30 +200,17 @@
 											
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Credit Limit</label>
-												@if($parameter1->credit_limit==0)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = ""; $chk3 = "";
-													/*--}}
-													@elseif($parameter1->credit_limit==1)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = ""; $chk3 = "";
-													/*--}}	
-													@elseif($parameter1->credit_limit==2)
-													{{--*/ $chk3 = "checked";
-														   $chk2 = ""; $chk1 = "";
-													/*--}}
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio1" name="credit_limit" value="0" {{ $chk1 }}>
+														<input type="radio" id="inlineradio1" name="credit_limit" value="0" {{ $parameter1->credit_limit == 0 ? 'checked' : '' }}>
 														None
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio2" name="credit_limit" value="1" {{ $chk2 }}>
+														<input type="radio" id="inlineradio2" name="credit_limit" value="1" {{ $parameter1->credit_limit == 1 ? 'checked' : '' }}>
 														With PDC
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio3" name="credit_limit" value="2" {{ $chk3 }}>
+														<input type="radio" id="inlineradio3" name="credit_limit" value="2" {{ $parameter1->credit_limit == 2 ? 'checked' : '' }}>
 														Without PDC
 													</label>
 												</div>
@@ -285,52 +219,36 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Item Profit</label>
 												<div class="col-sm-8">
-													@if($parameter1->item_profit==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = ""; 
-													/*--}}
-													@elseif($parameter1->item_profit==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-													
-													@endif
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio1" name="item_profit" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradio1" name="item_profit" value="1" {{ $parameter1->item_profit == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio2" name="item_profit" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradio2" name="item_profit" value="0" {{ $parameter1->item_profit == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
-													
 													<label class="radio-inline iradio">
 														&nbsp; Profit%:<input type="number" step="any"  id="profit_per" name="profit_per" value="{{$parameter1->profit_per}}">
 													</label>
 													<label class="radio-inline iradio">
-														&nbsp; Cost Type:<select name="cost_type" id="cost_type"><option value="costavg" <?php echo ($parameter1->cost_type=='costavg')?'selected':'';?>>Cost Avg.</option><option value="purcost" <?php echo ($parameter1->cost_type=='purcost')?'selected':'';?>>Purchase Cost</option></select>
+														&nbsp; Cost Type:
+														<select name="cost_type" id="cost_type">
+															<option value="costavg" {{ $parameter1->cost_type == 'costavg' ? 'selected' : '' }}>Cost Avg.</option>
+															<option value="purcost" {{ $parameter1->cost_type == 'purcost' ? 'selected' : '' }}>Purchase Cost</option>
+														</select>
 													</label>
 												</div>
 											</div>
 											
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Item Quantity Check</label>
-												@if($parameter1->item_quantity==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = "";
-													/*--}}
-													@elseif($parameter1->item_quantity==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio1" name="item_quantity" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradio1" name="item_quantity" value="1" {{ $parameter1->item_quantity == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradio2" name="item_quantity" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradio2" name="item_quantity" value="0" {{ $parameter1->item_quantity == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
 												</div>
@@ -338,22 +256,13 @@
 											
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Document Approval</label>
-												@if($parameter1->doc_approve==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = "";
-													/*--}}
-													@elseif($parameter1->doc_approve==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioDc" name="doc_approve" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradioDc" name="doc_approve" value="1" {{ $parameter1->doc_approve == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioDc" name="doc_approve" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradioDc" name="doc_approve" value="0" {{ $parameter1->doc_approve == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
 												</div>
@@ -362,22 +271,13 @@
 											
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Daily Entry</label>
-												@if($parameter1->trip_entry==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = "";
-													/*--}}
-													@elseif($parameter1->trip_entry==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioDc" name="trip_entry" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradioDc" name="trip_entry" value="1" {{ $parameter1->trip_entry == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioDc" name="trip_entry" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradioDc" name="trip_entry" value="0" {{ $parameter1->trip_entry == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
 												</div>
@@ -388,22 +288,13 @@
 											
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Vehicle Details Dashboard</label>
-												@if($parameter1->vehicle_dashboard==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = "";
-													/*--}}
-													@elseif($parameter1->vehicle_dashboard==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioDc" name="vehicle_dashboard" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradioDc" name="vehicle_dashboard" value="1" {{ $parameter1->vehicle_dashboard == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioDc" name="vehicle_dashboard" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradioDc" name="vehicle_dashboard" value="0" {{ $parameter1->vehicle_dashboard == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
 												</div>
@@ -413,22 +304,13 @@
 
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Advanced Dashboard</label>
-												@if($parameter1->adcd_dashboard==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = "";
-													/*--}}
-													@elseif($parameter1->adcd_dashboard==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioDc" name="adcd_dashboard" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradioDc" name="adcd_dashboard" value="1" {{ $parameter1->adcd_dashboard == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioDc" name="adcd_dashboard" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradioDc" name="adcd_dashboard" value="0" {{ $parameter1->adcd_dashboard == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
 												</div>
@@ -436,22 +318,13 @@
 
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">PDC Alert</label>
-												@if($parameter1->pdc_alert==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = "";
-													/*--}}
-													@elseif($parameter1->pdc_alert==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioDc" name="pdc_alert" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradioDc" name="pdc_alert" value="1" {{ $parameter1->pdc_alert == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioDc" name="pdc_alert" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradioDc" name="pdc_alert" value="0" {{ $parameter1->pdc_alert == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
 												</div>
@@ -459,22 +332,13 @@
 											
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Advanced Workshop</label>
-												@if($parameter1->advanced_workshop==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = "";
-													/*--}}
-													@elseif($parameter1->advanced_workshop==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioWs" name="advanced_workshop" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradioWs" name="advanced_workshop" value="1" {{ $parameter1->advanced_workshop == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioWs" name="advanced_workshop" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradioWs" name="advanced_workshop" value="0" {{ $parameter1->advanced_workshop == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
 												</div>
@@ -482,22 +346,13 @@
 											
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">PI VAT Inclusive</label>
-												@if($parameter1->pi_vat_inc==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = "";
-													/*--}}
-													@elseif($parameter1->pi_vat_inc==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioWs" name="pi_vat_inc" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradioWs" name="pi_vat_inc" value="1" {{ $parameter1->pi_vat_inc == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioWs" name="pi_vat_inc" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradioWs" name="pi_vat_inc" value="0" {{ $parameter1->pi_vat_inc == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
 												</div>
@@ -505,22 +360,13 @@
 											
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">SI VAT Inclusive</label>
-												@if($parameter1->si_vat_inc==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = "";
-													/*--}}
-													@elseif($parameter1->si_vat_inc==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioWs" name="si_vat_inc" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradioWs" name="si_vat_inc" value="1" {{ $parameter1->si_vat_inc == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioWs" name="si_vat_inc" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradioWs" name="si_vat_inc" value="0" {{ $parameter1->si_vat_inc == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
 												</div>
@@ -528,22 +374,13 @@
 
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">PV Approval System</label>
-												@if($parameter1->pv_approval==1)
-													{{--*/ $chk1 = "checked";
-														   $chk2 = "";
-													/*--}}
-													@elseif($parameter1->pv_approval==0)
-													{{--*/ $chk2 = "checked";
-														   $chk1 = "";
-													/*--}}	
-												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioWs" name="pv_approval" value="1" {{ $chk1 }}>
+														<input type="radio" id="inlineradioWs" name="pv_approval" value="1" {{ $parameter1->pv_approval == 1 ? 'checked' : '' }}>
 														Enable
 													</label>
 													<label class="radio-inline iradio">
-														<input type="radio" id="inlineradioWs" name="pv_approval" value="0" {{ $chk2 }}>
+														<input type="radio" id="inlineradioWs" name="pv_approval" value="0" {{ $parameter1->pv_approval == 0 ? 'checked' : '' }}>
 														Disable
 													</label>
 												</div>
@@ -574,18 +411,11 @@
 										<form class="form-horizontal" role="form" method="POST" name="frmParameter2" id="frmParameter2" action="{{ url('sysparameter/para2_update/') }}">
 											<input type="hidden" name="_token" value="{{ csrf_token() }}">
 											@foreach($parameter2 as $para)
-											@if($para->is_active==1)
-													{{--*/ $chk = "checked";
-													/*--}}
-													@else
-													{{--*/ $chk = "";
-													/*--}}	
-											@endif
 											<div class="form-group">
 												<label for="input-text" class="col-sm-6 control-label">{{ $para->name }}</label>
 												<div class="col-sm-3">
 													<label class="radio-inline iradio">
-														<input type="checkbox" class="custom_icheck" id="para_name" name="para_name[{{$para->id}}]" {{ $chk }}> 
+														<input type="checkbox" class="custom_icheck" id="para_name" name="para_name[{{$para->id}}]" {{ $para->is_active == 1 ? 'checked' : '' }}> 
 													</label>
 												</div>
 											</div>
@@ -697,20 +527,13 @@
 											<div class="form-group">
 												<div class="form-group">
 														<label for="input-text" class="col-sm-3 control-label">Payroll by: </label>
-														@if($parameter4->payroll_by==1)
-																{{--*/ $chk = "checked";
-																/*--}}
-																@else
-																{{--*/ $chk2 = "checked";
-																/*--}}	
-														@endif
 														<div class="col-sm-8">
 															<label class="radio-inline iradio">
-																<input type="radio" id="inlineradio2" name="payroll_by" value="1" {{ $chk1 }}>
+																<input type="radio" id="inlineradio2" name="payroll_by" value="1" {{ $parameter4->payroll_by == 1 ? 'checked' : '' }}>
 																Monthly
 															</label>
 															<label class="radio-inline iradio">
-																<input type="radio" id="inlineradio3" name="payroll_by" value="30" {{ $chk2 }}>
+																<input type="radio" id="inlineradio3" name="payroll_by" value="30" {{ $parameter4->payroll_by == 30 ? 'checked' : '' }}>
 																30 Days
 															</label>
 														</div>

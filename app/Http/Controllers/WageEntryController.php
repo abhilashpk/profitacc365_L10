@@ -37,7 +37,7 @@ class WageEntryController extends Controller
 		$result = DB::table('wage_entry')
 						->join('employee', 'employee.id', '=', 'wage_entry.employee_id')
 						->where('wage_entry.status', 1)
-						->where('wage_entry.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('wage_entry.id','wage_entry.month','wage_entry.year','wage_entry.net_total','employee.name','employee.designation')
 						->get();
 						
@@ -83,7 +83,7 @@ class WageEntryController extends Controller
 	
 	public function update($id)
 	{
-		$this->wageentry->update($id,Input::all());//print_r(Input::all());exit;
+		$this->wageentry->update($id,$request->all());//print_r($request->all());exit;
 		Session::flash('message', 'Entry updated successfully');
 		return redirect('wage_entry');
 	}
@@ -93,26 +93,26 @@ class WageEntryController extends Controller
 
 		$data = array();
 		$parameter4 = $this->parameter4->getParameter4();
-		$category = DB::table('employee_category')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','category_name')->get();
+		$category = DB::table('employee_category')->where('status',1)->whereNull('deleted_at')->select('id','category_name')->get();
 		$emply = DB::table('employee')->where('employee.status', 1)
-		           ->where('employee.deleted_at','0000-00-00 00:00:00')->select('employee.name','employee.id')->get();
+		           ->whereNull('deleted_at')->select('employee.name','employee.id')->get();
 		if($eid==0 && $cid==0)	{	   
 		$employee = DB::table('employee')->where('employee.status', 1)
-		           ->where('employee.deleted_at','0000-00-00 00:00:00')->select('employee.name','employee.id')->get();
+		           ->whereNull('deleted_at')->select('employee.name','employee.id')->get();
 		}
 		else if($eid!=0 && $cid==0){
 			$employee = DB::table('employee')->where('employee.status', 1)
-		           ->where('employee.deleted_at','0000-00-00 00:00:00')
+		           ->whereNull('deleted_at')
 				    ->where('employee.id',$eid)->select('employee.name','employee.id')->get();
 		}
 		else if($eid==0 && $cid!=0){
 			$employee = DB::table('employee')->where('employee.status', 1)
-		           ->where('employee.deleted_at','0000-00-00 00:00:00')
+		           ->whereNull('deleted_at')
 				    ->where('employee.category_id',$cid)->select('employee.name','employee.id')->get();
 		}
 		else if($eid!=0 && $cid!=0){
 			$employee = DB::table('employee')->where('employee.status', 1)
-		           ->where('employee.deleted_at','0000-00-00 00:00:00')
+		           ->whereNull('deleted_at')
 				    ->where('employee.category_id',$cid)->where('employee.id',$eid)
 					->select('employee.name','employee.id')->get();
 		}
@@ -129,7 +129,7 @@ class WageEntryController extends Controller
 	}
 	
 		public function timesheetSave(Request $request) {
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		DB::beginTransaction();
 		try {
 		$date=strtotime($request->get('date'));
@@ -248,9 +248,9 @@ class WageEntryController extends Controller
 
 		$data = array();
 		$parameter4 = $this->parameter4->getParameter4();
-		$category = DB::table('employee_category')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','category_name')->get();
+		$category = DB::table('employee_category')->where('status',1)->whereNull('deleted_at')->select('id','category_name')->get();
 		$emply = DB::table('employee')->where('employee.status', 1)
-		           ->where('employee.deleted_at','0000-00-00 00:00:00')->select('employee.name','employee.id')->get();
+		           ->whereNull('deleted_at')->select('employee.name','employee.id')->get();
 	if($eid==0 && $cid==0 && $mon==0)	{
 		$timesheet=[];
 	}
@@ -271,7 +271,7 @@ class WageEntryController extends Controller
 	}
 
 	public function timesheetUpdate(Request $request) {
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 
 		foreach($request->get('id') ??[] as $key => $row) {
 		$date=strtotime($request['date'][$key]);
@@ -306,9 +306,9 @@ class WageEntryController extends Controller
 
 		$data = array();
 		$parameter4 = $this->parameter4->getParameter4();
-		$category = DB::table('employee_category')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','category_name')->get();
+		$category = DB::table('employee_category')->where('status',1)->whereNull('deleted_at')->select('id','category_name')->get();
 		$emply = DB::table('employee')->where('employee.status', 1)
-		           ->where('employee.deleted_at','0000-00-00 00:00:00')->select('employee.name','employee.id')->get();
+		           ->whereNull('deleted_at')->select('employee.name','employee.id')->get();
 	if($eid==0 && $cid==0 && $mon==0)	{
 		$timesheet=[];
 	}
@@ -351,7 +351,7 @@ class WageEntryController extends Controller
 	}
 
     public function timesheetApprove(Request $request) {
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 
 		foreach($request->get('id') ??[] as $key => $row) {
 			DB::table('timesheet_entry')->where('timesheet_entry.id',$request['id'][$key])
@@ -366,9 +366,9 @@ class WageEntryController extends Controller
 	public function timesheetLeave() {
 		$data = array();
 		$employees = [];
-		$category = DB::table('employee_category')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','category_name')->get();
+		$category = DB::table('employee_category')->where('status',1)->whereNull('deleted_at')->select('id','category_name')->get();
 		$emply = DB::table('employee')->where('employee.status', 1)
-		           ->where('employee.deleted_at','0000-00-00 00:00:00')->select('employee.name','employee.id')->get();						
+		           ->whereNull('deleted_at')->select('employee.name','employee.id')->get();						
 		return view('body.timesheet.leave')
 					->withEmployees($employees)
 					->withCategory($category)
@@ -380,13 +380,13 @@ class WageEntryController extends Controller
 	}
 	
 	public function timesheetLeaveSearch() {
-		//echo '<pre>';print_r(Input::all());exit;
-		$category = DB::table('employee_category')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','category_name')->get();
+		//echo '<pre>';print_r($request->all());exit;
+		$category = DB::table('employee_category')->where('status',1)->whereNull('deleted_at')->select('id','category_name')->get();
 		$emply = DB::table('employee')->where('employee.status', 1)
-		           ->where('employee.deleted_at','0000-00-00 00:00:00')->select('employee.name','employee.id')->get();	
-		$month=Input::get('month');
-		$eid=Input::get('emply_id');
-		$cid=Input::get('category_id');
+		           ->whereNull('deleted_at')->select('employee.name','employee.id')->get();	
+		$month=$request->get('month');
+		$eid=$request->get('emply_id');
+		$cid=$request->get('category_id');
 		$data = array();
 		$employees = $this->wageentry->timeLeaveSearch($eid,$cid,$month);
 					  //echo '<pre>';print_r($employees);exit;
@@ -417,7 +417,7 @@ class WageEntryController extends Controller
 	}
 	
 	public function timesheetLeaveUpdate($id) {
-		$attributes=Input::all();
+		$attributes=$request->all();
 		//echo '<pre>';print_r($attributes['leave_status']);exit;
 		DB::table('timesheet_entry')->where('timesheet_entry.id',$id)
 		->update(['leave_status' => $attributes['leave_status'],  
@@ -511,7 +511,7 @@ class WageEntryController extends Controller
 	
 	public function checkcode() {
 
-		$check = $this->employee->check_employee_code(Input::get('code'), Input::get('id'));
+		$check = $this->employee->check_employee_code($request->get('code'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -520,11 +520,13 @@ class WageEntryController extends Controller
 	
 	public function checkname() {
 
-		$check = $this->employee->check_employee_name(Input::get('name'), Input::get('id'));
+		$check = $this->employee->check_employee_name($request->get('name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
 						));
 	}
 }
+
+
 

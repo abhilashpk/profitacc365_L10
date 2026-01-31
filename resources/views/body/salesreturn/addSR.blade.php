@@ -91,13 +91,13 @@
 							
 							<div class="pull-right">
 							<?php if($printid) { ?>
-								@permission('sr-print')
+								@can('sr-print')
 								 <a href="{{ url('sales_return/print/'.$printid->id.'/'.$print->id) }}" target="_blank" class="btn btn-info btn-sm">
 										<span class="btn-label">
 										<i class="fa fa-fw fa-print"></i>
 									</span> 
 								</a>
-								@endpermission
+								@endcan
 							<?php } ?>
 							</div>
                         </div>

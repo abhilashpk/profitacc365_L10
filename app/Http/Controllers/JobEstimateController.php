@@ -71,7 +71,7 @@ class JobEstimateController extends Controller
 		
         $jobs = $this->jobmaster->activeJobmasterList();
 		$salesmans = $this->salesman->getSalesmanList();
-		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','master_name')->get(); 
+		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->select('id','master_name')->get(); 
 		return view('body.jobestimate.index')
 					->withQuotations($quotations)
 					->withSalesman($salesmans)
@@ -194,10 +194,10 @@ class JobEstimateController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$res = $this->voucherno->getVoucherNo('JE'); //echo '<pre>';print_r($this->formData);exit;
 		//$vno = $res->no;//echo sizeof($vehicle_data);exit;//'<pre>';print_r($vehicle_data);exit;
-		$lastid = DB::table('quotation_sales')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$lastid = DB::table('quotation_sales')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
+		$jobtype = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->get();
 		$view = ($this->matservice->is_active==1)?'addms':'add';
-		$footertxt = DB::table('header_footer')->where('doc','JE')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$footertxt = DB::table('header_footer')->where('doc','JE')->where('status',1)->whereNull('deleted_at')->first();
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
 							->where('report_view.code','JE')
@@ -310,7 +310,7 @@ class JobEstimateController extends Controller
 		
 		$itemdesc = $this->makeTreeArr($this->quotation_sales->getItemDesc($id));//echo '<pre>';print_r($orderrow);exit;
 		$jobdesc = $this->quotation_sales->getjobDescription($id);
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$jobtype = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->get();
 		
 		if($this->matservice->is_active==1) {
 			$orditems = $this->quotation_sales->getItems($id,'itm');
@@ -394,7 +394,7 @@ class JobEstimateController extends Controller
 		
 		$itemdesc = $this->makeTreeArr($this->quotation_sales->getItemDesc($id));//echo '<pre>';print_r($orderrow);exit;
 		$jobdesc = $this->quotation_sales->getjobDescription($id);
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$jobtype = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->get();
 		
 		if($this->matservice->is_active==1) {
 			$orditems = $this->quotation_sales->getItems($id,'itm');
@@ -527,7 +527,7 @@ class JobEstimateController extends Controller
 			$titles = ['main_head' => 'Job Estimate','subhead' => 'Job Estimate'];
 			
 			$jobdesc = DB::table('jobestimate_details')->where('jobestimate_id',$id)
-							->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+							->where('status',1)->whereNull('deleted_at')
 							->select('description','comment')->orderBy('id','ASC')->get();
 			//split item and service
 			$items = null;
@@ -803,9 +803,9 @@ class JobEstimateController extends Controller
 		DB::beginTransaction();
 		try { 
 			$attributes = $request->all();
-			//$check = DB::table('vehicle')->where('reg_no', $attributes['reg_no'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+			//$check = DB::table('vehicle')->where('reg_no', $attributes['reg_no'])->where('status',1)->whereNull('deleted_at')->count();
 			if($attributes['chasis_no']!='') {
-				$check = DB::table('vehicle')->where('chasis_no', $attributes['chasis_no'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+				$check = DB::table('vehicle')->where('chasis_no', $attributes['chasis_no'])->where('status',1)->whereNull('deleted_at')->count();
 				if($check > 0)
 					return 0;
 			}
@@ -884,4 +884,6 @@ class JobEstimateController extends Controller
 					
 	}
 }
+
+
 

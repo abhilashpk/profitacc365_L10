@@ -25,10 +25,9 @@ class UpdateUtility
 						->join('account_transaction', 'account_transaction.account_master_id', '=', 'account_master.id')
 						->where('account_transaction.voucher_type','!=','OBD')
 						->where('account_transaction.status',1)
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('account_transaction.deleted_at')
 						->where('account_master.status',1)
-						->where('account_master.deleted_at','0000-00-00 00:00:00')
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('account_master.deleted_at')
 						->whereBetween('account_transaction.invoice_date',[$date->from_date, $date->to_date])
 						->select('account_master.id','account_master.master_name','account_master.cl_balance','account_master.category',
 								 'account_transaction.transaction_type','account_transaction.amount','account_master.op_balance','account_transaction.invoice_date')
@@ -108,7 +107,7 @@ class UpdateUtility
 			//UPDATE into ITEM STOCK LOG 
 			$stocks = DB::table('item_log')->where('item_id',$attributes['item_id'][$key])
 								   ->where('trtype', 1)
-								   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								   ->where('status',1)->whereNull('deleted_at')
 								   ->where('cur_quantity', '>', 0)
 								   ->orderBy('id','ASC')->get();
 			//echo '<pre>';print_r($stocks);exit;					   
@@ -156,7 +155,7 @@ class UpdateUtility
 				
 				$stocks = DB::table('item_log')->where('item_id',$attributes['item_id'][$key])
 								   ->where('trtype', 1)
-								   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								   ->where('status',1)->whereNull('deleted_at')
 								   ->select('pur_cost')
 								   ->orderBy('id','DESC')->first(); //echo '<pre>';print_r($stocks);exit;
 				
@@ -176,7 +175,7 @@ class UpdateUtility
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->select('cur_quantity','pur_cost')
 										->get(); //echo '<pre>';print_r($itmlogs);exit;
 		if($type==0) {								
@@ -195,7 +194,7 @@ class UpdateUtility
 			$cost_avg = round( (($itmcost / $itmqty) + $other_cost), 3);
 			$cost = (isset($attributes['is_fc']))?$attributes['cost'][$key]*$attributes['currency_rate']:$attributes['cost'][$key];
 		} else {
-			$row = DB::table('item_log')->where('item_id', $attributes['item_id'][$key])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('cost_avg')->orderBy('id', 'DESC')->first();
+			$row = DB::table('item_log')->where('item_id', $attributes['item_id'][$key])->where('status',1)->whereNull('deleted_at')->select('cost_avg')->orderBy('id', 'DESC')->first();
 			if($row)
 				$cost_avg = $cost = $row->cost_avg;
 			else
@@ -221,7 +220,7 @@ class UpdateUtility
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->where(function ($query) use($pid) {
 											$query->where('document_id','!=',$pid)
 												  ->orWhere('document_type','!=','PI');
@@ -245,7 +244,7 @@ class UpdateUtility
 			$cost_avg = round( (($itmcost / $itmqty) + $other_cost), 3);
 			$cost = (isset($attributes['is_fc']))?$attributes['cost'][$key]*$attributes['currency_rate']:$attributes['cost'][$key];
 		} else {
-			$row = DB::table('item_log')->where('item_id', $attributes['item_id'][$key])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('cost_avg')->orderBy('id', 'DESC')->first();
+			$row = DB::table('item_log')->where('item_id', $attributes['item_id'][$key])->where('status',1)->whereNull('deleted_at')->select('cost_avg')->orderBy('id', 'DESC')->first();
 			if($row)
 				$cost_avg = $cost = $row->cost_avg;
 			else
@@ -270,7 +269,7 @@ class UpdateUtility
 	{
 		$logs = DB::table('item_log')->where('trtype',1)->where('status',1)
 							 ->where('item_id', $item_id)
-							 ->where('deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('pur_cost','cur_quantity')
 							 ->get();
 							 
@@ -334,7 +333,7 @@ class UpdateUtility
 	
 	public function reEvaluateItemCostQuantity($item_id)
 	{
-		$logs = DB::table('item_log')->where('item_id', $item_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$logs = DB::table('item_log')->where('item_id', $item_id)->where('status',1)->whereNull('deleted_at')->get();
 		$date = DB::table('parameter1')->select('from_date')->first();
 		//echo '<pre>';print_r($logs);exit;
 		if($logs) {
@@ -380,7 +379,7 @@ class UpdateUtility
 			//UPDATE into ITEM STOCK LOG 
 			$stocks = DB::table('item_log')->where('item_id',$itemid)
 								   ->where('trtype', 1)
-								   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								   ->where('status',1)->whereNull('deleted_at')
 								   ->where('cur_quantity', '>', 0)
 								   ->orderBy('id','ASC')->get();
 			//echo '<pre>';print_r($stocks);exit;					   
@@ -428,7 +427,7 @@ class UpdateUtility
 				
 				$stocks = DB::table('item_log')->where('item_id',$itemid)
 								   ->where('trtype', 1)
-								   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								   ->where('status',1)->whereNull('deleted_at')
 								   ->select('pur_cost')
 								   ->orderBy('id','DESC')->first();
 				
@@ -447,7 +446,7 @@ class UpdateUtility
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->select('cur_quantity','pur_cost')
 										->get();
 		
@@ -462,7 +461,7 @@ class UpdateUtility
 			$cost_avg = round(($itmcost / $itmqty), 3);
 			$cost = (isset($attributes['is_fc']))?(($itmattr->sell_price==0)?$itmattr->cost_avg:$itmattr->sell_price)*$attributes['currency_rate']:(($itmattr->sell_price==0)?$itmattr->cost_avg:$itmattr->sell_price);
 		} else {
-			$row = DB::table('item_log')->where('item_id', $itemid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('cost_avg')->orderBy('id', 'DESC')->first();
+			$row = DB::table('item_log')->where('item_id', $itemid)->where('status',1)->whereNull('deleted_at')->select('cost_avg')->orderBy('id', 'DESC')->first();
 			if($row)
 				$cost_avg = $cost = $row->cost_avg;
 			else
@@ -485,7 +484,7 @@ class UpdateUtility
 	{
 		foreach($items as $item) {
 			
-			$logs = DB::table('item_log')->where('item_id', $item)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+			$logs = DB::table('item_log')->where('item_id', $item)->where('status',1)->whereNull('deleted_at')->get();
 			//echo '<pre>';print_r($logs);exit;
 			if($logs) {
 				$result = $this->reProcessLogs($logs,$dateobj);
@@ -552,7 +551,7 @@ class UpdateUtility
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 										//->where('voucher_date','<=',$row->voucher_date) //->where('id','<=',$row->id)
 										//->where('document_type', '!=', 'SDO')
@@ -584,7 +583,7 @@ class UpdateUtility
 								   ->where('item_id',$row->item_id)
 								   ->where('document_id',$row->return_ref_id)
 								   ->where('status',1)
-								   ->where('deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->where('document_type','SI')
 								   ->select('cost_avg','pur_cost','unit_cost')
 								   ->first();
@@ -613,7 +612,7 @@ class UpdateUtility
 								   ->where('item_id',$row->item_id)
 								   ->where('document_id',$row->return_ref_id)
 								   ->where('status',1)
-								   ->where('deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->where('document_type','SI')
 								   ->orderBy('id','ASC')->get();
 								   
@@ -627,7 +626,7 @@ class UpdateUtility
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
 										->where('id', '<=', $row->id)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 										->select('cur_quantity AS quantity','pur_cost')//cur_quantity
 										->get();
@@ -682,7 +681,7 @@ class UpdateUtility
 									   ->where('item_id',$row->item_id)
 									   ->where('document_id',$row->return_ref_id)
 									   ->where('status',1)
-									   ->where('deleted_at','0000-00-00 00:00:00')
+									   ->whereNull('deleted_at')
 									   ->where('document_type','PI')
 									   ->orderBy('voucher_date','ASC')
 									   ->get();
@@ -694,7 +693,7 @@ class UpdateUtility
 				//UPDATE into ITEM STOCK LOG 
 				$stocks = DB::table('item_log')->where('item_id',$row->item_id)
 									   ->where('trtype', 1)
-									   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+									   ->where('status',1)->whereNull('deleted_at')
 									   ->where('cur_quantity', '>', 0)
 									   ->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 									   ->where('document_type','!=','SDO')
@@ -750,7 +749,7 @@ class UpdateUtility
 				
 				$stocks = DB::table('item_log')->where('item_id',$row->item_id)
 								   ->where('trtype', 1)
-								   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								   ->where('status',1)->whereNull('deleted_at')
 								   ->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 								   ->where('document_type','!=','SDO')
 								   ->select('pur_cost')
@@ -763,7 +762,7 @@ class UpdateUtility
 					
 					$stocks = DB::table('item_log')->where('item_id',$row->item_id)
 								   ->where('trtype', 1)
-								   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								   ->where('status',1)->whereNull('deleted_at')
 								   ->where('voucher_date', '>', $row->voucher_date)
 								   ->where('document_type','!=','SDO')
 								   ->select('pur_cost')
@@ -784,7 +783,7 @@ class UpdateUtility
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 										//->where('voucher_date','<=',$row->voucher_date) 
 										->select('document_type','unit_cost','cur_quantity','quantity','pur_cost') //cur_quantity
@@ -812,7 +811,7 @@ class UpdateUtility
 			$cost_avg = round( (($itmcost / $itmqty) + $other_cost), 3);
 			//$cost = $row->pur_cost;
 		} else {
-			/* $res = DB::table('item_log')->where('item_id', $row->item_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('cost_avg')->orderBy('id', 'DESC')->first();
+			/* $res = DB::table('item_log')->where('item_id', $row->item_id)->where('status',1)->whereNull('deleted_at')->select('cost_avg')->orderBy('id', 'DESC')->first();
 			if($res)
 				$cost_avg = $cost = $res->cost_avg;
 			else //MAR6 */
@@ -831,7 +830,7 @@ class UpdateUtility
 							   ->where('item_id',$row->item_id)
 							   ->where('document_type','SI')
 							   ->where('status',1)
-							   ->where('deleted_at','0000-00-00 00:00:00')
+							   ->whereNull('deleted_at')
 							   ->where('voucher_date','<', $row->voucher_date)
 							   ->where('sale_reference','<',0)
 							   ->get();
@@ -934,7 +933,7 @@ class UpdateUtility
 			->where('is_prefix', $is_prefix)
 			//->where('department_id', $departmentId)
 			->where('status',1)
-			->where('deleted_at','0000-00-00 00:00:00')
+			->whereNull('deleted_at')
 			->first();
 
 		$nextNo = $setting ? $setting->voucher_no + 1 : 1;
@@ -1032,3 +1031,5 @@ class UpdateUtility
     }
 	
 }
+
+

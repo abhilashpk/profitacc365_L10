@@ -269,7 +269,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('PS.job_id','=','jobmaster.id');
 									} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PS.status', 1)->whereNull('deleted_at');
 				//	if($job_id)
 						//$qry1->where('jobmaster.id', $job_id);
 						
@@ -292,7 +292,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('PS.job_id','=','jobmaster.id');
 									} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -311,7 +311,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('AC.id','=','SI.cr_account_id');
 									} )
 							
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry16->where('jobmaster.id', $job_id);
 					
@@ -342,7 +342,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('AC.id','=','SI.cr_account_id');
 									} )
 							
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry16->where('jobmaster.id', $job_id);
 					
@@ -384,7 +384,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 									$join->on('PS.job_id','=','jobmaster.id');
 								} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry1->where('jobmaster.id', $job_id);
 					
@@ -405,7 +405,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 									$join->on('PS.job_id','=','jobmaster.id');
 								} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry2->where('jobmaster.id', $job_id);
 				
@@ -425,7 +425,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 						$join->on('AC.id','=','SI.cr_account_id');
 					} )
 			
-				->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+				->where('SI.status', 1)->whereNull('deleted_at');
 	         if($job_id)
 			 
 			 {
@@ -463,8 +463,8 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry1->where('jobmaster.id', $job_id);
 				
@@ -487,8 +487,8 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry2->where('jobmaster.id', $job_id);
 				
@@ -514,7 +514,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 							->where('PVE.status', 1)
 							->where('PVE.entry_type','Dr')
-							->where('PVE.deleted_at', '0000-00-00 00:00:00');
+							->whereNull('deleted_at');
 				if($job_id)
 					$qry3->where('jobmaster.id', $job_id);
 				
@@ -540,7 +540,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 							->where('PVE.status', 1)
 							->where('PVE.entry_type','Dr')
-							->where('PVE.deleted_at', '0000-00-00 00:00:00');
+							->whereNull('deleted_at');
 				if($job_id)
 					$qry4->where('jobmaster.id', $job_id);
 				
@@ -565,7 +565,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								} )
 							->join('account_category', 'account_category.id', '=', 'AC.account_category_id')
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00')
+							->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at')
 							->where('account_category.parent_id',4);
 				if($job_id)
 					$qry5->where('jobmaster.id', $job_id);
@@ -591,7 +591,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 									$join->on('AC.id','=','SI.cr_account_id');
 								} )
 						
-							->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+							->where('SI.status', 1)->whereNull('deleted_at');
 							
 						 if($job_id)
 						 
@@ -633,7 +633,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('PS.job_id','=','jobmaster.id');
 									} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PS.status', 1)->whereNull('deleted_at');
 				//	if($job_id)
 						//$qry1->where('jobmaster.id', $job_id);
 						
@@ -656,7 +656,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('PS.job_id','=','jobmaster.id');
 									} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -683,8 +683,8 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 									$join->on('AC.id','=','PIM.account_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -707,8 +707,8 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 									$join->on('AC.id','=','PIM.account_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -734,7 +734,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 								->where('PVE.status', 1)
 								->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -760,7 +760,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 								->where('PVE.status', 1)
 								->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 					
@@ -785,7 +785,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 									} )
 								->join('account_category', 'account_category.id', '=', 'AC.account_category_id')
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00')
+								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at')
 								->where('account_category.parent_id',4);
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
@@ -820,7 +820,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('PI.job_id','=','jobmaster.id');
 									} )
 								->where('PI.status', 1)
-								->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -835,7 +835,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('GI.job_id','=','jobmaster.id');
 									} )
 								->where('GI.status', 1)
-								->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -850,7 +850,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('JE.job_id','=','jobmaster.id');
 									} )
 								->where('JE.status', 1)->where('JE.entry_type','Dr')
-								->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query3->where('jobmaster.id', $job_id);
 					
@@ -865,7 +865,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('PVE.job_id','=','jobmaster.id');
 									} )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query4->where('jobmaster.id', $job_id);
 					
@@ -877,7 +877,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('PCE.job_id','=','jobmaster.id');
 									} )
 								->where('PCE.status', 1)->where('PCE.entry_type','Dr')
-								->where('PCE.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query5->where('jobmaster.id', $job_id);
 					
@@ -894,7 +894,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('SI.job_id','=','jobmaster.id');
 									} )
 										
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -908,7 +908,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('goods_return AS GR', function($join) {
 										$join->on('GR.job_id','=','jobmaster.id');
 									} )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -922,7 +922,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('journal_entry AS JE', function($join) {
 										$join->on('JE.job_id','=','jobmaster.id');
 									} )
-								->where('JE.status', 1)->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('JE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -933,7 +933,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('receipt_voucher_entry AS RVE', function($join) {
 										$join->on('RVE.job_id','=','jobmaster.id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 								
@@ -944,7 +944,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('petty_cash_entry AS PCE', function($join) {
 										$join->on('PCE.job_id','=','jobmaster.id');
 									} )
-								->where('PCE.status', 1)->where('PCE.entry_type','Cr')->where('PCE.deleted_at', '0000-00-00 00:00:00');
+								->where('PCE.status', 1)->where('PCE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
 					
@@ -969,7 +969,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','PI.account_master_id');
 									} )
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->where('PI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -987,7 +987,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','GI.job_account_id');
 									} )
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->where('GI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -1008,7 +1008,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('JE.entry_type','Dr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('JE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query3->where('jobmaster.id', $job_id);
 					
@@ -1029,7 +1029,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','PVE.account_id');
 									} )
-								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query4->where('jobmaster.id', $job_id);
 					
@@ -1049,7 +1049,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','SI.cr_account_id');
 									} )
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -1067,7 +1067,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','GR.account_master_id');
 									} )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -1088,7 +1088,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('JE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -1109,7 +1109,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 					
@@ -1144,7 +1144,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','PIM.item_id');
 								} )
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->where('PI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -1169,7 +1169,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','GIM.item_id');
 								} )
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->where('GI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -1191,7 +1191,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Dr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query3->where('jobmaster.id', $job_id);
 					
@@ -1214,7 +1214,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','PVE.account_id');
 									} )
-								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query4->where('jobmaster.id', $job_id);
 					
@@ -1237,7 +1237,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','PVE.account_id');
 									} )
-								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query5->where('jobmaster.id', $job_id);
 					
@@ -1261,7 +1261,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('J.voucher_type','PIN')->where('JE.entry_type','Dr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('J.voucher_type','PIN')->where('JE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query6->where('jobmaster.id', $job_id);
 					
@@ -1286,7 +1286,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('J.voucher_type','SIN')->where('JE.entry_type','Dr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('J.voucher_type','SIN')->where('JE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query7->where('jobmaster.id', $job_id);
 					
@@ -1321,7 +1321,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','SIM.item_id');
 								} )
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -1348,7 +1348,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','GRM.item_id');
 								} )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -1371,7 +1371,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -1395,7 +1395,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 					
@@ -1418,7 +1418,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
 					
@@ -1445,7 +1445,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('J.voucher_type','PIN')->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('J.voucher_type','PIN')->where('JE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry6->where('jobmaster.id', $job_id);
 					
@@ -1469,7 +1469,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('J.voucher_type','SIN')->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('J.voucher_type','SIN')->where('JE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry7->where('jobmaster.id', $job_id);
 					
@@ -1508,7 +1508,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 														$join->on('IM.id','=','PIM.item_id');
 													} )
 												->where('PI.status', 1)
-												->where('PI.deleted_at', '0000-00-00 00:00:00');
+												->whereNull('deleted_at');
 					if($job_id)
 						$query->where('jobmaster.id', $job_id);
 					
@@ -1533,7 +1533,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('IM.id','=','GRM.item_id');
 									} )
 								->where('GR.status', 1)
-								->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -1570,7 +1570,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 													} )
 												->where('IM.class_id',1)
 												->where('SI.status', 1)
-												->where('SI.deleted_at', '0000-00-00 00:00:00');
+												->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -1596,7 +1596,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 										$join->on('IM.id','=','GIM.item_id');
 									} )
 								->where('GI.status', 1)
-								->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -1686,7 +1686,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 					->join('sales_order AS JO', function($join) {
 							$join->on('JO.id','=','SI.document_id')->where('SI.document_type','=','SO');
 						} )
-					->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00')->where('SI.is_rental', 2);
+					->where('SI.status', 1)->whereNull('deleted_at')->where('SI.is_rental', 2);
 				
 		if($job_id)
 			$qry = $qry->where('jobmaster.id', $job_id);
@@ -1712,4 +1712,6 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 	
 	
 }
+
+
 

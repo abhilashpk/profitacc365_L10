@@ -77,13 +77,13 @@
 							@endif
 							
                         <div class="pull-right">
-							@permission('ps-create')
+							@can('ps-create')
                              <a href="{{ url('purchase_split/add') }}" class="btn btn-primary btn-sm">
 									<span class="btn-label">
 									<i class="glyphicon glyphicon-plus"></i>
 								</span> Add New
 							</a>
-							@endpermission
+							@endcan
                         </div>
                     </div>
                     <div class="panel-body">

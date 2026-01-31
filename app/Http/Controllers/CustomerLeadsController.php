@@ -59,7 +59,7 @@ class CustomerLeadsController extends Controller
 	
 	private function getCustomerCount() 
 	{
-		$query = DB::table('account_master')->where('account_master.status',1)->where('account_master.deleted_at','0000-00-00 00:00:00')
+		$query = DB::table('account_master')->where('account_master.status',1)->whereNull('deleted_at')
 							->where('account_master.category','CUSTOMER')
 							->join('crm_followup', function($join) {
 								$join->on('crm_followup.customer_id','=','account_master.id')
@@ -84,7 +84,7 @@ class CustomerLeadsController extends Controller
 						->where('crm_followup.status','!=',4)
 						->where('crm_followup.status','!=',1)
 						->where('crm_followup.is_open','=',0)
-						->where('account_master.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 						
 			if(Auth::user()->roles[0]->name=='Salesman')
 				$query->where('account_master.salesman_id',Session::get('salesman_id'));
@@ -120,19 +120,19 @@ class CustomerLeadsController extends Controller
 	
 		public function setStatus() {
         
-        $date = (date('Y-m-d', strtotime(Input::get('date'))));
-		DB::table('crm_followup')->where('id',Input::get('id'))->update(['status' => Input::get('sts')]);
+        $date = (date('Y-m-d', strtotime($request->get('date'))));
+		DB::table('crm_followup')->where('id',$request->get('id'))->update(['status' => $request->get('sts')]);
 
-		if(Input::get('sts')==1 )
-		     DB::table('crm_followup')->where('id',Input::get('id'))->where('customer_id',Input::get('cust'))->update(['is_close' => 1]);
-		elseif(Input::get('sts')==2)
-		DB::table('crm_followup')->where('id',Input::get('id'))->where('customer_id',Input::get('cust'))->update(['is_open' => 0]);
+		if($request->get('sts')==1 )
+		     DB::table('crm_followup')->where('id',$request->get('id'))->where('customer_id',$request->get('cust'))->update(['is_close' => 1]);
+		elseif($request->get('sts')==2)
+		DB::table('crm_followup')->where('id',$request->get('id'))->where('customer_id',$request->get('cust'))->update(['is_open' => 0]);
 	
-		elseif(Input::get('sts')==3)
-				DB::table('crm_followup')->where('id',Input::get('id'))->where('customer_id',Input::get('cust'))->update(['is_open' => 0]);
+		elseif($request->get('sts')==3)
+				DB::table('crm_followup')->where('id',$request->get('id'))->where('customer_id',$request->get('cust'))->update(['is_open' => 0]);
 	
-		elseif(Input::get('sts')==4)
-				DB::table('crm_followup')->where('id',Input::get('id'))->where('customer_id',Input::get('cust'))->update(['is_close' => 1]);
+		elseif($request->get('sts')==4)
+				DB::table('crm_followup')->where('id',$request->get('id'))->where('customer_id',$request->get('cust'))->update(['is_close' => 1]);
 	
 		return $date;
 		
@@ -320,27 +320,27 @@ class CustomerLeadsController extends Controller
 	}
   	public function updatedateFollowup($id)
 	{
-	$date = (date('Y-m-d', strtotime(Input::get('date_hidden'))));
+	$date = (date('Y-m-d', strtotime($request->get('date_hidden'))));
 	
 	
-		if(Input::get('status')== 2 || Input::get('status')== 3)
+		if($request->get('status')== 2 || $request->get('status')== 3)
 		{
 		$lead_id = DB::table('account_master')->where('id', $id)
 							->update([
-								'master_name' => Input::get('company_name'),
-								'contact_name' => Input::get('customer_name'),
-								'address' => Input::get('address'),
-								'state' => Input::get('address3'),
-								'pin'	=> Input::get('website'),
-								'city' => Input::get('address2'),
-								'phone' => Input::get('phone'),
-								'fax' => Input::get('phone2'),
-								'vat_assign' => Input::get('code'),
-								'vat_percentage'  => Input::get('code1'),
-								'email' => Input::get('email'),
-								'reference' => Input::get('email2'),
-								'area_id' => Input::get('area'),
-								'country_id' => Input::get('country'),
+								'master_name' => $request->get('company_name'),
+								'contact_name' => $request->get('customer_name'),
+								'address' => $request->get('address'),
+								'state' => $request->get('address3'),
+								'pin'	=> $request->get('website'),
+								'city' => $request->get('address2'),
+								'phone' => $request->get('phone'),
+								'fax' => $request->get('phone2'),
+								'vat_assign' => $request->get('code'),
+								'vat_percentage'  => $request->get('code1'),
+								'email' => $request->get('email'),
+								'reference' => $request->get('email2'),
+								'area_id' => $request->get('area'),
+								'country_id' => $request->get('country'),
 							]);
 							
 		DB::table('crm_followup')->where('customer_id',$id)->update(['is_open' => 1]);
@@ -348,11 +348,11 @@ class CustomerLeadsController extends Controller
 		DB::table('crm_followup')
 							->insert([
 										'customer_id' => $id,
-										'remark_date' => date('Y-m-d', strtotime(Input::get('remark_date'))),
-										'remark' => Input::get('remark'),
-										'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-										'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-										'status'	=> Input::get('status'),
+										'remark_date' => date('Y-m-d', strtotime($request->get('remark_date'))),
+										'remark' => $request->get('remark'),
+										'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+										'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+										'status'	=> $request->get('status'),
 										'created_at' => date('Y-m-d H:i:s'),
 										'salesman_id' => (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0,
 										'is_parent' => 0
@@ -360,7 +360,7 @@ class CustomerLeadsController extends Controller
 									
 		 DB::table('crm_followup')
 						->where('customer_id', $id)
-						->update(['status'	=> Input::get('status')]);
+						->update(['status'	=> $request->get('status')]);
 								
 	
 			Session::flash('message', 'Customer enquiry updated successfully');
@@ -374,20 +374,20 @@ class CustomerLeadsController extends Controller
 							{
 								$lead_id = DB::table('account_master')->where('id', $id)
 								->update([
-									'master_name' => Input::get('company_name'),
-									'contact_name' => Input::get('customer_name'),
-									'address' => Input::get('address'),
-									'state' => Input::get('address3'),
-									'pin'	=> Input::get('website'),
-									'city' => Input::get('address2'),
-									'phone' => Input::get('phone'),
-									'fax' => Input::get('phone2'),
-									'vat_assign' => Input::get('code'),
-									'vat_percentage'  => Input::get('code1'),
-									'email' => Input::get('email'),
-									'reference' => Input::get('email2'),
-									'area_id' => Input::get('area'),
-									'country_id' => Input::get('country'),
+									'master_name' => $request->get('company_name'),
+									'contact_name' => $request->get('customer_name'),
+									'address' => $request->get('address'),
+									'state' => $request->get('address3'),
+									'pin'	=> $request->get('website'),
+									'city' => $request->get('address2'),
+									'phone' => $request->get('phone'),
+									'fax' => $request->get('phone2'),
+									'vat_assign' => $request->get('code'),
+									'vat_percentage'  => $request->get('code1'),
+									'email' => $request->get('email'),
+									'reference' => $request->get('email2'),
+									'area_id' => $request->get('area'),
+									'country_id' => $request->get('country'),
 								]);
 								
 			DB::table('crm_followup')->where('customer_id',$id)->update(['is_open' => 1]);
@@ -395,9 +395,9 @@ class CustomerLeadsController extends Controller
 			DB::table('crm_followup')
 								->insert([
 											'customer_id' => $id,
-										      	'remark' => Input::get('remark'),
-											'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-											'status'	=> Input::get('status'),
+										      	'remark' => $request->get('remark'),
+											'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+											'status'	=> $request->get('status'),
 											'created_at' => date('Y-m-d H:i:s'),
 											'salesman_id' => (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0,
 											'is_parent' => 0
@@ -405,15 +405,15 @@ class CustomerLeadsController extends Controller
 										
 			 DB::table('crm_followup')
 							->where('customer_id', $id)
-							->update(['status'	=> Input::get('status')]);
+							->update(['status'	=> $request->get('status')]);
 									
 			/* DB::table('crm_followup')
-							->where('id', Input::get('fid'))
+							->where('id', $request->get('fid'))
 							->update([
-										'remark' => Input::get('remark'),
-										'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-										'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-										'status'	=> Input::get('status')
+										'remark' => $request->get('remark'),
+										'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+										'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+										'status'	=> $request->get('status')
 									]); */
 								
 			
@@ -423,26 +423,26 @@ class CustomerLeadsController extends Controller
 							}}
 	public function updateFollowupOld($id)
 	{
-			//echo '<pre>';print_r(date('Y-m-d', strtotime(Input::get('date_hidden'))));exit;
+			//echo '<pre>';print_r(date('Y-m-d', strtotime($request->get('date_hidden'))));exit;
 		
-		$date = (date('Y-m-d', strtotime(Input::get('date_hidden'))));
-		$next_date = (date('Y-m-d', strtotime(Input::get('next_date'))));
+		$date = (date('Y-m-d', strtotime($request->get('date_hidden'))));
+		$next_date = (date('Y-m-d', strtotime($request->get('next_date'))));
 		$lead_id = DB::table('account_master')->where('id', $id)
 							->update([
-								'master_name' => Input::get('company_name'),
-								'contact_name' => Input::get('customer_name'),
-								'address' => Input::get('address'),
-								'state' => Input::get('address3'),
-								'pin'	=> Input::get('website'),
-								'city' => Input::get('address2'),
-								'phone' => Input::get('phone'),
-								'fax' => Input::get('phone2'),
-								'vat_assign' => Input::get('code'),
-								'vat_percentage'  => Input::get('code1'),
-								'email' => Input::get('email'),
-								'reference' => Input::get('email2'),
-								'area_id' => Input::get('area'),
-								'country_id' => Input::get('country'),
+								'master_name' => $request->get('company_name'),
+								'contact_name' => $request->get('customer_name'),
+								'address' => $request->get('address'),
+								'state' => $request->get('address3'),
+								'pin'	=> $request->get('website'),
+								'city' => $request->get('address2'),
+								'phone' => $request->get('phone'),
+								'fax' => $request->get('phone2'),
+								'vat_assign' => $request->get('code'),
+								'vat_percentage'  => $request->get('code1'),
+								'email' => $request->get('email'),
+								'reference' => $request->get('email2'),
+								'area_id' => $request->get('area'),
+								'country_id' => $request->get('country'),
 							]);
 							
 		DB::table('crm_followup')->where('customer_id',$id)->update(['is_open' => 1]);
@@ -450,11 +450,11 @@ class CustomerLeadsController extends Controller
 		DB::table('crm_followup')
 							->insert([
 										'customer_id' => $id,
-										'remark_date' => date('Y-m-d', strtotime(Input::get('remark_date'))),
-										'remark' => Input::get('remark'),
-										'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-										'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-										'status'	=> Input::get('status'),
+										'remark_date' => date('Y-m-d', strtotime($request->get('remark_date'))),
+										'remark' => $request->get('remark'),
+										'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+										'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+										'status'	=> $request->get('status'),
 										'created_at' => date('Y-m-d H:i:s'),
 										'salesman_id' => (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0,
 										'is_parent' => 0
@@ -462,7 +462,7 @@ class CustomerLeadsController extends Controller
 									
 		 DB::table('crm_followup')
 						->where('customer_id', $id)
-						->update(['status'	=> Input::get('status')]);
+						->update(['status'	=> $request->get('status')]);
 								
 $rows = DB::table('crm_followup')->join('account_master', 'account_master.id','=','crm_followup.customer_id')
 						->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
@@ -505,11 +505,11 @@ return view('body.customerleads.followups')
 		$row = DB::table('account_master')->where('id',$id)
 				 ->select('id','master_name','address','phone','state','city','fax','reference','area_id','country_id','email','contact_name','pin','vat_assign','vat_percentage')->first();
 								  
-		$follow = DB::table('crm_followup')->where('customer_id',$id)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$follow = DB::table('crm_followup')->where('customer_id',$id)->whereNull('deleted_at')->first();
 		$items = $this->itemmaster->activeItemmasterList();
-		$cods = DB::table('country')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$cods = DB::table('country')->where('status',1)->whereNull('deleted_at')->get();
 		
-		$remarks = DB::table('crm_followup')->where('customer_id',$id)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$remarks = DB::table('crm_followup')->where('customer_id',$id)->whereNull('deleted_at')->orderBy('id','DESC')->get();
 		//echo '<pre>';print_r($row);exit;
 		//echo '<pre>';print_r($remarks);exit;
 		return view('body.customerleads.editfollowup')
@@ -523,14 +523,14 @@ return view('body.customerleads.followups')
 	}
 	public function checkPhone() {
 
-		$query = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
-						->where('vat_assign',Input::get('code'))->where('category','CUSTOMER');
+		$query = DB::table('account_master')->where('status',1)->whereNull('deleted_at')
+						->where('vat_assign',$request->get('code'))->where('category','CUSTOMER');
 						
-		if(Input::get('id')!='') {
-			$query->where('id', '!=', Input::get('id'));
+		if($request->get('id')!='') {
+			$query->where('id', '!=', $request->get('id'));
 		} 
 		
-		$phone1 = Input::get('phone'); $phone2 = Input::get('phone2');
+		$phone1 = $request->get('phone'); $phone2 = $request->get('phone2');
 		
 		$query->where(function($qry) use ($phone1,$phone2) {
 			$qry->where('phone',$phone1);
@@ -546,7 +546,7 @@ public function getTransfer()
 {
 	$data = array();
 	$userss_id = DB::table('users')->where('created_at','!=','')->get();
-	$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','master_name')->get();
+	$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->select('id','master_name')->get();
 	return view('body.customerleads.datatransfer')
 				->withCustomers($customers)
 				->withUserssId($userss_id);
@@ -556,22 +556,22 @@ public function getTransfer()
 public function TransferSave()
 {
     	$userss_id = DB::table('salesman')->get();
-		$customers = Input::get('customers');
+		$customers = $request->get('customers');
 		
-//	echo '<pre>';print_r(Input::get('from_transfer'));
-//	echo '<pre>';print_r(Input::get('to_transfer'));
+//	echo '<pre>';print_r($request->get('from_transfer'));
+//	echo '<pre>';print_r($request->get('to_transfer'));
 	$data = array();
-	$salesid = Input::get('from_transfer');
+	$salesid = $request->get('from_transfer');
 	$qry = DB::table('crm_followup')
 						->where('salesman_id', $salesid);
 						
 	if(isset($customers))
 		$qry->whereIn('customer_id', $customers);
 	
-	$qry->update(['salesman_id'	=> Input::get('to_transfer'),'is_log' => 1]);
+	$qry->update(['salesman_id'	=> $request->get('to_transfer'),'is_log' => 1]);
 					
 
-	$crm_id = DB::table('crm_followup')->where('salesman_id',Input::get('to_transfer'))->where('is_log',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')	->get();
+	$crm_id = DB::table('crm_followup')->where('salesman_id',$request->get('to_transfer'))->where('is_log',1)->whereNull('deleted_at')->orderBy('id','DESC')	->get();
 	
 		$crmmid = [];
 		if($crm_id) {
@@ -579,8 +579,8 @@ public function TransferSave()
 			   
 				DB::table('data_transfer')
 						->insert([
-									'from_transfer' => Input::get('from_transfer'),
-									'to_transfer' => Input::get('to_transfer'),
+									'from_transfer' => $request->get('from_transfer'),
+									'to_transfer' => $request->get('to_transfer'),
 									'created_at' => date('Y-m-d H:i:s'),
 									'crm_id'   => $row->id
 								]);	
@@ -598,27 +598,27 @@ public function TransferSave()
 
 public function TransferSave2()
 {
-	//echo '<pre>';print_r(Input::all());
-	$customers = Input::get('customers');//exit;
+	//echo '<pre>';print_r($request->all());
+	$customers = $request->get('customers');//exit;
 	//
-	$salesid = Input::get('from_transfer');
+	$salesid = $request->get('from_transfer');
 	$qry = DB::table('crm_followup')
 					->where('salesman_id', $salesid);
 						
 		if(isset($customers))
 			$qry->whereIn('customer_id', $customers);
 						
-		$qry->update(['salesman_id'	=> Input::get('to_transfer'),'is_log' => 1]);
+		$qry->update(['salesman_id'	=> $request->get('to_transfer'),'is_log' => 1]);
 
-	$crm_id = DB::table('crm_followup')->where('salesman_id',Input::get('to_transfer'))->where('is_log',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+	$crm_id = DB::table('crm_followup')->where('salesman_id',$request->get('to_transfer'))->where('is_log',1)->whereNull('deleted_at')->orderBy('id','DESC')->get();
 	
 	//echo '<pre>';print_r($crm_id);exit;
 	
 	DB::table('crm_followup')
 						->insert([
-									'from_transfer' => Input::get('from_transfer'),
-									'to_transfer' => Input::get('to_transfer'),
-									'crm_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
+									'from_transfer' => $request->get('from_transfer'),
+									'to_transfer' => $request->get('to_transfer'),
+									'crm_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
 								]);					
 	return view('body.customerleads.datatransfer')
 				->withUserssId($userss_id);
@@ -626,13 +626,13 @@ public function TransferSave2()
 }
 	public function checkEmail() {
 
-		$query = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CUSTOMER');
+		$query = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CUSTOMER');
 		
-		if(Input::get('id')!='') {
-			$query->where('id', '!=', Input::get('id'));
+		if($request->get('id')!='') {
+			$query->where('id', '!=', $request->get('id'));
 		}
 		
-		$email1 = Input::get('email'); $email2 = Input::get('email2');
+		$email1 = $request->get('email'); $email2 = $request->get('email2');
 		
 		$query->where(function($qry) use ($email1,$email2) {
 			$qry->where('email',$email1);
@@ -650,7 +650,7 @@ public function TransferSave2()
 
 		$customer = null;
 		$items = $this->itemmaster->activeItemmasterList();
-		$cods = DB::table('country')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$cods = DB::table('country')->where('status',1)->whereNull('deleted_at')->get();
 		if($id) {
 			$customer = DB::table('account_master')->where('id',$id)->first();
 		}
@@ -664,7 +664,7 @@ public function TransferSave2()
 	{
 		$group = DB::table('account_group')->where('category','CUSTOMER')
 										->where('status',1)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->select('id','category_id','code')
 										->first();
 										
@@ -715,26 +715,26 @@ public function TransferSave2()
 	}
 		public function save()
 	{
-	if(Input::get('status')!=0)
+	if($request->get('status')!=0)
 		{
-	     if(Input::get('status')==2 || Input::get('status')==3)
+	     if($request->get('status')==2 || $request->get('status')==3)
 		   {
 		   DB::beginTransaction();
 	      	try { 
 		
-			if(Input::get('customer_id')==''){
-				$custid = $this->create_account(Input::all());
+			if($request->get('customer_id')==''){
+				$custid = $this->create_account($request->all());
 			} else
-				$custid = Input::get('customer_id');
+				$custid = $request->get('customer_id');
 			
 				DB::table('crm_followup')
 							->insert([
 										'customer_id' => $custid,
-										'remark_date' => date('Y-m-d', strtotime(Input::get('remark_date'))),
-										'remark' => Input::get('remark'),
-										'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-										'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-										'status'	=> Input::get('status'),
+										'remark_date' => date('Y-m-d', strtotime($request->get('remark_date'))),
+										'remark' => $request->get('remark'),
+										'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+										'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+										'status'	=> $request->get('status'),
 										'created_at' => date('Y-m-d H:i:s'),
 										'salesman_id' => (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0,
 										'is_parent' => 1
@@ -746,7 +746,7 @@ public function TransferSave2()
 			DB::commit();
 			
 			Session::flash('message', 'Customer enquiry added successfully.');
-			if(Input::get('customer_id')=='')
+			if($request->get('customer_id')=='')
 		{	
 				return redirect('customerleads/editadd/'.$custid);
 		}
@@ -768,19 +768,19 @@ public function TransferSave2()
 		DB::beginTransaction();
 		try { 
 		
-			if(Input::get('customer_id')==''){
-				$custid = $this->create_account(Input::all());
+			if($request->get('customer_id')==''){
+				$custid = $this->create_account($request->all());
 			} else
-				$custid = Input::get('customer_id');
+				$custid = $request->get('customer_id');
 			
 				DB::table('crm_followup')
 							->insert([
 										'customer_id' => $custid,
-										//'remark_date' => date('Y-m-d', strtotime(Input::get('remark_date'))),
-										'remark' => Input::get('remark'),
-										//'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-										'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-										'status'	=> Input::get('status'),
+										//'remark_date' => date('Y-m-d', strtotime($request->get('remark_date'))),
+										'remark' => $request->get('remark'),
+										//'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+										'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+										'status'	=> $request->get('status'),
 										'created_at' => date('Y-m-d H:i:s'),
 										'salesman_id' => (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0,
 										'is_parent' => 1
@@ -789,7 +789,7 @@ public function TransferSave2()
 			DB::commit();
 			
 			Session::flash('message', 'Customer enquiry added successfully.');
-			if(Input::get('customer_id')=='')
+			if($request->get('customer_id')=='')
 		{	
 				return redirect('customerleads/editadd/'.$custid);
 		
@@ -818,40 +818,40 @@ public function TransferSave2()
 	
   public function updateAdd($id)
 	{
-		//echo '<pre>';print_r(Input::get('sid'));exit; 	
-		if(Input::get('status')!=0)
+		//echo '<pre>';print_r($request->get('sid'));exit; 	
+		if($request->get('status')!=0)
 		{
-	if(Input::get('status')== 2 || Input::get('status')== 3)
+	if($request->get('status')== 2 || $request->get('status')== 3)
 		{
 		$lead_id = DB::table('account_master')->where('id', $id)
 							->update([
-								'master_name' => Input::get('company_name'),
-								'contact_name' => Input::get('customer_name'),
-								'address' => Input::get('address'),
-								'state' => Input::get('address3'),
-								'pin'	=> Input::get('website'),
-								'city' => Input::get('address2'),
-								'phone' => Input::get('phone'),
-								'fax' => Input::get('phone2'),
-								'vat_assign' => Input::get('code'),
-								'vat_percentage'  => Input::get('code1'),
-								'email' => Input::get('email'),
-								'reference' => Input::get('email2'),
-								'area_id' => Input::get('area'),
-								'country_id' => Input::get('country'),
+								'master_name' => $request->get('company_name'),
+								'contact_name' => $request->get('customer_name'),
+								'address' => $request->get('address'),
+								'state' => $request->get('address3'),
+								'pin'	=> $request->get('website'),
+								'city' => $request->get('address2'),
+								'phone' => $request->get('phone'),
+								'fax' => $request->get('phone2'),
+								'vat_assign' => $request->get('code'),
+								'vat_percentage'  => $request->get('code1'),
+								'email' => $request->get('email'),
+								'reference' => $request->get('email2'),
+								'area_id' => $request->get('area'),
+								'country_id' => $request->get('country'),
 							]);
-	//	if((!empty(Input::get('remark'))) || (!empty(Input::get('next_date'))))
+	//	if((!empty($request->get('remark'))) || (!empty($request->get('next_date'))))
 		//{					
 		DB::table('crm_followup')->where('customer_id',$id)->update(['is_open' => 1]);
 		
 		DB::table('crm_followup')
 							->insert([
 										'customer_id' => $id,
-										'remark_date' => date('Y-m-d', strtotime(Input::get('remark_date'))),
-										'remark' => Input::get('remark'),
-										'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-										'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-										'status'	=> Input::get('status'),
+										'remark_date' => date('Y-m-d', strtotime($request->get('remark_date'))),
+										'remark' => $request->get('remark'),
+										'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+										'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+										'status'	=> $request->get('status'),
 										'created_at' => date('Y-m-d H:i:s'),
 										'salesman_id' => (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0,
 										'is_parent' => 0
@@ -859,15 +859,15 @@ public function TransferSave2()
 									
 		 DB::table('crm_followup')
 						->where('customer_id', $id)
-						->update(['status'	=> Input::get('status')]);
+						->update(['status'	=> $request->get('status')]);
 								
 		/* DB::table('crm_followup')
-						->where('id', Input::get('fid'))
+						->where('id', $request->get('fid'))
 						->update([
-									'remark' => Input::get('remark'),
-									'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-									'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-									'status'	=> Input::get('status')
+									'remark' => $request->get('remark'),
+									'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+									'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+									'status'	=> $request->get('status')
 								]); */
 							
 		             
@@ -888,20 +888,20 @@ public function TransferSave2()
 							{
 								$lead_id = DB::table('account_master')->where('id', $id)
 								->update([
-									'master_name' => Input::get('company_name'),
-									'contact_name' => Input::get('customer_name'),
-									'address' => Input::get('address'),
-									'state' => Input::get('address3'),
-									'pin'	=> Input::get('website'),
-									'city' => Input::get('address2'),
-									'phone' => Input::get('phone'),
-									'fax' => Input::get('phone2'),
-									'vat_assign' => Input::get('code'),
-									'vat_percentage'  => Input::get('code1'),
-									'email' => Input::get('email'),
-									'reference' => Input::get('email2'),
-									'area_id' => Input::get('area'),
-									'country_id' => Input::get('country'),
+									'master_name' => $request->get('company_name'),
+									'contact_name' => $request->get('customer_name'),
+									'address' => $request->get('address'),
+									'state' => $request->get('address3'),
+									'pin'	=> $request->get('website'),
+									'city' => $request->get('address2'),
+									'phone' => $request->get('phone'),
+									'fax' => $request->get('phone2'),
+									'vat_assign' => $request->get('code'),
+									'vat_percentage'  => $request->get('code1'),
+									'email' => $request->get('email'),
+									'reference' => $request->get('email2'),
+									'area_id' => $request->get('area'),
+									'country_id' => $request->get('country'),
 								]);
 								
 			DB::table('crm_followup')->where('customer_id',$id)->update(['is_open' => 1]);
@@ -909,11 +909,11 @@ public function TransferSave2()
 			DB::table('crm_followup')
 								->insert([
 											'customer_id' => $id,
-											//'remark_date' => date('Y-m-d', strtotime(Input::get('remark_date'))),
-											'remark' => Input::get('remark'),
-										//	'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-											'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-											'status'	=> Input::get('status'),
+											//'remark_date' => date('Y-m-d', strtotime($request->get('remark_date'))),
+											'remark' => $request->get('remark'),
+										//	'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+											'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+											'status'	=> $request->get('status'),
 											'created_at' => date('Y-m-d H:i:s'),
 											'salesman_id' => (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0,
 											'is_parent' => 0
@@ -921,15 +921,15 @@ public function TransferSave2()
 										
 			 DB::table('crm_followup')
 							->where('customer_id', $id)
-							->update(['status'	=> Input::get('status')]);
+							->update(['status'	=> $request->get('status')]);
 									
 			/* DB::table('crm_followup')
-							->where('id', Input::get('fid'))
+							->where('id', $request->get('fid'))
 							->update([
-										'remark' => Input::get('remark'),
-										'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-										'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-										'status'	=> Input::get('status')
+										'remark' => $request->get('remark'),
+										'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+										'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+										'status'	=> $request->get('status')
 									]); */
 								
 			
@@ -951,11 +951,11 @@ public function TransferSave2()
 		$row = DB::table('account_master')->where('id',$id)
 				 ->select('id','master_name','address','phone','state','city','fax','reference','area_id','country_id','email','contact_name','pin','vat_assign','vat_percentage')->first();
 								  
-		$follow = DB::table('crm_followup')->where('customer_id',$id)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$follow = DB::table('crm_followup')->where('customer_id',$id)->whereNull('deleted_at')->first();
 		$items = $this->itemmaster->activeItemmasterList();
-		$cods = DB::table('country')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$cods = DB::table('country')->where('status',1)->whereNull('deleted_at')->get();
 		
-		$remarks = DB::table('crm_followup')->where('customer_id',$id)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$remarks = DB::table('crm_followup')->where('customer_id',$id)->whereNull('deleted_at')->orderBy('id','DESC')->get();
 	//	echo '<pre>';print_r($remarks);exit;
 		//echo '<pre>';print_r($follow);exit;
 		return view('body.customerleads.editadd')
@@ -974,11 +974,11 @@ public function TransferSave2()
 		$row = DB::table('account_master')->where('id',$id)
 				 ->select('id','master_name','address','phone','state','city','fax','reference','area_id','country_id','email','contact_name','pin','vat_assign','vat_percentage')->first();
 								  
-		$follow = DB::table('crm_followup')->where('customer_id',$id)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$follow = DB::table('crm_followup')->where('customer_id',$id)->whereNull('deleted_at')->first();
 		$items = $this->itemmaster->activeItemmasterList();
-		$cods = DB::table('country')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$cods = DB::table('country')->where('status',1)->whereNull('deleted_at')->get();
 		
-		$remarks = DB::table('crm_followup')->where('customer_id',$id)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$remarks = DB::table('crm_followup')->where('customer_id',$id)->whereNull('deleted_at')->orderBy('id','DESC')->get();
 	//	echo '<pre>';print_r($remarks);exit;
 		//echo '<pre>';print_r($follow);exit;
 		return view('body.customerleads.edit')
@@ -1006,29 +1006,29 @@ public function TransferSave2()
 	
 	public function update($id)
 	{
-	    	//echo '<pre>';print_r(Input::get('sid'));exit; 
-	    	$sid = Input::get('sid');
-	    //echo '<pre>';print_r(date('Y-m-d', strtotime(Input::get('remark_date'))));
-	   // echo '<pre>';print_r(date('Y-m-d', strtotime(Input::get('next_date'))));exit; 
+	    	//echo '<pre>';print_r($request->get('sid'));exit; 
+	    	$sid = $request->get('sid');
+	    //echo '<pre>';print_r(date('Y-m-d', strtotime($request->get('remark_date'))));
+	   // echo '<pre>';print_r(date('Y-m-d', strtotime($request->get('next_date'))));exit; 
 		
-	if(Input::get('status')== 2 || Input::get('status')== 3)
+	if($request->get('status')== 2 || $request->get('status')== 3)
 		{
 		$lead_id = DB::table('account_master')->where('id', $id)
 							->update([
-								'master_name' => Input::get('company_name'),
-								'contact_name' => Input::get('customer_name'),
-								'address' => Input::get('address'),
-								'state' => Input::get('address3'),
-								'pin'	=> Input::get('website'),
-								'city' => Input::get('address2'),
-								'phone' => Input::get('phone'),
-								'fax' => Input::get('phone2'),
-								'vat_assign' => Input::get('code'),
-								'vat_percentage'  => Input::get('code1'),
-								'email' => Input::get('email'),
-								'reference' => Input::get('email2'),
-								'area_id' => Input::get('area'),
-								'country_id' => Input::get('country'),
+								'master_name' => $request->get('company_name'),
+								'contact_name' => $request->get('customer_name'),
+								'address' => $request->get('address'),
+								'state' => $request->get('address3'),
+								'pin'	=> $request->get('website'),
+								'city' => $request->get('address2'),
+								'phone' => $request->get('phone'),
+								'fax' => $request->get('phone2'),
+								'vat_assign' => $request->get('code'),
+								'vat_percentage'  => $request->get('code1'),
+								'email' => $request->get('email'),
+								'reference' => $request->get('email2'),
+								'area_id' => $request->get('area'),
+								'country_id' => $request->get('country'),
 							]);
 							
 		DB::table('crm_followup')->where('customer_id',$id)->update(['is_open' => 1]);
@@ -1036,11 +1036,11 @@ public function TransferSave2()
 		DB::table('crm_followup')
 							->insert([
 										'customer_id' => $id,
-										'remark_date' => date('Y-m-d', strtotime(Input::get('remark_date'))),
-										'remark' => Input::get('remark'),
-										'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-										'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-										'status'	=> Input::get('status'),
+										'remark_date' => date('Y-m-d', strtotime($request->get('remark_date'))),
+										'remark' => $request->get('remark'),
+										'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+										'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+										'status'	=> $request->get('status'),
 										'created_at' => date('Y-m-d H:i:s'),
 										'salesman_id' => (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0,
 										'is_parent' => 0
@@ -1048,15 +1048,15 @@ public function TransferSave2()
 									
 		 DB::table('crm_followup')
 						->where('customer_id', $id)
-						->update(['status'	=> Input::get('status')]);
+						->update(['status'	=> $request->get('status')]);
 								
 		/* DB::table('crm_followup')
-						->where('id', Input::get('fid'))
+						->where('id', $request->get('fid'))
 						->update([
-									'remark' => Input::get('remark'),
-									'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-									'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-									'status'	=> Input::get('status')
+									'remark' => $request->get('remark'),
+									'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+									'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+									'status'	=> $request->get('status')
 								]); */
 							
 		
@@ -1073,20 +1073,20 @@ public function TransferSave2()
 							{
 								$lead_id = DB::table('account_master')->where('id', $id)
 								->update([
-									'master_name' => Input::get('company_name'),
-									'contact_name' => Input::get('customer_name'),
-									'address' => Input::get('address'),
-									'state' => Input::get('address3'),
-									'pin'	=> Input::get('website'),
-									'city' => Input::get('address2'),
-									'phone' => Input::get('phone'),
-									'fax' => Input::get('phone2'),
-									'vat_assign' => Input::get('code'),
-									'vat_percentage'  => Input::get('code1'),
-									'email' => Input::get('email'),
-									'reference' => Input::get('email2'),
-									'area_id' => Input::get('area'),
-									'country_id' => Input::get('country'),
+									'master_name' => $request->get('company_name'),
+									'contact_name' => $request->get('customer_name'),
+									'address' => $request->get('address'),
+									'state' => $request->get('address3'),
+									'pin'	=> $request->get('website'),
+									'city' => $request->get('address2'),
+									'phone' => $request->get('phone'),
+									'fax' => $request->get('phone2'),
+									'vat_assign' => $request->get('code'),
+									'vat_percentage'  => $request->get('code1'),
+									'email' => $request->get('email'),
+									'reference' => $request->get('email2'),
+									'area_id' => $request->get('area'),
+									'country_id' => $request->get('country'),
 								]);
 								
 			DB::table('crm_followup')->where('customer_id',$id)->update(['is_open' => 1]);
@@ -1094,9 +1094,9 @@ public function TransferSave2()
 			DB::table('crm_followup')
 								->insert([
 											'customer_id' => $id,
-											'remark' => Input::get('remark'),
-											'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-											'status'	=> Input::get('status'),
+											'remark' => $request->get('remark'),
+											'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+											'status'	=> $request->get('status'),
 											'created_at' => date('Y-m-d H:i:s'),
 											'salesman_id' => (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0,
 											'is_parent' => 0
@@ -1104,15 +1104,15 @@ public function TransferSave2()
 										
 			 DB::table('crm_followup')
 							->where('customer_id', $id)
-							->update(['status'	=> Input::get('status')]);
+							->update(['status'	=> $request->get('status')]);
 									
 			/* DB::table('crm_followup')
-							->where('id', Input::get('fid'))
+							->where('id', $request->get('fid'))
 							->update([
-										'remark' => Input::get('remark'),
-										'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-										'product_id' => (Input::get('products')!='')?implode(',', Input::get('products')):'',
-										'status'	=> Input::get('status')
+										'remark' => $request->get('remark'),
+										'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+										'product_id' => ($request->get('products')!='')?implode(',', $request->get('products')):'',
+										'status'	=> $request->get('status')
 									]); */
 								
 			
@@ -1200,7 +1200,7 @@ public function TransferSave2()
 				
 				
 						->where('crm_followup.status','=',3)
-						->where('account_master.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 		
 		if(Auth::user()->roles[0]->name=='Salesman')
 						$query->where('account_master.salesman_id',Session::get('salesman_id'));			
@@ -1227,7 +1227,7 @@ public function TransferSave2()
 					->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
 				    ->where('crm_followup.is_open','=',0)
 					->where('crm_followup.status','=',1)
-					->where('account_master.deleted_at','0000-00-00 00:00:00');
+					->whereNull('deleted_at');
 						
 			if(Auth::user()->roles[0]->name=='Salesman')
 				$query->where('account_master.salesman_id',Session::get('salesman_id'));
@@ -1354,7 +1354,7 @@ public function TransferSave2()
 						->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
 				           ->where('crm_followup.is_open','=',0)
 				           // ->where('crm_followup.is_close','=',1)
-						->where('account_master.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 						
 		
 		if(Auth::user()->roles[0]->name=='Salesman')
@@ -1379,7 +1379,7 @@ public function EnquiryStatus() {
 						->where('crm_followup.status','=',2)
 						->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
 				         ->where('crm_followup.is_open','=',0)
-						->where('account_master.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 			if(Auth::user()->roles[0]->name=='Salesman')
 						$query->where('account_master.salesman_id',Session::get('salesman_id'));			
 	
@@ -1408,7 +1408,7 @@ public function EnquiryStatus() {
 						->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
 				         ->where('crm_followup.is_open','=',0)
 				        // ->where('crm_followup.is_close','=',1)
-						->where('account_master.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 		
 		if(Auth::user()->roles[0]->name=='Salesman')
 						$query->where('account_master.salesman_id',Session::get('salesman_id'));			
@@ -1424,40 +1424,40 @@ public function EnquiryStatus() {
 	
 		public function ajaxCreate()
 	{
-		$date = (Input::get('date')=='')?date('Y-m-d'):date('Y-m-d', strtotime(Input::get('date')));
+		$date = ($request->get('date')=='')?date('Y-m-d'):date('Y-m-d', strtotime($request->get('date')));
 	
          //echo '<pre>';print_r($date); exit;
 			//  echo '<pre>';print_r($cust);
 			//  exit;
 			
-		 $popupStats = DB::table('crm_followup')->where('id',Input::get('rowid'))
-		  						->where('customer_id',Input::get('customer_id'))
+		 $popupStats = DB::table('crm_followup')->where('id',$request->get('rowid'))
+		  						->where('customer_id',$request->get('customer_id'))
 		  						->select('crm_followup.status')->get();
 		 $status_follow =$popupStats[0]->status ;	
 		DB::table('crm_followup')
-		->where('id',Input::get('rowid'))
+		->where('id',$request->get('rowid'))
 		
-		->where('customer_id',Input::get('customer_id'))
+		->where('customer_id',$request->get('customer_id'))
 		->update(['is_open' => 1]);
 		DB::table('crm_followup')  
 		                        ->insert([
-									'customer_id' => Input::get('customer_id'),
+									'customer_id' => $request->get('customer_id'),
 									'remark_date' => date('Y-m-d'),
-									'remark' => Input::get('remark'),
-									'next_date' => date('Y-m-d', strtotime(Input::get('next_date'))),
-									'product_id' => Input::get('product_id'),
-									'status' => Input::get('status'),
+									'remark' => $request->get('remark'),
+									'next_date' => date('Y-m-d', strtotime($request->get('next_date'))),
+									'product_id' => $request->get('product_id'),
+									'status' => $request->get('status'),
 									
 									'created_at' => date('Y-m-d H:i:s'),
 									'salesman_id' => (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0,
-									'parent_id' => Input::get('parent_id')
+									'parent_id' => $request->get('parent_id')
 								]);
 
 							
 								
 	
 		DB::table('crm_followup')
-		                ->where('parent_id', Input::get('parent_id'))
+		                ->where('parent_id', $request->get('parent_id'))
 						->update(['status' => $status_follow]);
 		
 		//return 'true';
@@ -1468,7 +1468,7 @@ public function EnquiryStatus() {
 	{
 		$enquiry = DB::table('crm_followup')->join('account_master','account_master.id','=','crm_followup.customer_id')
 					->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
-					->where('crm_followup.customer_id',$id)->where('crm_followup.deleted_at','0000-00-00 00:00:00')
+					->where('crm_followup.customer_id',$id)->whereNull('deleted_at')
 					->where('crm_followup.is_parent',1)->orderBy('crm_followup.id','DESC')->select('crm_followup.*','account_master.master_name')->get();
 		
 		return view('body.customerleads.enquiry')
@@ -1491,12 +1491,12 @@ public function EnquiryStatus() {
 	{
 		$qry1 = DB::table('crm_followup')->join('account_master','account_master.id','=','crm_followup.customer_id')
 					->where('crm_followup.status','!=',4)->where('crm_followup.is_open','=',0)
-		->where('crm_followup.status','!=',1)->where('crm_followup.id',$id)->where('crm_followup.deleted_at','0000-00-00 00:00:00')
+		->where('crm_followup.status','!=',1)->where('crm_followup.id',$id)->whereNull('deleted_at')
 					->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
 					->select('crm_followup.*','account_master.master_name');
 		
 		$qry2 = DB::table('crm_followup')->join('account_master','account_master.id','=','crm_followup.customer_id')
-					->where('crm_followup.parent_id',$id)->where('crm_followup.deleted_at','0000-00-00 00:00:00')
+					->where('crm_followup.parent_id',$id)->whereNull('deleted_at')
 					->orderBy('crm_followup.id','ASC')->select('crm_followup.*','account_master.master_name');
 					
 		$result = $qry1->union($qry2)->get();
@@ -1540,12 +1540,12 @@ public function EnquiryStatus() {
 	
 	public function ajaxUpdateFollowup()
 	{
-		$date = (Input::get('date')=='')?date('Y-m-d'):date('Y-m-d', strtotime(Input::get('date')));
-		DB::table('followups')->where('id',Input::get('id'))
+		$date = ($request->get('date')=='')?date('Y-m-d'):date('Y-m-d', strtotime($request->get('date')));
+		DB::table('followups')->where('id',$request->get('id'))
 							->update([
 									'date' => $date,
-									'title' => Input::get('title'),
-									'description' => Input::get('description'),
+									'title' => $request->get('title'),
+									'description' => $request->get('description'),
 									'modified_by' => Auth::User()->id,
 									'modified_at' => date('Y-m-d H:i:s')
 								]);
@@ -1561,16 +1561,16 @@ public function EnquiryStatus() {
 	
 	public function doPhone() {
 
-		$query = DB::table('account_master')->where('account_master.status',1)->where('account_master.deleted_at','0000-00-00 00:00:00')
-						->where('account_master.vat_assign',Input::get('code'))
+		$query = DB::table('account_master')->where('account_master.status',1)->whereNull('deleted_at')
+						->where('account_master.vat_assign',$request->get('code'))
 						->where('account_master.category','CUSTOMER')
 						->join('salesman','salesman.id','=','account_master.salesman_id');
 						
-		/* if(Input::get('id')!='') {
-			$query->where('id', '!=', Input::get('id'));
+		/* if($request->get('id')!='') {
+			$query->where('id', '!=', $request->get('id'));
 		}  */
 		
-		$phone1 = Input::get('phone'); $phone2 = Input::get('phone2');
+		$phone1 = $request->get('phone'); $phone2 = $request->get('phone2');
 		
 		$query->where(function($qry) use ($phone1,$phone2) {
 			$qry->where('account_master.phone',$phone1);
@@ -1588,5 +1588,8 @@ public function EnquiryStatus() {
 	
 }
 
-//SELECT currency.decimal_name,purchase_order.voucher_no,purchase_order.reference_no,purchase_order.voucher_date,purchase_order.total,purchase_order.vat_amount AS total_vat,purchase_order.discount,purchase_order.net_amount,purchase_order.subtotal,purchase_order.total_fc,purchase_order.discount_fc,purchase_order.vat_amount_fc,purchase_order.net_amount_fc,currency.code,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.description AS terms,purchase_order_item.item_name,purchase_order_item.quantity,purchase_order_item.unit_price,purchase_order_item.vat,purchase_order_item.vat_amount,purchase_order_item.total_price,purchase_order_item.tax_include,purchase_order_item.item_total,purchase_order_item.vat_amount AS line_vat,purchase_order_item.unit_price_fc,purchase_order_item.item_total_fc,purchase_order_item.total_price_fc,purchase_order_item.vat_amount_fc AS line_vat_fc,itemmaster.item_code,units.unit_name,header.description AS header,footer.description AS footer FROM purchase_order JOIN account_master ON(account_master.id=purchase_order.supplier_id) LEFT JOIN terms ON(terms.id=purchase_order.terms_id) JOIN purchase_order_item ON(purchase_order_item.purchase_order_id=purchase_order.id) JOIN itemmaster ON(itemmaster.id=purchase_order_item.item_id) JOIN units ON(units.id=purchase_order_item.unit_id) LEFT JOIN header_footer header ON(header.id=purchase_order.header_id) LEFT JOIN header_footer footer ON(footer.id=purchase_order.footer_id) JOIN currency ON(currency.id=purchase_order.currency_id) WHERE purchase_order_item.status=1 AND purchase_order_item.deleted_at='0000-00-00 00:00:00' AND purchase_order.id={id}
+//SELECT currency.decimal_name,purchase_order.voucher_no,purchase_order.reference_no,purchase_order.voucher_date,purchase_order.total,purchase_order.vat_amount AS total_vat,purchase_order.discount,purchase_order.net_amount,purchase_order.subtotal,purchase_order.total_fc,purchase_order.discount_fc,purchase_order.vat_amount_fc,purchase_order.net_amount_fc,currency.code,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.description AS terms,purchase_order_item.item_name,purchase_order_item.quantity,purchase_order_item.unit_price,purchase_order_item.vat,purchase_order_item.vat_amount,purchase_order_item.total_price,purchase_order_item.tax_include,purchase_order_item.item_total,purchase_order_item.vat_amount AS line_vat,purchase_order_item.unit_price_fc,purchase_order_item.item_total_fc,purchase_order_item.total_price_fc,purchase_order_item.vat_amount_fc AS line_vat_fc,itemmaster.item_code,units.unit_name,header.description AS header,footer.description AS footer FROM purchase_order JOIN account_master ON(account_master.id=purchase_order.supplier_id) LEFT JOIN terms ON(terms.id=purchase_order.terms_id) JOIN purchase_order_item ON(purchase_order_item.purchase_order_id=purchase_order.id) JOIN itemmaster ON(itemmaster.id=purchase_order_item.item_id) JOIN units ON(units.id=purchase_order_item.unit_id) LEFT JOIN header_footer header ON(header.id=purchase_order.header_id) LEFT JOIN header_footer footer ON(footer.id=purchase_order.footer_id) JOIN currency ON(currency.id=purchase_order.currency_id) WHERE purchase_order_item.status=1 AND deleted_at IS NULL AND purchase_order.id={id}
+
+
+
 

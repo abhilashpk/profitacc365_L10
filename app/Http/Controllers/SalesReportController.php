@@ -49,25 +49,25 @@ class SalesReportController extends Controller
 	{
 		$data = array();
 		
-		if(Input::get('search_type')=='sales') {
+		if($request->get('search_type')=='sales') {
 			$voucher_head = 'Sales Invoice Summary';
-			$reports = $this->sales_invoice->getInvoiceReport(Input::all()); 
+			$reports = $this->sales_invoice->getInvoiceReport($request->all()); 
 			
-		} else if(Input::get('search_type')=='sales_order') {
+		} else if($request->get('search_type')=='sales_order') {
 			$voucher_head = 'Sales Order Report';
-			$reports = $this->sales_order->getOrderReport(Input::all());
+			$reports = $this->sales_order->getOrderReport($request->all());
 			
-		} else if(Input::get('search_type')=='sales_return') {
+		} else if($request->get('search_type')=='sales_return') {
 			$voucher_head = 'Sales Return Report';
-			$reports = $this->sales_return->getReturnReport(Input::all());
+			$reports = $this->sales_return->getReturnReport($request->all());
 			
-		} else if(Input::get('search_type')=='quotation') {
+		} else if($request->get('search_type')=='quotation') {
 			$voucher_head = 'Sales Quotation Report';
-			$reports = $this->sales_quotation->getQuotationReport(Input::all());
+			$reports = $this->sales_quotation->getQuotationReport($request->all());
 			
-		}  else if(Input::get('search_type')=='delivery_order') {
+		}  else if($request->get('search_type')=='delivery_order') {
 			$voucher_head = 'Customer Delivery Order Report';
-			$reports = $this->customer_do->getOrderReport(Input::all());
+			$reports = $this->customer_do->getOrderReport($request->all());
 			
 		}
 		
@@ -75,9 +75,9 @@ class SalesReportController extends Controller
 		return view('body.salesreport.index')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withData($data);
 	}
 	
@@ -118,25 +118,25 @@ class SalesReportController extends Controller
 	{
 		$data = array();
 		
-		if(Input::get('search_type')=='sales') {
+		if($request->get('search_type')=='sales') {
 			$voucher_head = 'Sales Invoice Summary';
-			$reports = $this->makeSummary( $this->sales_invoice->getInvoiceReport(Input::all()) ); 
+			$reports = $this->makeSummary( $this->sales_invoice->getInvoiceReport($request->all()) ); 
 			
-		} else if(Input::get('search_type')=='sales_order') {
+		} else if($request->get('search_type')=='sales_order') {
 			$voucher_head = 'Sales Order Summary';
-			$reports = $this->makeSummary( $this->sales_order->getOrderReport(Input::all())); 
+			$reports = $this->makeSummary( $this->sales_order->getOrderReport($request->all())); 
 			
-		} else if(Input::get('search_type')=='sales_return') {
+		} else if($request->get('search_type')=='sales_return') {
 			$voucher_head = 'Sales Return Summary';
-			$reports = $this->makeSummary( $this->sales_return->getReturnReport(Input::all()));
+			$reports = $this->makeSummary( $this->sales_return->getReturnReport($request->all()));
 			
-		} else if(Input::get('search_type')=='quotation') {
+		} else if($request->get('search_type')=='quotation') {
 			$voucher_head = 'Sales Quotation Summary';
-			$reports = $this->makeSummary( $this->sales_quotation->getQuotationReport(Input::all()));
+			$reports = $this->makeSummary( $this->sales_quotation->getQuotationReport($request->all()));
 			
-		} else if(Input::get('search_type')=='delivery_order') {
+		} else if($request->get('search_type')=='delivery_order') {
 			$voucher_head = 'Customer Delivery Order Summary';
-			$reports = $this->makeSummary( $this->customer_do->getOrderReport(Input::all())); 
+			$reports = $this->makeSummary( $this->customer_do->getOrderReport($request->all())); 
 			
 		}
 		$titles = ['main_head' => 'Sales Invoice Summary','subhead' => $voucher_head];
@@ -145,9 +145,9 @@ class SalesReportController extends Controller
 					->withCash($reports['cash'])
 					->withCredit($reports['credit'])
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withTitles($titles)
 					->withUrl('sales_report')
 					->withData($data);
@@ -157,25 +157,25 @@ class SalesReportController extends Controller
 	{
 		$data = array();
 		
-		if(Input::get('search_type')=='sales') {
+		if($request->get('search_type')=='sales') {
 			$voucher_head = 'Sales Invoice';
-			$results = $this->sales_invoice->getInvoiceById(Input::all()); 
+			$results = $this->sales_invoice->getInvoiceById($request->all()); 
 			
-		} else if(Input::get('search_type')=='sales_order') {
+		} else if($request->get('search_type')=='sales_order') {
 			$voucher_head = 'Sales Order';
-			$results = $this->sales_order->getOrder(Input::all());
+			$results = $this->sales_order->getOrder($request->all());
 			
-		} else if(Input::get('search_type')=='sales_return') {
+		} else if($request->get('search_type')=='sales_return') {
 			$voucher_head = 'Sales Return';
-			$results = $this->sales_return->getReturn(Input::all());
+			$results = $this->sales_return->getReturn($request->all());
 			
-		} else if(Input::get('search_type')=='quotation') {
+		} else if($request->get('search_type')=='quotation') {
 			$voucher_head = 'Sales Quotation';
-			$results = $this->sales_quotation->getQuotation(Input::all());
+			$results = $this->sales_quotation->getQuotation($request->all());
 			
-		}  else if(Input::get('search_type')=='delivery_order') {
+		}  else if($request->get('search_type')=='delivery_order') {
 			$voucher_head = 'Customer Delivery Order';
-			$results = $this->customer_do->getOrder(Input::all());
+			$results = $this->customer_do->getOrder($request->all());
 		}
 		
 		//echo '<pre>';print_r($results);exit;

@@ -72,7 +72,7 @@ class QuotationController extends Controller
 		$data = array(); //echo Session::get('cost_accounting'); //Session::get('cr_id');//echo $request->session()->get('cr_id');
 		$orders = $this->quotation->purchaseOrderList();//echo '<pre>';print_r($orders);exit;
 		$jobs = $this->jobmaster->activeJobmasterList();
-		$sup =DB::table('account_master')->where('category','SUPPLIER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$sup =DB::table('account_master')->where('category','SUPPLIER')->where('status',1)->whereNull('deleted_at')
 		->select('id','master_name')->get(); 
 		return view('body.quotation.index')
 					->withOrders($orders)
@@ -228,7 +228,7 @@ class QuotationController extends Controller
 		$res = $this->voucherno->getVoucherNo('QP');
 		//$vno = $res->no;//echo '<pre>';print_r($currency);exit;
 		
-		//$row = DB::table('quotation')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		//$row = DB::table('quotation')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		// if($row && in_array($row->doc_status, $apr))
 		// 	$lastid = $row->id;
@@ -241,7 +241,7 @@ class QuotationController extends Controller
 		// 					->where('report_view_detail.is_default',1)
 		// 					->select('report_view_detail.id')
 		// 					->first();
-		$footertxt = DB::table('header_footer')->where('doc','QP')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();					
+		$footertxt = DB::table('header_footer')->where('doc','QP')->where('status',1)->whereNull('deleted_at')->first();					
 		if($id) {
 			$ids = explode(',', $id);
 			if($doctype=='QP') {
@@ -462,7 +462,7 @@ class QuotationController extends Controller
 		if($request->hasFile('import_file')){
 			
 			
-				$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+				$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->whereNull('deleted_at')->select('id')->first();
 
 			$path = $request->file('import_file')->getRealPath();
 			$data = Excel::load($path, function($reader) { })->get();
@@ -1149,4 +1149,6 @@ class QuotationController extends Controller
 	}
 	
 }
+
+
 

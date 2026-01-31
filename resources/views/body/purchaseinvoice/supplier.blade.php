@@ -119,6 +119,20 @@
 				<?php } else { ?>
 					<input type="hidden" name="vat_no" id="vat_no">
 			     <?php } ?>
+
+				<div class="form-group">
+					<label for="input-text" class="col-sm-5 control-label">Reference</label>
+					<div class="col-sm-7">
+						<input type="text" class="form-control" id="reference" name="reference" placeholder="Reference">
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label for="input-text" class="col-sm-5 control-label">Description</label>
+					<div class="col-sm-7">
+						<input type="text" class="form-control" id="description" name="description" placeholder="Description">
+					</div>
+				</div>
 				
 				<div class="form-group">
 					<label for="input-text" class="col-sm-5 control-label"></label>
@@ -170,6 +184,8 @@ $(function() {
 		var cn = $('#frmSupplier #country_id option:selected').val();
 		var ph = $('#frmSupplier #phone').val();
 		var vt = $('#frmSupplier #vat_no').val();
+		var ref = $('#frmSupplier #reference').val();
+		var desc = $('#frmSupplier #description').val();
 		if(name=="") {
 			alert('Supplier name is required!');
 			return false;
@@ -179,7 +195,7 @@ $(function() {
 			$.ajax({
 				url: "{{ url('account_master/ajax_create/') }}",
 				type: 'get',
-				data: 'account_id='+ac+'&master_name='+name+'&address='+adrs+'&area_id='+ar+'&country_id='+cn+'&phone='+ph+'&vat_no='+vt+'&category=SUPPLIER',
+				data: 'account_id='+ac+'&master_name='+name+'&address='+adrs+'&area_id='+ar+'&country_id='+cn+'&phone='+ph+'&vat_no='+vt+'&category=SUPPLIER'+'&reference='+ref+'&description='+desc,
 				success: function(data) { //console.log(data);
 					if(data > 0) {
 						$('#sucessmsg').toggle( function() {

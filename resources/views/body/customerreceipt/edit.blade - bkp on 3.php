@@ -62,13 +62,13 @@
                                 <i class="fa fa-fw fa-crosshairs"></i>  Edit Customer Receipt
                             </h3>
                            <div class="pull-right">
-								@permission('rv-print')
+								@can('rv-print')
 								 <a href="{{ url('customer_receipt/print2/'.$crrow->id.'/'.$prints[0]->id) }}" target="_blank" class="btn btn-info btn-sm">
 									<span class="btn-label">
 										<i class="fa fa-fw fa-print"></i>
 									</span>
 								 </a>
-								@endpermission
+								@endcan
 							</div>
                         </div>
                         <div class="panel-body">

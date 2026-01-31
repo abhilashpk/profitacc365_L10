@@ -10,6 +10,7 @@ use Notification;
 use Session;
 use DB;
 use App;
+use Redirect;
 
 class AcgroupController extends Controller
 {
@@ -48,14 +49,13 @@ class AcgroupController extends Controller
 	}
 	
 	public function save(Request $request) {
-		//print_r(Input::all());exit;
-		try {
-			$this->acgroup->create($request->all());
+		//print_r($request->all());exit;
+		$result = $this->acgroup->create($request->all());
+		if ($result) {
 			Session::flash('message', 'Acgroup added successfully.');
 			return redirect('acgroup/add');
-		} catch(ValidationException $e) { 
-			return Redirect::to('acgroup/add')->withErrors($e->getErrors());
 		}
+		return Redirect::to('acgroup/add')->withErrors($this->acgroup->getErrors());
 	}
 	
 	public function edit($id) { 
@@ -73,7 +73,7 @@ class AcgroupController extends Controller
 	
 	public function update($id, Request $request)
 	{
-		$this->acgroup->update($id, $request->all());//print_r(Input::all());exit;
+		$this->acgroup->update($id, $request->all());//print_r($request->all());exit;
 		//Session::flash('message', 'Acgroup updated successfully');
 		return redirect('acgroup');
 	}

@@ -49,9 +49,8 @@
                            
                         </div>
                         <div class="panel-body">
-							{!! Form::open(array('route' => 'users.store','method'=>'POST')) !!}
-							<!--<form class="form-horizontal" role="form" method="POST" name="frmUsers" id="frmUsers" action="{{ url('users/store') }}">-->
-							<input type="hidden" name="_token" value="{{ csrf_token() }}">
+							<form role="form" method="POST" action="{{ route('users.store') }}">
+                                @csrf
 							<div class="row">
 								<div class="col-xs-12 col-sm-12 col-md-12">
 									<div class="form-group">
@@ -117,7 +116,7 @@
 										<button type="submit" class="btn btn-primary">Submit</button>
 								</div>
 							</div>
-							{!! Form::close() !!}
+							</form>
 							<!--</form>-->
                         </div>
                     </div>

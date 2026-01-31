@@ -37,9 +37,9 @@ class ContractTypeController extends Controller
 		try {
 			DB::table('contract_type')
 				->insert([
-					'code' => Input::get('code'),
-					'name' => Input::get('name'),
-					'description' => Input::get('description')
+					'code' => $request->get('code'),
+					'name' => $request->get('name'),
+					'description' => $request->get('description')
 				]);
 				
 			Session::flash('message', 'Contract type added successfully.');
@@ -61,8 +61,8 @@ class ContractTypeController extends Controller
 	{
 		DB::table('contract_type')->where('id',$id)
 				->update([
-					'name' => Input::get('name'),
-					'description' => Input::get('description')
+					'name' => $request->get('name'),
+					'description' => $request->get('description')
 				]);
 		Session::flash('message', 'Contract type updated successfully');
 		return redirect('contract_type');

@@ -44,7 +44,7 @@ class LocationTransferController extends Controller
 		$location = $this->location->locationListAll();
 		$res = $this->voucherno->getVoucherNo('LT');
 		$vno = $res->no;
-		$lastid = DB::table('location_transfer')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$lastid = DB::table('location_transfer')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
 		return view('body.locationtransfer.add')
 					->withLocation($location)
 					->withVoucherno($vno)
@@ -118,4 +118,6 @@ class LocationTransferController extends Controller
 		
 	}
 }
+
+
 

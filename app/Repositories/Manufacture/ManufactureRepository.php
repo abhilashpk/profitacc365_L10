@@ -463,8 +463,8 @@ class ManufactureRepository extends AbstractValidator implements ManufactureInte
 									   $join->on('IM.id','=','MI.item_id');
 								   })
 								   ->where('MI.status',1)
-								   ->where('MI.deleted_at','0000-00-00 00:00:00')
-								   ->where('manufacture.deleted_at','0000-00-00 00:00:00');
+								   ->whereNull('deleted_at')
+								   ->whereNull('deleted_at');
 							
 							if($date_from !='' && $date_to != '')	   
 								$qry->whereBetween('manufacture.voucher_date',[$date_from, $date_to]);
@@ -591,7 +591,7 @@ class ManufactureRepository extends AbstractValidator implements ManufactureInte
 									   $join->on('U.id','=','STI.unit_id');
 								   })
 								   ->where('STI.status', 1)
-								   ->where('STI.deleted_at', '0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->select('STI.*','IM.item_code','U.unit_name')//'sales_invoice.id',
 								   ->get();
 								   
@@ -758,4 +758,6 @@ class ManufactureRepository extends AbstractValidator implements ManufactureInte
 	}
 	
 }
+
+
 

@@ -42,8 +42,8 @@ class CargoDestinationTypeController extends Controller
 		try {
 			DB::table('cargo_destination')
 				->insert([
-					'code' => Input::get('code'),
-					'name' => Input::get('name')
+					'code' => $request->get('code'),
+					'name' => $request->get('name')
 				]);
 				
 			Session::flash('message', 'Destination Type added successfully.');
@@ -70,8 +70,8 @@ class CargoDestinationTypeController extends Controller
 	{
 		DB::table('cargo_destination')->where('id',$id)
 				->update([
-					'code' => Input::get('code'),
-					'name' => Input::get('name'),
+					'code' => $request->get('code'),
+					'name' => $request->get('name'),
 				]);
 		Session::flash('message', 'Destination Type updated successfully');
 		return redirect('destination_type');
@@ -79,7 +79,7 @@ class CargoDestinationTypeController extends Controller
 
     public function checkname() {
 
-		$check = $this->check_destination_name(Input::get('name'), Input::get('id'));
+		$check = $this->check_destination_name($request->get('name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,

@@ -73,7 +73,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 							});
 							
 					$query->where('account_transaction.modify_at', '0000-00-00 00:00:00')
-							->where('account_transaction.deleted_at', '0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('account_transaction.status', 1);
 							
 					if($date_from!='' && $date_to!='') {		
@@ -90,7 +90,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 							});
 							
 					$query->where('account_transaction.modify_at', '!=', '0000-00-00 00:00:00')
-							->where('account_transaction.deleted_at', '0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('account_transaction.status', 1);
 							
 				} else if($attributes['tr_type']=='deletion') {
@@ -102,7 +102,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 								$join->on('UM.id', '=', 'account_transaction.deleted_by');
 							});
 							
-					$query->where('account_transaction.deleted_at', '!=', '0000-00-00 00:00:00')
+					$query->whereNotNull('')
 							->where('account_transaction.status', 0);
 							
 				}	
@@ -134,7 +134,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 							});
 							
 					$query->where('account_transaction.modify_at', '0000-00-00 00:00:00')
-							->where('account_transaction.deleted_at', '0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('account_transaction.status', 1);
 							
 					if($date_from!='' && $date_to!='') {		
@@ -151,7 +151,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 							});
 							
 					$query->where('account_transaction.modify_at', '!=', '0000-00-00 00:00:00')
-							->where('account_transaction.deleted_at', '0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('account_transaction.status', 1);
 							
 				} else if($attributes['tr_type']=='deletion') {
@@ -163,7 +163,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 								$join->on('UM.id', '=', 'account_transaction.deleted_by');
 							});
 							
-					$query->where('account_transaction.deleted_at', '!=', '0000-00-00 00:00:00')
+					$query->whereNotNull('')
 							->where('account_transaction.status', 0);
 							
 				}	
@@ -188,7 +188,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 							});
 							
 					$query->where('account_master.modified_at', '0000-00-00 00:00:00')
-							->where('account_master.deleted_at', '0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('account_master.status', 1);
 							
 					if($date_from!='' && $date_to!='') {		
@@ -205,7 +205,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 							});
 							
 					$query->where('account_master.modified_at', '!=', '0000-00-00 00:00:00')
-							->where('account_master.deleted_at', '0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('account_master.status', 1);
 							
 				} else if($attributes['tr_type']=='deletion') {
@@ -217,7 +217,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 								$join->on('UM.id', '=', 'account_master.deleted_by');
 							});
 							
-					$query->where('account_master.deleted_at', '!=', '0000-00-00 00:00:00')
+					$query->whereNotNull('')
 							->where('account_master.status', 0);
 							
 				}	
@@ -241,7 +241,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 							});
 							
 					$query->where('itemmaster.modified_at', '0000-00-00 00:00:00')
-							->where('itemmaster.deleted_at', '0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('itemmaster.status', 1);
 							
 					if($date_from!='' && $date_to!='') {		
@@ -258,7 +258,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 							});
 							
 					$query->where('itemmaster.modified_at', '!=', '0000-00-00 00:00:00')
-							->where('itemmaster.deleted_at', '0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('itemmaster.status', 1);
 							
 				} else if($attributes['tr_type']=='deletion') {
@@ -270,7 +270,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 								$join->on('UM.id', '=', 'itemmaster.deleted_by');
 							});
 							
-					$query->where('itemmaster.deleted_at', '!=', '0000-00-00 00:00:00')
+					$query->whereNotNull('')
 							->where('itemmaster.status', 0);
 							
 				}	
@@ -290,4 +290,7 @@ class LogDetailsRepository extends AbstractValidator implements LogDetailsInterf
 	}
 	
 }
+
+
+
 

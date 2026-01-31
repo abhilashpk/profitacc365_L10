@@ -83,7 +83,7 @@ class ContractBuildingController extends Controller
 	public function enquiry() {
 		$contractbuilding = [];
 		$building = DB::table('buildingmaster')->where('deleted_at',null)->select('buildingcode','id','buildingname')->get();
-		$tenants = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('master_name','id')->get();
+		$tenants = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->select('master_name','id')->get();
 		
 		//echo '<pre>';print_r($contractbuilding);exit;
 		return view('body.contractbuilding.enquiry')
@@ -95,7 +95,7 @@ class ContractBuildingController extends Controller
 	public function Report() {
 		$contractbuilding = [];
 		$building = DB::table('buildingmaster')->where('deleted_at',null)->select('buildingcode','id')->get();
-		//$tenants = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('master_name','id')->get();
+		//$tenants = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->select('master_name','id')->get();
 		
 		//echo '<pre>';print_r($contractbuilding);exit;
 		return view('body.contractbuilding.report')
@@ -107,7 +107,7 @@ class ContractBuildingController extends Controller
 	public function closed() {
 		$contractbuilding = [];
 		$building = [];//DB::table('buildingmaster')->where('deleted_at',null)->select('buildingcode','id')->get();
-		$tenants = [];//DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('master_name','id')->get();
+		$tenants = [];//DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->select('master_name','id')->get();
 		
 		//echo '<pre>';print_r($contractbuilding);exit;
 		return view('body.contractbuilding.closed')
@@ -200,6 +200,7 @@ class ContractBuildingController extends Controller
 				$settle =  '"'.url('contractbuilding/settle/'.$row->id).'"';
 				$mail =  '"'.url('contractbuilding/mail/'.$row->id).'"';
 				$attach =  '"'.url('contractbuilding/attach/'.$row->id).'"';
+				$viewall =  '"'.url('contractbuilding/print_all/'.$row->id).'"';
 				
                 $nestedData['id'] = $row->id;
                 $nestedData['contract_no'] = $row->contract_no;
@@ -231,7 +232,7 @@ class ContractBuildingController extends Controller
 				$nestedData['open'] = "<p><button class='btn btn-success btn-xs' onClick='location.href={$open}'>
 												<i class='fa fa-fw fa-folder-open'></i></button></p>";
 												
-				$nestedData['attach'] = "<p><a href={$attach}' class='btn btn-info btn-xs' target='_blank'><span class='glyphicon glyphicon-paperclip'></span></a></p>";
+				$nestedData['attach'] = "<p><a href={$viewall}' class='btn btn-info btn-xs' target='_blank'><span class='glyphicon glyphicon-eye-open'></span></a></p>";
 				
                 $data[] = $nestedData;
             }
@@ -839,12 +840,12 @@ class ContractBuildingController extends Controller
 			$view = 'add';
 		
 		$buildingmaster = DB::table('buildingmaster')->where('deleted_at',null)->select('id','buildingcode','buildingname')->get();
-		$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+		$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 		$rvrow = DB::table('account_setting AS S')
 						->join('account_master AS M1','M1.id','=','S.cash_account_id')
 						->join('account_master AS M2','M2.id','=','S.pdc_account_id')
 						->join('account_master AS M3','M3.id','=','S.bank_account_id')
-						->where('S.voucher_type_id',9)->where('S.status',1)->where('S.deleted_at','0000-00-00 00:00:00')->where('S.department_id',0)
+						->where('S.voucher_type_id',9)->where('S.status',1)->whereNull('deleted_at')->where('S.department_id',0)
 						->select('S.voucher_no','M1.master_name AS cash','M1.id AS cashid','M2.master_name AS pdc','M2.id AS pdcid',
 						'M3.master_name AS bank','M3.id AS bankid')->first();
 						
@@ -852,11 +853,11 @@ class ContractBuildingController extends Controller
 						->join('account_master AS M1','M1.id','=','S.cash_account_id')
 						->join('account_master AS M2','M2.id','=','S.pdc_account_id')
 						->join('account_master AS M3','M3.id','=','S.bank_account_id')
-						->where('S.voucher_type_id',10)->where('S.status',1)->where('S.deleted_at','0000-00-00 00:00:00')->where('S.department_id',0)
+						->where('S.voucher_type_id',10)->where('S.status',1)->whereNull('deleted_at')->where('S.department_id',0)
 						->select('S.voucher_no','M1.master_name AS cash','M1.id AS cashid','M2.master_name AS pdc','M2.id AS pdcid',
 						'M3.master_name AS bank','M3.id AS bankid')->first();
 		
-		$banks = DB::table('bank')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get();
+		$banks = DB::table('bank')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get();
 		$depo = DB::table('contract_prepaid')->where('contract_id',$id)->get();
 		
 		//echo '<pre>';print_r($acrow);exit;
@@ -1382,7 +1383,7 @@ protected function makeTreeexp($result)
 	 
 	
 	
-	public function getSearch()
+	public function getSearch(Request $request)
 	{
 		$data = array();
 		$voucher_head  = '';
@@ -1658,17 +1659,17 @@ public function dataExport()
 		
 		
 		$buildingmaster = DB::table('buildingmaster')->where('deleted_at',null)->select('id','buildingcode','buildingname')->get();
-		$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+		$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 		$rvrow = DB::table('account_setting AS S')
 						->join('account_master AS M1','M1.id','=','S.cash_account_id')
 						->join('account_master AS M2','M2.id','=','S.pdc_account_id')
 						->join('account_master AS M3','M3.id','=','S.bank_account_id')
-						->where('S.voucher_type_id',9)->where('S.status',1)->where('S.deleted_at','0000-00-00 00:00:00')->where('S.department_id',0)
+						->where('S.voucher_type_id',9)->where('S.status',1)->whereNull('deleted_at')->where('S.department_id',0)
 						->select('S.voucher_no','M1.master_name AS cash','M1.id AS cashid','M2.master_name AS pdc','M2.id AS pdcid',
 						'M3.master_name AS bank','M3.id AS bankid')->first();
 		
-		$banks = DB::table('bank')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get();
-		$duration = DB::table('duration')->where('deleted_at','0000-00-00 00:00:00')->get();
+		$banks = DB::table('bank')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get();
+		$duration = DB::table('duration')->whereNull('deleted_at')->get();
 		
 		//echo '<pre>';print_r($rvrow);exit;
 		return view('body.contractbuilding.renew')
@@ -1787,7 +1788,7 @@ public function dataExport()
 				}
 				
 				//TAX EXTRY....
-				$vatrow = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->select('payment_account')->first();
+				$vatrow = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->select('payment_account')->first();
 				if($vatrow) {
 					foreach($request->get('acid') as $key => $val) {
 						if($actax[$key] > 0) {
@@ -1937,7 +1938,7 @@ public function dataExport()
 								->join('receipt_voucher_entry AS RE','RE.receipt_voucher_id','=','R.id')
 								->join('account_master AS M','M.id','=','RE.account_id')
 								->where('RE.status',1)
-								->where('RE.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->select('R.voucher_no','R.voucher_date','M.master_name','RE.*','contract_rvs.installment','R.voucher_type')
 								->orderBy('RE.id','ASC')->get();  //echo '<pre>';print_r($rvs);exit;
 								
@@ -1997,12 +1998,12 @@ public function dataExport()
 				Session::flash('active', 'home');
 			
 		$buildingmaster = DB::table('buildingmaster')->where('deleted_at',null)->select('id','buildingcode','buildingname')->get();
-		$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+		$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 		$rvrow = DB::table('account_setting AS S')
 						->join('account_master AS M1','M1.id','=','S.cash_account_id')
 						->join('account_master AS M2','M2.id','=','S.pdc_account_id')
 						->join('account_master AS M3','M3.id','=','S.bank_account_id')
-						->where('S.voucher_type_id',9)->where('S.status',1)->where('S.deleted_at','0000-00-00 00:00:00')->where('S.department_id',0)
+						->where('S.voucher_type_id',9)->where('S.status',1)->whereNull('deleted_at')->where('S.department_id',0)
 						->select('S.voucher_no','M1.master_name AS cash','M1.id AS cashid','M2.master_name AS pdc','M2.id AS pdcid',
 						'M3.master_name AS bank','M3.id AS bankid')->first();
 						
@@ -2010,12 +2011,12 @@ public function dataExport()
 						->join('account_master AS M1','M1.id','=','S.cash_account_id')
 						->join('account_master AS M2','M2.id','=','S.pdc_account_id')
 						->join('account_master AS M3','M3.id','=','S.bank_account_id')
-						->where('S.voucher_type_id',10)->where('S.status',1)->where('S.deleted_at','0000-00-00 00:00:00')->where('S.department_id',0)
+						->where('S.voucher_type_id',10)->where('S.status',1)->whereNull('deleted_at')->where('S.department_id',0)
 						->select('S.voucher_no','M1.master_name AS cash','M1.id AS cashid','M2.master_name AS pdc','M2.id AS pdcid',
 						'M3.master_name AS bank','M3.id AS bankid')->first();
 		
-		$banks = DB::table('bank')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get();
-		$duration = DB::table('duration')->where('deleted_at','0000-00-00 00:00:00')->get();			
+		$banks = DB::table('bank')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get();
+		$duration = DB::table('duration')->whereNull('deleted_at')->get();			
 		
 		if($crow->renew_id=='')
 			$view = 'edit';
@@ -2158,7 +2159,7 @@ public function dataExport()
 				}
 				
 				//TAX EXTRY.... NOV26
-				$vatrow = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->select('payment_account')->first();
+				$vatrow = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->select('payment_account')->first();
 				if($vatrow) {
 					foreach($request->get('acid') as $key => $val) {
 						//if($actax[$key] > 0 && isset($arrchk[$val])) {
@@ -2303,7 +2304,7 @@ public function dataExport()
 				}
 				
 				//TAX EXTRY.... NOV26
-				$vatrow = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->select('payment_account')->first();
+				$vatrow = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->select('payment_account')->first();
 				
 				//PREPAID INCOME TAX CR ENTRY...
 				if($actax[0] > 0) {
@@ -2375,7 +2376,7 @@ public function dataExport()
 			$rvscount = DB::table('contract_rvs')
 								->join('pdc_received','pdc_received.voucher_id','=','contract_rvs.rv_id')
 								->where('contract_rvs.contract_id',$id)
-								->where('pdc_received.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('pdc_received.status',1)
 								->count();
 			if($rvscount==0) {
@@ -2457,7 +2458,7 @@ public function destroy2($id)
 			
 			$adata = []; $duration = $request->get('duration');//floor($request->get('duration')/30);
 			$amount = $request->get('amount')/$duration;
-			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 			$day = date('d',strtotime($request->get('date')));
 			$month = date('m',strtotime($request->get('date')));
 			$year = date('Y',strtotime($request->get('date')));
@@ -2503,7 +2504,7 @@ public function destroy2($id)
 			
 			$adata = []; $duration = ($request->get('duration') > 30)?floor($request->get('duration')/30):1;
 			$amount = $request->get('amount')/$request->get('duration');
-			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 			$day = date('d',strtotime($request->get('date')));
 			$month = date('m',strtotime($request->get('date')));
 			$year = date('Y',strtotime($request->get('date')));
@@ -2584,12 +2585,12 @@ public function destroy2($id)
 	}
 	
 	public function saveRentAllocation(Request $request) {
-		
+		ini_set('max_execution_time', 300); 
 		//echo '<pre>';print_r($request->all());exit; 
 		//JN16
 		DB::beginTransaction();
 		try {
-			$jvset = DB::table('account_setting')->where('voucher_type_id', 16)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('id','voucher_no')->first();
+			$jvset = DB::table('account_setting')->where('voucher_type_id', 16)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('id','voucher_no')->first();
 			$attributes = $request->all(); //echo '<pre>';print_r($attributes);exit;
 			$jvarr = DB::table('contract_jv')->where('contract_id', $attributes['con_id'])->select('id','jv_id')->orderBy('id','ASC')->get();
 			$edit = false;
@@ -2623,7 +2624,8 @@ public function destroy2($id)
 							$this->updateJV($jvarr[$key], $input); 
 							$edit = true;
 						} else {
-							$jvid = $this->createJV($input); 
+							$accset = DB::table('account_setting')->where('id',$input['voucher'])->first();
+							$jvid = $this->createJV($input, $accset); 
 							DB::table('contract_jv')->insert(['contract_id'=> $attributes['con_id'], 'jv_id' => $jvid]);
 						}
 					}
@@ -2649,7 +2651,7 @@ public function destroy2($id)
 		}
 	}
 	
-	private function createJV($attributes) {
+	private function createJV($attributes, $accset) {
 		
 		$jvid = null;
 		//VOUCHER NO LOGIC.....................
@@ -2662,7 +2664,7 @@ public function destroy2($id)
 			->value('max_no');
 		
 		$dept = isset($attributes['department_id'])?$attributes['department_id']:0;
-		$accset = DB::table('account_setting')->where('id',$attributes['voucher'])->first();//echo '<pre>';print_r($accset);
+		//$accset = DB::table('account_setting')->where('id',$attributes['voucher'])->first();//echo '<pre>';print_r($accset);
 		$attributes['voucher_no'] = $this->objUtility->generateVoucherNo($accset->id, $maxNumeric, $dept, $attributes['voucher_no']);
 		//VOUCHER NO LOGIC.....................
 		//exit;
@@ -2681,6 +2683,8 @@ public function destroy2($id)
 							'status' => 1,
 							'created_at' => date('Y-m-d H:i:s')
 						]);
+
+						$saved = true;
 
 				} catch (\Illuminate\Database\QueryException $ex) {
 
@@ -2738,7 +2742,7 @@ public function destroy2($id)
 					'credit' => $attributes['credit']
 				]);
 		
-		$jearr = DB::table('journal_entry')->where('journal_id',$jvd->jv_id)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->select('id')->get();
+		$jearr = DB::table('journal_entry')->where('journal_id',$jvd->jv_id)->whereNull('deleted_at')->orderBy('id','ASC')->select('id')->get();
 		
 		foreach($attributes['line_amount'] as $key => $value) { 
 			DB::table('journal_entry')
@@ -2815,7 +2819,7 @@ public function destroy2($id)
 						'desc' => urldecode($request->get('ref')).'/'.urldecode($request->get('dec')),'amount' => round($divamt,2),'inst' => $instmnt,'reid' => ''];
 		}
 		
-		$banks = DB::table('bank')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get();//NOV8
+		$banks = DB::table('bank')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get();//NOV8
 		return view('body.contractbuilding.receiptadd')
 					->withType($request->get('type'))
 					->withCac($request->get('cac'))
@@ -2874,7 +2878,7 @@ public function destroy2($id)
 				 
 			}
 
-			$voucherRv = DB::table('account_setting')->where('voucher_type_id',9)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			$voucherRv = DB::table('account_setting')->where('voucher_type_id',9)->where('status',1)->whereNull('deleted_at')->first();
 			
 			$request->merge(['from_jv' => 1]);
 			$request->merge(['chktype' => ($ispdc)?'PDCR':'']);
@@ -2986,7 +2990,7 @@ public function destroy2($id)
 				$chqdtarr[] = $arr_chqdt[$key];
 			}
 			
-			$voucherRv = DB::table('account_setting')->where('voucher_type_id',9)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			$voucherRv = DB::table('account_setting')->where('voucher_type_id',9)->where('status',1)->whereNull('deleted_at')->first();
 
 			$request->merge(['from_jv' => 1]);
 			$request->merge(['chktype' => ($ispdc)?'PDCR':'']);
@@ -3123,7 +3127,7 @@ public function destroy2($id)
 				$fcarr[] = '';
 			}
 			
-			$voucherRv = DB::table('account_setting')->where('voucher_type_id',9)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			$voucherRv = DB::table('account_setting')->where('voucher_type_id',9)->where('status',1)->whereNull('deleted_at')->first();
 
 			$request->merge(['from_jv' => 1]);
 			$request->merge(['chktype' => '']);
@@ -3441,17 +3445,17 @@ public function destroy2($id)
 				Session::flash('active', 'home');
 			
 		$buildingmaster = DB::table('buildingmaster')->where('deleted_at',null)->select('id','buildingcode','buildingname')->get();
-		$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+		$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 		$rvrow = DB::table('account_setting AS S')
 						->join('account_master AS M1','M1.id','=','S.cash_account_id')
 						->join('account_master AS M2','M2.id','=','S.pdc_account_id')
 						->join('account_master AS M3','M3.id','=','S.bank_account_id')
-						->where('S.voucher_type_id',9)->where('S.status',1)->where('S.deleted_at','0000-00-00 00:00:00')->where('S.department_id',0)
+						->where('S.voucher_type_id',9)->where('S.status',1)->whereNull('deleted_at')->where('S.department_id',0)
 						->select('S.voucher_no','M1.master_name AS cash','M1.id AS cashid','M2.master_name AS pdc','M2.id AS pdcid',
 						'M3.master_name AS bank','M3.id AS bankid')->first();
 		
-		$banks = DB::table('bank')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get();
-		$duration = DB::table('duration')->where('deleted_at','0000-00-00 00:00:00')->get();
+		$banks = DB::table('bank')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get();
+		$duration = DB::table('duration')->whereNull('deleted_at')->get();
 		
 		return view('body.contractbuilding.close')
 					->withBuildingmaster($buildingmaster)
@@ -3563,7 +3567,7 @@ public function destroy2($id)
 				}
 				
 				//TAX EXTRY....
-				$vatrow = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->select('payment_account')->first();
+				$vatrow = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->select('payment_account')->first();
 				foreach($request->get('acid') as $key => $val) {
 					if($actax[$key] > 0 && isset($arrchk[$val])) {
 						$acname[] = $arracname[$key];
@@ -3726,9 +3730,9 @@ public function destroy2($id)
 								->select('R.voucher_no','contract_rvs.id')
 								->get();
 			
-			$pdcs = DB::table('pdc_received')->where('reference',$crow->contract_no)->where('status',0)->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(amount) AS pdc_amount'))->first();
+			$pdcs = DB::table('pdc_received')->where('reference',$crow->contract_no)->where('status',0)->whereNull('deleted_at')->select(DB::raw('SUM(amount) AS pdc_amount'))->first();
 			
-			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 			//echo '<pre>';print_r($jvs);exit; 
 			
 			//GETTING PAID A/c IDS...
@@ -3744,17 +3748,17 @@ public function destroy2($id)
 				Session::flash('active', 'settle');
 			
 		$buildingmaster = DB::table('buildingmaster')->where('deleted_at',null)->select('id','buildingcode','buildingname')->get();
-		$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+		$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 		$rvrow = DB::table('account_setting AS S')
 						->join('account_master AS M1','M1.id','=','S.cash_account_id')
 						->join('account_master AS M2','M2.id','=','S.pdc_account_id')
 						->join('account_master AS M3','M3.id','=','S.bank_account_id')
-						->where('S.voucher_type_id',9)->where('S.status',1)->where('S.deleted_at','0000-00-00 00:00:00')->where('S.department_id',0)
+						->where('S.voucher_type_id',9)->where('S.status',1)->whereNull('deleted_at')->where('S.department_id',0)
 						->select('S.voucher_no','M1.master_name AS cash','M1.id AS cashid','M2.master_name AS pdc','M2.id AS pdcid',
 						'M3.master_name AS bank','M3.id AS bankid')->first();
 		
-		$banks = DB::table('bank')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get();
-		$duration = DB::table('duration')->where('deleted_at','0000-00-00 00:00:00')->get();
+		$banks = DB::table('bank')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get();
+		$duration = DB::table('duration')->whereNull('deleted_at')->get();
 
 		//echo '<pre>';print_r($rvrow);exit;			
 		return view('body.contractbuilding.settle')
@@ -3840,7 +3844,7 @@ public function destroy2($id)
 													'status'			=> 1,
 													'modify_at' 		=> date('Y-m-d H:i:s'),
 													'modify_by' 		=> 1,
-													'deleted_at'		=> '0000-00-00 00:00:00',
+													'deleted_at' => null,
 													'description'		=> $description,
 													'reference'			=> $trnarr['id'],
 													'invoice_date'		=> date('Y-m-d', strtotime($trnarr['vdate'])),
@@ -4011,7 +4015,7 @@ public function destroy2($id)
 			
 			$adata = []; $duration = $request->get('duration');//floor($request->get('duration')/30);
 			$amount = $request->get('amount')/$duration;
-			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 			$day = date('d',strtotime($request->get('date')));
 			$month = date('m',strtotime($request->get('date')));
 			$year = date('Y',strtotime($request->get('date')));
@@ -4058,7 +4062,7 @@ public function destroy2($id)
 			
 			$adata = []; $duration = ($request->get('duration') > 30)?floor($request->get('duration')/30):1;
 			$amount = $request->get('amount')/$request->get('duration');
-			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 			$day = date('d',strtotime($request->get('date')));
 			$month = date('m',strtotime($request->get('date')));
 			$year = date('Y',strtotime($request->get('date')));
@@ -4147,7 +4151,7 @@ public function destroy2($id)
 								->join('account_master AS M','M.id','=','RE.account_id')
 								->where('RE.entry_type','Dr')
 								->where('RE.status',1)
-								->where('RE.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->select('R.voucher_no','R.voucher_date','M.master_name','RE.*','contract_rvs.installment')
 								->orderBy('RE.id','ASC')->get(); 
 		//echo '<pre>';print_r($rvs);exit;						
@@ -4170,7 +4174,7 @@ public function destroy2($id)
 						'desc' => urldecode($request->get('ref')).'/'.urldecode($request->get('dec')),'amount' => round($divamt,2),'inst' => $instmnt, 'reid' => $reid];
 		}
 		
-		$banks = DB::table('bank')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get();//NOV8
+		$banks = DB::table('bank')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get();//NOV8
 		return view('body.contractbuilding.receiptadd')
 					->withType($request->get('type'))
 					->withCac($request->get('cac'))
@@ -4190,7 +4194,7 @@ public function destroy2($id)
 							->select('R.voucher_no','R.voucher_date','R.debit','RE.*','M.master_name','contract_rvs.rv_id')
 							->orderBy('RE.id','ASC')->get(); //echo '<pre>';print_r($orvs);exit;
 		
-		$banks = DB::table('bank')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get();
+		$banks = DB::table('bank')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get();
 		
 		return view('body.contractbuilding.orvdetails')
 						->withBanks($banks)
@@ -4432,7 +4436,7 @@ public function destroy2($id)
 			
 			$adata = []; $duration = floor($request->get('duration')/30);
 			$amount = $request->get('amount')/$request->get('duration');
-			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+			$jvrow = DB::table('account_setting')->where('voucher_type_id',16)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 			$day = date('d',strtotime($request->get('date')));
 			$month = date('m',strtotime($request->get('date')));
 			$year = date('Y',strtotime($request->get('date')));
@@ -4543,9 +4547,12 @@ public function destroy2($id)
 		$rvs = DB::table('contract_rvs')->where('contract_id',$id)->select('rv_id')->get();
 		$pvs = DB::table('contract_pvs')->where('contract_id',$id)->select('pv_id')->get();
 		
-		$attributes['jvids'] = array_map(function ($jvs) { return $jvs->jv_id;}, $jvs);
-		$attributes['rvids'] = array_map(function ($rvs) { return $jvs->jv_id;}, $pvs);
-		$attributes['pvids'] = array_map(function ($rvs) { return $jvs->jv_id;}, $pvs);
+		$attributes['jvids'] = $jvs->pluck('jv_id')->toArray(); //$attributes['jvids'] = array_map(function ($jvs) { return $jvs->jv_id;}, $jvs);
+		$attributes['rvids'] = $pvs->pluck('rv_id')->toArray();
+		$attributes['pvids'] = $pvs->pluck('pv_id')->toArray();
+
+		//$attributes['rvids'] = array_map(function ($rvs) { return $jvs->jv_id;}, $pvs);
+		//$attributes['pvids'] = array_map(function ($rvs) { return $jvs->jv_id;}, $pvs);
 		//echo '<pre>';print_r($jvids);exit;
 		if($crow) {
 			$jerow = DB::table('journal')->where('journal.voucher_no', $crow->si_no)->where('journal.voucher_type','SIN')->first();
@@ -4787,3 +4794,5 @@ public function destroy2($id)
 	}
 	
 }
+
+

@@ -397,11 +397,17 @@
 								<input type="hidden" name="terms_id" id="terms_id">
 								<?php } ?>
 								
-								<div class="form-group">
+									<?php if(!isset($formdata['due_days']) || $formdata['due_days']==1 || !isset($formdata['due_date']) || $formdata['due_date']==1) { ?>
+									<div class="form-group">
+                                    <?php if(!isset($formdata['due_days']) || $formdata['due_days']==1) { ?>
                                     <label for="input-text" class="col-sm-2 control-label">Day</label>
                                     <div class="col-sm-4">
                                         	<input type="number" class="form-control" id="duedays" name="duedays" value="{{$orderrow->duedays}}">
                                     </div>
+									<?php } else { ?>
+										<input type="hidden" name="duedays" id="duedays" value="{{$orderrow->duedays}}">
+									<?php } ?>
+									<?php if(!isset($formdata['due_date']) || $formdata['due_date']==1) { ?>
                                     <label for="input-text" class="col-sm-2 control-label">Due Date</label>
                                     <div class="col-sm-4">
                                         <div class="col-sm-10">
@@ -409,7 +415,14 @@
 										
                                     </div>
                                     </div>
+									<?php } else { ?>
+										<input type="hidden" name="due_date" id="due_date" value="<?php echo ($orderrow->due_date=='0000-00-00')?date('d-m-Y',strtotime($orderrow->voucher_date)):date('d-m-Y',strtotime($orderrow->due_date)); ?>">
+									<?php } ?>
                                 </div>
+									<?php } else { ?>
+										<input type="hidden" name="duedays" id="duedays" value="{{$orderrow->duedays}}">
+										<input type="hidden" name="due_date" id="due_date" value="<?php echo ($orderrow->due_date=='0000-00-00')?date('d-m-Y',strtotime($orderrow->voucher_date)):date('d-m-Y',strtotime($orderrow->due_date)); ?>">
+									<?php } ?>
 								
 								<?php if($formdata['job']==1) { ?>
 								<div class="form-group">
@@ -473,6 +486,7 @@
 								<input type="hidden" name="currency_rate" id="currency_rate">
 								<?php } ?>
 								
+								<?php if(!isset($formdata['export']) || $formdata['export']==1) { ?>
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-2 control-label"> Export</label>
 									<div class="col-xs-10">
@@ -483,6 +497,9 @@
 										</div>
 									</div>
                                 </div>
+								<?php } else { ?>
+									<input type="hidden" name="is_export" id="export" value="{{$orderrow->is_export}}">
+								<?php } ?>
 								
 								<br/>
 								<fieldset>
@@ -880,7 +897,7 @@
             								<?php } ?>	
 								            
 								            <!--MAY25-->
-            								<div id="batchdiv_1" style="float:left; padding-right:5px;" class="addBatchBtn">
+            								<div id="batchdiv_1" style="float:left; padding-right:5px; {{(isset($item->batch_req) && $item->batch_req==1)?'':'display:none;'}}" class="addBatchBtn">
             									<button type="button" id="btnBth_{{$i}}" class="btn btn-primary btn-xs batch-add" data-toggle="modal" data-target="#batch_modal">Add Batch</button>
             									<div class="form-group"><input type="text" name="batchNos[]" id="bthSelNos_{{$i}}" style="border:none;color:#FFF;" value="{{$batchitems[$item->id]['batches'] ?? ''}}"></div>
             									<input type="hidden" id="bthSelIds_{{$i}}" name="batchIds[]" value="{{$batchitems[$item->id]['ids'] ?? ''}}"> 
@@ -2667,6 +2684,9 @@ newEntry.find($('.dimn-view')).attr('id', 'itmInfo_' + rowNum);
 			newEntry.find($('input[name="batchNos[]"]')).attr('id', 'bthSelIds_' + rowNum);
 			newEntry.find($('input[name="qtyBatchs[]"]')).attr('id', 'bthSelQty_' + rowNum);
 			newEntry.find($('.addBatchBtn')).attr('id', 'batchdiv_' + rowNum);
+			newEntry.find($('.addBatchBtn')).hide();
+			newEntry.find($('input[name="batchNos[]"]')).val('');
+			newEntry.find($('input[name="qtyBatchs[]"]')).val('');
 			$('#itmqty_'+rowNum).attr('readonly', false);
 			//...
 			

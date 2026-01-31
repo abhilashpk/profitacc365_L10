@@ -55,13 +55,13 @@ class ManufactureController extends Controller
 		$stocktrans = DB::table('manufacture')
 		                ->join('manufacture_item AS MI','MI.manufacture_id','=','manufacture.id')
 		                ->join('itemmaster AS IM','IM.id','=','MI.item_id')
-		                ->where('MI.deleted_at','0000-00-00 00:00:00')
-		                ->where('manufacture.deleted_at','0000-00-00 00:00:00')
+		                ->whereNull('deleted_at')
+		                ->whereNull('deleted_at')
 		                ->select('manufacture.*','IM.description',DB::raw('SUM(MI.quantity) AS qty'))
 		                ->orderBy('manufacture.id','DESC')->groupBy('MI.manufacture_id')
 		                ->get();
 		 if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
@@ -80,16 +80,16 @@ class ManufactureController extends Controller
 
 		$data = array();
 		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=15); //echo '<pre>';print_r($vouchers);exit;
-		$lastid = DB::table('manufacture')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
-		$footertxt = DB::table('header_footer')->where('doc','MV')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$lastid = DB::table('manufacture')->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
+		$footertxt = DB::table('header_footer')->where('doc','MV')->where('status',1)->whereNull('deleted_at')->first();
 		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -169,7 +169,7 @@ class ManufactureController extends Controller
 		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
 		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
 		
-		$res = DB::table('manufacture')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$res = DB::table('manufacture')->whereNull('deleted_at')->orderBy('id','DESC')->get();
 		
 			
 			$query = DB::table('manufacture')
@@ -199,7 +199,7 @@ class ManufactureController extends Controller
 							})
 						->where('STI.is_mfg', 1)
 							->where('STIT.status', 1)
-							->where('STIT.deleted_at', '0000-00-00 00:00:00');
+							->whereNull('deleted_at');
 					if( $date_from!='' && $date_to!='' ) { 
 						$query->whereBetween('manufacture.voucher_date', array($date_from, $date_to));
 					}
@@ -418,9 +418,9 @@ class ManufactureController extends Controller
 			}
 
 			if(Session::get('department')==1)
-				$inv = DB::table('manufacture')->where('id','!=',$attributes['rowid'])->where('voucher_no',$newattributes['voucher_no'])->where('department_id', $attributes['department_id'])->where('deleted_at','0000-00-00 00:00:00')->count();
+				$inv = DB::table('manufacture')->where('id','!=',$attributes['rowid'])->where('voucher_no',$newattributes['voucher_no'])->where('department_id', $attributes['department_id'])->whereNull('deleted_at')->count();
 			else
-				$inv = DB::table('manufacture')->where('id','!=',$attributes['rowid'])->where('voucher_no',$newattributes['voucher_no'])->where('deleted_at','0000-00-00 00:00:00')->count();
+				$inv = DB::table('manufacture')->where('id','!=',$attributes['rowid'])->where('voucher_no',$newattributes['voucher_no'])->whereNull('deleted_at')->count();
 			//echo $inv.' - ';
 			$cnt++;
 		} while ($inv!=0);
@@ -483,7 +483,7 @@ class ManufactureController extends Controller
 					$rawitems = DB::table('mfg_items')->where('mfg_items.item_id', $item)
 									->join('itemmaster AS IM', 'IM.id', '=', 'mfg_items.subitem_id')
 									->join('item_unit AS IU', 'IU.itemmaster_id', '=', 'IM.id')
-									->where('mfg_items.deleted_at', '0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->where('IU.is_baseqty',1)//AUG25
 									->select('mfg_items.*','IU.unit_id','IU.cost_avg','IM.description')
 									->get();
@@ -611,7 +611,7 @@ class ManufactureController extends Controller
 													'quantity' => $attributes['wqty'][$wk],
 													'unit_price'	=> $attributes['uprice'][$wk],
 													'total' => $attributes['weqtytot'][$wk],
-													'deleted_at' => '0000-00-00 00:00:00'
+													'deleted_at' => null
 												]);
 												
 								}
@@ -738,14 +738,14 @@ class ManufactureController extends Controller
 							->join('account_master AS DrAC', 'DrAC.id', '=', 'sti_other_cost.dr_account_id')
 							->join('account_master AS CrAC', 'CrAC.id', '=', 'sti_other_cost.cr_account_id')
 							->where('sti_other_cost.transfer_id', $res->stock_transferin_id)
-							->where('sti_other_cost.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('sti_other_cost.*','DrAC.master_name AS dr_name','CrAC.master_name AS cr_name')
 							->get();
 							
 			$werow = DB::table('mfg_wastage')
 							->join('itemmaster AS IM', 'IM.id', '=', 'mfg_wastage.item_id')
 							->where('mfg_wastage.manufacture_id', $id)
-							->where('mfg_wastage.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('mfg_wastage.*','IM.item_code','IM.description')
 							->get();
 		}
@@ -754,9 +754,9 @@ class ManufactureController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -837,9 +837,9 @@ class ManufactureController extends Controller
 											$join->on('STO.item_id','=','IM.id');
 											$join->where('STO.stock_transferout_id','=',$stock_transferout_id);
 										})
-										->where('mfg_items.deleted_at', '0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->where('IU.is_baseqty',1)//AUG25
-										->where('STO.deleted_at', '0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->select('mfg_items.*','IU.unit_id','IU.cost_avg','IM.description','STO.id AS transfer_item_id')
 										->get();
 										
@@ -983,7 +983,7 @@ class ManufactureController extends Controller
 												'quantity' => $attributes['wqty'][$wk],
 												'unit_price'	=> $attributes['uprice'][$wk],
 												'total' => $attributes['weqtytot'][$wk],
-												'deleted_at' => '0000-00-00 00:00:00'
+												'deleted_at' => null
 											]);
 							}
 										
@@ -1098,14 +1098,14 @@ class ManufactureController extends Controller
 							->join('account_master AS DrAC', 'DrAC.id', '=', 'sti_other_cost.dr_account_id')
 							->join('account_master AS CrAC', 'CrAC.id', '=', 'sti_other_cost.cr_account_id')
 							->where('sti_other_cost.transfer_id', $res->stock_transferin_id)
-							->where('sti_other_cost.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('sti_other_cost.*','DrAC.master_name AS dr_name','CrAC.master_name AS cr_name')
 							->get();
 							
 			$werow = DB::table('mfg_wastage')
 							->join('itemmaster AS IM', 'IM.id', '=', 'mfg_wastage.item_id')
 							->where('mfg_wastage.manufacture_id', $id)
-							->where('mfg_wastage.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('mfg_wastage.*','IM.item_code','IM.description')
 							->get();
 		}
@@ -1114,9 +1114,9 @@ class ManufactureController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -1182,7 +1182,7 @@ class ManufactureController extends Controller
 							->join('account_master AS DrAC', 'DrAC.id', '=', 'sti_other_cost.dr_account_id')
 							->join('account_master AS CrAC', 'CrAC.id', '=', 'sti_other_cost.cr_account_id')
 							->where('sti_other_cost.transfer_id', $res->stock_transferin_id)
-							->where('sti_other_cost.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('sti_other_cost.*','DrAC.master_name AS dr_name','CrAC.master_name AS cr_name')
 							->get();
 							
@@ -1222,7 +1222,7 @@ class ManufactureController extends Controller
 							->join('account_master AS DrAC', 'DrAC.id', '=', 'sti_other_cost.dr_account_id')
 							->join('account_master AS CrAC', 'CrAC.id', '=', 'sti_other_cost.cr_account_id')
 							->where('sti_other_cost.transfer_id', $res->stock_transferin_id)
-							->where('sti_other_cost.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('sti_other_cost.*','DrAC.master_name AS dr_name','CrAC.master_name AS cr_name')
 							->get();
 		$mres=$res;
@@ -1384,7 +1384,7 @@ class ManufactureController extends Controller
 		//echo '<pre>';print_r($id);exit;
 		$result =  DB::table('mfg_items')->where('mfg_items.item_id', $id)
 						->join('itemmaster', 'itemmaster.id', '=', 'mfg_items.subitem_id')
-						->where('mfg_items.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('itemmaster.item_code','itemmaster.description','mfg_items.*')
 						->get();
 		//echo '<pre>';print_r($result);exit;
@@ -1396,7 +1396,7 @@ class ManufactureController extends Controller
 		
 		$result =  DB::table('mfg_items')->where('mfg_items.item_id', $id)
 						->join('itemmaster', 'itemmaster.id', '=', 'mfg_items.subitem_id')
-						->where('mfg_items.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('itemmaster.item_code','itemmaster.description','mfg_items.*')
 						->get();
 		return $result;
@@ -1429,5 +1429,7 @@ class ManufactureController extends Controller
 
    }
 }
+
+
 
 

@@ -71,7 +71,7 @@ class CustomerEnquiryController extends Controller
 		$data = array();
 		$quotations = [];//$this->customer_enquiry->quotationSalesList();//echo '<pre>';print_r($quotations);exit;
 		$salesmans = $this->salesman->getSalesmanList();
-         $cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','master_name')->get(); 
+         $cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->select('id','master_name')->get(); 
 		$jobs = $this->jobmaster->activeJobmasterList();
 		return view('body.customerenquiry.index')
 					->withQuotations($quotations)
@@ -199,7 +199,7 @@ class CustomerEnquiryController extends Controller
 		$res = $this->voucherno->getVoucherNo('CE');
 		//$vno = $res->no;//echo '<pre>';print_r($currency);exit;
 		$location = $this->location->locationList();
-		$row = DB::table('customer_enquiry')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('doc_status','id')->first();
+		$row = DB::table('customer_enquiry')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('doc_status','id')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		if($row && in_array($row->doc_status, $apr))
 			$lastid = $row->id;
@@ -437,7 +437,7 @@ class CustomerEnquiryController extends Controller
 		if($request->hasFile('import_file')){
 			
 			
-			$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+			$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->whereNull('deleted_at')->select('id')->first();
 
 			$path = $request->file('import_file')->getRealPath();
 			$data = Excel::load($path, function($reader) { })->get();
@@ -784,7 +784,7 @@ class CustomerEnquiryController extends Controller
 	
 			$data = DB::table('customer_enquiry')->where('customer_enquiry.customer_id',$id)
 			                    ->join('jobmaster', 'jobmaster.id', '=', 'customer_enquiry.job_id')
-			                   ->where('customer_enquiry.status',1)->where('customer_enquiry.deleted_at','0000-00-00 00:00:00')
+			                   ->where('customer_enquiry.status',1)->whereNull('deleted_at')
 			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
 			return $data;
 		}
@@ -902,5 +902,7 @@ class CustomerEnquiryController extends Controller
 						));
 	}
 }
+
+
 
 

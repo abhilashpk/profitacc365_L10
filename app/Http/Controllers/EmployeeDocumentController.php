@@ -27,7 +27,7 @@ class EmployeeDocumentController extends Controller
 					->join('employee AS E', function($join) {
 							$join->on('E.id','=','employee_document.employee_id');
 						})
-					->where('employee_document.deleted_at','0000-00-00 00:00:00')
+					->whereNull('deleted_at')
 					->select('employee_document.id','employee_document.name AS document','employee_document.file_name','E.name AS employee')
 					->orderBy('employee_document.id','DESC')
 					->get();
@@ -40,7 +40,7 @@ class EmployeeDocumentController extends Controller
 	public function add() {
 
 		$data = array();
-		$employee = DB::table('employee')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->orderBy('name','ASC')->get();
+		$employee = DB::table('employee')->where('status',1)->whereNull('deleted_at')->select('id','name')->orderBy('name','ASC')->get();
 		return view('body.employeedocument.add')
 					->withEmployee($employee)
 					->withData($data);
@@ -49,7 +49,7 @@ class EmployeeDocumentController extends Controller
 	public function save(Request $request) {
 		
 		try {
-			//echo '<pre>';print_r(Input::all());exit;
+			//echo '<pre>';print_r($request->all());exit;
 			$image = ''; $width = 730; $height = 290;
 			$file = ($request->hasFile('image'))?$request->file('image'):null; //echo '<pre>';print_r($file);exit;
 			if($file) {
@@ -74,9 +74,9 @@ class EmployeeDocumentController extends Controller
 		
 			DB::table('employee_document')
 				->insert([
-					'employee_id' => Input::get('employee_id'),
-					'name' => Input::get('name'),
-					'description' => Input::get('description'),
+					'employee_id' => $request->get('employee_id'),
+					'name' => $request->get('name'),
+					'description' => $request->get('description'),
 					'file_name' => $image,
 					'status' => 1
 				]);
@@ -92,7 +92,7 @@ class EmployeeDocumentController extends Controller
 
 		$data = array();
 		$docrow = DB::table('employee_document')->where('id',$id)->first();
-		$employee = DB::table('employee')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->orderBy('name','ASC')->get();
+		$employee = DB::table('employee')->where('status',1)->whereNull('deleted_at')->select('id','name')->orderBy('name','ASC')->get();
 		return view('body.employeedocument.edit')
 					->withDocrow($docrow)
 					->withEmployee($employee)
@@ -102,8 +102,8 @@ class EmployeeDocumentController extends Controller
 	public function update(Request $request, $id)
 	{
 		try {
-			//echo '<pre>';print_r(Input::all());exit;
-			$image = Input::get('current_image'); $width = 730; $height = 290;
+			//echo '<pre>';print_r($request->all());exit;
+			$image = $request->get('current_image'); $width = 730; $height = 290;
 			$file = ($request->hasFile('image'))?$request->file('image'):null; //echo '<pre>';print_r($file);exit;
 			if($file) {
 				$ext = $file->getClientOriginalExtension();
@@ -127,9 +127,9 @@ class EmployeeDocumentController extends Controller
 		
 			DB::table('employee_document')->where('id',$id)
 				->update([
-					'employee_id' => Input::get('employee_id'),
-					'name' => Input::get('name'),
-					'description' => Input::get('description'),
+					'employee_id' => $request->get('employee_id'),
+					'name' => $request->get('name'),
+					'description' => $request->get('description'),
 					'file_name' => $image
 				]);
 			Session::flash('message', 'Employee Document updated successfully.'); 
@@ -179,10 +179,10 @@ class EmployeeDocumentController extends Controller
 	{
 		$data = array();
 		
-		$reports = $this->getReport(Input::all());
+		$reports = $this->getReport($request->all());
 		//echo '<pre>';print_r($reports);exit;
 		
-		if(Input::get('department_id')!='') {
+		if($request->get('department_id')!='') {
 			$voucher_head = 'Document Report - Department wise';
 		} else {
 			$voucher_head = 'Document Report';
@@ -191,11 +191,13 @@ class EmployeeDocumentController extends Controller
 		return view('body.employeedocument.report')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withDept(Input::get('department_id'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withDept($request->get('department_id'))
 					->withData($data);
 	}
 	
 }
+
+
 

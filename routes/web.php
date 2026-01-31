@@ -230,9 +230,21 @@ Route::middleware(['web'])->group(function () {
 
 	
 	//STIMULSOFT ROUTES....
-Route::get('/report', [ReportController::class, 'showReport']);
+	Route::get('/report', [ReportController::class, 'showReport']);
 	Route::any('/stimulsoftV2/handler', function () {
-		require public_path('stimulsoftV2/handler.php');
+		ob_start();
+		$handlerPath = public_path() . DIRECTORY_SEPARATOR . 'stimulsoftV2' . DIRECTORY_SEPARATOR . 'handler.php';
+		if (file_exists($handlerPath)) {
+			require $handlerPath;
+		} else {
+			return response(json_encode(['error' => 'Handler file not found: ' . $handlerPath]), 500, [
+				'Content-Type' => 'application/json'
+			]);
+		}
+		$output = ob_get_clean();
+		return response($output, 200, [
+			'Content-Type' => 'application/json'
+		]);
 	});
 
 	Route::get('/stimulsoftV2/license', function () {
@@ -256,11 +268,14 @@ Route::get('/report', [ReportController::class, 'showReport']);
 
 	Route::post('/designer/save', function (\Illuminate\Http\Request $request) {
 		$json = $request->input('report');
+		$name = $request->input('fileName', 'report');
+		$safeName = preg_replace('/[^a-zA-Z0-9_-]/', '', $name);
+		$safeName = $safeName !== '' ? $safeName : 'report';
+		$path = public_path('stimulsoftV2/reports/'.$safeName.'.mrt');
 
-		// Save to file (be careful with paths)
-		file_put_contents(public_path('stimulsoftV2/reports/your-report.mrt'), $json);
+		file_put_contents($path, $json);
 
-		return response()->json(['success' => true]);
+		return response()->json(['success' => true, 'file' => $safeName.'.mrt']);
 	});
 
 	//END HERE STIMULSOFT...
@@ -298,7 +313,7 @@ Route::get('/dashboard/approval_alert', [DashboardController::class, 'approvalAl
 		
 Route::get('/home', [HomeController::class, 'index']);
 		
-		Route::resource('users','UserController');
+		Route::resource('users', UserController::class);
 		
 Route::get('roles',		  ['as'=>'roles.index', 'uses'=>RoleController::class.'@index', 'middleware' => ['permission:role-list|role-create|role-edit|role-delete']]);
 Route::get('roles/create',['as'=>'roles.create','uses'=>RoleController::class.'@create','middleware' => ['permission:role-create']]);
@@ -781,7 +796,7 @@ Route::get('/purchase_order/print/{id}', ['as' => 'purchase_order.getPrint', 'us
 Route::get('/purchase_order/supplier_data/{txt}', [PurchaseOrderController::class, 'getSupplier']);
 Route::get('/purchase_order/report', [PurchaseOrderController::class, 'report']);
 Route::post('/purchase_order/search', [PurchaseOrderController::class, 'getSearch']);
-Route::get('/purchase_order/print/{id}/{fc}', ['as' => 'purchase_order.getPrint', 'uses' => PurchaseOrderController::class.'@getPrint', 'middleware' => ['permission:po-print']]);
+Route::get('/purchase_order/print/{id}/{fc}', ['as' => 'purchase_order.getPrintFc', 'uses' => PurchaseOrderController::class.'@getPrintFc', 'middleware' => ['permission:po-print']]);
 Route::post('/purchase_order/export', ['as' => 'purchase_order.dataExport', 'uses' => PurchaseOrderController::class.'@dataExport', 'middleware' => ['permission:po-print']]);
 Route::post('/purchase_order/export_po', [PurchaseOrderController::class, 'dataExportPo']);
 Route::post('/purchase_order/paging', [PurchaseOrderController::class, 'ajaxPaging']);
@@ -924,12 +939,12 @@ Route::get('/suppliers_do/refresh_sdo/{id}', [SuppliersDOController::class, 'ref
 		
 Route::get('/purchase_invoice', ['as' => 'purchase_invoice.index', 'uses' => PurchaseInvoiceController::class.'@index', 'middleware' => ['permission:pi-list|pi-create|pi-edit|pi-delete']]);
 Route::get('/purchase_invoice/add', ['as'=>'purchase_invoice.add','uses'=>PurchaseInvoiceController::class.'@add','middleware' => ['permission:pi-create']]);
-Route::post('/purchase_invoice/save/{id}', ['as' => 'purchase_invoice.save', 'uses' => PurchaseInvoiceController::class.'@save', 'middleware' => ['permission:pi-create']] );
+Route::post('/purchase_invoice/save/{id}', ['as' => 'purchase_invoice.saveId', 'uses' => PurchaseInvoiceController::class.'@save', 'middleware' => ['permission:pi-create']] );
 Route::post('/purchase_invoice/save', ['as' => 'purchase_invoice.save', 'uses' => PurchaseInvoiceController::class.'@save', 'middleware' => ['permission:pi-create']] );
 Route::get('/purchase_invoice/edit/{id}', ['as' => 'purchase_invoice.edit', 'uses' => PurchaseInvoiceController::class.'@edit', 'middleware' => ['permission:pi-edit']]);
 Route::post('/purchase_invoice/update/{id}', ['as' => 'purchase_invoice.update', 'uses' => PurchaseInvoiceController::class.'@update', 'middleware' => ['permission:pi-edit']]);
 Route::get('/purchase_invoice/viewonly/{id}', ['as' => 'purchase_invoice.viewonly', 'uses' => PurchaseInvoiceController::class.'@viewonly', 'middleware' => ['permission:pi-view']]);
-Route::get('/purchase_invoice/add/{id}/{n}', ['as'=>'purchase_invoice.add','uses'=>PurchaseInvoiceController::class.'@add','middleware' => ['permission:pi-create']]);
+Route::get('/purchase_invoice/add/{id}/{n}', ['as'=>'purchase_invoice.addId','uses'=>PurchaseInvoiceController::class.'@add','middleware' => ['permission:pi-create']]);
 Route::post('/purchase_invoice/set_session', [PurchaseInvoiceController::class, 'setSessionVal']);
 Route::get('/purchase_invoice/supplier_data', [PurchaseInvoiceController::class, 'getSupplier']);
 Route::get('/purchase_invoice/checkrefno', [PurchaseInvoiceController::class, 'checkRefNo']);
@@ -991,7 +1006,7 @@ Route::get('/purchase_return/getjob/{id}', [PurchaseReturnController::class, 'ge
 		
 Route::get('/quotation_sales', ['as' => 'quotation_sales.index', 'uses' => QuotationSalesController::class.'@index', 'middleware' => ['permission:pi-list|qs-create|qs-edit|qs-delete']]);
 Route::get('/quotation_sales/add', ['as'=>'quotation_sales.add','uses'=>QuotationSalesController::class.'@add','middleware' => ['permission:qs-create']]);
-Route::get('/quotation_sales/add/{id}/{n}', ['as'=>'quotation_sales.add','uses'=>QuotationSalesController::class.'@add','middleware' => ['permission:qs-create']]);
+Route::get('/quotation_sales/add/{id}/{n}', ['as'=>'quotation_sales.addId','uses'=>QuotationSalesController::class.'@add','middleware' => ['permission:qs-create']]);
 Route::post('/quotation_sales/save', ['as' => 'quotation_sales.save', 'uses' => QuotationSalesController::class.'@save', 'middleware' => ['permission:qs-create']] );
 Route::get('/quotation_sales/edit/{id}', ['as' => 'quotation_sales.edit', 'uses' => QuotationSalesController::class.'@edit', 'middleware' => ['permission:qs-edit']]);
 Route::post('/quotation_sales/update/{id}', ['as' => 'quotation_sales.update', 'uses' => QuotationSalesController::class.'@update', 'middleware' => ['permission:qs-edit']]);
@@ -1060,8 +1075,8 @@ Route::get('/sales_rental/ajax_customer', [SalesRentalController::class, 'getAja
 		
 Route::get('/sales_order', ['as' => 'sales_order.index', 'uses' => SalesOrderController::class.'@index', 'middleware' => ['permission:pi-list|so-create|so-edit|so-delete']]);
 Route::get('/sales_order/add', ['as'=>'sales_order.add','uses'=>SalesOrderController::class.'@add','middleware' => ['permission:so-create']]);
-Route::get('/sales_order/add/{id}', ['as'=>'sales_order.add','uses'=>SalesOrderController::class.'@add','middleware' => ['permission:so-create']]);
-Route::get('/sales_order/add/{id}/{n}', ['as'=>'sales_order.add','uses'=>SalesOrderController::class.'@add','middleware' => ['permission:so-create']]);
+Route::get('/sales_order/add/{id}', ['as'=>'sales_order.addId','uses'=>SalesOrderController::class.'@add','middleware' => ['permission:so-create']]);
+Route::get('/sales_order/add/{id}/{n}', ['as'=>'sales_order.addIdN','uses'=>SalesOrderController::class.'@add','middleware' => ['permission:so-create']]);
 Route::post('/sales_order/save', ['as' => 'sales_order.save', 'uses' => SalesOrderController::class.'@save', 'middleware' => ['permission:so-create']] );
 Route::get('/sales_order/edit/{id}', ['as' => 'sales_order.edit', 'uses' => SalesOrderController::class.'@edit', 'middleware' => ['permission:so-edit']]);
 Route::post('/sales_order/update/{id}', ['as' => 'sales_order.update', 'uses' => SalesOrderController::class.'@update', 'middleware' => ['permission:so-edit']]);
@@ -1076,14 +1091,14 @@ Route::get('/sales_order/item_details/{id}', [SalesOrderController::class, 'getI
 Route::get('/sales_order/print/{id}', ['as' => 'sales_order.getPrint', 'uses' => SalesOrderController::class.'@getPrint', 'middleware' => ['permission:so-print']]);
 Route::get('/sales_order/set_session', [SalesOrderController::class, 'setSessionVal']);
 Route::post('/sales_order/search', [SalesOrderController::class, 'getSearch']);
-Route::get('/sales_order/print/{id}/{fc}', ['as' => 'sales_order.getPrint', 'uses' => SalesOrderController::class.'@getPrint', 'middleware' => ['permission:so-print']]);
+Route::get('/sales_order/print/{id}/{fc}', ['as' => 'sales_order.getPrintFc', 'uses' => SalesOrderController::class.'@getPrint', 'middleware' => ['permission:so-print']]);
 Route::post('/sales_order/export', [SalesOrderController::class, 'dataExport']);
 Route::get('/sales_order/newcustomer_data', [SalesOrderController::class, 'getNewCustomer']);
 Route::get('/sales_order/checkvchrno', [SalesOrderController::class, 'checkVchrNo']);
 Route::post('/sales_order/paging', [SalesOrderController::class, 'ajaxPaging']);
 Route::get('/sales_order/customer_data/{did}', [SalesOrderController::class, 'getCustomer']);
 Route::get('/sales_order/newcustomer_data/{did}', [SalesOrderController::class, 'getNewCustomer']);
-Route::get('/sales_order/poadd/{id}', ['as'=>'sales_order.add','uses'=>SalesOrderController::class.'@poadd','middleware' => ['permission:so-create']]);
+Route::get('/sales_order/poadd/{id}', ['as'=>'sales_order.addPo','uses'=>SalesOrderController::class.'@poadd','middleware' => ['permission:so-create']]);
 Route::post('/sales_order/get_orderno', [SalesOrderController::class, 'getOrderNo']);
 Route::get('/sales_order/getcounter/{id}', [SalesOrderController::class, 'getCounter']);
 Route::get('/sales_order/get_report/{id}', [SalesOrderController::class, 'getReport']);
@@ -1109,10 +1124,10 @@ Route::get('/sales_order/refresh_so/{id}', [SalesOrderController::class, 'refres
 		
 Route::get('/customers_do', ['as' => 'customers_do.index', 'uses' => CustomersDOController::class.'@index', 'middleware' => ['permission:do-list|do-create|do-edit|do-delete']]);
 Route::get('/customers_do/add', ['as'=>'customers_do.add','uses'=>CustomersDOController::class.'@add','middleware' => ['permission:do-create']]);
-Route::post('/customers_do/save/{id}', ['as' => 'customers_do.save', 'uses' => CustomersDOController::class.'@save', 'middleware' => ['permission:do-create']] );
+Route::post('/customers_do/save/{id}', ['as' => 'customers_do.saveId', 'uses' => CustomersDOController::class.'@save', 'middleware' => ['permission:do-create']] );
 Route::post('/customers_do/save', ['as' => 'customers_do.save', 'uses' => CustomersDOController::class.'@save', 'middleware' => ['permission:do-create']] );
 Route::get('/customers_do/edit/{id}', ['as' => 'customers_do.edit', 'uses' => CustomersDOController::class.'@edit', 'middleware' => ['permission:do-edit']]);
-Route::get('/customers_do/add/{id}/{n}', ['as'=>'customers_do.add','uses'=>CustomersDOController::class.'@add','middleware' => ['permission:do-create']]);
+Route::get('/customers_do/add/{id}/{n}', ['as'=>'customers_do.addId','uses'=>CustomersDOController::class.'@add','middleware' => ['permission:do-create']]);
 Route::get('/customers_do/viewonly/{id}', ['as' => 'customers_do.viewonly', 'uses' => CustomersDOController::class.'@viewonly', 'middleware' => ['permission:do-view']]);
 Route::get('/customers_do/supplier_data', [CustomersDOController::class, 'getSupplier']);
 Route::get('/customers_do/item_data/{id}', [CustomersDOController::class, 'getItem']);
@@ -1125,7 +1140,7 @@ Route::get('/customers_do/print/{id}', ['as' => 'customers_do.getPrint', 'uses' 
 Route::get('/customers_do/set_session', [CustomersDOController::class, 'setSessionVal']);
 Route::post('/customers_do/update/{id}', [CustomersDOController::class, 'update']);
 Route::post('/customers_do/search', [CustomersDOController::class, 'getSearch']);
-Route::get('/customers_do/print/{id}/{fc}', ['as' => 'customers_do.getPrint', 'uses' => CustomersDOController::class.'@getPrint', 'middleware' => ['permission:do-print']]);
+Route::get('/customers_do/print/{id}/{fc}', ['as' => 'customers_do.getPrintfc', 'uses' => CustomersDOController::class.'@getPrint', 'middleware' => ['permission:do-print']]);
 Route::post('/customers_do/export', [CustomersDOController::class, 'dataExport']);
 Route::get('/customers_do/checkvchrno', [CustomersDOController::class, 'checkVchrNo']);
 Route::post('/customers_do/paging', [CustomersDOController::class, 'ajaxPaging']);
@@ -1139,7 +1154,7 @@ Route::get('/customers_do/refresh_do/{id}', [CustomersDOController::class, 'refr
 		
 Route::get('/sales_invoice', ['as' => 'sales_invoice.index', 'uses' => SalesInvoiceController::class.'@index', 'middleware' => ['permission:si-list|si-create|si-edit|si-delete']]);
 Route::get('/sales_invoice/add', ['as'=>'sales_invoice.add','uses'=>SalesInvoiceController::class.'@add','middleware' => ['permission:si-create']]);
-Route::get('/sales_invoice/add/{id}/{n}', ['as'=>'sales_invoice.add','uses'=>SalesInvoiceController::class.'@add','middleware' => ['permission:si-create']]);
+Route::get('/sales_invoice/add/{id}/{n}', ['as'=>'sales_invoice.addId','uses'=>SalesInvoiceController::class.'@add','middleware' => ['permission:si-create']]);
 Route::post('/sales_invoice/save', ['as' => 'sales_invoice.save', 'uses' => SalesInvoiceController::class.'@save', 'middleware' => ['permission:si-create']]);
 Route::get('/sales_invoice/edit/{id}', ['as' => 'sales_invoice.edit', 'uses' => SalesInvoiceController::class.'@edit', 'middleware' => ['permission:si-edit']]);
 Route::post('/sales_invoice/update/{id}', ['as' => 'sales_invoice.update', 'uses' => SalesInvoiceController::class.'@update', 'middleware' => ['permission:si-edit']]);
@@ -1165,7 +1180,7 @@ Route::get('/sales_invoice/order_history/{id}', [SalesInvoiceController::class, 
 Route::get('/sales_invoice/checkvchrno', [SalesInvoiceController::class, 'checkVchrNo']);
 Route::get('/sales_invoice/get_invoiceset/{id}', [SalesInvoiceController::class, 'getInvoiceSetByCustomer']);
 Route::post('/sales_invoice/search', [SalesInvoiceController::class, 'getSearch']);
-Route::get('/sales_invoice/print/{id}/{rid}', ['as' => 'sales_invoice.getPrint', 'uses' => SalesInvoiceController::class.'@getPrint', 'middleware' => ['permission:si-print']]);
+Route::get('/sales_invoice/print/{id}/{rid}', ['as' => 'sales_invoice.getPrintfc', 'uses' => SalesInvoiceController::class.'@getPrint', 'middleware' => ['permission:si-print']]);
 Route::post('/sales_invoice/export', [SalesInvoiceController::class, 'dataExport']);
 //Route::post('/sales_invoice/export', ['as' => 'sales_invoice.dataExport', 'uses' => SalesInvoiceController::class.'@dataExport', 'middleware' => ['permission:si-export']]);
 Route::get('/sales_invoice/getsaleloc/{id}', [SalesInvoiceController::class, 'getSaleLocation']);
@@ -1181,7 +1196,7 @@ Route::get('/sales_invoice/get_invoice/{id}/{n}/{rvid}', [SalesInvoiceController
 Route::get('/sales_invoice/get_invoicecn/{id}/{n}/{val}', [SalesInvoiceController::class, 'getInvoiceByCustomerCn']);//ED12
 Route::post('/sales_invoice/export_po', [SalesInvoiceController::class, 'dataExportPo']);
 Route::get('/sales_invoice/vehicle_history/{id}', [SalesInvoiceController::class, 'getvehicleHistory']);
-Route::get('/sales_invoice/printfc/{id}/{rid}', ['as' => 'sales_invoice.getPrintFc', 'uses' => SalesInvoiceController::class.'@getPrintFc', 'middleware' => ['permission:si-print']]);
+Route::get('/sales_invoice/printfc/{id}/{rid}', ['as' => 'sales_invoice.getPrintFcr', 'uses' => SalesInvoiceController::class.'@getPrintFc', 'middleware' => ['permission:si-print']]);
 Route::get('/sales_invoice/getdeptvoucher/{id}', [SalesInvoiceController::class, 'getDeptVoucher']);
 Route::get('/sales_invoice/invoice_data/{did}', [SalesInvoiceController::class, 'getInvoice']);
 Route::get('/sales_invoice/customer_datadpt/{dpt}', [SalesInvoiceController::class, 'getCustomerDpt']);
@@ -1203,7 +1218,7 @@ Route::get('/sales_return/add', ['as'=>'sales_return.add','uses'=>SalesReturnCon
 Route::post('/sales_return/save/{id}', [SalesReturnController::class, 'save']);
 Route::post('/sales_return/save', [SalesReturnController::class, 'save']);
 Route::get('/sales_return/edit/{id}', ['as' => 'sales_return.edit', 'uses' => SalesReturnController::class.'@edit', 'middleware' => ['permission:sr-edit']]);
-Route::get('/sales_return/add/{id}', ['as'=>'sales_return.add','uses'=>SalesReturnController::class.'@add','middleware' => ['permission:sr-create']]);
+Route::get('/sales_return/add/{id}', ['as'=>'sales_return.addId','uses'=>SalesReturnController::class.'@add','middleware' => ['permission:sr-create']]);
 Route::get('/sales_return/delete/{id}', ['as' => 'sales_return.destroy', 'uses' => SalesReturnController::class.'@destroy', 'middleware' => ['permission:sr-delete']]);
 Route::get('/sales_return/getvoucher/{id}', [SalesReturnController::class, 'getVoucher']);
 Route::get('/sales_return/print/{id}', ['as' => 'sales_return.getPrint', 'uses' => SalesReturnController::class.'@getPrint', 'middleware' => ['permission:sr-print']]);
@@ -1237,12 +1252,12 @@ Route::get('/customer_receipt/getdeptvoucher/{id}', [CustomerReceiptController::
 Route::get('/customer_receipt/getvoucher/{id}/{type}/{dpt}', [CustomerReceiptController::class, 'getVoucher']);
 Route::get('/customer_receipt/printgrp/{id}', ['as' => 'customer_receipt.getGrpPrint', 'uses' => CustomerReceiptController::class.'@getGrpPrint', 'middleware' => ['permission:rv-print']]);
 Route::get('/customer_receipt/print/{id}', ['as' => 'customer_receipt.getPrint', 'uses' => CustomerReceiptController::class.'@getPrint', 'middleware' => ['permission:rv-print']]);
-Route::get('/customer_receipt/print2/{id}/{rid}', ['as' => 'customer_receipt.getPrint', 'uses' => CustomerReceiptController::class.'@getPrint', 'middleware' => ['permission:rv-print']]);
+Route::get('/customer_receipt/print2/{id}/{rid}', ['as' => 'customer_receipt.getPrintrid', 'uses' => CustomerReceiptController::class.'@getPrint', 'middleware' => ['permission:rv-print']]);
 Route::post('/customer_receipt/search', [CustomerReceiptController::class, 'getSearch']);
 Route::post('/customer_receipt/export', [CustomerReceiptController::class, 'dataExport']);
 Route::get('/customer_receipt/add/{id}', [CustomerReceiptController::class, 'addAutoFill']);
 		
-Route::get('/customer_receipt/add-rv', ['as'=>'customer_receipt.add','uses'=>CustomerReceiptController::class.'@addRV','middleware' => ['permission:rv-create']]);
+Route::get('/customer_receipt/add-rv', ['as'=>'customer_receipt.addRv','uses'=>CustomerReceiptController::class.'@addRV','middleware' => ['permission:rv-create']]);
 Route::get('/customer_receipt/set_transactions/{type}/{id}/{n}', [CustomerReceiptController::class, 'setTransactions']);
 		
 Route::get('/other_receipt', [OtherReceiptController::class, 'index']);
@@ -1264,7 +1279,7 @@ Route::post('/supplier_payment/paging', [SupplierPaymentController::class, 'ajax
 Route::get('/supplier_payment/getdeptvoucher/{id}', [SupplierPaymentController::class, 'getDeptVoucher']);
 Route::get('/supplier_payment/getvoucher/{id}/{type}/{dpt}', [SupplierPaymentController::class, 'getVoucher']);
 Route::get('/supplier_payment/printgrp/{id}', ['as' => 'supplier_payment.getGrpPrint', 'uses' => SupplierPaymentController::class.'@getGrpPrint', 'middleware' => ['permission:pv-print']]);
-Route::get('/supplier_payment/print/{id}/{rid}', ['as' => 'supplier_payment.getPrint', 'uses' => SupplierPaymentController::class.'@getPrint', 'middleware' => ['permission:pv-print']]);
+Route::get('/supplier_payment/print/{id}/{rid}', ['as' => 'supplier_payment.getPrintrid', 'uses' => SupplierPaymentController::class.'@getPrint', 'middleware' => ['permission:pv-print']]);
 Route::get('/supplier_payment/cheque_details/{id}', [SupplierPaymentController::class, 'ChequeDetails']);
 Route::post('/supplier_payment/che_save', [SupplierPaymentController::class, 'Chequesave']);
 Route::post('/supplier_payment/search', [SupplierPaymentController::class, 'getSearch']);
@@ -1272,7 +1287,7 @@ Route::post('/supplier_payment/export', [SupplierPaymentController::class, 'data
 Route::get('/supplier_payment/views/{id}',[SupplierPaymentController::class, 'getViews']);
 Route::get('/supplier_payment/approve/{id}', [SupplierPaymentController::class, 'getApproval']);
 
-Route::get('/supplier_payment/quick-add', ['as'=>'supplier_payment.add','uses'=>SupplierPaymentController::class.'@quickAdd','middleware' => ['permission:pv-create']]);
+Route::get('/supplier_payment/quick-add', ['as'=>'supplier_payment.addPv','uses'=>SupplierPaymentController::class.'@quickAdd','middleware' => ['permission:pv-create']]);
 		
 		//NEW SECTION FEB25
 Route::get('/supplier_payment/add-pv', ['as'=>'supplier_payment.add-pv','uses'=>SupplierPaymentController::class.'@addPV','middleware' => ['permission:pv-create']]);
@@ -1336,15 +1351,15 @@ Route::post('/journal/update/{id}', [JournalController::class, 'update']);
 Route::get('/journal/checkvchrno', [JournalController::class, 'checkVchrNo']);
 Route::get('/journal/checkvno', [JournalController::class, 'checkVNo']);
 Route::get('/journal/print/{id}', ['as' => 'journal.getPrint', 'uses' => JournalController::class.'@getPrint', 'middleware' => ['permission:jv-print']]);
-Route::get('/journal/print/{id}/{rid}', ['as' => 'journal.getPrint', 'uses' => JournalController::class.'@getPrint', 'middleware' => ['permission:jv-print']]);
-Route::get('/journal/add/{id}/{rid}/{vouchertype}', ['as'=>'journal.add','uses'=>JournalController::class.'@add','middleware' => ['permission:jv-create']]);
+Route::get('/journal/print/{id}/{rid}', ['as' => 'journal.getPrintrid', 'uses' => JournalController::class.'@getPrint', 'middleware' => ['permission:jv-print']]);
+Route::get('/journal/add/{id}/{rid}/{vouchertype}', ['as'=>'journal.addRid','uses'=>JournalController::class.'@add','middleware' => ['permission:jv-create']]);
 Route::get('/journal/getvoucherprint', [JournalController::class, 'getVoucherprint']);
 Route::get('/journal/set_transactions/{type}/{id}/{n}', [JournalController::class, 'setTransactions']);
 Route::get('/journal/set_transactions/{type}/{id}/{n}/{j}', [JournalController::class, 'setTransactions']);
 Route::post('/journal/paging', [JournalController::class, 'ajaxPaging']);
 Route::post('/journal/recurring_add', [JournalController::class, 'recurringAdd']);
 Route::post('/journal/quicksave', [JournalController::class, 'quickSave']);
-Route::get('/journal/add-jv', ['as'=>'journal.add','uses'=>JournalController::class.'@addJV','middleware' => ['permission:jv-create']]);
+Route::get('/journal/add-jv', ['as'=>'journal.addJv','uses'=>JournalController::class.'@addJV','middleware' => ['permission:jv-create']]);
 
 
 Route::get('/voucherwise_report', [VoucherwiseReportController::class, 'index']);
@@ -1529,15 +1544,15 @@ Route::get('/pettycash/edit/{id}', ['as' => 'pettycash.edit', 'uses' => PettyCas
 Route::post('/pettycash/update/{id}', [PettyCashController::class, 'update']);
 Route::get('/pettycash/checkvchrno', [PettyCashController::class, 'checkVchrNo']);
 Route::get('/pettycash/print/{id}', ['as' => 'pettycash.getPrint', 'uses' => PettyCashController::class.'@getPrint', 'middleware' => ['permission:pc-print']]);
-Route::get('/pettycash/print/{id}/{rid}', ['as' => 'pettycash.getPrint', 'uses' => PettyCashController::class.'@getPrint', 'middleware' => ['permission:pc-print']]);
-Route::get('/pettycash/printgrp/{id}', ['as' => 'pettycash.getGrpPrint', 'uses' => PettyCashController::class.'@getGrpPrint', 'middleware' => ['permission:pc-print']]);
+Route::get('/pettycash/print/{id}/{rid}', ['as' => 'pettycash.getPrintrid', 'uses' => PettyCashController::class.'@getPrint', 'middleware' => ['permission:pc-print']]);
+Route::get('/pettycash/printgrp/{id}', ['as' => 'pettycash.getGrpPrintid', 'uses' => PettyCashController::class.'@getGrpPrint', 'middleware' => ['permission:pc-print']]);
 Route::get('/pettycash/set_transactions/{type}/{id}/{n}', [PettyCashController::class, 'setTransactions']);
 //Route::get('/pettycash/set_transactions/{type}/{id}/{n}/{descr}/{ref}/{tamt}', [PettyCashController::class, 'setTransactions']);
 
-Route::get('/pettycash/quick-add', ['as'=>'pettycash.add','uses'=>PettyCashController::class.'@quickAdd','middleware' => ['permission:pc-create']]);
+Route::get('/pettycash/quick-add', ['as'=>'pettycash.addQa','uses'=>PettyCashController::class.'@quickAdd','middleware' => ['permission:pc-create']]);
 
-Route::get('/pettycash/add-pc', ['as'=>'pettycash.add','uses'=>PettyCashController::class.'@addPC','middleware' => ['permission:pc-create']]);
-Route::get('/pettycash/edit-pc/{id}', ['as' => 'pettycash.edit', 'uses' => PettyCashController::class.'@edit', 'middleware' => ['permission:pc-edit']]);
+Route::get('/pettycash/add-pc', ['as'=>'pettycash.addPc','uses'=>PettyCashController::class.'@addPC','middleware' => ['permission:pc-create']]);
+Route::get('/pettycash/edit-pc/{id}', ['as' => 'pettycash.editid', 'uses' => PettyCashController::class.'@edit', 'middleware' => ['permission:pc-edit']]);
 		
 Route::get('/advance_set/add', ['as'=>'advance_set.add','uses'=>AdvanceSetController::class.'@add','middleware' => ['permission:as-list|as-create']]);
 Route::post('/advance_set/save', [AdvanceSetController::class, 'save']);
@@ -1617,7 +1632,7 @@ Route::post('/year_endingquick/step2_quicksubmit', [YearendingquickController::c
 		
 Route::get('/job_estimate', ['as' => 'job_estimate.index', 'uses' => JobEstimateController::class.'@index', 'middleware' => ['permission:qs-list|qs-create|qs-edit|qs-delete']]);
 Route::get('/job_estimate/add', ['as'=>'job_estimate.add','uses'=>JobEstimateController::class.'@add','middleware' => ['permission:qs-create']]);
-Route::get('/job_estimate/add/{id}/{n}',['as'=>'job_estimate.add','uses'=>JobEstimateController::class.'@add','middleware' => ['permission:qs-create']]);
+Route::get('/job_estimate/add/{id}/{n}',['as'=>'job_estimate.addJe','uses'=>JobEstimateController::class.'@add','middleware' => ['permission:qs-create']]);
 Route::post('/job_estimate/save', ['as' => 'job_estimate.save', 'uses' => JobEstimateController::class.'@save', 'middleware' => ['permission:qs-create']] );
 Route::get('/job_estimate/edit/{id}', ['as' => 'job_estimate.edit', 'uses' => JobEstimateController::class.'@edit', 'middleware' => ['permission:qs-edit']]);
 Route::post('/job_estimate/update/{id}', ['as' => 'job_estimate.update', 'uses' => JobEstimateController::class.'@update', 'middleware' => ['permission:qs-edit']]);
@@ -1646,8 +1661,8 @@ Route::get('/job_estimate/add/{id}', [JobEstimateController::class, 'add']);
 		
 Route::get('/job_order', ['as' => 'job_order.index', 'uses' => JobOrderController::class.'@index', 'middleware' => ['permission:job-order-list|job-order-create|job-order-edit|job-order-delete']]);
 Route::get('/job_order/add', ['as'=>'job_order.add','uses'=>JobOrderController::class.'@add','middleware' => ['permission:job-order-create']]);
-Route::get('/job_order/add/{id}', ['as'=>'job_order.add','uses'=>JobOrderController::class.'@add','middleware' => ['permission:job-order-create']]);
-Route::get('/job_order/add/{id}/{n}', ['as'=>'job_order.add','uses'=>JobOrderController::class.'@add','middleware' => ['permission:job-order-create']]);
+Route::get('/job_order/add/{id}', ['as'=>'job_order.addJo','uses'=>JobOrderController::class.'@add','middleware' => ['permission:job-order-create']]);
+Route::get('/job_order/add/{id}/{n}', ['as'=>'job_order.addJon','uses'=>JobOrderController::class.'@add','middleware' => ['permission:job-order-create']]);
 Route::post('/job_order/save', ['as' => 'job_order.save', 'uses' => JobOrderController::class.'@save', 'middleware' => ['permission:job-order-create']] );
 Route::get('/job_order/edit/{id}', ['as' => 'job_order.edit', 'uses' => JobOrderController::class.'@edit', 'middleware' => ['permission:job-order-edit']]);
 Route::post('/job_order/update/{id}', ['as' => 'job_order.update', 'uses' => JobOrderController::class.'@update', 'middleware' => ['permission:job-order-edit']]);
@@ -1664,7 +1679,7 @@ Route::get('/job_order/print/{id}', ['as' => 'job_order.getPrint', 'uses' => Job
 Route::get('/job_order/set_session', [JobOrderController::class, 'setSessionVal']);
 Route::post('/job_order/search', [JobOrderController::class, 'getSearch']);
 Route::post('/job_order/export', [JobOrderController::class, 'dataExport']);
-Route::get('/job_order/print/{id}/{fc}', ['as' => 'job_order.getPrint', 'uses' => JobOrderController::class.'@getPrint', 'middleware' => ['permission:job-order-print']]);
+Route::get('/job_order/print/{id}/{fc}', ['as' => 'job_order.getPrintfc', 'uses' => JobOrderController::class.'@getPrint', 'middleware' => ['permission:job-order-print']]);
 //Route::post('/job_order/export', ['as' => 'job_order.dataExport', 'uses' => JobOrderController::class.'@dataExport', 'middleware' => ['permission:job-order-export']]);
 Route::get('/job_order/vehicle_data/{id}', [JobOrderController::class, 'getVehicle']);
 Route::post('/job_order/vehsearch', [JobOrderController::class, 'getvehSearch']);
@@ -1691,7 +1706,7 @@ Route::get('/job_order/docs/{id}', [JobOrderController::class, 'getDocs']); //OC
 		
 Route::get('/job_invoice', ['as' => 'job_invoice.index', 'uses' => JobInvoiceController::class.'@index', 'middleware' => ['permission:job-invoice-list|job-invoice-create|job-invoice-edit|job-invoice-delete']]);
 Route::get('/job_invoice/add', ['as'=>'job_invoice.add','uses'=>JobInvoiceController::class.'@add','middleware' => ['permission:job-invoice-create']]);
-Route::get('/job_invoice/add/{id}/{n}', ['as'=>'job_invoice.add','uses'=>JobInvoiceController::class.'@add','middleware' => ['permission:job-invoice-create']]);
+Route::get('/job_invoice/add/{id}/{n}', ['as'=>'job_invoice.addN','uses'=>JobInvoiceController::class.'@add','middleware' => ['permission:job-invoice-create']]);
 Route::post('/job_invoice/save', ['as' => 'job_invoice.save', 'uses' => JobInvoiceController::class.'@save', 'middleware' => ['permission:job-invoice-create']]);
 Route::get('/job_invoice/edit/{id}', ['as' => 'job_invoice.edit', 'uses' => JobInvoiceController::class.'@edit', 'middleware' => ['permission:job-invoice-edit']]);
 Route::post('/job_invoice/update/{id}', ['as' => 'job_invoice.update', 'uses' => JobInvoiceController::class.'@update', 'middleware' => ['permission:job-invoice-edit']]);
@@ -1720,7 +1735,7 @@ Route::get('/job_invoice/order_history/{id}', [JobInvoiceController::class, 'get
 Route::get('/job_invoice/checkvchrno', [JobInvoiceController::class, 'checkVchrNo']);
 Route::get('/job_invoice/get_invoiceset/{id}', [JobInvoiceController::class, 'getInvoiceSetByCustomer']);
 Route::post('/job_invoice/search', [JobInvoiceController::class, 'getSearch']);
-Route::get('/job_invoice/print/{id}/{fc}', ['as' => 'job_invoice.getPrint', 'uses' => JobInvoiceController::class.'@getPrint', 'middleware' => ['permission:job-invoice-print']]);
+Route::get('/job_invoice/print/{id}/{fc}', ['as' => 'job_invoice.getPrintfc', 'uses' => JobInvoiceController::class.'@getPrint', 'middleware' => ['permission:job-invoice-print']]);
 //Route::post('/job_invoice/export', ['as' => 'job_invoice.dataExport', 'uses' => JobInvoiceController::class.'@dataExport', 'middleware' => ['permission:pi-export']]);
 Route::get('/job_invoice/getdeptvoucher/{id}', [JobInvoiceController::class, 'getDeptVoucher']);
 Route::post('/job_invoice/paging', [JobInvoiceController::class, 'ajaxPaging']);
@@ -1986,7 +2001,7 @@ Route::get('/assets_issued/delete/{id}', [AssetsIssuedController::class, 'destro
 		
 Route::get('/customer_enquiry', ['as' => 'customer_enquiry.index', 'uses' => CustomerEnquiryController::class.'@index', 'middleware' => ['permission:pi-list|qs-create|qs-edit|qs-delete']]);
 Route::get('/customer_enquiry/add', ['as'=>'customer_enquiry.add','uses'=>CustomerEnquiryController::class.'@add','middleware' => ['permission:qs-create']]);
-Route::get('/customer_enquiry/add/{id}', ['as'=>'customer_enquiry.add','uses'=>CustomerEnquiryController::class.'@add','middleware' => ['permission:qs-create']]);
+Route::get('/customer_enquiry/add/{id}', ['as'=>'customer_enquiry.addId','uses'=>CustomerEnquiryController::class.'@add','middleware' => ['permission:qs-create']]);
 Route::post('/customer_enquiry/save', ['as' => 'customer_enquiry.save', 'uses' => CustomerEnquiryController::class.'@save', 'middleware' => ['permission:qs-create']] );
 Route::get('/customer_enquiry/edit/{id}', ['as' => 'customer_enquiry.edit', 'uses' => CustomerEnquiryController::class.'@edit', 'middleware' => ['permission:qs-edit']]);
 Route::post('/customer_enquiry/update/{id}', ['as' => 'customer_enquiry.update', 'uses' => CustomerEnquiryController::class.'@update', 'middleware' => ['permission:qs-edit']]);
@@ -2063,10 +2078,10 @@ Route::get('/leads/set_enquiry/{id}', [LeadsController::class, 'setEnquiry']);
 		
 Route::get('/production', ['as' => 'production.index', 'uses' => ProductionController::class.'@index', 'middleware' => ['permission:do-list|do-create|do-edit|do-delete']]);
 Route::get('/production/add', ['as'=>'production.add','uses'=>ProductionController::class.'@add','middleware' => ['permission:do-create']]);
-Route::post('/production/save/{id}', ['as' => 'production.save', 'uses' => ProductionController::class.'@save', 'middleware' => ['permission:do-create']] );
+Route::post('/production/save/{id}', ['as' => 'production.saveid', 'uses' => ProductionController::class.'@save', 'middleware' => ['permission:do-create']] );
 Route::post('/production/save', ['as' => 'production.save', 'uses' => ProductionController::class.'@save', 'middleware' => ['permission:do-create']] );
 Route::get('/production/edit/{id}', ['as' => 'production.edit', 'uses' => ProductionController::class.'@edit', 'middleware' => ['permission:do-edit']]);
-Route::get('/production/add/{id}/{n}', ['as'=>'production.add','uses'=>ProductionController::class.'@add','middleware' => ['permission:do-create']]);
+Route::get('/production/add/{id}/{n}', ['as'=>'production.addN','uses'=>ProductionController::class.'@add','middleware' => ['permission:do-create']]);
 Route::get('/production/supplier_data', [ProductionController::class, 'getSupplier']);
 Route::get('/production/item_data/{id}', [ProductionController::class, 'getItem']);
 Route::get('/production/checkrefno', [ProductionController::class, 'checkRefNo']);
@@ -2078,7 +2093,7 @@ Route::get('/production/print/{id}', ['as' => 'production.getPrint', 'uses' => P
 Route::get('/production/set_session', [ProductionController::class, 'setSessionVal']);
 Route::post('/production/update/{id}', [ProductionController::class, 'update']);
 Route::post('/production/search', [ProductionController::class, 'getSearch']);
-Route::get('/production/print/{id}/{fc}', ['as' => 'production.getPrint', 'uses' => ProductionController::class.'@getPrint', 'middleware' => ['permission:do-print']]);
+Route::get('/production/print/{id}/{fc}', ['as' => 'production.getPrintfc', 'uses' => ProductionController::class.'@getPrint', 'middleware' => ['permission:do-print']]);
 Route::post('/production/export', ['as' => 'production.dataExport', 'uses' => ProductionController::class.'@dataExport', 'middleware' => ['permission:do-print']]);
 Route::get('/production/checkvchrno', [ProductionController::class, 'checkVchrNo']);
 Route::post('/production/paging', [ProductionController::class, 'ajaxPaging']);
@@ -2136,7 +2151,7 @@ Route::post('/manufacture/search', [ManufactureController::class, 'getSearch']);
 Route::post('/manufacture/export', [ManufactureController::class, 'dataExport']);
 Route::get('/manufacture/search/{id}', [ManufactureController::class, 'getSearch']);
 Route::get('/manufacture/getvoucher/{id}', [ManufactureController::class, 'getVoucher']);
-Route::get('/manufacture/add/{id}', ['as' => 'manufacture.add', 'uses' => ManufactureController::class.'@add', 'middleware' => ['permission:pi-create']]);
+Route::get('/manufacture/add/{id}', ['as' => 'manufacture.addN', 'uses' => ManufactureController::class.'@add', 'middleware' => ['permission:pi-create']]);
 
 
 
@@ -2433,6 +2448,7 @@ Route::get('/contractbuilding/getmessage/{id}', [ContractExpiryController::class
 Route::get('/manual_journal',[ManualJournalController::class, 'index']);
 Route::get('/manual_journal/add', [ManualJournalController::class, 'add']);
 Route::post('/manual_journal/save', [ManualJournalController::class, 'save']);
+Route::post('/manual_journal/paging', [ManualJournalController::class, 'ajaxPaging']);
 Route::get('/manual_journal/getvoucher/{id}',[ManualJournalController::class, 'getVoucher']);
 Route::get('/manual_journal/delete/{id}/{n}', [ManualJournalController::class, 'destroy']);
 Route::get('/manual_journal/getvouchertype/{id}', [ManualJournalController::class, 'getVoucherType']);
@@ -2442,8 +2458,9 @@ Route::get('/manual_journal/checkvchrno', [ManualJournalController::class, 'chec
 Route::get('/manual_journal/printgrp/{id}', [ManualJournalController::class, 'getPrintgrp']);
 Route::get('/manual_journal/print/{id}/{rid}', [ManualJournalController::class, 'getPrint']);
 Route::post('/manual_journal/add/{id}/{rid}/{vouchertype}', [ManualJournalController::class, 'add']);
-Route::post('/manual_journal/getvoucherprint}', [ManualJournalController::class, 'getVoucherprint']);
+Route::post('/manual_journal/getvoucherprint', [ManualJournalController::class, 'getVoucherprint']);
 Route::get('/manual_journal/set_transactions/{type}/{id}/{n}', [ManualJournalController::class, 'setTransactions']);
+
 
 
 
@@ -2678,8 +2695,8 @@ Route::post('/sales_order_booking/driver_assign', [SalesOrderBookingController::
 		
 Route::get('/proforma_invoice', ['as' => 'proforma_invoice.index', 'uses' => ProformaInvoiceController::class.'@index', 'middleware' => ['permission:pfi-list|pfi-create|pfi-edit|pfi-delete']]);
 Route::get('/proforma_invoice/add', ['as'=>'proforma_invoice.add','uses'=>ProformaInvoiceController::class.'@add','middleware' => ['permission:pfi-create']]);
-Route::get('/proforma_invoice/add/{id}', ['as'=>'proforma_invoice.add','uses'=>ProformaInvoiceController::class.'@add','middleware' => ['permission:pfi-create']]);
-Route::get('/proforma_invoice/add/{id}/{n}', ['as'=>'proforma_invoice.add','uses'=>ProformaInvoiceController::class.'@add','middleware' => ['permission:pfi-create']]);
+Route::get('/proforma_invoice/add/{id}', ['as'=>'proforma_invoice.addN','uses'=>ProformaInvoiceController::class.'@add','middleware' => ['permission:pfi-create']]);
+Route::get('/proforma_invoice/add/{id}/{n}', ['as'=>'proforma_invoice.addId','uses'=>ProformaInvoiceController::class.'@add','middleware' => ['permission:pfi-create']]);
 Route::post('/proforma_invoice/save', ['as' => 'proforma_invoice.save', 'uses' => ProformaInvoiceController::class.'@save', 'middleware' => ['permission:pfi-create']] );
 Route::get('/proforma_invoice/edit/{id}', ['as' => 'proforma_invoice.edit', 'uses' => ProformaInvoiceController::class.'@edit', 'middleware' => ['permission:pfi-edit']]);
 Route::post('/proforma_invoice/update/{id}', ['as' => 'proforma_invoice.update', 'uses' => ProformaInvoiceController::class.'@update', 'middleware' => ['permission:pfi-edit']]);
@@ -2695,14 +2712,14 @@ Route::get('/proforma_invoice/item_details/{id}', [ProformaInvoiceController::cl
 Route::get('/proforma_invoice/print/{id}', ['as' => 'proforma_invoice.getPrint', 'uses' => ProformaInvoiceController::class.'@getPrint', 'middleware' => ['permission:pfi-print']]);
 Route::get('/proforma_invoice/set_session', [ProformaInvoiceController::class, 'setSessionVal']);
 Route::post('/proforma_invoice/search', [ProformaInvoiceController::class, 'getSearch']);
-Route::get('/proforma_invoice/print/{id}/{fc}', ['as' => 'proforma_invoice.getPrint', 'uses' => ProformaInvoiceController::class.'@getPrint', 'middleware' => ['permission:pfi-print']]);
+Route::get('/proforma_invoice/print/{id}/{fc}', ['as' => 'proforma_invoice.getPrintfc', 'uses' => ProformaInvoiceController::class.'@getPrint', 'middleware' => ['permission:pfi-print']]);
 Route::post('/proforma_invoice/export', [ProformaInvoiceController::class, 'dataExport']);
 Route::get('/proforma_invoice/newcustomer_data', [ProformaInvoiceController::class, 'getNewCustomer']);
 Route::get('/proforma_invoice/checkvchrno', [ProformaInvoiceController::class, 'checkVchrNo']);
 Route::post('/proforma_invoice/paging', [ProformaInvoiceController::class, 'ajaxPaging']);
 Route::get('/proforma_invoice/customer_data/{did}', [ProformaInvoiceController::class, 'getCustomer']);
 Route::get('/proforma_invoice/newcustomer_data/{did}', [ProformaInvoiceController::class, 'getNewCustomer']);
-Route::get('/proforma_invoice/poadd/{id}', ['as'=>'proforma_invoice.add','uses'=>ProformaInvoiceController::class.'@poadd','middleware' => ['permission:pfi-create']]);
+Route::get('/proforma_invoice/poadd/{id}', ['as'=>'proforma_invoice.addPo','uses'=>ProformaInvoiceController::class.'@poadd','middleware' => ['permission:pfi-create']]);
 Route::post('/proforma_invoice/get_orderno', [ProformaInvoiceController::class, 'getOrderNo']);
 Route::get('/proforma_invoice/getcounter/{id}', [ProformaInvoiceController::class, 'getCounter']);
 Route::get('/proforma_invoice/get_report/{id}', [ProformaInvoiceController::class, 'getReport']);
@@ -2781,8 +2798,8 @@ Route::get('/creditnotejournal/edit/{id}', ['as' => 'creditnotejournal.edit', 'u
 Route::post('/creditnotejournal/update/{id}', [CreditNoteJournalController::class, 'update']);
 Route::get('/creditnotejournal/checkvchrno', [CreditNoteJournalController::class, 'checkVchrNo']);
 Route::get('/creditnotejournal/print/{id}', ['as' => 'creditnotejournal.getPrint', 'uses' => CreditNoteJournalController::class.'@getPrint', 'middleware' => ['permission:jv-print']]);
-Route::get('/creditnotejournal/print/{id}/{rid}', ['as' => 'creditnotejournal.getPrint', 'uses' => CreditNoteJournalController::class.'@getPrint', 'middleware' => ['permission:jv-print']]);
-Route::get('/creditnotejournal/add/{id}/{rid}/{vouchertype}', ['as'=>'creditnotejournal.add','uses'=>CreditNoteJournalController::class.'@add','middleware' => ['permission:jv-create']]);
+Route::get('/creditnotejournal/print/{id}/{rid}', ['as' => 'creditnotejournal.getPrintrid', 'uses' => CreditNoteJournalController::class.'@getPrint', 'middleware' => ['permission:jv-print']]);
+Route::get('/creditnotejournal/add/{id}/{rid}/{vouchertype}', ['as'=>'creditnotejournal.addN','uses'=>CreditNoteJournalController::class.'@add','middleware' => ['permission:jv-create']]);
 Route::get('/creditnotejournal/getvoucherprint', [CreditNoteJournalController::class, 'getVoucherprint']);
 Route::get('/creditnotejournal/set_transactions/{type}/{id}/{n}', [CreditNoteJournalController::class, 'setTransactions']);
 Route::post('/creditnotejournal/paging', [CreditNoteJournalController::class, 'ajaxPaging']);
@@ -2857,6 +2874,5 @@ Route::get('/myorder/pending', [MyOrderController::class, 'pendingList']);//MAY2
 
 Route::get('/apicall', [ApicallController::class, 'index']);
 Route::post('/apicall/sts', [ApicallController::class, 'status_chk']);
-
 
 

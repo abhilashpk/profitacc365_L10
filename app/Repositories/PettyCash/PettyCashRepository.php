@@ -190,7 +190,7 @@ class PettyCashRepository extends AbstractValidator implements PettyCashInterfac
 					->value('max_no');
 				
 				$dept = isset($attributes['department_id'])?$attributes['department_id']:0;
-				$accset = DB::table('account_setting')->where('voucher_type_id',$attributes['voucher'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();//echo '<pre>';print_r($accset);
+				$accset = DB::table('account_setting')->where('voucher_type_id',$attributes['voucher'])->where('status',1)->whereNull('deleted_at')->first();//echo '<pre>';print_r($accset);
 				$attributes['voucher_no'] = $this->objUtility->generateVoucherNo($accset->id, $maxNumeric, $dept, $attributes['voucher_no']);
 				//VOUCHER NO LOGIC.....................
 				//exit;
@@ -223,7 +223,7 @@ class PettyCashRepository extends AbstractValidator implements PettyCashInterfac
 								->value('max_no');
 							
 							$dept = isset($attributes['department_id'])?$attributes['department_id']:0;
-							$accset = DB::table('account_setting')->where('voucher_type_id',$attributes['voucher'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+							$accset = DB::table('account_setting')->where('voucher_type_id',$attributes['voucher'])->where('status',1)->whereNull('deleted_at')->first();
 							$attributes['voucher_no'] = $this->objUtility->generateVoucherNo($accset->id, $maxNumeric, $dept, $attributes['voucher_no']);
 
 							$retryCount++;
@@ -457,7 +457,7 @@ class PettyCashRepository extends AbstractValidator implements PettyCashInterfac
 							 ->where('voucher_type','PC')
 							 ->where('PE.status',1)
 							 ->where('PE.entry_type','Cr')
-							 ->where('PE.deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('petty_cash.*','PE.description','PE.reference')
 							 ->orderBy('petty_cash.id', 'DESC')
 							 ->groupBy('petty_cash.id')
@@ -474,7 +474,7 @@ class PettyCashRepository extends AbstractValidator implements PettyCashInterfac
 							 ->where('voucher_type','PC')
 							 ->where('PE.status',1)
 							 ->where('PE.entry_type','Cr')
-							 ->where('PE.deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('petty_cash.*','PE.description','PE.reference')
 							 ->orderBy('petty_cash.id', 'DESC')
 							 ->groupBy('petty_cash.id')*/
@@ -502,7 +502,7 @@ class PettyCashRepository extends AbstractValidator implements PettyCashInterfac
 							$query ->where('voucher_type','PC')
 							 ->where('PE.status',1)
 							 ->where('PE.entry_type','Cr')
-							 ->where('PE.deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('PE.deleted_at')
 							 ->select('petty_cash.*','PE.description','PE.reference')
 							 ->offset($start)
 							->limit($limit)
@@ -545,3 +545,4 @@ class PettyCashRepository extends AbstractValidator implements PettyCashInterfac
 
 	}
 }
+

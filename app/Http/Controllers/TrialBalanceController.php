@@ -40,9 +40,9 @@ class TrialBalanceController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				//$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -342,18 +342,18 @@ class TrialBalanceController extends Controller
 	}
 	
 	public function getSearch()
-	{	//echo '<pre>';print_r(Input::all());exit;
+	{	//echo '<pre>';print_r($request->all());exit;
 		$data = array(); 
-		Input::merge(['curr_from_date' => $this->acsettings->from_date]);
-		$trresult = $this->accountmaster->getTrialBalance(Input::all());  //echo '<pre>';print_r($trresult);exit;
+		$request->merge(['curr_from_date' => $this->acsettings->from_date]);
+		$trresult = $this->accountmaster->getTrialBalance($request->all());  //echo '<pre>';print_r($trresult);exit;
 		$items = $trresult['tr'];  
 		$voucher_head = $trresult['head']; 
 		//$exclude = (==1)?true:false; 
-		//echo '<pre>';print_r(Input::all());exit;
-		if(Input::get('search_type')=='groupwise' || Input::get('search_type')=='groupwise_bal') {
+		//echo '<pre>';print_r($request->all());exit;
+		if($request->get('search_type')=='groupwise' || $request->get('search_type')=='groupwise_bal') {
 			$results = $this->makeTree($items);
 			
-		} else if(Input::get('search_type')=='closing_groupwise' || Input::get('search_type')=='closing_groupwise_bal') {
+		} else if($request->get('search_type')=='closing_groupwise' || $request->get('search_type')=='closing_groupwise_bal') {
 			$trns = $this->makeTreeAc($items);
 			$obtrns = $this->makeTreeAc($trresult['ob']); 
 			$alltrns = $this->makeTreeAc($trresult['all']);  //echo '<pre>';print_r($alltrns);exit;	
@@ -364,10 +364,10 @@ class TrialBalanceController extends Controller
 	//	echo '<pre>';print_r($results);exit;
 			//$results =  $this->makeTreeAc($items);
 			
-		} else if(Input::get('search_type')=='opening_summary') {
+		} else if($request->get('search_type')=='opening_summary') {
 			$results = $this->OBmakeSummary($this->makeTree($items),'op');
 			
-		} else if(Input::get('search_type')=='closing_summary') {
+		} else if($request->get('search_type')=='closing_summary') {
 			
 			$trns = $this->makeTreeAc($items);
 			$obtrns = $this->makeTreeAc($trresult['ob']); 
@@ -382,23 +382,23 @@ class TrialBalanceController extends Controller
 			$results = $this->makeSummaryAc2($results);
 			//echo '<pre>';print_r($results);exit;
 			
-		} else if(Input::get('search_type')=='taged_summary') {
+		} else if($request->get('search_type')=='taged_summary') {
 			$results = $this->makeTree($items);
 			
-		} else if(Input::get('search_type')=='group_taged') {
+		} else if($request->get('search_type')=='group_taged') {
 			
 			$results = $this->makeTree($items);
 			//$results = $items;
 		
 		
-		} else if(Input::get('search_type')=='opening_group_taged') {
+		} else if($request->get('search_type')=='opening_group_taged') {
 			
 			$results = $this->makeTree($items);
 		    
-		} else if(Input::get('search_type')=='new_format') {
+		} else if($request->get('search_type')=='new_format') {
 			
 			$trns = $this->makeTreeAc($items);
-			$obtrns = (Input::get('exclude')==1)?[]:$this->makeTreeAc($trresult['ob']); 
+			$obtrns = ($request->get('exclude')==1)?[]:$this->makeTreeAc($trresult['ob']); 
 			$alltrns = $this->makeTreeAc($trresult['all']);  //echo '<pre>';print_r($trns);exit;	
 			if(sizeof($alltrns) > 0)
 			    $results =  $this->makeSummaryAcWithOb2($alltrns, $trns, $obtrns, 'cl');
@@ -421,14 +421,14 @@ class TrialBalanceController extends Controller
 					->withVoucherhead($voucher_head)
 					->withTitles($titles)
 					->withUrl('trial_balance')
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withSettings($this->acsettings)
-					->withType(Input::get('search_type'))
-					->withExl(Input::get('exclude'))
-					->withGrpid(Input::get('group_id'))
-					->withTrimzero(Input::get('trim_zero'))
-					->withAccounts(Input::get('accounts_arr'))
+					->withType($request->get('search_type'))
+					->withExl($request->get('exclude'))
+					->withGrpid($request->get('group_id'))
+					->withTrimzero($request->get('trim_zero'))
+					->withAccounts($request->get('accounts_arr'))
 					->withCurrency($crow->code)
 					->withData($data);
 	}
@@ -437,20 +437,20 @@ class TrialBalanceController extends Controller
 	public function dataExport() {
 		
 		$data = array(); 
-		//echo '<pre>';print_r(Input::all());exit;
-		Input::merge(['curr_from_date' => $this->acsettings->from_date]);
-		$trresult = $this->accountmaster->getTrialBalance(Input::all()); 
+		//echo '<pre>';print_r($request->all());exit;
+		$request->merge(['curr_from_date' => $this->acsettings->from_date]);
+		$trresult = $this->accountmaster->getTrialBalance($request->all()); 
 		$items = $trresult['tr'];  //echo '<pre>';print_r($trresult);exit;
 		$crow = DB::table('currency')->where('is_default',1)->select('code')->first();
 		$currency=$crow->code;
 		$voucher_head = $trresult['head'];
-	//	echo '<pre>';print_r(Input::all());exit;
+	//	echo '<pre>';print_r($request->all());exit;
 		$datareport[] = ['','',Session::get('company'),'',''];
 		
-		if(Input::get('search_type')=='groupwise' ||Input::get('search_type')=='opening_group_taged' ||Input::get('search_type')=='groupwise_bal') {
+		if($request->get('search_type')=='groupwise' ||$request->get('search_type')=='opening_group_taged' ||$request->get('search_type')=='groupwise_bal') {
 			$results = $this->makeTree($items);
 			//echo '<pre>';print_r($results);exit;
-			$balHd = (Input::get('search_type')=='groupwise_bal')?'Balance':'';
+			$balHd = ($request->get('search_type')=='groupwise_bal')?'Balance':'';
 			$datareport[] = ['Account Group/Head','','Debit','Credit',$balHd];
 			$cr_total = $dr_total = $crtotal = $drtotal = 0;
 			foreach($results as $result) {
@@ -478,7 +478,7 @@ class TrialBalanceController extends Controller
 					$grp_dtotal += $amountd;
 				}
 				
-				if(Input::get('search_type')=='groupwise_bal') {
+				if($request->get('search_type')=='groupwise_bal') {
 					$balance = $grp_dtotal - $grp_ctotal;
 				} else 
 					$balance = '';
@@ -496,14 +496,14 @@ class TrialBalanceController extends Controller
 							 'totalc'	=> number_format($crtotal,2)
 							];
 							
-		} else if(Input::get('search_type')=='closing_groupwise' || Input::get('search_type')=='closing_groupwise_bal') {
+		} else if($request->get('search_type')=='closing_groupwise' || $request->get('search_type')=='closing_groupwise_bal') {
 			
 			$trns = $this->makeTreeAc($items);
 			$obtrns = $this->makeTreeAc($trresult['ob']); 
 			$results =  $this->makeSummaryAcWithOb($trns, $obtrns, 'cl');
 			
 			//$results =  $this->makeSummaryAc($this->makeTreeAc($items), 'cl');
-			$balHd = (Input::get('search_type')=='closing_groupwise_bal')?'Balance':'';
+			$balHd = ($request->get('search_type')=='closing_groupwise_bal')?'Balance':'';
 			$datareport[] = ['Account Group/Head','','Debit','Credit',$balHd];
 			
 			$cr_total = $dr_total = $crtotal = $drtotal = 0;
@@ -528,7 +528,7 @@ class TrialBalanceController extends Controller
 					$grp_dtotal += $amountd;
 				}
 				
-				if(Input::get('search_type')=='closing_groupwise_bal') {
+				if($request->get('search_type')=='closing_groupwise_bal') {
 					$balance = $grp_dtotal - $grp_ctotal;
 					$balance = ($balance > 0)?number_format($balance,2):'('.number_format(($balance*-1),2).')';
 				} else 
@@ -548,7 +548,7 @@ class TrialBalanceController extends Controller
 							 'totalc'	=> number_format($crtotal,2)
 							];
 			
-		} else if(Input::get('search_type')=='opening_summary') {
+		} else if($request->get('search_type')=='opening_summary') {
 			
 			$results = $this->makeSummary($this->makeTree($items),'op');
 			//echo '<pre>';print_r($results);exit;
@@ -569,7 +569,7 @@ class TrialBalanceController extends Controller
 							 'totalc'	=> number_format($crtotal,2)
 							];
 			
-		} else if(Input::get('search_type')=='closing_summary') {
+		} else if($request->get('search_type')=='closing_summary') {
 			
 			$trns = $this->makeTreeAc($items);
 			$obtrns = $this->makeTreeAc($trresult['ob']); 
@@ -613,12 +613,12 @@ class TrialBalanceController extends Controller
 							 'totalc'	=> number_format($cr_total,2)
 							];
 			
-		} else if(Input::get('search_type')=='taged_summary') {
+		} else if($request->get('search_type')=='taged_summary') {
 			$results = $this->makeTree($items);
 			
 		
 	           $datareport[] = ['','','Total',number_format($dr_total,2),number_format($cr_total,2),''];
-		} else if(Input::get('search_type')=='group_taged') {
+		} else if($request->get('search_type')=='group_taged') {
 			$results = $this->makeTree($items);
 			$cr_total = $dr_total = $bl_total = 0;
 			foreach($results as $result) {
@@ -657,10 +657,10 @@ class TrialBalanceController extends Controller
 			}					
 		
 		
-		} else if(Input::get('search_type')=='new_format') {
+		} else if($request->get('search_type')=='new_format') {
 			//....
 			$trns = $this->makeTreeAc($items);
-			$obtrns = (Input::get('exclude')==1)?[]:$this->makeTreeAc($trresult['ob']); 
+			$obtrns = ($request->get('exclude')==1)?[]:$this->makeTreeAc($trresult['ob']); 
 			$alltrns = $this->makeTreeAc($trresult['all']);  //echo '<pre>';print_r($obtrns);exit;	
 			if(sizeof($alltrns) > 0)
 			    $results =  $this->makeSummaryAcWithOb2($alltrns, $trns, $obtrns, 'cl');
@@ -1216,3 +1216,5 @@ class TrialBalanceController extends Controller
 	}
 			
 }
+
+

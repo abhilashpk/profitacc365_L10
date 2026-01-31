@@ -66,7 +66,7 @@ class QuotationRentalController extends Controller
     public function index() {
 		
 		$data = array();
-		$quotations = DB::table('quotation_sales')->where('status',1)->where('is_rental',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$quotations = DB::table('quotation_sales')->where('status',1)->where('is_rental',1)->whereNull('deleted_at')->get();
 	
 		//$quotations = [];//$this->quotation_sales->quotationSalesList();//
 		//echo '<pre>';print_r($quotations);exit;
@@ -205,7 +205,7 @@ class QuotationRentalController extends Controller
 		$res = $this->voucherno->getVoucherNo('QR');
 		//$vno = $res->no;//echo '<pre>';print_r($currency);exit;
 		$location = $this->location->locationList();
-		$row = DB::table('quotation_sales')->where('status',1)->where('is_rental',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$row = DB::table('quotation_sales')->where('status',1)->where('is_rental',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		if($row && in_array($row->doc_status, $apr))
 			$lastid = $row->id;
@@ -716,4 +716,6 @@ class QuotationRentalController extends Controller
 						));
 	}
 }
+
+
 

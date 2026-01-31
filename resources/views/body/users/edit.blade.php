@@ -49,36 +49,42 @@
                            
                         </div>
                         <div class="panel-body">
-							{!! Form::model(['method' => 'PATCH','route' => ['users.update', $user->id]]) !!}
+							<form role="form" method="POST" action="{{ route('users.update', $user->id) }}">
+                                @csrf
+                                @method('PATCH')
 							<div class="row">
 								<div class="col-xs-12 col-sm-12 col-md-12">
 									<div class="form-group">
 										<strong>Name:</strong>
-										{!! Form::text('name', $user->name, array('placeholder' => 'Name','class' => 'form-control')) !!}
+										<input type="text" class="form-control" name="name" placeholder="Name" value="{{ $user->name }}">
 									</div>
 								</div>
 								<div class="col-xs-12 col-sm-12 col-md-12">
 									<div class="form-group">
 										<strong>Email:</strong>
-										{!! Form::text('email',  $user->email, array('placeholder' => 'Email','class' => 'form-control')) !!}
+										<input type="text" class="form-control" name="email" placeholder="Email" value="{{ $user->email }}">
 									</div>
 								</div>
 								<div class="col-xs-12 col-sm-12 col-md-12">
 									<div class="form-group">
 										<strong>Password:</strong>
-										{!! Form::password('password', array('placeholder' => 'Password','class' => 'form-control')) !!}
+										<input type="password" class="form-control" name="password" placeholder="Password">
 									</div>
 								</div>
 								<div class="col-xs-12 col-sm-12 col-md-12">
 									<div class="form-group">
 										<strong>Confirm Password:</strong>
-										{!! Form::password('confirm-password', array('placeholder' => 'Confirm Password','class' => 'form-control')) !!}
+										<input type="password" class="form-control" name="confirm-password" placeholder="Confirm Password">
 									</div>
 								</div>
 								<div class="col-xs-12 col-sm-12 col-md-12">
 									<div class="form-group">
 										<strong>Role:</strong>
-										{!! Form::select('roles[]', $roles,$userRole, array('class' => 'form-control')) !!}
+										<select class="form-control select2" style="width:100%" name="roles[]">
+                                            @foreach ($roles as $key => $row)
+                                                <option value="{{ $key }}" {{ array_key_exists($key, $userRole) ? 'selected' : '' }}>{{ $row }}</option>
+                                            @endforeach
+                                        </select>
 									</div>
 								</div>
 								
@@ -110,7 +116,7 @@
 										<button type="submit" class="btn btn-primary">Submit</button>
 								</div>
 							</div>
-							{!! Form::close() !!}
+							</form>
 							<!--</form>-->
                         </div>
                     </div>

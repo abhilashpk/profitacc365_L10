@@ -34,9 +34,9 @@ class VatReportController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				//$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -212,45 +212,45 @@ class VatReportController extends Controller
 	
 	public function getSearch()
 	{
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 
 		$data = array();
-		Input::merge(['curr_from_date' => $this->acsettings->from_date]);
+		$request->merge(['curr_from_date' => $this->acsettings->from_date]);
 		$payable = 0;
-		$code_type=Input::get('code_type');
+		$code_type=$request->get('code_type');
 		
-		if(Input::get('search_type')=='summary') {
-			$voucher_head = 'VAT Report Summary'; //echo '<pre>';print_r($this->accountmaster->getVatSummary(Input::all()));exit;
-			$type = Input::get('search_type');
-			//$reports = $this->CalculateVatSummary( $this->accountmaster->getVatSummary(Input::all()) ); 
-			Input::merge(['search_type' => 'detail']);
-			$result = $this->getVatSummary( $this->GroupByAccount($this->accountmaster->getVatDetail(Input::all())) ); //echo '<pre>';print_r($reports);exit;
+		if($request->get('search_type')=='summary') {
+			$voucher_head = 'VAT Report Summary'; //echo '<pre>';print_r($this->accountmaster->getVatSummary($request->all()));exit;
+			$type = $request->get('search_type');
+			//$reports = $this->CalculateVatSummary( $this->accountmaster->getVatSummary($request->all()) ); 
+			$request->merge(['search_type' => 'detail']);
+			$result = $this->getVatSummary( $this->GroupByAccount($this->accountmaster->getVatDetail($request->all())) ); //echo '<pre>';print_r($reports);exit;
 			$reports = $result['vat'];
 			$payable = $result['payable'];
 			$view = 'preprint';
 			
-		} else if(Input::get('search_type')=='detail') {
+		} else if($request->get('search_type')=='detail') {
 			
 			$date_from = '01-01-2021';
 			$date_to = date('Y-m-d');
 		
 			$voucher_head = 'VAT Report Detail';
-			$type = Input::get('search_type');
-			//$reports = $this->makeTreeTyp($this->accountmaster->getVatDetail(Input::all()));
-			$reports = $this->GroupByAccount($this->accountmaster->getVatDetail(Input::all()));//echo '<pre>';print_r($reports);exit;
+			$type = $request->get('search_type');
+			//$reports = $this->makeTreeTyp($this->accountmaster->getVatDetail($request->all()));
+			$reports = $this->GroupByAccount($this->accountmaster->getVatDetail($request->all()));//echo '<pre>';print_r($reports);exit;
 			$view = 'preprint';
 			
-		} else if(Input::get('search_type')=='partywise') {
+		} else if($request->get('search_type')=='partywise') {
 			$voucher_head = 'VAT Payable Report(Partywise)';
-			$type = Input::get('search_type');
-			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail(Input::all()));//DB::raw('"GI" AS type')
+			$type = $request->get('search_type');
+			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail($request->all()));//DB::raw('"GI" AS type')
 			//echo '<pre>';print_r($reports);exit;
 			$view = 'preprint';
 
-		} else if(Input::get('search_type')=='areawise') {
+		} else if($request->get('search_type')=='areawise') {
 			$voucher_head = 'VAT Payable Report(Areawise)';
-			$type = Input::get('search_type');
-			$result = $this->accountmaster->getVatDetail(Input::all());
+			$type = $request->get('search_type');
+			$result = $this->accountmaster->getVatDetail($request->all());
 			/*$inputexp = $this->makeTreeAr($result['inputexp']);
 			 $purchase = $this->makeTreeAr($result['purchase']);
 			$purchase_ret = $this->makeTreeAr($result['purchase_ret']); 
@@ -262,17 +262,17 @@ class VatReportController extends Controller
 			//echo '<pre>';print_r($reports);exit;
 			$view = 'preprint';
 			
-		} else if(Input::get('search_type')=='summary_taxcode') {
+		} else if($request->get('search_type')=='summary_taxcode') {
 			$voucher_head = 'VAT Report(Tax Code Summary)';
-			$type = Input::get('search_type');
-			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail(Input::all()));
+			$type = $request->get('search_type');
+			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail($request->all()));
 			//echo '<pre>';print_r($reports);exit;
 			$view = 'preprint';
 		}
-		else if(Input::get('search_type')=='tax_code') {
+		else if($request->get('search_type')=='tax_code') {
 			$voucher_head = 'VAT Report(Tax Code )';
-			$type = Input::get('search_type');
-			$result = $this->accountmaster->getVatDetail(Input::all());
+			$type = $request->get('search_type');
+			$result = $this->accountmaster->getVatDetail($request->all());
 			$sales = $this->makeTreeTc($result['sales']);
 			$purchase = $this->makeTreeTc($result['purchase']);
 			$reports = ['purchase' => $purchase, 'sales' => $sales];
@@ -288,25 +288,25 @@ class VatReportController extends Controller
 					->withCodetype($code_type)
 					->withType($type)
 					->withPayable($payable)
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withSettings($this->acsettings)
 					->withData($data);
 	}
 	
 	public function dataExport()
 	{
-		$data = array();	//echo '<pre>';print_r(Input::all());exit;
+		$data = array();	//echo '<pre>';print_r($request->all());exit;
 		$datareport[] = ['','','','',strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			$voucher_head = 'VAT Report Summary';
-			$type = Input::get('search_type');
-			//$reports = $this->CalculateVatSummary( $this->accountmaster->getVatSummary(Input::all()) ); 
-			Input::merge(['search_type' => 'detail']);
-			//$reports = $this->accountmaster->getVatSummary(Input::all()); 
-			$result = $this->getVatSummary( $this->GroupByAccount($this->accountmaster->getVatDetail(Input::all())) );
+			$type = $request->get('search_type');
+			//$reports = $this->CalculateVatSummary( $this->accountmaster->getVatSummary($request->all()) ); 
+			$request->merge(['search_type' => 'detail']);
+			//$reports = $this->accountmaster->getVatSummary($request->all()); 
+			$result = $this->getVatSummary( $this->GroupByAccount($this->accountmaster->getVatDetail($request->all())) );
 			$reports = $result['vat'];
 			$payable = $result['payable'];
 			$datareport[] = ['','',strtoupper($voucher_head),'',''];
@@ -328,9 +328,9 @@ class VatReportController extends Controller
 			
 			$datareport[] = ['','','','Total VAT Payable',$vatsum];
 			
-		} else if(Input::get('search_type')=='detail') {
+		} else if($request->get('search_type')=='detail') {
 			$voucher_head = 'VAT Report Detail';
-			$reports = $this->makeTreeTyp($this->accountmaster->getVatDetail(Input::all()));//
+			$reports = $this->makeTreeTyp($this->accountmaster->getVatDetail($request->all()));//
 			$datareport[] = ['','','','',$voucher_head,'','','',''];
 			$datareport[] = ['','','','','','',''];
 			
@@ -405,9 +405,9 @@ class VatReportController extends Controller
 			$datareport[] = ['','','','','','TOTAL OUTPUT:','','',number_format($vatinput,2)];
 			$datareport[] = ['','','','','','VAT PAYABLE:','','',number_format($payable,2)]; */
 			
-		} else if(Input::get('search_type')=='partywise') {
+		} else if($request->get('search_type')=='partywise') {
 			$voucher_head = 'VAT Payable Report(Partywise)';
-			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail(Input::all()));//DB::raw('"GI" AS type')
+			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail($request->all()));//DB::raw('"GI" AS type')
 			
 			$datareport[] = ['','','','',strtoupper($voucher_head),'','','',''];
 			$datareport[] = ['','','','','','',''];
@@ -438,9 +438,9 @@ class VatReportController extends Controller
 				$datareport[] = ['','','','','','',''];
 			}
 
-		} else if(Input::get('search_type')=='areawise') {
+		} else if($request->get('search_type')=='areawise') {
 			$voucher_head = 'VAT Payable Report(Areawise)';
-			$result = $this->accountmaster->getVatDetail(Input::all());
+			$result = $this->accountmaster->getVatDetail($request->all());
 			$reports = $this->makeTreeAr($result['sales']);
 			
 			$datareport[] = ['','','','',strtoupper($voucher_head),'','','',''];
@@ -495,19 +495,19 @@ class VatReportController extends Controller
 			$net_vattotal += $area_vattotal;
 			$datareport[] = ['','','','','','Net Total',number_format($net_total,2),number_format($net_nettotal,2),number_format($net_vattotal,2)];
 			
-		} else if(Input::get('search_type')=='summary_taxcode') {
+		} else if($request->get('search_type')=='summary_taxcode') {
 			$voucher_head = 'VAT Report(Tax Code Summary)';
-			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail(Input::all()));
+			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail($request->all()));
 			
 			$datareport[] = ['',strtoupper($voucher_head)];
 			$datareport[] = ['','','','','','',''];
 			$datareport[] = ['VAT Account','VAT Amt'];
 		}
 		
-		else if(Input::get('search_type')=='tax_code') {
+		else if($request->get('search_type')=='tax_code') {
 			$voucher_head = 'VAT Report(Tax Code )';
-			$type = Input::get('search_type');
-			$result = $this->accountmaster->getVatDetail(Input::all());
+			$type = $request->get('search_type');
+			$result = $this->accountmaster->getVatDetail($request->all());
 			$reports = $this->makeTreeTc($result['sales']);
 			$reportp = $this->makeTreeTc($result['purchase']);
 
@@ -600,14 +600,14 @@ class VatReportController extends Controller
 	public function getPrint()
 	{
 		$data = array();
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			$voucher_head = 'Vat Report Summary';
-			$reports = $this->accountmaster->getVatSummary(Input::all()); 
+			$reports = $this->accountmaster->getVatSummary($request->all()); 
 			$titles = ['main_head' => 'Vat Report Summary','subhead' => 'Vat Report Summary'];
 			
-		} else if(Input::get('search_type')=='detail') {
+		} else if($request->get('search_type')=='detail') {
 			$voucher_head = 'Vat Report Detail';
-			$reports = $this->accountmaster->getVatDetail(Input::all());
+			$reports = $this->accountmaster->getVatDetail($request->all());
 			$titles = ['main_head' => 'Vat Report Detail','subhead' => 'Vat Report Detail'];
 		}
 		
@@ -620,5 +620,7 @@ class VatReportController extends Controller
 					->withData($data);
 	}	
 }
+
+
 
 

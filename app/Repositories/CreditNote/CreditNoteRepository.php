@@ -607,7 +607,7 @@ class CreditNoteRepository extends AbstractValidator implements CreditNoteInterf
 							$join->on('am.id','=','CNE.cr_account_id');
 						} )
 						->where('CNE.status',1)
-						->where('CNE.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('credit_note.id', $id)
 						->select('CNE.*','am.master_name','am.category')->get();
 	}
@@ -625,4 +625,6 @@ class CreditNoteRepository extends AbstractValidator implements CreditNoteInterf
 	
 	
 }
+
+
 

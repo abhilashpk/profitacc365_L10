@@ -974,7 +974,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 																'voucher_no' => $attributes['voucher_no'],
 																'description' => $attributes['description'][$key],
 																'bank_id' => ($attributes['bank_id'][$key]!='')?$attributes['bank_id'][$key]:1,
-																'deleted_at' => '0000-00-00 00:00:00'
+																'deleted_at' => null
 															]);
 								} else {
 									//INSERT NEW PDC....
@@ -1031,7 +1031,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 																'voucher_no' => $attributes['voucher_no'],
 																'description' => $attributes['description'][$key],
 																'bank_id' => ($attributes['bank_id'][$key]!='')?$attributes['bank_id'][$key]:1,
-																'deleted_at' => '0000-00-00 00:00:00'
+																'deleted_at' => null
 															]);
 								} else {
 									//INSERT NEW PDC....
@@ -1456,7 +1456,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
                             	})
 							 ->where('voucher_type', $type)
 							 ->where('JE.status',1)
-							 ->where('JE.deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('journal.*','JE.description','AM.master_name')
 							 ->groupBy('journal.id')
 							 ->orderBy('journal.id', 'DESC')
@@ -1467,7 +1467,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 		// 					 })
 		// 					 ->where('voucher_type', $type)
 		// 					 ->where('JE.status',1)
-		// 					 ->where('JE.deleted_at','0000-00-00 00:00:00')
+		// 					 ->whereNull('deleted_at')
 		// 					 ->select('journal.*','JE.description')
 		// 					 ->groupBy('journal.id')
 		// 					 ->orderBy('journal.id', 'DESC')
@@ -1483,7 +1483,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 								 $join->on('JE.journal_id', '=', 'journal.id');
 							 })
 							 ->where('JE.status',1)
-							 ->where('JE.deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('journal.*','JE.description')
 							 ->groupBy('journal.id')
 							 ->orderBy('journal.id', 'DESC')
@@ -1522,7 +1522,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
                             	})
 							 ->where('voucher_type','SIN')
 							 ->where('JE.status',1)
-							 ->where('JE.deleted_at','0000-00-00 00:00:00');
+							 ->whereNull('deleted_at');
 							 
 
 							 if($search) {
@@ -1558,7 +1558,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 								 $join->on('JE.journal_id', '=', 'journal.id');
 							 })
 							 ->where('JE.status',1)
-							 ->where('JE.deleted_at','0000-00-00 00:00:00');
+							 ->whereNull('deleted_at');
 							 
 					  if($search) {
 					 	 $query->where(function($query) use ($search){
@@ -1589,7 +1589,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 								 $join->on('JE.journal_id', '=', 'journal.id');
 							 })
 							 ->where('JE.status',1)
-							 ->where('JE.deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('journal.*','JE.description')
 							 ->groupBy('journal.id')
 							 ->orderBy('journal.id', 'DESC') */
@@ -1606,7 +1606,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 										 $join->on('JE.journal_id', '=', 'journal.id');
 						 			 })
 									->where('voucher_type','JV')->where('voucher_no', $voucher_no)
-								 ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+								 ->where('JE.status',1)->whereNull('deleted_at')
 						 			 ->select('journal.*','JE.description')->get();
 		elseif($type ==5)
 		       $result = $this->journal->where('journal.status', 1)
@@ -1614,7 +1614,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 		                                  $join->on('JE.journal_id', '=', 'journal.id');
 		                                      })
 	                                     ->where('voucher_type','PIN')->where('voucher_no', $voucher_no)
-                                      ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+                                      ->where('JE.status',1)->whereNull('deleted_at')
 		                           ->select('journal.*','JE.description')->get();
 		elseif($type ==6)
 								   $result = $this->journal->where('journal.status', 1)
@@ -1622,7 +1622,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 															  $join->on('JE.journal_id', '=', 'journal.id');
 																  })
 															 ->where('voucher_type','SIN')->where('voucher_no', $voucher_no)
-														  ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+														  ->where('JE.status',1)->whereNull('deleted_at')
 													   ->select('journal.*','JE.description')->get();
 		elseif($type ==10)
 													   $result = $this->journal->where('journal.status', 1)
@@ -1630,7 +1630,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 																				  $join->on('JE.journal_id', '=', 'journal.id');
 																					  })
 																				 ->where('voucher_type','PV')->where('voucher_no', $voucher_no)
-																			  ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+																			  ->where('JE.status',1)->whereNull('deleted_at')
 																		   ->select('journal.*','JE.description')->get();
 
 		elseif($type ==9)
@@ -1639,7 +1639,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 															  $join->on('JE.journal_id', '=', 'journal.id');
 																  })
 															 ->where('voucher_type','RV')->where('voucher_no', $voucher_no)
-														  ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+														  ->where('JE.status',1)->whereNull('deleted_at')
 													   ->select('journal.*','JE.description')->get();
 		//echo '<pre>';print_r($result);exit;
 		return $result;
@@ -1731,7 +1731,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 				$query1->where('PV.opening_balance_id', '>', 0);
 			}		
 
-				$result = $query1->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+				$result = $query1->whereNull('deleted_at')
 				->select('pdc_issued.*','account_master.master_name AS debitor','AM.master_name AS customer',
 						'B.code','pdc_issued.entry_type AS vtype',
 						DB::raw('EXTRACT(MONTH FROM pdc_issued.cheque_date) AS month'))
@@ -1739,7 +1739,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 				->orderBy('pdc_issued.cheque_date','ASC')
 				->get();
 
-				/*$result = $query1->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+				/*$result = $query1->whereNull('deleted_at')
 								->select('pdc_issued.*','account_master.master_name AS debitor','AM.master_name AS customer','PV.voucher_no',
 										'PVE.cheque_no','PVE.cheque_date','B.code','PV.voucher_type AS vtype',
 										DB::raw('EXTRACT(MONTH FROM pdc_issued.cheque_date) AS month'))
@@ -1775,7 +1775,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 				$query1->where('RV.opening_balance_id', '>', 0);
 			}	
 				
-				$result = $query1->where('pdc_received.deleted_at','0000-00-00 00:00:00')
+				$result = $query1->whereNull('deleted_at')
 								->select('pdc_received.*','account_master.master_name AS debitor','AM.master_name AS customer',
 										'B.code','pdc_received.entry_type AS vtype',
 										DB::raw('EXTRACT(MONTH FROM pdc_received.cheque_date) AS month'))
@@ -1798,4 +1798,6 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 
 	}
 }
+
+
 

@@ -76,9 +76,9 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 						->where('sales_invoice.id', $id)
 						->where('D.invoice_type','SI')
 						->where('QSI.status',1)
-						->where('QSI.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('D.status',1)
-						->where('D.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('D.*')
 						->get();
 	}
@@ -286,9 +286,9 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 											 ->join('sales_order_item', 'sales_order_item.sales_order_id', '=', 'sales_order.id')
 											 ->where('sales_order_item.item_id', $attributes['item_id'][$key])
 											 ->where('sales_order_item.unit_id',$attributes['unit_id'][$key])
-											 ->where('sales_order_item.deleted_at','0000-00-00 00:00:00')
+											 ->whereNull('deleted_at')
 											 ->where('sales_order_item.status',1)
-											 ->where('sales_order.deleted_at','0000-00-00 00:00:00')
+											 ->whereNull('deleted_at')
 											 ->whereIn('sales_order.is_transfer',[0,2])
 											 ->whereIn('sales_order_item.is_transfer',[0,2])
 											 ->select('sales_order.id','sales_order_item.id AS pid','sales_order_item.quantity','sales_order_item.balance_quantity','sales_order_item.is_transfer')->first();
@@ -324,9 +324,9 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 											 ->join('sales_order_item', 'sales_order_item.sales_order_id', '=', 'sales_order.id')
 											 ->where('sales_order_item.item_id', $attributes['item_id'][$key])
 											 ->where('sales_order_item.unit_id',$attributes['unit_id'][$key])
-											 ->where('sales_order_item.deleted_at','0000-00-00 00:00:00')
+											 ->whereNull('deleted_at')
 											 ->where('sales_order_item.status',1)
-											 ->where('sales_order.deleted_at','0000-00-00 00:00:00')
+											 ->whereNull('deleted_at')
 											 ->whereIn('sales_order.is_transfer',[0,2])
 											 ->whereIn('sales_order_item.is_transfer',[0,2])
 											 ->select('sales_order.id','sales_order_item.id AS soid','sales_order_item.quantity',
@@ -1556,7 +1556,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 							$mnsloc = DB::table('location')->where('status',1)->whereNull('deleted_at')->where('is_minus_qty',1)->select('id')->first();
 							if(!$mnsloc) {
 								$mlocid = DB::table('location')->insertGetId(['code'=>'-QTY','name'=>'Mins Qty','is_default'=>0,'status'=>1,
-														'deleted_at'=>'0000-00-00 00:00:00','is_conloc'=>0,'customer_id'=>0,'is_minus_qty'=>1]);
+														'deleted_at' => null,'is_conloc'=>0,'customer_id'=>0,'is_minus_qty'=>1]);
 							} else
 								$mlocid = $mnsloc->id;
 							
@@ -2115,7 +2115,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 							$mnsloc = DB::table('location')->where('status',1)->whereNull('deleted_at')->where('is_minus_qty',1)->select('id')->first();
 							if(!$mnsloc) {
 								$mlocid = DB::table('location')->insertGetId(['code'=>'-QTY','name'=>'Mins Qty','is_default'=>0,'status'=>1,
-														'deleted_at'=>'0000-00-00 00:00:00','is_conloc'=>0,'customer_id'=>0,'is_minus_qty'=>1]);
+														'deleted_at' => null,'is_conloc'=>0,'customer_id'=>0,'is_minus_qty'=>1]);
 							} else
 								$mlocid = $mnsloc->id;
 
@@ -2154,7 +2154,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 									foreach($curidarr as $ky => $rw) {					 
 										DB::table('con_location')->where('is_do',0)->where('invoice_id', $attributes['order_item_id'][$key])
 														 ->where('location_id', $rw)
-														 ->update(['quantity' => $curqty[$ky],'status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+														 ->update(['quantity' => $curqty[$ky],'status' => 1, 'deleted_at' => null]);
 									
 									}
 								}
@@ -2986,7 +2986,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 						  $join->on('im.id','=','poi.item_id');
 					  })
 					  ->where('poi.status',1)
-					  ->where('poi.deleted_at', '0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.packing','iu.is_baseqty')
 					  ->groupBy('poi.id')->orderBY('poi.id')
 					  ->get();
@@ -3006,7 +3006,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 			return $this->sales_invoice->where('sales_invoice.status',1)
 								   ->leftJoin('receipt_voucher_tr AS RV', function($join){
 									   $join->on('RV.sales_invoice_id','=','sales_invoice.id');
-									   $join->where('RV.deleted_at','=','0000-00-00 00:00:00');
+									   $join->whereNull('deleted_at');
 									   $join->where('RV.status','=',1);
 									  
 								   }) 
@@ -3050,11 +3050,11 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 								})
 							 ->leftJoin('receipt_voucher_tr AS RV', function($join){
 								   $join->on('RV.sales_invoice_id','=','journal.id');
-								   $join->where('RV.deleted_at','=','0000-00-00 00:00:00');
+								   $join->whereNull('deleted_at');
 								   $join->where('RV.status','=',1);
 							   }) 
 								//->where('JE.entry_type','Dr')
-								->where('journal.deleted_at','=','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('journal.voucher_type','SIN')
 								->where('JE.account_id',$customer_id)
 								->whereIn('journal.is_transfer',$arr)
@@ -3068,7 +3068,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 									$join->on('JE.journal_id','=','journal.id');
 								})
 								//->where('JE.entry_type','Dr')
-								->where('journal.deleted_at','=','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('journal.voucher_type','SIN')
 								->where('JE.account_id',$customer_id)
 								->whereIn('journal.is_transfer',$arr)
@@ -3263,7 +3263,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 									   $join->on('U.id','=','PI.unit_id');
 								   })
 								   ->where('PI.status', 1)
-								   ->where('PI.deleted_at', '0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->select('PI.*','IM.item_code','U.unit_name')//'sales_invoice.id',
 								   //->groupBY('IM.id')
 								   ->get();
@@ -3312,7 +3312,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 									$join->on('CAT.id','=','IM.subcategory_id');
 								})
 								 ->where('SI.status',1)
-								 ->where('SI.deleted_at','0000-00-00 00:00:00')
+								 ->whereNull('deleted_at')
 								 ->where('IS.document_type','=', 'SI');
 												   
 			if(isset($attributes['customer_id']) && $attributes['customer_id']!='')
@@ -3559,7 +3559,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 								'sales_invoice.amount_transfer','S.name AS salesman','sales_invoice.discount',
 								'sales_invoice.voucher_date','POI.quantity','POI.balance_quantity','POI.unit_price','AM.account_id','AM.master_name',
 								'AM.vat_no','sales_invoice.net_total','POI.tax_code','J.code AS jobcode','sales_invoice.less_amount','sales_invoice.less_amount2','sales_invoice.less_amount3',
-								DB::raw("(SELECT SUM(SI.quantity) FROM sales_invoice_item SI WHERE (SI.sales_invoice_id=sales_invoice.id) AND (SI.status=1) AND (SI.deleted_at='0000-00-00 00:00:00')
+								DB::raw("(SELECT SUM(SI.quantity) FROM sales_invoice_item SI WHERE (SI.sales_invoice_id=sales_invoice.id) AND (SI.status=1) AND (deleted_at IS NULL)
 								)AS quantity") )
 								->groupBy('sales_invoice.id')
 								->orderBY('sales_invoice.voucher_date','ASC')
@@ -3626,7 +3626,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 			return $query->select('sales_invoice.voucher_no','sales_invoice.reference_no','sales_invoice.total','sales_invoice.vat_amount','sales_invoice.amount_transfer','S.name AS salesman','sales_invoice.discount',
 								  'sales_invoice.voucher_date','POI.balance_quantity','POI.unit_price','AM.account_id','AM.master_name','AM.vat_no','sales_invoice.net_total','POI.tax_code',
 								  'sales_invoice.subtotal',DB::raw('SUM(POI.item_total) AS item_total'),DB::raw('SUM(POI.vat_amount) AS item_vat'),
-								  DB::raw("(SELECT SUM(SI.quantity) FROM sales_invoice_item SI WHERE (SI.sales_invoice_id=sales_invoice.id) AND (SI.status=1) AND (SI.deleted_at='0000-00-00 00:00:00')
+								  DB::raw("(SELECT SUM(SI.quantity) FROM sales_invoice_item SI WHERE (SI.sales_invoice_id=sales_invoice.id) AND (SI.status=1) AND (deleted_at IS NULL)
 								)AS quantity"))
 							->groupBy('sales_invoice.id')->get();
 		}
@@ -3666,7 +3666,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 								'sales_invoice.amount_transfer','S.name AS salesman','sales_invoice.discount',
 								'sales_invoice.voucher_date','POI.quantity','POI.balance_quantity','POI.unit_price','AM.account_id','AM.master_name',
 								'AM.vat_no','sales_invoice.net_total','POI.tax_code','J.code AS jobcode','sales_invoice.less_amount','sales_invoice.less_amount2','sales_invoice.less_amount3',
-								DB::raw("(SELECT SUM(SI.quantity) FROM sales_invoice_item SI WHERE (SI.sales_invoice_id=sales_invoice.id) AND (SI.status=1) AND (SI.deleted_at='0000-00-00 00:00:00')
+								DB::raw("(SELECT SUM(SI.quantity) FROM sales_invoice_item SI WHERE (SI.sales_invoice_id=sales_invoice.id) AND (SI.status=1) AND (deleted_at IS NULL)
 								)AS quantity") )
 								->groupBy('sales_invoice.id')
 								->orderBY('sales_invoice.voucher_date','ASC')
@@ -3733,7 +3733,7 @@ class SalesInvoiceRepository extends AbstractValidator implements SalesInvoiceIn
 			return $query->select('sales_invoice.voucher_no','sales_invoice.reference_no','sales_invoice.total','sales_invoice.vat_amount','sales_invoice.amount_transfer','S.name AS salesman','sales_invoice.discount',
 								  'sales_invoice.voucher_date','POI.balance_quantity','POI.unit_price','AM.account_id','AM.master_name','AM.vat_no','sales_invoice.net_total','POI.tax_code',
 								  'sales_invoice.subtotal',DB::raw('SUM(POI.item_total) AS item_total'),DB::raw('SUM(POI.vat_amount) AS item_vat'),
-								  DB::raw("(SELECT SUM(SI.quantity) FROM sales_invoice_item SI WHERE (SI.sales_invoice_id=sales_invoice.id) AND (SI.status=1) AND (SI.deleted_at='0000-00-00 00:00:00')
+								  DB::raw("(SELECT SUM(SI.quantity) FROM sales_invoice_item SI WHERE (SI.sales_invoice_id=sales_invoice.id) AND (SI.status=1) AND (deleted_at IS NULL)
 								)AS quantity"))
 							->groupBy('sales_invoice.id')->get();
 		}
@@ -4874,7 +4874,7 @@ if($attributes['vehicle_no']!='') {
 									   $join->on('IM.id','=','SI.item_id');
 								   })
 								   ->where('SI.status',1)
-								   ->where('SI.deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->where('sales_invoice.status',1);
 							
 							if($date_from !='' && $date_to != '')	   
@@ -5404,8 +5404,11 @@ if($attributes['vehicle_no']!='') {
 	}
 }
 
-//SELECT location.code,SIL.invoice_id,SIL.quantity FROM sales_invoice JOIN sales_invoice_item ON(sales_invoice_item.sales_invoice_id=sales_invoice.id) LEFT JOIN item_location_si AS SIL ON(SIL.invoice_id=sales_invoice_item.id) WHERE sales_invoice_item.status=1 AND sales_invoice_item.deleted_at='0000-00-00 00:00:00' AND sales_invoice.id={id} ORDER BY sales_invoice_item.id ASC
+//SELECT location.code,SIL.invoice_id,SIL.quantity FROM sales_invoice JOIN sales_invoice_item ON(sales_invoice_item.sales_invoice_id=sales_invoice.id) LEFT JOIN item_location_si AS SIL ON(SIL.invoice_id=sales_invoice_item.id) WHERE sales_invoice_item.status=1 AND deleted_at IS NULL AND sales_invoice.id={id} ORDER BY sales_invoice_item.id ASC
 
 //SELECT account_master.master_name,account_master.account_id,account_master.phone,packing_list.voucher_no,packing_list.voucher_date,packing_list.carton_qty,packing_list.item_qty,packing_list.invoice_nos,packing_list.description,itemmaster.item_code,itemmaster.description AS item_name,itemmaster.serial_no AS hs_code,itemmaster.other_info AS origin,itemmaster.weight,packing_list_items.carton_no,packing_list_items.carton_qty FROM `packing_list` JOIN packing_list_items ON(packing_list_items.packing_list_id=packing_list_id) JOIN itemmaster ON(itemmaster.id=packing_list_items.item_id) JOIN account_master ON(account_master.id=packing_list.customer_id) WHERE packing_list.id=1 AND packing_list_items.deleted_at IS NULL ORDER BY packing_list_items.carton_no ASC,packing_list_items.id ASC;
+
+
+
 
 

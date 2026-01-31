@@ -88,13 +88,13 @@
                            
 						   <div class="pull-right">
 							<?php if($printid) { ?>
-								@permission('pc-print')
+								@can('pc-print')
 								 <a href="{{ url('pettycash/print/'.$printid->id) }}" target="_blank" class="btn btn-info btn-sm">
 									<span class="btn-label">
 										<i class="fa fa-fw fa-print"></i>
 									</span>
 								 </a>
-								@endpermission
+								@endcan
 							<?php } ?>
 							</div>
                         </div>

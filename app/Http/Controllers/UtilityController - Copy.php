@@ -95,7 +95,7 @@ class UtilityController extends Controller
 						->where('item_id',$row->item_id)
 						->where('unit_id', $row->unit_id)
 						->where('status',1)
-						->where('deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('document_type','PI')
 						->where('id','>',$row->id)
 						->first(); //echo '<pre>';print_r($res);exit;
@@ -112,7 +112,7 @@ class UtilityController extends Controller
 	}
 	
 	public function update($type)
-	{ //echo '<pre>';print_r(Input::all());exit; other_info
+	{ //echo '<pre>';print_r($request->all());exit; other_info
 		if($type=='CB') {
 			//REMOVE duplicate entries...
 			DB::statement('DELETE t1 FROM account_transaction t1, account_transaction t2 WHERE  t1.id > t2.id AND (t1.voucher_type = t2.voucher_type AND t1.voucher_type_id = t2.voucher_type_id AND t1.account_master_id = t2.account_master_id AND t1.transaction_type = t2.transaction_type AND t1.amount = t2.amount AND t1.reference = t2.reference AND t1.reference_from = t2.reference_from AND t1.other_info = t2.other_info)');
@@ -125,14 +125,14 @@ class UtilityController extends Controller
 			//$result = $this->makeSummaryStock( $this->itemmaster->updateUtility() ); 
 			
 			//QUICK UPDATE ITEM STOCK ....
-			$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+			$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->whereNull('deleted_at')->get();
 				
 			foreach($items as $item) {
 				
 				$itemlog = DB::table('item_log')
 								  ->where('item_id', $item->itemmaster_id)
 								  ->where('status',1)
-								  ->where('deleted_at','0000-00-00 00:00:00')
+								  ->whereNull('deleted_at')
 								  ->select('item_log.*')
 								  ->orderBy('id','DESC')
 								  ->first(); 
@@ -182,7 +182,7 @@ class UtilityController extends Controller
 		} else if($type=='stockLoc') {
 			
 			//QUICK UPDATE ITEM STOCK ....
-			$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+			$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->whereNull('deleted_at')->get();
 				
 			foreach($items as $item) {
 				
@@ -191,7 +191,7 @@ class UtilityController extends Controller
 				foreach($itemLogs as $loc => $rows) {
 				   foreach($rows as $row) {
 					DB::table('item_location')->where('location_id',$loc)->where('item_id',$row['item_id'])->where('unit_id',$row['unit'])
-							->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->update(['quantity' => $row['quantity'] ]);
+							->where('status',1)->whereNull('deleted_at')->update(['quantity' => $row['quantity'] ]);
 					
 				   }
 				   
@@ -209,11 +209,11 @@ class UtilityController extends Controller
 		} else if($type=='POi') {
 			
 			//GETTING PURCHASE ORDER ID and RESET ITMS BALANCE QTY...
-			$res = DB::table('purchase_order')->where('voucher_no', Input::get('pono'))->select('id')->first();
+			$res = DB::table('purchase_order')->where('voucher_no', $request->get('pono'))->select('id')->first();
 			if($res) {
 				
 				//GETTING ITEMS UNIT ID AND RESET IN SO ITEMS.....
-				$doarr = DB::table('purchase_order_item')->where('purchase_order_id',$res->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','item_id','unit_id')->get();
+				$doarr = DB::table('purchase_order_item')->where('purchase_order_id',$res->id)->where('status',1)->whereNull('deleted_at')->select('id','item_id','unit_id')->get();
 				foreach($doarr as $row) {
 					//******* RETHINK THE LOGIN WHEN ITEM HAS MULTIPLE UNIT ********
 					$itm = DB::table('item_unit')->where('itemmaster_id',$row->item_id)->where('is_baseqty',1)->select('unit_id')->first();
@@ -228,7 +228,7 @@ class UtilityController extends Controller
 				$itms = DB::table('purchase_invoice')->where('purchase_invoice.document_id', $res->id)
 							->join('purchase_invoice_item','purchase_invoice_item.purchase_invoice_id','=','purchase_invoice.id')
 							->where('purchase_invoice.status',1)
-							->where('purchase_invoice.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('purchase_invoice_item.item_id', DB::raw('SUM(purchase_invoice_item.quantity) AS quantity'))
 							->groupBy('purchase_invoice_item.item_id')
 							->get();
@@ -245,9 +245,9 @@ class UtilityController extends Controller
 					$itmrow = DB::table('purchase_order')->where('purchase_order.id', $res->id)
 									->join('purchase_order_item','purchase_order_item.purchase_order_id','=','purchase_order.id')
 									->where('purchase_order.status',1)
-									->where('purchase_order.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->where('purchase_order_item.status',1)
-									->where('purchase_order_item.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->where('purchase_order_item.item_id', $row->item_id)
 									->select('purchase_order_item.id','purchase_order_item.quantity')
 									->first();
@@ -270,12 +270,12 @@ class UtilityController extends Controller
 		} else if($type=='SOi') {
 			
 			//GETTING SALES ORDER ID and RESET ITMS BALANCE QTY...
-			$res = DB::table('sales_order')->where('voucher_no', Input::get('sono'))->select('id','reference_no')->first(); //print_r($res);exit;
+			$res = DB::table('sales_order')->where('voucher_no', $request->get('sono'))->select('id','reference_no')->first(); //print_r($res);exit;
 			$itms = null;
 			if($res) {
 				
 				//GETTING ITEMS UNIT ID AND RESET IN SO ITEMS.....
-				$doarr = DB::table('sales_order_item')->where('sales_order_id',$res->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','item_id','unit_id')->get();
+				$doarr = DB::table('sales_order_item')->where('sales_order_id',$res->id)->where('status',1)->whereNull('deleted_at')->select('id','item_id','unit_id')->get();
 				foreach($doarr as $row) {
 					//******* RETHINK THE LOGIN WHEN ITEM HAS MULTIPLE UNIT ********
 					$itm = DB::table('item_unit')->where('itemmaster_id',$row->item_id)->where('is_baseqty',1)->select('unit_id')->first();
@@ -290,7 +290,7 @@ class UtilityController extends Controller
 				$itms = DB::table('sales_invoice')->where('sales_invoice.lpo_no', $res->reference_no)
 							->join('sales_invoice_item','sales_invoice_item.sales_invoice_id','=','sales_invoice.id')
 							->where('sales_invoice.status',1)
-							->where('sales_invoice.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('sales_invoice_item.item_id', DB::raw('SUM(sales_invoice_item.quantity) AS quantity'))
 							->groupBy('sales_invoice_item.item_id')
 							->get();
@@ -298,7 +298,7 @@ class UtilityController extends Controller
 				/* $itms = DB::table('sales_invoice')->where('sales_invoice.document_id', $res->id)
 							->join('sales_invoice_item','sales_invoice_item.sales_invoice_id','=','sales_invoice.id')
 							->where('sales_invoice.status',1)
-							->where('sales_invoice.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('sales_invoice_item.item_id', DB::raw('SUM(sales_invoice_item.quantity) AS quantity'))
 							->groupBy('sales_invoice_item.item_id')
 							->get(); */
@@ -315,9 +315,9 @@ class UtilityController extends Controller
 					$itmrow = DB::table('sales_order')->where('sales_order.id', $res->id)
 									->join('sales_order_item','sales_order_item.sales_order_id','=','sales_order.id')
 									->where('sales_order.status',1)
-									->where('sales_order.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->where('sales_order_item.status',1)
-									->where('sales_order_item.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->where('sales_order_item.item_id', $row->item_id)
 									->select('sales_order_item.id','sales_order_item.quantity')
 									->first();
@@ -340,12 +340,12 @@ class UtilityController extends Controller
 		} else if($type=='DOi') {
 			
 			//GETTING DELIVERY ORDER ID and RESET ITMS BALANCE QTY...
-			$res = DB::table('customer_do')->where('voucher_no', Input::get('dono'))->select('id','reference_no')->first(); //print_r($res);exit;
+			$res = DB::table('customer_do')->where('voucher_no', $request->get('dono'))->select('id','reference_no')->first(); //print_r($res);exit;
 			$itms = null;
 			if($res) {
 				
 				//GETTING ITEMS UNIT ID AND RESET IN DO ITEMS.....
-				$doarr = DB::table('customer_do_item')->where('customer_do_id',$res->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','item_id','unit_id')->get();
+				$doarr = DB::table('customer_do_item')->where('customer_do_id',$res->id)->where('status',1)->whereNull('deleted_at')->select('id','item_id','unit_id')->get();
 				foreach($doarr as $row) {
 					//******* RETHINK THE LOGIN WHEN ITEM HAS MULTIPLE UNIT ********
 					$itm = DB::table('item_unit')->where('itemmaster_id',$row->item_id)->where('is_baseqty',1)->select('unit_id')->first();
@@ -361,7 +361,7 @@ class UtilityController extends Controller
 				$itms = DB::table('sales_invoice')->where('sales_invoice.document_id', $res->id)
 							->join('sales_invoice_item','sales_invoice_item.sales_invoice_id','=','sales_invoice.id')
 							->where('sales_invoice.status',1)
-							->where('sales_invoice.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('sales_invoice_item.item_id', DB::raw('SUM(sales_invoice_item.quantity) AS quantity'))
 							->groupBy('sales_invoice_item.item_id')
 							->get();
@@ -378,9 +378,9 @@ class UtilityController extends Controller
 					$itmrow = DB::table('customer_do')->where('customer_do.id', $res->id)
 									->join('customer_do_item','customer_do_item.customer_do_id','=','customer_do.id')
 									->where('customer_do.status',1)
-									->where('customer_do.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->where('customer_do_item.status',1)
-									->where('customer_do_item.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->where('customer_do_item.item_id', $row->item_id)
 									->select('customer_do_item.id','customer_do_item.quantity')
 									->first();
@@ -404,11 +404,11 @@ class UtilityController extends Controller
 			
 			$is_update = false;
 			//GETTING SALES INVOICE ID and RESET ITMS BALANCE QTY...
-			$res = DB::table('sales_invoice')->where('voucher_no', Input::get('sino'))->select('id')->first(); //print_r($res);exit;
+			$res = DB::table('sales_invoice')->where('voucher_no', $request->get('sino'))->select('id')->first(); //print_r($res);exit;
 			if($res) {
 				
 				//GETTING ITEMS UNIT ID AND RESET IN DO ITEMS.....
-				$siarr = DB::table('sales_invoice_item')->where('sales_invoice_id',$res->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','item_id','unit_id')->get();
+				$siarr = DB::table('sales_invoice_item')->where('sales_invoice_id',$res->id)->where('status',1)->whereNull('deleted_at')->select('id','item_id','unit_id')->get();
 				foreach($siarr as $row) {
 					//******* RETHINK THE LOGIN WHEN ITEM HAS MULTIPLE UNIT ********
 					$itm = DB::table('item_unit')->where('itemmaster_id',$row->item_id)->where('is_baseqty',1)->select('unit_id')->first();
@@ -432,11 +432,11 @@ class UtilityController extends Controller
 			
 			$is_update = false;
 			//GETTING PURCHASE INVOICE ID and RESET ITMS BALANCE QTY...
-			$res = DB::table('purchase_invoice')->where('voucher_no', Input::get('pino'))->select('id')->first(); //print_r($res);exit;
+			$res = DB::table('purchase_invoice')->where('voucher_no', $request->get('pino'))->select('id')->first(); //print_r($res);exit;
 			if($res) {
 				
 				//GETTING ITEMS UNIT ID AND RESET IN DO ITEMS.....
-				$siarr = DB::table('purchase_invoice_item')->where('purchase_invoice_id',$res->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','item_id','unit_id')->get();
+				$siarr = DB::table('purchase_invoice_item')->where('purchase_invoice_id',$res->id)->where('status',1)->whereNull('deleted_at')->select('id','item_id','unit_id')->get();
 				foreach($siarr as $row) {
 					//******* RETHINK THE LOGIN WHEN ITEM HAS MULTIPLE UNIT ********
 					$itm = DB::table('item_unit')->where('itemmaster_id',$row->item_id)->where('is_baseqty',1)->select('unit_id')->first();
@@ -460,7 +460,7 @@ class UtilityController extends Controller
 			
 			$res = DB::table('receipt_voucher_tr')->where('bill_type','SI')
 							->where('status',1)
-							->where('deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('sales_invoice_id',DB::raw('SUM(assign_amount) AS amount'))
 							->groupBy('sales_invoice_id')
 							->get();
@@ -473,7 +473,7 @@ class UtilityController extends Controller
 					//JOURNAL ENTRY AMOUNT...
 					$jedata = DB::table('journal_voucher_tr')->where('invoice_id', $row->sales_invoice_id)
 													->where('bill_type','SI')->where('status',1)
-													->where('deleted_at','0000-00-00 00:00:00')
+													->whereNull('deleted_at')
 													->select(DB::raw('SUM(assign_amount) AS amount'))
 													->groupBy('invoice_id')
 													->first();
@@ -481,7 +481,7 @@ class UtilityController extends Controller
 					//CREDITNOTE AMOUNT...
 					$cndata = DB::table('credit_note_entry')->where('invoice_id', $row->sales_invoice_id)
 													->where('status',1)
-													->where('deleted_at','0000-00-00 00:00:00')
+													->whereNull('deleted_at')
 													->select(DB::raw('SUM(cr_amount) AS amount'))
 													->groupBy('invoice_id')
 													->first();
@@ -503,7 +503,7 @@ class UtilityController extends Controller
 			
 			$res = DB::table('payment_voucher_tr')->where('bill_type','PI')
 							->where('status',1)
-							->where('deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('purchase_invoice_id',DB::raw('SUM(assign_amount) AS amount'))
 							->groupBy('purchase_invoice_id')
 							->get();
@@ -516,7 +516,7 @@ class UtilityController extends Controller
 					//JOURNAL ENTRY AMOUNT...
 					$jedata = DB::table('journal_voucher_tr')->where('invoice_id', $row->purchase_invoice_id)
 											->where('bill_type','PI')->where('status',1)
-											->where('deleted_at','0000-00-00 00:00:00')
+											->whereNull('deleted_at')
 											->select(DB::raw('SUM(assign_amount) AS amount'))
 											->groupBy('invoice_id')
 											->first();
@@ -524,7 +524,7 @@ class UtilityController extends Controller
 					//CREDITNOTE AMOUNT...
 					$dndata = DB::table('debit_note_entry')->where('invoice_id', $row->purchase_invoice_id)
 											->where('status',1)
-											->where('deleted_at','0000-00-00 00:00:00')
+											->whereNull('deleted_at')
 											->select(DB::raw('SUM(dr_amount) AS amount'))
 											->groupBy('invoice_id')
 											->first();
@@ -685,7 +685,7 @@ class UtilityController extends Controller
 					//DEPARTMENT IS ACTIVE...
 					
 					//Sales Invoice Cost Calculating....
-					$si = DB::table('sales_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id','!=',0)->get();
+					$si = DB::table('sales_invoice')->where('status',1)->whereNull('deleted_at')->where('department_id','!=',0)->get();
 					foreach($si as $row) {
 						
 						$dpt = DB::table('department_accounts')->where('department_id',$row->department_id)->select('stock_acid','cost_acid')->first();
@@ -703,9 +703,9 @@ class UtilityController extends Controller
 									
 						if($drTr) {
 							
-							if($drTr->status==0 && $drTr->deleted_at!='0000-00-00 00:00:00') {
+							if($drTr->status==0 && $drTr->deleted_at!=null) {
 							
-								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => null]);
 								
 								DB::table('account_transaction')
 										->where('voucher_type', 'SI')
@@ -713,13 +713,13 @@ class UtilityController extends Controller
 										->where('account_master_id', $stock_ac)
 										->where('transaction_type', 'Cr')
 										->where('department_id', $row->department_id)
-										->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+										->update(['status' => 1, 'deleted_at' => null]);
 										
 							}	
 							
 						} else {
 							
-							$itm = DB::table('sales_invoice_item')->where('sales_invoice_id', $row->id)->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')->select(DB::raw('SUM(item_cost) AS cost'))->first();
+							$itm = DB::table('sales_invoice_item')->where('sales_invoice_id', $row->id)->where('status',1)->whereNull('deleted_at')->select(DB::raw('SUM(item_cost) AS cost'))->first();
 							
 							DB::table('account_transaction')
 										->insert(['voucher_type' => 'SI',
@@ -754,7 +754,7 @@ class UtilityController extends Controller
 					}
 					
 					//Sales Return Cost Calculating....
-					$sr = DB::table('sales_return')->where('sales_return.status',1)->where('sales_return.deleted_at','0000-00-00 00:00:00')
+					$sr = DB::table('sales_return')->where('sales_return.status',1)->whereNull('deleted_at')
 							->join('sales_invoice','sales_invoice.id','=','sales_return.sales_invoice_id')
 							->where('sales_invoice.department_id','!=',0)
 							->select('sales_return.*','sales_invoice.department_id')
@@ -776,9 +776,9 @@ class UtilityController extends Controller
 									
 						if($drTr) {
 							
-							if($drTr->status==0 && $drTr->deleted_at!='0000-00-00 00:00:00') {
+							if($drTr->status==0 && $drTr->deleted_at!=null) {
 							
-								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => null]);
 								
 								DB::table('account_transaction')
 										->where('voucher_type', 'SR')
@@ -786,13 +786,13 @@ class UtilityController extends Controller
 										->where('account_master_id', $stock_ac)
 										->where('transaction_type', 'Dr')
 										->where('department_id', $row->department_id)
-										->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+										->update(['status' => 1, 'deleted_at' => null]);
 										
 							}	
 							
 						} else {
 							
-							$itm = DB::table('sales_return_item')->where('sales_return_id', $row->id)->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')->select(DB::raw('SUM(item_cost) AS cost'))->first();
+							$itm = DB::table('sales_return_item')->where('sales_return_id', $row->id)->where('status',1)->whereNull('deleted_at')->select(DB::raw('SUM(item_cost) AS cost'))->first();
 							
 							DB::table('account_transaction')
 										->insert(['voucher_type' => 'SR',
@@ -835,7 +835,7 @@ class UtilityController extends Controller
 					$acdiff = DB::table('other_account_setting')->where('account_setting_name', 'Cost Difference')->where('status',1)->first();
 					
 					//Sales Invoice Cost Calculating....
-					$si = DB::table('sales_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+					$si = DB::table('sales_invoice')->where('status',1)->whereNull('deleted_at')->get();
 					foreach($si as $row) {
 						
 						$drTr = DB::table('account_transaction')
@@ -848,22 +848,22 @@ class UtilityController extends Controller
 						//echo '<pre>';print_r($drTr);	exit;			
 						if($drTr) {
 							
-							if($drTr->status==0 && $drTr->deleted_at!='0000-00-00 00:00:00') {
+							if($drTr->status==0 && $drTr->deleted_at!=null) {
 							
-								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => null]);
 								
 								DB::table('account_transaction')
 										->where('voucher_type', 'SI')
 										->where('voucher_type_id', $row->id)
 										->where('account_master_id', $stock_ac)
 										->where('transaction_type', 'Cr')
-										->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+										->update(['status' => 1, 'deleted_at' => null]);
 										
 							}	
 							
 							//UPDATE ACCOUNT TRANSACTION...
 							$itm = DB::table('item_log')->where('document_type', 'SI')->where('document_id', $row->id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select(DB::raw('SUM(quantity*sale_cost) AS cost'))->first();
 							
 							//Dr Account....
@@ -886,9 +886,9 @@ class UtilityController extends Controller
 						} else {
 							
 							//INSERT ACCOUNT TRANSACTION...
-							//$itm = DB::table('sales_invoice_item')->where('sales_invoice_id', $row->id)->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')->select(DB::raw('SUM(item_cost) AS cost'))->first();
+							//$itm = DB::table('sales_invoice_item')->where('sales_invoice_id', $row->id)->where('status',1)->whereNull('deleted_at')->select(DB::raw('SUM(item_cost) AS cost'))->first();
 							$itm = DB::table('item_log')->where('document_type', 'SI')->where('document_id', $row->id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select(DB::raw('SUM(quantity*sale_cost) AS cost'))->first();
 							
 							//echo '<pre>';print_r($itm);exit;
@@ -923,7 +923,7 @@ class UtilityController extends Controller
 					}
 					
 					//Sales Return Cost Calculating....
-					$sr = DB::table('sales_return')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+					$sr = DB::table('sales_return')->where('status',1)->whereNull('deleted_at')->get();
 					foreach($sr as $row) {
 						
 						$drTr = DB::table('account_transaction')
@@ -936,22 +936,22 @@ class UtilityController extends Controller
 									
 						if($drTr) {
 							
-							if($drTr->status==0 && $drTr->deleted_at!='0000-00-00 00:00:00') {
+							if($drTr->status==0 && $drTr->deleted_at!=null) {
 							
-								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => null]);
 								
 								DB::table('account_transaction')
 										->where('voucher_type', 'SR')
 										->where('voucher_type_id', $row->id)
 										->where('account_master_id', $stock_ac)
 										->where('transaction_type', 'Dr')
-										->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+										->update(['status' => 1, 'deleted_at' => null]);
 										
 							}	
 							
 							//UPDATE ACCOUNT TRANSACTION...
 							$itm = DB::table('item_log')->where('document_type', 'SR')->where('document_id', $row->id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select(DB::raw('SUM(quantity*pur_cost) AS cost'))->first();
 							
 							//Dr Account....
@@ -973,10 +973,10 @@ class UtilityController extends Controller
 							
 						} else {
 							
-							//$itm = DB::table('sales_return_item')->where('sales_return_id', $row->id)->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')->select(DB::raw('SUM(item_cost) AS cost'))->first();
+							//$itm = DB::table('sales_return_item')->where('sales_return_id', $row->id)->where('status',1)->whereNull('deleted_at')->select(DB::raw('SUM(item_cost) AS cost'))->first();
 							
 							$itm = DB::table('item_log')->where('document_type', 'SR')->where('document_id', $row->id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select(DB::raw('SUM(quantity*pur_cost) AS cost'))->first();
 												
 							DB::table('account_transaction')
@@ -1010,7 +1010,7 @@ class UtilityController extends Controller
 					}
 					
 					//PURCHASE RETURN CALCULATING....... DEC17
-					$sr = DB::table('purchase_return')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+					$sr = DB::table('purchase_return')->where('status',1)->whereNull('deleted_at')->get();
 					foreach($sr as $row) {
 						
 						$drTr = DB::table('account_transaction')
@@ -1024,9 +1024,9 @@ class UtilityController extends Controller
 									
 						if($drTr) {
 							
-							if($drTr->status==0 && $drTr->deleted_at!='0000-00-00 00:00:00') {
+							if($drTr->status==0 && $drTr->deleted_at!=null) {
 							
-								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => null]);
 								
 								DB::table('account_transaction')
 										->where('voucher_type', 'PR')
@@ -1034,17 +1034,17 @@ class UtilityController extends Controller
 										->where('account_master_id', $stock_ac)
 										->where('transaction_type', 'Cr')
 										->where('is_paid', 5) //IDENTIFY COST DIFF TRANS...
-										->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+										->update(['status' => 1, 'deleted_at' => null]);
 										
 							}	
 							
 							//UPDATE ACCOUNT TRANSACTION...
 							$itm_pr = DB::table('item_log')->where('document_type', 'PR')->where('document_id', $row->id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select('item_id','unit_id','quantity','unit_cost','return_ref_id')->get();
 							if($itm_pr)
 								$itm_pi = DB::table('item_log')->where('document_type', 'PI')->where('document_id', $itm_pr[0]->return_ref_id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select('item_id','unit_id','quantity','unit_cost')->get();
 							$costitm = 0;					
 							foreach($itm_pr as $valpr) {
@@ -1078,11 +1078,11 @@ class UtilityController extends Controller
 						} else {
 							
 							$itm_pr = DB::table('item_log')->where('document_type', 'PR')->where('document_id', $row->id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select('item_id','unit_id','quantity','unit_cost','return_ref_id')->get();
 							if($itm_pr)
 								$itm_pi = DB::table('item_log')->where('document_type', 'PI')->where('document_id', $itm_pr[0]->return_ref_id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select('item_id','unit_id','quantity','unit_cost')->get(); //echo '<pre>';print_r($itm_pr);exit;
 							$costitm = 0;					
 							foreach($itm_pr as $valpr) {
@@ -1126,7 +1126,7 @@ class UtilityController extends Controller
 					} //END PURCHASE RETURN
 					
 					//TRANSFER OUT CALCULATING....... DEC17
-					$sr = DB::table('stock_transferout')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+					$sr = DB::table('stock_transferout')->where('status',1)->whereNull('deleted_at')->get();
 					foreach($sr as $row) {
 						
 						$drTr = DB::table('account_transaction')
@@ -1140,9 +1140,9 @@ class UtilityController extends Controller
 									
 						if($drTr) {
 							
-							if($drTr->status==0 && $drTr->deleted_at!='0000-00-00 00:00:00') {
+							if($drTr->status==0 && $drTr->deleted_at!=null) {
 							
-								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => null]);
 								
 								DB::table('account_transaction')
 										->where('voucher_type', 'TO')
@@ -1150,17 +1150,17 @@ class UtilityController extends Controller
 										->where('account_master_id', $stock_ac)
 										->where('transaction_type', 'Cr')
 										->where('is_paid', 5) //IDENTIFY COST DIFF TRANS...
-										->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+										->update(['status' => 1, 'deleted_at' => null]);
 										
 							}	
 							
 							//UPDATE ACCOUNT TRANSACTION...
 							$itm = DB::table('item_log')->where('document_type', 'TO')->where('document_id', $row->id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select('id','item_id','unit_id')->first();
 							
 							$itm_to = DB::table('item_log')->where('id', '<', $itm->id)->where('item_id', $itm->item_id)->where('unit_id', $itm->unit_id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')->where('cost_avg', '>', 0)
+												->where('status',1)->whereNull('deleted_at')->where('cost_avg', '>', 0)
 												->select('cost_avg')->first();
 							
 							//Dr Account....
@@ -1186,11 +1186,11 @@ class UtilityController extends Controller
 						} else {
 							
 							$itm = DB::table('item_log')->where('document_type', 'TO')->where('document_id', $row->id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select('id','item_id','unit_id')->first();
 							
 							$itm_to = DB::table('item_log')->where('id', '<', $itm->id)->where('item_id', $itm->item_id)->where('unit_id', $itm->unit_id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')->where('cost_avg', '>', 0)
+												->where('status',1)->whereNull('deleted_at')->where('cost_avg', '>', 0)
 												->select('cost_avg')->first();
 							
 							if($itm_to) {
@@ -1228,7 +1228,7 @@ class UtilityController extends Controller
 					} //END TRANSFER OUT
 					
 					//GOODS ISSUED CALCULATING....... DEC17
-					$sr = DB::table('goods_issued')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+					$sr = DB::table('goods_issued')->where('status',1)->whereNull('deleted_at')->get();
 					foreach($sr as $row) {
 						
 						$drTr = DB::table('account_transaction')
@@ -1242,9 +1242,9 @@ class UtilityController extends Controller
 									
 						if($drTr) {
 							
-							if($drTr->status==0 && $drTr->deleted_at!='0000-00-00 00:00:00') {
+							if($drTr->status==0 && $drTr->deleted_at!=null) {
 							
-								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+								DB::table('account_transaction')->where('id', $drTr->id)->update(['status' => 1, 'deleted_at' => null]);
 								
 								DB::table('account_transaction')
 										->where('voucher_type', 'GI')
@@ -1252,17 +1252,17 @@ class UtilityController extends Controller
 										->where('account_master_id', $stock_ac)
 										->where('transaction_type', 'Cr')
 										->where('is_paid', 5) //IDENTIFY COST DIFF TRANS...
-										->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+										->update(['status' => 1, 'deleted_at' => null]);
 										
 							}	
 							
 							//UPDATE ACCOUNT TRANSACTION...
 							$itm = DB::table('item_log')->where('document_type', 'GI')->where('document_id', $row->id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select('id','item_id','unit_id')->first();
 							
 							$itm_gi = DB::table('item_log')->where('id', '<', $itm->id)->where('item_id', $itm->item_id)->where('unit_id', $itm->unit_id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')->where('cost_avg', '>', 0)
+												->where('status',1)->whereNull('deleted_at')->where('cost_avg', '>', 0)
 												->select('cost_avg')->first();
 							
 							//Dr Account....
@@ -1288,11 +1288,11 @@ class UtilityController extends Controller
 						} else {
 							
 							$itm = DB::table('item_log')->where('document_type', 'GI')->where('document_id', $row->id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')
+												->where('status',1)->whereNull('deleted_at')
 												->select('id','item_id','unit_id')->first();
 							
 							$itm_gi = DB::table('item_log')->where('id', '<', $itm->id)->where('item_id', $itm->item_id)->where('unit_id', $itm->unit_id)
-												->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')->where('cost_avg', '>', 0)
+												->where('status',1)->whereNull('deleted_at')->where('cost_avg', '>', 0)
 												->select('cost_avg')->first();
 							
 							if($itm_gi) {
@@ -1336,9 +1336,9 @@ class UtilityController extends Controller
 			
 		} else if($type=='PDCR') {
 			
-			$pdcs = DB::table('pdc_received')->where('deleted_at','0000-00-00 00:00:00')->select('id','status')->get();
+			$pdcs = DB::table('pdc_received')->whereNull('deleted_at')->select('id','status')->get();
 			foreach($pdcs as $row) {
-				$tran = DB::table('account_transaction')->where('voucher_type','DB')->where('voucher_type_id',$row->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+				$tran = DB::table('account_transaction')->where('voucher_type','DB')->where('voucher_type_id',$row->id)->where('status',1)->whereNull('deleted_at')->first();
 				if($tran)
 					DB::table('pdc_received')->where('id',$row->id)->update(['status' => 1]);
 				 else 
@@ -1349,9 +1349,9 @@ class UtilityController extends Controller
 			
 		} else if($type=='PDCI') {
 			
-			$pdcs = DB::table('pdc_issued')->where('deleted_at','0000-00-00 00:00:00')->select('id','status')->get();
+			$pdcs = DB::table('pdc_issued')->whereNull('deleted_at')->select('id','status')->get();
 			foreach($pdcs as $row) {
-				$tran = DB::table('account_transaction')->where('voucher_type','CB')->where('voucher_type_id',$row->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+				$tran = DB::table('account_transaction')->where('voucher_type','CB')->where('voucher_type_id',$row->id)->where('status',1)->whereNull('deleted_at')->first();
 				if($tran)
 					DB::table('pdc_issued')->where('id',$row->id)->update(['status' => 1]);
 				 else 
@@ -1366,8 +1366,8 @@ class UtilityController extends Controller
 			if($row->is_active==1) {
 				$sdos = DB::table('supplier_do')
 							->join('supplier_do_item','supplier_do_item.supplier_do_id','=','supplier_do.id')
-							->where('supplier_do.status',1)->where('supplier_do.deleted_at','0000-00-00 00:00:00')
-							->where('supplier_do_item.status',1)->where('supplier_do_item.deleted_at','0000-00-00 00:00:00')
+							->where('supplier_do.status',1)->whereNull('deleted_at')
+							->where('supplier_do_item.status',1)->whereNull('deleted_at')
 							->select('supplier_do.voucher_date','supplier_do_item.supplier_do_id','supplier_do_item.item_id',
 									 'supplier_do_item.unit_id','supplier_do_item.quantity','supplier_do_item.unit_price')
 							->get();
@@ -1375,7 +1375,7 @@ class UtilityController extends Controller
 				foreach($sdos as $sdo) {
 					$chklog = DB::table('item_log')->where('document_type','SDO')->where('document_id', $sdo->supplier_do_id)->where('item_id',$sdo->item_id)->where('unit_id',$sdo->unit_id)->first();
 					if($chklog) {
-						DB::table('item_log')->where('document_type','SDO')->update(['status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+						DB::table('item_log')->where('document_type','SDO')->update(['status' => 1, 'deleted_at' => null]);
 					} else {
 						
 						DB::table('item_log')->insert([
@@ -1408,7 +1408,7 @@ class UtilityController extends Controller
 			
 			$allPIs = DB::table('purchase_invoice')->get();
 			foreach($allPIs as $row) {
-				if($row->deleted_at=='0000-00-00 00:00:00') {
+				if($row->deleted_at==null) {
 					
 					$attributes['voucher_id'] = $row->id;
 					$attributes['voucher_type'] = 'PI';
@@ -1509,7 +1509,7 @@ class UtilityController extends Controller
 			
 			$allSIs = DB::table('sales_invoice')->get();
 			foreach($allSIs as $row) {
-				if($row->deleted_at=='0000-00-00 00:00:00') {
+				if($row->deleted_at==null) {
 					
 					$attributes['voucher_id'] = $row->id;
 					$attributes['voucher_type'] = 'SI';
@@ -1599,7 +1599,7 @@ class UtilityController extends Controller
 			
 			$allSIs = DB::table('sales_split')->get();
 			foreach($allSIs as $row) {
-				if($row->deleted_at=='0000-00-00 00:00:00') {
+				if($row->deleted_at==null) {
 					
 					$attributes['voucher_id'] = $row->id;
 					$attributes['voucher_type'] = 'SI';
@@ -1699,22 +1699,22 @@ class UtilityController extends Controller
 	
 	private function getItemQtyFromLog($item_id)
 	{
-		$qtyin = DB::table('item_log')->where('item_id', $item_id)->where('trtype',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->sum('quantity');
+		$qtyin = DB::table('item_log')->where('item_id', $item_id)->where('trtype',1)->where('status',1)->whereNull('deleted_at')->sum('quantity');
 		
-		$qtyout = DB::table('item_log')->where('item_id', $item_id)->where('trtype',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->sum('quantity');
+		$qtyout = DB::table('item_log')->where('item_id', $item_id)->where('trtype',0)->where('status',1)->whereNull('deleted_at')->sum('quantity');
 		
 		return ['in' => $qtyin, 'out' => $qtyout];
 	}
 	
 	public function evalItemQuantity()
 	{
-		$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('itemmaster_id')->get();
+		$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->whereNull('deleted_at')->select('itemmaster_id')->get();
 		
 		foreach($items as $item) {
 			
-			$qtyin = DB::table('item_log')->where('item_id', $item->itemmaster_id)->where('trtype',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->sum('quantity');
+			$qtyin = DB::table('item_log')->where('item_id', $item->itemmaster_id)->where('trtype',1)->where('status',1)->whereNull('deleted_at')->sum('quantity');
 			
-			$qtyout = DB::table('item_log')->where('item_id', $item->itemmaster_id)->where('trtype',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->sum('quantity');
+			$qtyout = DB::table('item_log')->where('item_id', $item->itemmaster_id)->where('trtype',0)->where('status',1)->whereNull('deleted_at')->sum('quantity');
 			
 			// $item->itemmaster_id.' '.$qty = $qtyin - $qtyout;exit;
 		}
@@ -1723,12 +1723,12 @@ class UtilityController extends Controller
 	private function reEvalItemCostQuantity()
 	{
 		//$items = DB::table('itemmaster')->where('item_code','ck1')->select('id AS itemmaster_id')->get(); //FEB27
-		$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('itemmaster_id')->get();
+		$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->whereNull('deleted_at')->select('itemmaster_id')->get();
 		
 		foreach($items as $item) {
 			
 			$logs = DB::table('item_log')->where('item_id', $item->itemmaster_id)->where('status',1)
-							->where('deleted_at','0000-00-00 00:00:00')->orderBy('voucher_date','ASC')->get();
+							->whereNull('deleted_at')->orderBy('voucher_date','ASC')->get();
 			//echo '<pre>';print_r($logs);exit;
 			if($logs) {
 				$result = $this->reProcessLogs($logs);
@@ -1796,7 +1796,7 @@ class UtilityController extends Controller
 								   ->where('item_id',$row->item_id)
 								   ->where('document_id',$row->return_ref_id)
 								   ->where('status',1)
-								   ->where('deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->where('document_type','SI')
 								   ->orderBy('id','ASC')->get();
 								   
@@ -1809,7 +1809,7 @@ class UtilityController extends Controller
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
 										->where('id', '<=', $row->id)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 										->select('cur_quantity AS quantity','pur_cost')//cur_quantity
 										->get();
@@ -1837,7 +1837,7 @@ class UtilityController extends Controller
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 										//->where('voucher_date','<=',$row->voucher_date) //->where('id','<=',$row->id)
 										->where('document_type', '!=', 'SDO')
@@ -1868,7 +1868,7 @@ class UtilityController extends Controller
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 										//->where('voucher_date','<=',$row->voucher_date) 
 										->select('document_type','unit_cost','cur_quantity','quantity','pur_cost') //cur_quantity
@@ -1896,7 +1896,7 @@ class UtilityController extends Controller
 			$cost_avg = round( (($itmcost / $itmqty) + $other_cost), 3);
 			//$cost = $row->pur_cost;
 		} else {
-			/* $res = DB::table('item_log')->where('item_id', $row->item_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('cost_avg')->orderBy('id', 'DESC')->first();
+			/* $res = DB::table('item_log')->where('item_id', $row->item_id)->where('status',1)->whereNull('deleted_at')->select('cost_avg')->orderBy('id', 'DESC')->first();
 			if($res)
 				$cost_avg = $cost = $res->cost_avg;
 			else //MAR6 */
@@ -1914,7 +1914,7 @@ class UtilityController extends Controller
 								   ->where('item_id',$row->item_id)
 								   ->where('document_id',$row->return_ref_id)
 								   ->where('status',1)
-								   ->where('deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->where('document_type','SI')
 								   ->select('cost_avg','pur_cost')
 								   ->first();
@@ -1947,7 +1947,7 @@ class UtilityController extends Controller
 									   ->where('item_id',$row->item_id)
 									   ->where('document_id',$row->return_ref_id)
 									   ->where('status',1)
-									   ->where('deleted_at','0000-00-00 00:00:00')
+									   ->whereNull('deleted_at')
 									   ->where('document_type','PI')
 									   ->orderBy('voucher_date','ASC')
 									   ->get();
@@ -1959,7 +1959,7 @@ class UtilityController extends Controller
 				//UPDATE into ITEM STOCK LOG 
 				$stocks = DB::table('item_log')->where('item_id',$row->item_id)
 									   ->where('trtype', 1)
-									   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+									   ->where('status',1)->whereNull('deleted_at')
 									   ->where('cur_quantity', '>', 0)
 									   ->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 									   ->where('document_type','!=','SDO')
@@ -2015,7 +2015,7 @@ class UtilityController extends Controller
 				
 				$stocks = DB::table('item_log')->where('item_id',$row->item_id)
 								   ->where('trtype', 1)
-								   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								   ->where('status',1)->whereNull('deleted_at')
 								   ->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 								   ->where('document_type','!=','SDO')
 								   ->select('pur_cost')
@@ -2028,7 +2028,7 @@ class UtilityController extends Controller
 					
 					$stocks = DB::table('item_log')->where('item_id',$row->item_id)
 								   ->where('trtype', 1)
-								   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								   ->where('status',1)->whereNull('deleted_at')
 								   ->where('voucher_date', '>', $row->voucher_date)
 								   ->where('document_type','!=','SDO')
 								   ->select('pur_cost')
@@ -2051,7 +2051,7 @@ class UtilityController extends Controller
 							   ->where('item_id',$row->item_id)
 							   ->where('document_type','SI')
 							   ->where('status',1)
-							   ->where('deleted_at','0000-00-00 00:00:00')
+							   ->whereNull('deleted_at')
 							   ->where('voucher_date','<', $row->voucher_date)
 							   ->where('sale_reference','<',0)
 							   ->get();
@@ -2098,7 +2098,7 @@ class UtilityController extends Controller
 		
 		$stocks = DB::table('item_log')->where('item_id',$row->item_id)
 									   ->where('trtype', 1)
-									   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+									   ->where('status',1)->whereNull('deleted_at')
 									   ->where('cur_quantity', '>', 0)
 									   ->whereBetween('voucher_date',[$from_date, $row->voucher_date])
 									   ->where('document_type','!=','SDO')
@@ -2152,23 +2152,23 @@ class UtilityController extends Controller
 		
 		return DB::table('item_log')
 								  ->where('status',1)
-								  ->where('deleted_at','0000-00-00 00:00:00')
+								  ->whereNull('deleted_at')
 								  ->select('item_log.*')
 								  ->get();
 		
 		/* return DB::table('item_unit')->where('item_unit.is_baseqty',1)
 								  ->join('item_log','item_log.item_id','=','item_unit.itemmaster_id')
 								  ->where('item_unit.status',1)
-								  ->where('item_unit.deleted_at','0000-00-00 00:00:00')
+								  ->whereNull('deleted_at')
 								  ->where('item_log.status',1)
-								  ->where('item_log.deleted_at','0000-00-00 00:00:00')
+								  ->whereNull('deleted_at')
 								  ->select('item_unit.id AS iuid','item_unit.itemmaster_id','item_log.*')
 								  ->get(); */
 	}
 	
 	public function itemLogOBAdd()
 	{
-		$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->whereNull('deleted_at')->get();
 		foreach($items as $row) {
 			DB::table('item_log')
 				->insert([ 'document_type' => 'OQ',
@@ -2196,7 +2196,7 @@ class UtilityController extends Controller
 	
 	public function itemLogUnitReset()
 	{
-		$qry = DB::table('item_unit')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$qry = DB::table('item_unit')->where('status',1)->whereNull('deleted_at')->get();
 		foreach($qry as $row) {
 			DB::table('item_unit')->where('id', $row->id)->update(['cur_quantity' => 0, 'received_qty' => 0, 'issued_qty' => 0]);
 		}
@@ -2207,36 +2207,36 @@ class UtilityController extends Controller
 		DB::beginTransaction();
 			try {
 				$qry1 = DB::table('purchase_invoice')->where('purchase_invoice.status',1)
-							->where('purchase_invoice.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->join('purchase_invoice_item','purchase_invoice_item.purchase_invoice_id','=','purchase_invoice.id')
-							->where('purchase_invoice_item.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('purchase_invoice_item.status',1)
 							->select('purchase_invoice.id','purchase_invoice.voucher_date AS invoice_date',DB::raw('"PI" AS type'),
 									'purchase_invoice_item.item_id','purchase_invoice_item.unit_id','purchase_invoice_item.quantity',
 									'purchase_invoice_item.unit_price',DB::raw('"1" AS trtype'));
 				
 				$qry2 = DB::table('sales_invoice')->where('sales_invoice.status',1)
-							->where('sales_invoice.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->join('sales_invoice_item','sales_invoice_item.sales_invoice_id','=','sales_invoice.id')
-							->where('sales_invoice_item.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('sales_invoice_item.status',1)
 							->select('sales_invoice.id','sales_invoice.voucher_date AS invoice_date',DB::raw('"SI" AS type'),
 									'sales_invoice_item.item_id','sales_invoice_item.unit_id','sales_invoice_item.quantity',
 									'sales_invoice_item.unit_price',DB::raw('"0" AS trtype'));
 				
 				$qry3 = DB::table('purchase_return')->where('purchase_return.status',1)
-							->where('purchase_return.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->join('purchase_invoice_item','purchase_invoice_item.purchase_invoice_id','=','purchase_return.id')
-							->where('purchase_invoice_item.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('purchase_invoice_item.status',1)
 							->select('purchase_return.id','purchase_return.voucher_date AS invoice_date',DB::raw('"PR" AS type'),
 									'purchase_invoice_item.item_id','purchase_invoice_item.unit_id','purchase_invoice_item.quantity',
 									'purchase_invoice_item.unit_price',DB::raw('"0" AS trtype'));
 				
 				$qry4 = DB::table('sales_return')->where('sales_return.status',1)
-							->where('sales_return.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->join('sales_invoice_item','sales_invoice_item.sales_invoice_id','=','sales_return.id')
-							->where('sales_invoice_item.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('sales_invoice_item.status',1)
 							->select('sales_return.id','sales_return.voucher_date AS invoice_date',DB::raw('"SR" AS type'),
 									'sales_invoice_item.item_id','sales_invoice_item.unit_id','sales_invoice_item.quantity',
@@ -2329,7 +2329,7 @@ class UtilityController extends Controller
 			//UPDATE into ITEM STOCK LOG 
 			$stocks = DB::table('item_log')->where('item_id',$attributes->item_id)
 								   ->where('trtype', 1)
-								   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								   ->where('status',1)->whereNull('deleted_at')
 								   ->where('cur_quantity', '>', 0)
 								   ->orderBy('id','ASC')->get();
 			//echo '<pre>';print_r($stocks);exit;					   
@@ -2378,7 +2378,7 @@ class UtilityController extends Controller
 				return 0;
 				/* $stocks = DB::table('item_log')->where('item_id',$attributes->item_id)
 								   ->where('trtype', 1)
-								   ->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+								   ->where('status',1)->whereNull('deleted_at')
 								   ->select('pur_cost')
 								   ->orderBy('id','DESC')->first(); //echo '<pre>';print_r($stocks);exit;
 								   
@@ -2395,7 +2395,7 @@ class UtilityController extends Controller
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->select('cur_quantity','pur_cost')
 										->get(); //echo '<pre>';print_r($itmlogs);exit;
 		if($type==0) {								
@@ -2414,7 +2414,7 @@ class UtilityController extends Controller
 			$cost_avg = round( ($itmcost / $itmqty), 3);
 			$cost = $attributes->unit_price;
 		} else {
-			$row = DB::table('item_log')->where('item_id', $attributes->item_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('cost_avg')->orderBy('id', 'DESC')->first();
+			$row = DB::table('item_log')->where('item_id', $attributes->item_id)->where('status',1)->whereNull('deleted_at')->select('cost_avg')->orderBy('id', 'DESC')->first();
 			$cost_avg = $cost = $row->cost_avg;
 		}
 		
@@ -2461,9 +2461,9 @@ class UtilityController extends Controller
 	
 	public function item_log_entry()
 	{
-		$items = DB::table('item_unit')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_baseqty',1)->select('itemmaster_id','unit_id')->get();
+		$items = DB::table('item_unit')->where('status',1)->whereNull('deleted_at')->where('is_baseqty',1)->select('itemmaster_id','unit_id')->get();
 		foreach($items as $item) {
-			$log = DB::table('item_log')->where('item_id', $item->itemmaster_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+			$log = DB::table('item_log')->where('item_id', $item->itemmaster_id)->where('status',1)->whereNull('deleted_at')->count();
 			if($log==0) {
 				DB::table('item_log')->insert([
 					'document_type' => 'OQ',
@@ -2478,7 +2478,7 @@ class UtilityController extends Controller
 	}
 	
 	public function ac_transaction_clear() {
-		$res = DB::table('account_transaction')->where('voucher_type','SI')->where('account_master_id',0)->where('amount',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','voucher_type_id')->get();
+		$res = DB::table('account_transaction')->where('voucher_type','SI')->where('account_master_id',0)->where('amount',0)->where('status',1)->whereNull('deleted_at')->select('id','voucher_type_id')->get();
 		foreach($res as $row) {
 			$inv = DB::table('sales_invoice')->where('id', $row->voucher_type_id)->select('customer_id','dr_account_id','net_total')->first();
 			if($inv->dr_account_id==0)
@@ -2491,26 +2491,26 @@ class UtilityController extends Controller
 	
 	public function update_pi_ref()
 	{
-		$refs = DB::table('purchase_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('voucher_no','reference_no','id')->get();
+		$refs = DB::table('purchase_invoice')->where('status',1)->whereNull('deleted_at')->select('voucher_no','reference_no','id')->get();
 		foreach($refs as $ref) {
-			DB::table('account_transaction')->where('voucher_type','PI')->where('voucher_type_id',$ref->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			DB::table('account_transaction')->where('voucher_type','PI')->where('voucher_type_id',$ref->id)->where('status',1)->whereNull('deleted_at')
 						->update(['reference' => $ref->voucher_no,'reference_from' => $ref->reference_no]);
 		}
 	}
 	
 	public function update_pv_ref()
 	{
-		$refs = DB::table('payment_voucher_tr')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('bill_type','PI')->select('purchase_invoice_id','payment_voucher_entry_id')->get();
+		$refs = DB::table('payment_voucher_tr')->where('status',1)->whereNull('deleted_at')->where('bill_type','PI')->select('purchase_invoice_id','payment_voucher_entry_id')->get();
 		//echo '<pre>';print_r($refs);exit;
 		foreach($refs as $ref) {
-			$res = DB::table('purchase_invoice')->where('id', $ref->purchase_invoice_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference_no')->first();
+			$res = DB::table('purchase_invoice')->where('id', $ref->purchase_invoice_id)->where('status',1)->whereNull('deleted_at')->select('reference_no')->first();
 				if($res)		
 					DB::table('account_transaction')->where('voucher_type','PV')->where('voucher_type_id', $ref->payment_voucher_entry_id)->update(['reference_from' => $res->reference_no]);
 		}
 		
-		$pvrefs = DB::table('account_transaction')->where('voucher_type','PV')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','reference_from')->get();
+		$pvrefs = DB::table('account_transaction')->where('voucher_type','PV')->where('status',1)->whereNull('deleted_at')->select('id','reference_from')->get();
 		foreach($pvrefs as $pvref) {
-			$rec = DB::table('purchase_invoice')->where('voucher_no', $pvref->reference_from)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference_no')->first();
+			$rec = DB::table('purchase_invoice')->where('voucher_no', $pvref->reference_from)->where('status',1)->whereNull('deleted_at')->select('reference_no')->first();
 			if($rec) 
 				DB::table('account_transaction')->where('id',$pvref->id)->update(['reference_from' => $rec->reference_no]);
 		}
@@ -2524,7 +2524,7 @@ class UtilityController extends Controller
 		DB::table('account_transaction')->where('voucher_type','OB')->where('invoice_date','>','2019-01-01')->update(['invoice_date' => $dt->from_date]);
 	}
 	public function updateAccMaster($type)
-	{ //echo '<pre>';print_r(Input::all());exit;
+	{ //echo '<pre>';print_r($request->all());exit;
 		if($type=='CB') {
 			//REMOVE duplicate entries...
 			DB::statement('DELETE t1 FROM account_transaction t1, account_transaction t2 WHERE  t1.id > t2.id AND (t1.voucher_type = t2.voucher_type AND t1.voucher_type_id = t2.voucher_type_id AND t1.account_master_id = t2.account_master_id AND t1.transaction_type = t2.transaction_type AND t1.amount = t2.amount AND t1.reference = t2.reference AND t1.reference_from = t2.reference_from AND t1.other_info = t2.other_info)');
@@ -2543,14 +2543,14 @@ class UtilityController extends Controller
 			$result = $this->makeSummaryStock( $this->itemmaster->updateUtility() ); 
 			
 			//QUICK UPDATE ITEM STOCK ....
-			$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+			$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->whereNull('deleted_at')->get();
 				
 			foreach($items as $item) {
 				
 				$itemlog = DB::table('item_log')
 								  ->where('item_id', $item->itemmaster_id)
 								  ->where('status',1)
-								  ->where('deleted_at','0000-00-00 00:00:00')
+								  ->whereNull('deleted_at')
 								  ->select('item_log.*')
 								  ->orderBy('id','DESC')
 								  ->first(); 
@@ -2783,7 +2783,7 @@ class UtilityController extends Controller
 		
 		if(Session::get('department')==1 && $department_id!=null) {
 			$vatdept = DB::table('vat_department')->where('department_id', $department_id)->first();
-			$vatacs = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			$vatacs = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 			if(!$vatdept)
 				return $vatacs;
 			else {
@@ -2801,14 +2801,14 @@ class UtilityController extends Controller
 			}
 			
 		} else {
-			return DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			return DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 		}
 	}
 	
 	private function isValidAccount($account_id) {
 		
 		if($account_id > 0 ) {
-			$acdata = DB::table('account_master')->where('id',$account_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+			$acdata = DB::table('account_master')->where('id',$account_id)->where('status',1)->whereNull('deleted_at')->select('id')->first();
 			if($acdata)
 				return true;
 			else
@@ -2821,7 +2821,7 @@ class UtilityController extends Controller
 	public function checkAccounts() {
 		
 		//CHECK VAT ACCOUNTS..
-		$vatAccounts = DB::table('vat_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$vatAccounts = DB::table('vat_master')->where('status',1)->whereNull('deleted_at')->get();
 		$rowArr = $vatAlertArr = null;
 		foreach($vatAccounts as $row){
 			if(!$this->isValidAccount($row->collection_account))
@@ -2847,7 +2847,7 @@ class UtilityController extends Controller
 		$vatAccountsDpt = DB::table('vat_master')
 								->join('vat_department AS V','V.vatmaster_id', '=', 'vat_master.id')
 								->join('department AS D','D.id', '=', 'V.department_id')
-								->where('vat_master.status',1)->where('vat_master.deleted_at','0000-00-00 00:00:00')
+								->where('vat_master.status',1)->whereNull('deleted_at')
 								->select('V.collection_account','V.payment_account','V.expense_account','V.vatinput_import','V.vatoutput_import',
 										'D.name as department','vat_master.name')
 								->get();
@@ -2921,8 +2921,8 @@ class UtilityController extends Controller
 		
 		//TRANSACTION POSTED BUT ACCOUNT NOT EXISTS....
 		$delTrnsAccounts = DB::table('account_master')->join('account_transaction AS AT','AT.account_master_id', '=', 'account_master.id')
-									->where('AT.deleted_at','0000-00-00 00:00:00')->where('AT.status',1)
-									->where('account_master.deleted_at', '!=', '0000-00-00 00:00:00')
+									->whereNull('deleted_at')->where('AT.status',1)
+									->whereNotNull('')
 									->select('master_name','account_id','AT.voucher_type','AT.reference')
 									->get();
 		
@@ -2941,4 +2941,8 @@ class UtilityController extends Controller
 }
 
 //SELECT t1.voucher_type_id,t2.voucher_type_id FROM account_transaction t1, account_transaction t2 WHERE  (t1.voucher_type='SS' AND t2.voucher_type='SS' ) AND (t1.voucher_type_id = t2.voucher_type_id) AND (t1.invoice_date != t2.invoice_date)
+
+
+
+
 

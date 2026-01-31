@@ -81,8 +81,8 @@ class ProformaInvoiceController extends Controller
 		$data = array();
 		$quotations = [];//$this->sales_order->quotationSalesList();
 		$salesmans = $this->salesman->getSalesmanList();
-		//$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->select('id','code')->get();
-		$custs = [];//DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CUSTOMER')->select('id','master_name')->get();
+		//$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',0)->select('id','code')->get();
+		$custs = [];//DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CUSTOMER')->select('id','master_name')->get();
 		$jobs = $this->jobmaster->activeJobmasterList();
 		return view('body.proformainvoice.index')
 					->withQuotations($quotations)
@@ -235,7 +235,7 @@ class ProformaInvoiceController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$res = $this->voucherno->getVoucherNo('PFI'); //echo '<pre>';print_r($res);exit;
 		//$vno = $res->no;
-		$row = DB::table('proforma_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$row = DB::table('proforma_invoice')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		$location = $this->location->locationList();
 		if($row && in_array($row->doc_status, $apr))
@@ -250,7 +250,7 @@ class ProformaInvoiceController extends Controller
 							->select('report_view_detail.id')
 							->first();
 							
-		$prntjobs = [];/* DB::table('proforma_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$prntjobs = [];/* DB::table('proforma_invoice')->where('status',1)->whereNull('deleted_at')
 						->select('id','voucher_no')
 						->offset(0)->limit(10)
 						->orderBy('id','DESC')
@@ -325,7 +325,7 @@ class ProformaInvoiceController extends Controller
     	return $combined;
 	}
 	
-	public function save(Request $request) { //echo '<pre>';print_r(Input::all());exit;
+	public function save(Request $request) { //echo '<pre>';print_r($request->all());exit;
 	
 		if( $this->validate(
 			$request, 
@@ -349,7 +349,7 @@ class ProformaInvoiceController extends Controller
 			//return redirect('sales_order/add')->withInput()->withErrors();
 		}
 		
-		if($this->proforma_invoice->create(Input::all()))
+		if($this->proforma_invoice->create($request->all()))
 			Session::flash('message', 'Proforma Invoice added successfully.');
 		else
 			Session::flash('error', 'Something went wrong, Order failed to add!');
@@ -368,7 +368,7 @@ class ProformaInvoiceController extends Controller
 	
 	public function checkRefNo() {
 
-		$check = $this->proforma_invoice->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$check = $this->proforma_invoice->check_reference_no($request->get('reference_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -399,7 +399,7 @@ class ProformaInvoiceController extends Controller
 							->select('report_view_detail.id')
 							->first();
 							
-		$infodata = DB::table('proforma_invoice_info')->where('proforma_invoice_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();					
+		$infodata = DB::table('proforma_invoice_info')->where('proforma_invoice_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();					
 		//echo '<pre>';print_r($infodata);exit;
 		return view('body.proformainvoice.edit') //editsp  edit
 					->withItems($itemmaster)
@@ -443,10 +443,10 @@ class ProformaInvoiceController extends Controller
 			return redirect('proforma_invoice/edit/'.$id)->withInput()->withErrors();
 		}
 		
-		$this->proforma_invoice->update($id, Input::all());
+		$this->proforma_invoice->update($id, $request->all());
 		
 		########## email script #############
-		if($this->acsettings->doc_approve==1 && Input::get('doc_status')==1 && Input::get('chkmail')==1) {
+		if($this->acsettings->doc_approve==1 && $request->get('doc_status')==1 && $request->get('chkmail')==1) {
 					
 			$attributes['document_id'] = $id;
 			$attributes['is_fc'] = '';
@@ -455,11 +455,11 @@ class ProformaInvoiceController extends Controller
 			$data = array('details'=> $result['details'], 'titles' => $titles, 'fc' => $attributes['is_fc'], 'items' => $result['items']);
 			$pdf = PDF::loadView('body.proformainvoice.pdfprint', $data);
 			
-			$mailmessage = Input::get('email_message');
-			$emails = explode(',', Input::get('email'));
+			$mailmessage = $request->get('email_message');
+			$emails = explode(',', $request->get('email'));
 			
 			if($emails[0]!='') {
-				$data = array('name'=> Input::get('customer_name'), 'mailmessage' => $mailmessage );
+				$data = array('name'=> $request->get('customer_name'), 'mailmessage' => $mailmessage );
 				try{
 					Mail::send('body.proformainvoice.email', $data, function($message) use ($emails,$pdf) {
 						$message->to($emails[0]);
@@ -595,10 +595,10 @@ class ProformaInvoiceController extends Controller
 	
 	public function setSessionVal()
 	{
-		Session::put('voucher_no', Input::get('vchr_no'));
-		Session::put('reference_no', Input::get('ref_no'));
-		Session::put('voucher_date', Input::get('vchr_dt'));
-		Session::put('lpo_date', Input::get('lpo_dt'));
+		Session::put('voucher_no', $request->get('vchr_no'));
+		Session::put('reference_no', $request->get('ref_no'));
+		Session::put('voucher_date', $request->get('vchr_dt'));
+		Session::put('lpo_date', $request->get('lpo_dt'));
 	}
 	
 	protected function makeTree($result)
@@ -645,21 +645,21 @@ class ProformaInvoiceController extends Controller
 	{
 		$data = array();
 		
-		$reports = $this->proforma_invoice->getPendingReport(Input::all());//echo '<pre>';print_r($reports);exit;
+		$reports = $this->proforma_invoice->getPendingReport($request->all());//echo '<pre>';print_r($reports);exit;
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Proforma Invoice  Summary';
-		elseif(Input::get('search_type')=="summary_pending") {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Proforma Invoice  Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif(Input::get('search_type')=="detail") {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Proforma Invoice Detail';
 			$reports = $this->makeTree($reports);
-		} elseif(Input::get('search_type')=="jobwise") {
+		} elseif($request->get('search_type')=="jobwise") {
 			$voucher_head = 'Proforma Invoice  - Jobwise';
-		} elseif(Input::get('search_type')=="customer_wise") {
+		} elseif($request->get('search_type')=="customer_wise") {
 			$voucher_head = 'Proforma Invoice  - Customer Wise';
-		} elseif(Input::get('search_type')=="detail_pending") {
+		} elseif($request->get('search_type')=="detail_pending") {
 			$voucher_head = 'Proforma Invoice  Pending Detail';
 			$reports = $this->makeTree($reports);
 		}
@@ -668,11 +668,11 @@ class ProformaInvoiceController extends Controller
 		return view('body.proformainvoice.preprint') //preprint
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withJobids(json_encode(Input::get('job_id')))
-					->withSalesman(Input::get('salesman'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withJobids(json_encode($request->get('job_id')))
+					->withSalesman($request->get('salesman'))
 					->withSettings($this->acsettings)
 					->withData($data);
 	}
@@ -683,16 +683,16 @@ class ProformaInvoiceController extends Controller
 		$datareport[] = ['','','','',strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		Input::merge(['type' => 'export']);
-		Input::merge(['job_id' => json_decode(Input::get('job_id'))]);
-		$reports = $this->proforma_invoice->getPendingReport(Input::all());
+		$request->merge(['type' => 'export']);
+		$request->merge(['job_id' => json_decode($request->get('job_id'))]);
+		$reports = $this->proforma_invoice->getPendingReport($request->all());
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Proforma Invoice  Summary';
-		elseif(Input::get('search_type')=="summary_pending") {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Proforma Invoice  Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif(Input::get('search_type')=="detail") {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Proforma Invoice  Detail';
 		} else {
 			$voucher_head = 'Proforma Invoice  Pending Detail';
@@ -703,7 +703,7 @@ class ProformaInvoiceController extends Controller
 		
 		 //echo '<pre>';print_r($reports);exit;
 		
-		if(Input::get('search_type')=='detail' || Input::get('search_type')=='detail_pending') {
+		if($request->get('search_type')=='detail' || $request->get('search_type')=='detail_pending') {
 			
 			$datareport[] = ['SI.No.','SO.#', 'SO.Ref#', 'Job No', 'Customer','Salesman','Item Code','Description','SO.Qty','Rate','Total Amt.'];
 			$i=0;
@@ -803,7 +803,7 @@ class ProformaInvoiceController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$res = $this->voucherno->getVoucherNo('SO'); //echo '<pre>';print_r($res);exit;
 		//$vno = $res->no;
-		$row = DB::table('proforma_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$row = DB::table('proforma_invoice')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		$location = $this->location->locationList();
 		if($row && in_array($row->doc_status, $apr))
@@ -863,7 +863,7 @@ class ProformaInvoiceController extends Controller
 	public function getOrderNo(Request $request) {
 		
 		if($request->get('search')=='') {
-			$result = DB::table('proforma_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			$result = DB::table('proforma_invoice')->where('status',1)->whereNull('deleted_at')
 						->where('customer_id',$request->get('cid'))
 						->where('job_type',0)
 						->select('id','voucher_no as text')
@@ -871,7 +871,7 @@ class ProformaInvoiceController extends Controller
 						->orderBy('id','DESC')
 						->get();
 		} else {
-			$result = DB::table('proforma_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			$result = DB::table('proforma_invoice')->where('status',1)->whereNull('deleted_at')
 						->where('customer_id',$request->get('cid'))
 						->where('job_type',0)
 						->where('voucher_no', 'like', '%' . $request->get('search') . '%')
@@ -891,5 +891,7 @@ class ProformaInvoiceController extends Controller
 		echo json_encode($row);
 	}
 }
+
+
 
 

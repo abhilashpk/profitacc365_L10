@@ -77,13 +77,13 @@
                             </h3>
 							
 							<div class="pull-right">
-							@permission('si-print')
+							@can('si-print')
 							 <a href="{{ url('sales_invoice/print/'.$orderrow->id) }}" target="_blank" class="btn btn-info btn-sm">
 								<span class="btn-label">
 									<i class="fa fa-fw fa-print"></i>
 								</span>
 							 </a>
-							@endpermission
+							@endcan
 							</div>
                         </div>
                         <div class="panel-body">
@@ -178,12 +178,12 @@
 												<span class="small">Phone No</span> <input type="text" id="customer_phone" name="customer_phone" value="{{$orderrow->customer_phone}}" class="form-control" autocomplete="off">
 											</div>
 											<div class="col-xs-1"><br/>
-												@permission('si-history')
+												@can('si-history')
 												<a href="" class="btn btn-info cust-history" data-toggle="modal" data-target="#custhistory_modal">History</a>
-												@endpermission
-												@permission('siph-history')
+												@endcan
+												@can('siph-history')
 												<a href="" class="btn btn-info cust-history-phone" data-toggle="modal" data-target="#custphonehistory_modal">History</a>
-												@endpermission
+												@endcan
 											</div>
 										</div>
 										

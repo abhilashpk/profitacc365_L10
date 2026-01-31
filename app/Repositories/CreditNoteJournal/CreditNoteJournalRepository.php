@@ -1251,7 +1251,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
                             	})
 							 ->where('voucher_type', $type)
 							 ->where('JE.status',1)
-							 ->where('JE.deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('creditnote_jv.*','JE.description','AM.master_name')
 							 ->groupBy('creditnote_jv.id')
 							 ->orderBy('creditnote_jv.id', 'DESC')
@@ -1262,7 +1262,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 		// 					 })
 		// 					 ->where('voucher_type', $type)
 		// 					 ->where('JE.status',1)
-		// 					 ->where('JE.deleted_at','0000-00-00 00:00:00')
+		// 					 ->whereNull('deleted_at')
 		// 					 ->select('journal.*','JE.description')
 		// 					 ->groupBy('journal.id')
 		// 					 ->orderBy('journal.id', 'DESC')
@@ -1280,7 +1280,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 										 $join->on('JE.creditnote_jv_id', '=', 'creditnote_jv.id');
 						 			 })
 									->where('voucher_type','JV')->where('voucher_no', $voucher_no)
-								 ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+								 ->where('JE.status',1)->whereNull('deleted_at')
 						 			 ->select('creditnote_jv.*','JE.description')->get();
 		elseif($type ==5)
 		       $result = $this->journal->where('creditnote_jv.status', 1)
@@ -1288,7 +1288,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 		                                  $join->on('JE.creditnote_jv_id', '=', 'creditnote_jv.id');
 		                                      })
 	                                     ->where('voucher_type','PIN')->where('voucher_no', $voucher_no)
-                                      ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+                                      ->where('JE.status',1)->whereNull('deleted_at')
 		                           ->select('creditnote_jv.*','JE.description')->get();
 		elseif($type ==6)
 								   $result = $this->journal->where('creditnote_jv.status', 1)
@@ -1296,7 +1296,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 															  $join->on('JE.creditnote_jv_id', '=', 'creditnote_jv.id');
 																  })
 															 ->where('voucher_type','SIN')->where('voucher_no', $voucher_no)
-														  ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+														  ->where('JE.status',1)->whereNull('deleted_at')
 													   ->select('creditnote_jv.*','JE.description')->get();
 		elseif($type ==10)
 													   $result = $this->journal->where('creditnote_jv.status', 1)
@@ -1304,7 +1304,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 																				  $join->on('JE.creditnote_jv_id', '=', 'creditnote_jv.id');
 																					  })
 																				 ->where('voucher_type','PV')->where('voucher_no', $voucher_no)
-																			  ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+																			  ->where('JE.status',1)->whereNull('deleted_at')
 																		   ->select('creditnote_jv.*','JE.description')->get();
 
 		elseif($type ==9)
@@ -1313,7 +1313,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 															  $join->on('JE.creditnote_jv_id', '=', 'creditnote_jv.id');
 																  })
 															 ->where('voucher_type','RV')->where('voucher_no', $voucher_no)
-														  ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+														  ->where('JE.status',1)->whereNull('deleted_at')
 													   ->select('creditnote_jv.*','JE.description')->get();
 		//echo '<pre>';print_r($result);exit;
 		return $result;
@@ -1412,7 +1412,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 				$query1->where('PV.opening_balance_id', '>', 0);
 			}			
 				
-				$result = $query1->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+				$result = $query1->whereNull('deleted_at')
 								->select('pdc_issued.*','account_master.master_name AS debitor','AM.master_name AS customer','PV.voucher_no',
 										'PVE.cheque_no','PVE.cheque_date','B.code','PV.voucher_type AS vtype',
 										DB::raw('EXTRACT(MONTH FROM pdc_issued.voucher_date) AS month'))
@@ -1424,7 +1424,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 			$query1 = DB::table('payment_voucher')->where('payment_voucher.status',1)
 								->where('payment_voucher.is_transfer',0)
 								->where('payment_voucher.voucher_type', 'PDCI')
-								->where('payment_voucher.deleted_at','0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 			
 			if($date_from!='' && $date_to!='') {
 				$query1->whereBetween('payment_voucher.voucher_date',[$date_from, $date_to]);
@@ -1460,7 +1460,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 								->join('journal_entry', 'journal_entry.journal_id', '=', 'journal.id')
 								->where('journal.is_transfer',0)
 								->where('journal_entry.account_id',$pdci->pdc_account_id)
-								->where('journal_entry.deleted_at','0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 								
 			if($date_from!='' && $date_to!='') {
 				$query2->whereBetween('journal.voucher_date',[$date_from, $date_to]);
@@ -1496,7 +1496,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 							->join('petty_cash_entry', 'petty_cash_entry.petty_cash_id', '=', 'petty_cash.id')
 							->where('petty_cash.is_transfer',0)
 							->where('petty_cash_entry.account_id',$pdci->pdc_account_id)
-							->where('petty_cash_entry.deleted_at','0000-00-00 00:00:00');
+							->whereNull('deleted_at');
 							
 			if($date_from!='' && $date_to!='') {
 				$query3->whereBetween('petty_cash.voucher_date',[$date_from, $date_to]);
@@ -1534,7 +1534,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 								->join('bank', 'bank.id', '=', 'opening_balance_tr.bank_id')
 								->where('opening_balance_tr.amount_transfer',0)
 								->where('opening_balance_tr.tr_type','Cr')
-								->where('opening_balance_tr.deleted_at','0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 								
 			if($date_from!='' && $date_to!='') {
 				$query4->whereBetween('opening_balance_tr.tr_date',[$date_from, $date_to]);
@@ -1581,7 +1581,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 				$query1->where('RV.opening_balance_id', '>', 0);
 			}			
 				
-				$result = $query1->where('pdc_received.deleted_at','0000-00-00 00:00:00')
+				$result = $query1->whereNull('deleted_at')
 								->select('pdc_received.*','account_master.master_name AS debitor','AM.master_name AS customer','RV.voucher_no',
 										'RVE.cheque_no','RVE.cheque_date','B.code','RV.voucher_type AS vtype',
 										DB::raw('EXTRACT(MONTH FROM pdc_received.voucher_date) AS month'))
@@ -1594,7 +1594,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 			$query1 = DB::table('receipt_voucher')->where('receipt_voucher.status',1)
 								->where('receipt_voucher.is_transfer',0)
 								->where('receipt_voucher.voucher_type', 'PDCR')
-								->where('receipt_voucher.deleted_at','0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 								
 				if($date_from!='' && $date_to!='') {
 					$query1->whereBetween('receipt_voucher.voucher_date',[$date_from, $date_to]);
@@ -1640,7 +1640,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 								->join('journal_entry', 'journal_entry.journal_id', '=', 'journal.id')
 								->where('journal.is_transfer',0)
 								->where('journal_entry.account_id',$pdcr->pdc_account_id)
-								->where('journal_entry.deleted_at','0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 								
 				if($date_from!='' && $date_to!='') {
 					$query2->whereBetween('journal.voucher_date',[$date_from, $date_to]);
@@ -1683,7 +1683,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 								->join('bank', 'bank.id', '=', 'opening_balance_tr.bank_id')
 								->where('opening_balance_tr.amount_transfer',0)
 								->where('opening_balance_tr.tr_type','Dr')
-								->where('opening_balance_tr.deleted_at','0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					
 					if($date_from!='' && $date_to!='') {
 						$query3->whereBetween('opening_balance_tr.tr_date',[$date_from, $date_to]);
@@ -1722,7 +1722,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 								 $join->on('JE.creditnote_jv_id', '=', 'creditnote_jv.id');
 							 })
 							 ->where('JE.status',1)
-							 ->where('JE.deleted_at','0000-00-00 00:00:00');
+							 ->whereNull('deleted_at');
 							 
 					 if($search) {
 						 $query->where(function($query) use ($search){
@@ -1753,7 +1753,7 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 								 $join->on('JE.creditnote_jv_id', '=', 'creditnote_jv.id');
 							 })
 							 ->where('JE.status',1)
-							 ->where('JE.deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('creditnote_jv.*','JE.description')
 							 //->groupBy('journal.id')
 							 ->orderBy('creditnote_jv.id', 'DESC')
@@ -1769,4 +1769,6 @@ class CreditNoteJournalRepository extends AbstractValidator implements CreditNot
 	                    ->first();
 	}
 }
+
+
 

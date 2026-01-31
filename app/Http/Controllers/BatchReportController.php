@@ -27,10 +27,10 @@ class BatchReportController extends Controller
 	
 	public function index() {
 
-		$category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$category = DB::table('category')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
 
-		$reports = null; //$this->itemmaster->getStockLedger(Input::all());
+		$reports = null; //$this->itemmaster->getStockLedger($request->all());
 		//	echo '<pre>';print_r($customers);exit;		
 		return view('body.batchreport.index')
 					->withReports($reports)
@@ -42,11 +42,11 @@ class BatchReportController extends Controller
 	
 	public function getSearch() //getPrint
 	{ 
-	//echo '<pre>';print_r(Input::all());exit;
+	//echo '<pre>';print_r($request->all());exit;
 		$data = array();
-		if(Input::get('search_type')=='batch_expiry') {
+		if($request->get('search_type')=='batch_expiry') {
 			$voucher_head = 'Item Batch Expiry';
-			$results = $this->itemmaster->getBatchReport(Input::all()); 
+			$results = $this->itemmaster->getBatchReport($request->all()); 
 			//echo '<pre>';print_r($result);exit;
 			$titles = ['main_head' => 'Item Batch Expiry Report','subhead' => 'Item Batch Expiry Report'];
 			
@@ -57,33 +57,33 @@ class BatchReportController extends Controller
 					->withResults($results)
 					->withVoucherhead($voucher_head)
 					->withTitles($titles)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withCatid(Input::get('category_id'))
-					->withSubcatid(Input::get('subcategory_id'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withCatid($request->get('category_id'))
+					->withSubcatid($request->get('subcategory_id'))
 					->withSettings($this->acsettings)
-					->withSearchval(json_encode(Input::all()))
+					->withSearchval(json_encode($request->all()))
 					->withData($data);
 	}		
 	
 	
 	public function dataExport()
 	{
-		$data = json_decode(Input::get('search_val')); //echo '<pre>';print_r($data);exit;
-		Input::merge(['date_from' => $data->date_from]);
-		Input::merge(['date_to' => $data->date_to]);
-		Input::merge(['search_type' => $data->search_type]);
-		Input::merge(['document_id' =>(isset($data->document_id))?$data->document_id:'']);
-		Input::merge(['category_id' =>(isset($data->category_id))?$data->category_id:'']);
-		Input::merge(['subcategory_id' =>(isset($data->subcategory_id))?$data->subcategory_id:'']);
+		$data = json_decode($request->get('search_val')); //echo '<pre>';print_r($data);exit;
+		$request->merge(['date_from' => $data->date_from]);
+		$request->merge(['date_to' => $data->date_to]);
+		$request->merge(['search_type' => $data->search_type]);
+		$request->merge(['document_id' =>(isset($data->document_id))?$data->document_id:'']);
+		$request->merge(['category_id' =>(isset($data->category_id))?$data->category_id:'']);
+		$request->merge(['subcategory_id' =>(isset($data->subcategory_id))?$data->subcategory_id:'']);
 		
 		//echo $data->search_type;exit;
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		if($data->search_type=='batch_expiry') {
 			$voucher_head = 'Item Batch Expiry';
 			
-            $results = $this->itemmaster->getBatchReport(Input::all()); 
+            $results = $this->itemmaster->getBatchReport($request->all()); 
             
 		//echo '<pre>';print_r($results);exit;
 			
@@ -144,3 +144,5 @@ class BatchReportController extends Controller
 
 	
 }
+
+

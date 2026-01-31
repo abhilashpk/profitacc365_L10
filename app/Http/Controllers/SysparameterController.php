@@ -45,8 +45,8 @@ class SysparameterController extends Controller
 		$parameter4 = $this->parameter4->getParameter4();
 		$parameter3 = $this->makeTree( DB::table('parameter3')->get() ); //echo '<pre>';print_r($parameter1);exit;
 		$parameter5 = DB::table('design_view')->where('id',1)->first();
-		$locations = DB::table('location')->where('is_default',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$alllocations = DB::table('location')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$locations = DB::table('location')->where('is_default',0)->where('status',1)->whereNull('deleted_at')->get();
+		$alllocations = DB::table('location')->where('status',1)->whereNull('deleted_at')->get();
 		$accounts = $this->accountmaster->activeAccountList();
 		$files = Storage::disk('reports')->files(); //echo '<pre>';print_r($files);exit;
 		$dftLoc = DB::table('default_loc')->first();
@@ -91,8 +91,8 @@ class SysparameterController extends Controller
 			if($row->is_active==1) {
 				$sdos = DB::table('customer_do')
 							->join('customer_do_item','customer_do_item.customer_do_id','=','customer_do.id')
-							->where('customer_do.status',1)->where('customer_do.deleted_at','0000-00-00 00:00:00')
-							->where('customer_do_item.status',1)->where('customer_do_item.deleted_at','0000-00-00 00:00:00')
+							->where('customer_do.status',1)->whereNull('deleted_at')
+							->where('customer_do_item.status',1)->whereNull('deleted_at')
 							->select('customer_do.voucher_date','customer_do_item.customer_do_id','customer_do_item.item_id','customer_do_item.is_transfer',
 									 'customer_do_item.unit_id','customer_do_item.quantity','customer_do_item.unit_price','customer_do_item.id','customer_do_item.balance_quantity')
 							->get();
@@ -115,7 +115,7 @@ class SysparameterController extends Controller
         							 'status'     => 1,
         							 'voucher_date' => $sdo->voucher_date,
         							 'sale_reference' => $sdo->quantity,
-        							 'deleted_at' => '0000-00-00 00:00:00'
+        							 'deleted_at' => null
         							]);
     					} else {
     						
@@ -186,4 +186,6 @@ class SysparameterController extends Controller
 		return redirect('sysparameter');
 	}
 }
+
+
 

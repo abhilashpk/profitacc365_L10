@@ -138,12 +138,12 @@ class AccountSettingController extends Controller
 	    $accounts = $this->other_account->getOtherAccountSettingCheck();
 		$cas = DB::table('voucher_account')
 					->join('account_master', 'account_master.id', '=', 'voucher_account.account_id')
-					->where('account_master.status',1)->where('account_master.deleted_at','0000-00-00 00:00:00')
+					->where('account_master.status',1)->whereNull('deleted_at')
 					->select('account_master.account_id as code','account_master.master_name','voucher_account.*')
 					->get(); 
 					
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$deptaccounts = DB::table('department_accounts')
 								->leftJoin('account_master AS M1', 'M1.id', '=', 'department_accounts.stock_acid')
 								->leftJoin('account_master AS M2', 'M2.id', '=', 'department_accounts.cost_acid')
@@ -164,11 +164,11 @@ class AccountSettingController extends Controller
 		
 		
 		$vataccounts = $this->vat_master->getVatAccounts();
-		$vatrow = DB::table('vat_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+		$vatrow = DB::table('vat_master')->where('status',1)->whereNull('deleted_at')->select('id')->first();
 		$vatid = $vatrow->id;
 		
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$deptaccountsvat = DB::table('vat_master')->where('vat_master.id', $vatid)
 								->join('vat_department', 'vat_department.vatmaster_id', '=', 'vat_master.id')
 								->leftJoin('account_master AS M1', 'M1.id', '=', 'vat_department.collection_account')
@@ -191,27 +191,27 @@ class AccountSettingController extends Controller
 			                    ->leftJoin('account_master AS M1', function($join) {
         							$join->on('M1.id','=','vat_master.collection_account');
         							$join->where('M1.status','=',1);
-        							$join->where('M1.deleted_at','=','0000-00-00 00:00:00');
+        							$join->whereNull('deleted_at');
         						})
 								->leftJoin('account_master AS M2', function($join) {
         							$join->on('M2.id','=','vat_master.payment_account');
         							$join->where('M2.status','=',1);
-        							$join->where('M2.deleted_at','=','0000-00-00 00:00:00');
+        							$join->whereNull('deleted_at');
         						})
         						->leftJoin('account_master AS M3', function($join) {
         							$join->on('M3.id','=','vat_master.expense_account');
         							$join->where('M3.status','=',1);
-        							$join->where('M3.deleted_at','=','0000-00-00 00:00:00');
+        							$join->whereNull('deleted_at');
         						})
         						->leftJoin('account_master AS M4', function($join) {
         							$join->on('M4.id','=','vat_master.vatinput_import');
         							$join->where('M4.status','=',1);
-        							$join->where('M4.deleted_at','=','0000-00-00 00:00:00');
+        							$join->whereNull('deleted_at');
         						})
         						->leftJoin('account_master AS M5', function($join) {
         							$join->on('M5.id','=','vat_master.vatoutput_import');
         							$join->where('M5.status','=',1);
-        							$join->where('M5.deleted_at','=','0000-00-00 00:00:00');
+        							$join->whereNull('deleted_at');
         						})
 								->select('vat_master.*',
 										'M1.master_name AS coll_acc_name','M2.master_name AS pymt_acc_name',
@@ -239,4 +239,6 @@ class AccountSettingController extends Controller
 	
 
 }
+
+
 

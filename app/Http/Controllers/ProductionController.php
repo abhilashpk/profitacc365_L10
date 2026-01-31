@@ -223,8 +223,8 @@ class ProductionController extends Controller
 		$location = $this->location->locationList();
 		$res = $this->voucherno->getVoucherNo('PrO');
 		$vno = $res->no;
-		$lastid = DB::table('production')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
-		$footertxt = DB::table('header_footer')->where('doc','PrO')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$lastid = DB::table('production')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
+		$footertxt = DB::table('header_footer')->where('doc','PrO')->where('status',1)->whereNull('deleted_at')->first();
 		if($id) {
 			$ids = explode(',', $id);
 			if($doctype=='QS') {
@@ -287,7 +287,7 @@ class ProductionController extends Controller
 	}
 	
 	public function save(Request $request) {
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		
 		if( $this->validate(
 			$request, 
@@ -308,7 +308,7 @@ class ProductionController extends Controller
 			return redirect('production/add')->withInput()->withErrors();
 		}
 		
-		$id = $this->production->create(Input::all());
+		$id = $this->production->create($request->all());
 		if($id) {
 			Session::flash('message', 'Production Order added successfully.');
 			return redirect('production/add/');
@@ -329,7 +329,7 @@ class ProductionController extends Controller
 	
 	public function checkRefNo() {
 
-		$check = $this->production->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$check = $this->production->check_reference_no($request->get('reference_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -393,10 +393,10 @@ class ProductionController extends Controller
 			return redirect('production/edit/'.$id)->withInput()->withErrors();
 		}
 		
-		$this->production->update($id, Input::all());
+		$this->production->update($id, $request->all());
 		
 		########## email script #############
-		if($this->acsettings->doc_approve==1 && Input::get('doc_status')==1 && Input::get('chkmail')==1) {
+		if($this->acsettings->doc_approve==1 && $request->get('doc_status')==1 && $request->get('chkmail')==1) {
 				
 			$attributes['document_id'] = $id;
 			$attributes['is_fc'] = '';
@@ -405,11 +405,11 @@ class ProductionController extends Controller
 			$data = array('details'=> $result['details'], 'fc' => $attributes['is_fc'], 'items' => $result['items']);
 			$pdf = PDF::loadView('body.production.pdfprint', $data); 
 			
-			$mailmessage = Input::get('email_message');
-			$emails = explode(',', Input::get('email'));
+			$mailmessage = $request->get('email_message');
+			$emails = explode(',', $request->get('email'));
 			
 			if($emails[0]!='') {
-				$data = array('name'=> Input::get('customer_name'), 'mailmessage' => $mailmessage );
+				$data = array('name'=> $request->get('customer_name'), 'mailmessage' => $mailmessage );
 				try{
 					Mail::send('body.production.email', $data, function($message) use ($emails,$pdf) {
 						$message->to($emails[0]);
@@ -531,7 +531,7 @@ class ProductionController extends Controller
 											->join('itemmaster AS IM', function($join) {
 												$join->on('IM.id','=','mfg_items.subitem_id');
 											})
-											->where('mfg_items.deleted_at','0000-00-00 00:00:00')
+											->whereNull('deleted_at')
 											->select('mfg_items.*','IM.item_code','IM.description')
 											->get();
 		}
@@ -547,10 +547,10 @@ class ProductionController extends Controller
 	
 	public function setSessionVal()
 	{
-		Session::put('voucher_no', Input::get('vchr_no'));
-		Session::put('reference_no', Input::get('ref_no'));
-		Session::put('voucher_date', Input::get('vchr_dt'));
-		Session::put('lpo_date', Input::get('lpo_dt'));
+		Session::put('voucher_no', $request->get('vchr_no'));
+		Session::put('reference_no', $request->get('ref_no'));
+		Session::put('voucher_date', $request->get('vchr_dt'));
+		Session::put('lpo_date', $request->get('lpo_dt'));
 	}
 	
 	protected function makeTree($result)
@@ -595,14 +595,14 @@ class ProductionController extends Controller
 	{
 		$data = array();
 		
-		$reports = $this->production->getPendingReport(Input::all());
+		$reports = $this->production->getPendingReport($request->all());
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Production Order Summary';
-		elseif(Input::get('search_type')=="summary_pending") {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Production Order Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif(Input::get('search_type')=="detail") {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Production Order Detail';
 			$reports = $this->makeTree($reports);
 		} else {
@@ -614,10 +614,10 @@ class ProductionController extends Controller
 		return view('body.production.preprint')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withSalesman(Input::get('salesman'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withSalesman($request->get('salesman'))
 					->withSettings($this->acsettings)
 					->withData($data);
 	}
@@ -625,16 +625,16 @@ class ProductionController extends Controller
 	public function dataExport()
 	{
 		$data = array();
-		Input::merge(['type' => 'export']);
-		$reports = $this->production->getPendingReport(Input::all());
+		$request->merge(['type' => 'export']);
+		$reports = $this->production->getPendingReport($request->all());
 		$datareport[] = ['','','',strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Production Order Summary';
-		elseif(Input::get('search_type')=="summary_pending") {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Production Order Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif(Input::get('search_type')=="detail") {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Production Order Detail';
 		} else {
 			$voucher_head = 'Production Order Pending Detail';
@@ -642,7 +642,7 @@ class ProductionController extends Controller
 		
 		 //echo '<pre>';print_r($reports);exit;
 		
-		if(Input::get('search_type')=='detail' || Input::get('search_type')=='detail_pending') {
+		if($request->get('search_type')=='detail' || $request->get('search_type')=='detail_pending') {
 		    
 		    $datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
 		     $datareport[] = ['','','','','','',''];
@@ -718,7 +718,7 @@ class ProductionController extends Controller
 	
 			$data = DB::table('production')->where('production.customer_id',$id)
 			                    ->join('jobmaster', 'jobmaster.id', '=', 'production.job_id')
-			                   ->where('production.status',1)->where('production.deleted_at','0000-00-00 00:00:00')
+			                   ->where('production.status',1)->whereNull('deleted_at')
 			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
 			return $data;
 		}
@@ -737,7 +737,7 @@ class ProductionController extends Controller
 											->join('item_unit AS IU', function($join) {
 												$join->on('IU.itemmaster_id','=','mfg_items.subitem_id');
 											})
-											->where('mfg_items.deleted_at','0000-00-00 00:00:00')
+											->whereNull('deleted_at')
 											->select('mfg_items.*','IM.item_code','IM.description','IU.cur_quantity')
 											->get();
 		}
@@ -755,7 +755,7 @@ class ProductionController extends Controller
 	{
 		$data = DB::table('production')
 				->join('account_master','account_master.id','=','production.customer_id')
-				->where('production.status',1)->where('production.is_transfer',0)->where('production.deleted_at','0000-00-00 00:00:00')
+				->where('production.status',1)->where('production.is_transfer',0)->whereNull('deleted_at')
 				->select('account_master.master_name','production.*')
 							->orderBY('id', 'ASC')->get(); //echo '<pre>';print_r($mrdata);exit;
 		return view('body.production.prodata')
@@ -770,5 +770,7 @@ class ProductionController extends Controller
 					->withData($data);
 	}
 }
+
+
 
 

@@ -22,8 +22,8 @@ class MyOrderController extends Controller
 	
 	public function login() {
 		
-		if(Input::get('code')!='') {
-			$row = DB::table('rental_driver')->where('code', Input::get('code'))->where('deleted_at',null)->first();
+		if($request->get('code')!='') {
+			$row = DB::table('rental_driver')->where('code', $request->get('code'))->where('deleted_at',null)->first();
 			if($row) {
 				Session::put('driver_id', $row->id);
 				Session::put('rental_driver', $row->driver_name);
@@ -52,7 +52,7 @@ class MyOrderController extends Controller
 
 		//echo '<pre>';print_r($arrasgn);exit;
 
-		$arr = DB::table('orders')->where('deleted_at','0000-00-00 00:00:00')
+		$arr = DB::table('orders')->whereNull('deleted_at')
 						->where('driver_id', Session::get('driver_id'))
 						->whereBetween('tr_date', [$date_from, $date_to])
 						->whereIn('status', [1.5,2,3,4,5,6])
@@ -62,7 +62,7 @@ class MyOrderController extends Controller
 						
 		$c=$delivered=$pending=0;
 		
-		$pkp = DB::table('orders')->where('deleted_at','0000-00-00 00:00:00')
+		$pkp = DB::table('orders')->whereNull('deleted_at')
 						->where('pickup_by', Session::get('driver_id'))
 						->where('is_picked', 1)
 						->where('ordtype', 1)
@@ -119,9 +119,9 @@ class MyOrderController extends Controller
 	
 	public function setStatus() {
 		
-		DB::table('sales_order')->where('id',Input::get('id'))->update(['jctype' => Input::get('sts')]);
+		DB::table('sales_order')->where('id',$request->get('id'))->update(['jctype' => $request->get('sts')]);
 	
-		DB::table('order_assign')->where('order_id', Input::get('id'))->update(['tr_status' => Input::get('sts')]); //->where('tr_status', 0)
+		DB::table('order_assign')->where('order_id', $request->get('id'))->update(['tr_status' => $request->get('sts')]); //->where('tr_status', 0)
 		
 	}
 	
@@ -130,7 +130,7 @@ class MyOrderController extends Controller
 		$date_from = date('Y-m-d').' 00:00:00';
 		$date_to = date('Y-m-d').' 23:59:59';
 		
-		$result = DB::table('orders')->where('orders.deleted_at','0000-00-00 00:00:00')
+		$result = DB::table('orders')->whereNull('deleted_at')
 								->join('customer', 'customer.id', '=', 'orders.customer_id')
 								->leftJoin('driver', 'driver.id', '=', 'orders.driver_id')
 								->where('orders.driver_id', Session::get('driver_id'))
@@ -142,7 +142,7 @@ class MyOrderController extends Controller
 								 ->orderBy('orders.id','ASC')
 								 ->get();
 		
-		$cancelled = DB::table('orders')->where('orders.deleted_at','0000-00-00 00:00:00')
+		$cancelled = DB::table('orders')->whereNull('deleted_at')
 								->join('customer', 'customer.id', '=', 'orders.customer_id')
 								->leftJoin('driver', 'driver.id', '=', 'orders.driver_id')
 								->where('orders.driver_id', Session::get('driver_id'))
@@ -154,7 +154,7 @@ class MyOrderController extends Controller
 								 ->orderBy('orders.id','ASC')
 								 ->get();
 								 
-		$pickedup = DB::table('orders')->where('orders.deleted_at','0000-00-00 00:00:00')
+		$pickedup = DB::table('orders')->whereNull('deleted_at')
 								->leftJoin('customer', 'customer.id', '=', 'orders.customer_id')
 								->leftJoin('driver', 'driver.id', '=', 'orders.pickup_by')
 								->where('orders.pickup_by', Session::get('driver_id'))
@@ -177,7 +177,7 @@ class MyOrderController extends Controller
 	
 	public function ajaxSearch() {
 		
-		$search = Input::get('key');
+		$search = $request->get('key');
 		
 		$date_from = date('Y-m-d').' 00:00:00';
 		$date_to = date('Y-m-d').' 23:59:59';
@@ -185,7 +185,7 @@ class MyOrderController extends Controller
 		$qry = DB::table('orders')->join('customer', 'customer.id', '=', 'orders.customer_id')
 								->where('orders.driver_id', Session::get('driver_id'))
 								//->whereBetween('orders.assign_date', [$date_from, $date_to])
-								->whereIn('orders.status',[1])->where('orders.deleted_at','0000-00-00 00:00:00');
+								->whereIn('orders.status',[1])->whereNull('deleted_at');
 		
 		if($search) {
 			$qry->where(function($qry) use($search){
@@ -199,7 +199,7 @@ class MyOrderController extends Controller
 		
 		$orders = $qry->select('orders.*','customer.name AS supplier')->get();
 		
-		$reason = DB::table('status_reason')->where('deleted_at','0000-00-00 00:00:00')->select('id','title')->get();
+		$reason = DB::table('status_reason')->whereNull('deleted_at')->select('id','title')->get();
 		
 		return view('body.myorder.list')
 				->withOrders($orders)
@@ -217,7 +217,7 @@ class MyOrderController extends Controller
 			$orders = DB::table('orders')->where('orders.pickup_by', Session::get('driver_id'))
 									->join('customer', 'customer.id', '=', 'orders.customer_id')
 									->where('orders.is_picked', 1)->where('orders.ordtype', 1)
-									->where('orders.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->select('orders.*','customer.name AS supplier')
 									->get();
 			//echo '<pre>';print_r($orders);exit;					
@@ -231,10 +231,10 @@ class MyOrderController extends Controller
 	
 	public function setPkpStatus() {
 		
-		if(Input::get('sts')==1)
-			DB::table('orders')->where('id',Input::get('id'))->update(['is_picked' => Input::get('sts'), 'pickup_datetime' => '0000-00-00 00:00:00']);
+		if($request->get('sts')==1)
+			DB::table('orders')->where('id',$request->get('id'))->update(['is_picked' => $request->get('sts'), 'pickup_datetime' => '0000-00-00 00:00:00']);
 		else
-			DB::table('orders')->where('id',Input::get('id'))->update(['is_picked' => Input::get('sts'), 'pickup_datetime' => date('Y-m-d H:i:s')]);
+			DB::table('orders')->where('id',$request->get('id'))->update(['is_picked' => $request->get('sts'), 'pickup_datetime' => date('Y-m-d H:i:s')]);
 		
 	}
 	
@@ -251,7 +251,7 @@ class MyOrderController extends Controller
 									->join('customer', 'customer.id', '=', 'orders.customer_id')
 									->leftJoin('order_assign', 'order_assign.order_id', '=', 'orders.id')
 									//->whereBetween('orders.assign_date', [$date_from, $date_to])
-									->whereIn('orders.status',[1.5])->where('orders.deleted_at','0000-00-00 00:00:00')
+									->whereIn('orders.status',[1.5])->whereNull('deleted_at')
 									->where('order_assign.tr_status',1.5)
 									->select('orders.*','customer.name AS supplier','order_assign.reason_id')
 									->groupBy('order_assign.order_id')
@@ -269,5 +269,7 @@ class MyOrderController extends Controller
 		return redirect('myorder');
 	}
 }
+
+
 
 

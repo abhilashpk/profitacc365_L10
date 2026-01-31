@@ -336,7 +336,7 @@ class LocationTransferRepository extends AbstractValidator implements LocationTr
 									   $join->on('U.id','=','STI.unit_id');
 								   })
 								   ->where('STI.status', 1)
-								   ->where('STI.deleted_at', '0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->select('STI.*','IM.item_code','U.unit_name')//'sales_invoice.id',
 								   ->get();
 								   
@@ -344,4 +344,6 @@ class LocationTransferRepository extends AbstractValidator implements LocationTr
 	}
 	
 }
+
+
 

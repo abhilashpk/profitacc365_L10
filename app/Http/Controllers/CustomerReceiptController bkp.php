@@ -213,9 +213,9 @@ class CustomerReceiptController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -254,7 +254,7 @@ class CustomerReceiptController extends Controller
 							$join->where('AT.voucher_type','=','SI');
 							$join->where('AT.transaction_type','=','Dr');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->select('AT.*');
 						
@@ -262,20 +262,20 @@ class CustomerReceiptController extends Controller
 					->join('receipt_voucher_tr AS RVT', function($join) {
 						$join->on('RVT.sales_invoice_id','=','sales_invoice.id');
 						$join->where('RVT.bill_type','=','SI');
-						$join->where('RVT.deleted_at','=','0000-00-00 00:00:00');
+						$join->whereNull('deleted_at');
 					})
 					->join('receipt_voucher_entry AS RVE', function($join) {
 						$join->on('RVE.id','=','RVT.receipt_voucher_entry_id');
 						$join->where('RVT.bill_type','=','SI');
 						$join->where('RVT.status','=',1);
-						$join->where('RVT.deleted_at','=','0000-00-00 00:00:00');
+						$join->whereNull('deleted_at');
 					})
 					->Join('account_transaction AS AT', function($join) {
 						$join->on('AT.voucher_type_id','=','RVE.id');
 						$join->where('AT.voucher_type','=','RV');
 						$join->where('AT.transaction_type','=','Cr');
 						$join->where('AT.status','=',1);
-						$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+						$join->whereNull('deleted_at');
 					})
 					->select('AT.*');
 					
@@ -311,9 +311,9 @@ class CustomerReceiptController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -383,8 +383,8 @@ class CustomerReceiptController extends Controller
                         ->withErrors($validator)
                         ->withInput();
         } */
-		$attributes	= Input::all();
-		$id=$this->receipt_voucher->create(Input::all());
+		$attributes	= $request->all();
+		$id=$this->receipt_voucher->create($request->all());
 		if($attributes['send_email']==1) {
 		$data['crrow']= DB::table('receipt_voucher')
 		            ->where('receipt_voucher.id',$id)
@@ -392,7 +392,7 @@ class CustomerReceiptController extends Controller
 						$join->on('users.id','=','receipt_voucher.created_by');
 						})	
 						->where('receipt_voucher.status', 1)
-						->where('receipt_voucher.deleted_at', '0000-00-00 00:00:00')		 
+						->whereNull('deleted_at')		 
 						->select('receipt_voucher.*','users.name')->first();		
 		$data['invoicerow'] = $this->receipt_voucher->findRVdata($id);
 		
@@ -448,9 +448,9 @@ class CustomerReceiptController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -493,9 +493,9 @@ class CustomerReceiptController extends Controller
                         ->withErrors($validator)
                         ->withInput();
         }
-		$attributes	= Input::all();
-		//echo '<pre>';print_r(Input::all());exit;
-		if( $this->receipt_voucher->update($id, Input::all()) ){
+		$attributes	= $request->all();
+		//echo '<pre>';print_r($request->all());exit;
+		if( $this->receipt_voucher->update($id, $request->all()) ){
 		    
         if($attributes['send_email']==1) {
 			### Mail 
@@ -505,7 +505,7 @@ class CustomerReceiptController extends Controller
 						$join->on('users.id','=','receipt_voucher.modify_by');
 						})	
 						->where('receipt_voucher.status', 1)
-						->where('receipt_voucher.deleted_at', '0000-00-00 00:00:00')		 
+						->whereNull('deleted_at')		 
 						->select('receipt_voucher.*','users.name')->first();		
 		$data['invoicerow'] = $this->receipt_voucher->findRVdata($id);
 		//$data['words']= $this->number_to_word($crrow->debit);
@@ -587,7 +587,7 @@ class CustomerReceiptController extends Controller
 	
 	public function checkVchrNo() {
 
-		$check = $this->receipt_voucher->check_voucher_no(Input::get('voucher_no'), Input::get('id'));
+		$check = $this->receipt_voucher->check_voucher_no($request->get('voucher_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -860,51 +860,51 @@ public function getSearch()
 		$dname = '';
 		$supid = $itemid = '';
 		$voucher_head  = '';
-		//echo '<pre>';print_r(Input::get('search_type'));exit;
-	    if(Input::get('search_type')=="summary")
+		//echo '<pre>';print_r($request->get('search_type'));exit;
+	    if($request->get('search_type')=="summary")
 		{
 			$voucher_head = 'Customer Receipt Summary';
-			$report = $this->receipt_voucher->getReport(Input::all());
+			$report = $this->receipt_voucher->getReport($request->all());
 		//	echo '<pre>';print_r($reports);exit;
 			$reports = $this->makeTreeName($report);
 			//echo '<pre>';print_r($reports);exit;
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-			if(Input::get('supplier_id')!==null)
-				$supid = implode(',', Input::get('supplier_id'));
+			if($request->get('supplier_id')!==null)
+				$supid = implode(',', $request->get('supplier_id'));
 			else
 				$supid = '';
 			}
 		
-		else if(Input::get('search_type')=="detail") {
+		else if($request->get('search_type')=="detail") {
 			$voucher_head = 'Customer Receipt Detail';
-			$report = $this->receipt_voucher->getReport(Input::all());
+			$report = $this->receipt_voucher->getReport($request->all());
 		    $reports = $this->makeTreeName($report);
 		  //  echo '<pre>';print_r($reports);exit;
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
-		} else if(Input::get('search_type')=="item") {
+		} else if($request->get('search_type')=="item") {
 			$voucher_head = 'Purchase Invoice by Itemwise';
-			$report = $this->purchase_invoice->getReport(Input::all());
+			$report = $this->purchase_invoice->getReport($request->all());
 			$reports = $this->groupbyItemwise($report);
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			//echo '<pre>';print_r($reports);exit;
-			if(Input::get('item_id')!==null)
-				$itemid = implode(',', Input::get('item_id'));
+			if($request->get('item_id')!==null)
+				$itemid = implode(',', $request->get('item_id'));
 			else
 				$itemid = '';
 		
-		//else if(Input::get('search_type')=="tax_code") {
+		//else if($request->get('search_type')=="tax_code") {
 			//$voucher_head = 'Purchase Invoice by Tax Code';
 			//$reports = $this->makeTreeTC($reports);
 		//}
-	}else if(Input::get('search_type')=='supplier') {
+	}else if($request->get('search_type')=='supplier') {
 	//	echo '<pre>';print_r($reports);exit;
 			$voucher_head = 'Purchase Invoice by supplierwise';
 			
 		    $reports = $this->makeTreeSup($report);
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-			if(Input::get('supplier_id')!==null)
-				$supid = implode(',', Input::get('supplier_id'));
+			if($request->get('supplier_id')!==null)
+				$supid = implode(',', $request->get('supplier_id'));
 			else
 				$supid = '';
 		}
@@ -912,12 +912,12 @@ public function getSearch()
 		return view('body.customerreceipt.preprint')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withI(0)
 					->withTitles($titles)
-					->withIsimport(Input::get('isimport'))
+					->withIsimport($request->get('isimport'))
 					->withSettings($this->acsettings)
 					->withSupplier($supid)
 					->withItem($itemid)
@@ -932,13 +932,13 @@ public function dataExport()
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		Input::merge(['type' => 'export']);
-	//	$reports = $this->purchase_invoice->getReportExcel(Input::all());
+		$request->merge(['type' => 'export']);
+	//	$reports = $this->purchase_invoice->getReportExcel($request->all());
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 		{
 			$voucher_head = 'Customer Receipt Summary';
-			$reports = $this->receipt_voucher->getReport(Input::all());
+			$reports = $this->receipt_voucher->getReport($request->all());
 		
 				$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
 		     $datareport[] = ['','','','','','',''];
@@ -955,9 +955,9 @@ public function dataExport()
 									];
 			}
 		}
-		elseif(Input::get('search_type')=="detail") {
+		elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Customer Receipt Detail';
-			$reports = $this->receipt_voucher->getReport(Input::all());
+			$reports = $this->receipt_voucher->getReport($request->all());
 				$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
 		     $datareport[] = ['','','','','','',''];
 		
@@ -981,7 +981,7 @@ public function dataExport()
 		
 	
 		//echo '<pre>';print_r($reports);exit;
-		/* if(Input::get('search_type')=='purchase_register') {
+		/* if($request->get('search_type')=='purchase_register') {
 			
 			$datareport[] = ['SI.No.','PI#','Vchr.Date','PI.Ref#', 'Supplier','TRN No','PI.Qty','Rate','Total Amt.'];
 			$i=0;
@@ -1066,4 +1066,6 @@ public function dataExport()
 								
 	}
 }
+
+
 

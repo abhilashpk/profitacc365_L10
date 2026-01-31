@@ -44,17 +44,17 @@ class PurchaseReportController extends Controller
 	{
 		$data = array();
 		
-		if(Input::get('search_type')=='purchase') {
+		if($request->get('search_type')=='purchase') {
 			$voucher_head = 'Purchase Invoice Summary';
-			$reports = $this->purchase_invoice->getInvoiceReport(Input::all()); 
+			$reports = $this->purchase_invoice->getInvoiceReport($request->all()); 
 			
-		} else if(Input::get('search_type')=='purchase_order') {
+		} else if($request->get('search_type')=='purchase_order') {
 			$voucher_head = 'Purchase Order Report';
-			$reports = $this->purchase_order->getOrderReport(Input::all());
+			$reports = $this->purchase_order->getOrderReport($request->all());
 			
-		} else if(Input::get('search_type')=='purchase_return') {
+		} else if($request->get('search_type')=='purchase_return') {
 			$voucher_head = 'Purchase Return Report';
-			$reports = $this->purchase_return->getReturnReport(Input::all());
+			$reports = $this->purchase_return->getReturnReport($request->all());
 			
 		} 
 		
@@ -62,9 +62,9 @@ class PurchaseReportController extends Controller
 		return view('body.purchasereport.index')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withData($data);
 	}
 	
@@ -108,17 +108,17 @@ class PurchaseReportController extends Controller
 	{
 		$data = array();
 		
-		if(Input::get('search_type')=='purchase') {
+		if($request->get('search_type')=='purchase') {
 			$voucher_head = 'Purchase Invoice Summary';
-			$reports = $this->makeSummary( $this->purchase_invoice->getInvoiceReport(Input::all()) ); 
+			$reports = $this->makeSummary( $this->purchase_invoice->getInvoiceReport($request->all()) ); 
 			
-		} else if(Input::get('search_type')=='purchase_order') {
+		} else if($request->get('search_type')=='purchase_order') {
 			$voucher_head = 'Purchase Order Summary';
-			$reports = $this->makeSummary( $this->purchase_order->getOrderReport(Input::all())); 
+			$reports = $this->makeSummary( $this->purchase_order->getOrderReport($request->all())); 
 			
-		} else if(Input::get('search_type')=='purchase_return') {
+		} else if($request->get('search_type')=='purchase_return') {
 			$voucher_head = 'Purchase Return Summary';
-			$reports = $this->makeSummary( $this->purchase_return->getReturnReport(Input::all()));
+			$reports = $this->makeSummary( $this->purchase_return->getReturnReport($request->all()));
 			
 		} 
 		$titles = ['main_head' => 'Purchase Invoice Summary','subhead' => $voucher_head];
@@ -127,9 +127,9 @@ class PurchaseReportController extends Controller
 					->withCash($reports['cash'])
 					->withCredit($reports['credit'])
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withTitles($titles)
 					->withUrl('purchase_report')
 					->withData($data);
@@ -139,17 +139,17 @@ class PurchaseReportController extends Controller
 	{
 		$data = array();
 		
-		if(Input::get('search_type')=='purchase') {
+		if($request->get('search_type')=='purchase') {
 			$voucher_head = 'Purchase Invoice';
-			$results = $this->purchase_invoice->getInvoice(Input::all()); 
+			$results = $this->purchase_invoice->getInvoice($request->all()); 
 			
-		} else if(Input::get('search_type')=='purchase_order') {
+		} else if($request->get('search_type')=='purchase_order') {
 			$voucher_head = 'Purchase Order';
-			$results = $this->purchase_order->getOrder(Input::all()); 
+			$results = $this->purchase_order->getOrder($request->all()); 
 			
-		} else if(Input::get('search_type')=='purchase_return') {
+		} else if($request->get('search_type')=='purchase_return') {
 			$voucher_head = 'Purchase Return';
-			$results = $this->purchase_return->getOrder(Input::all());
+			$results = $this->purchase_return->getOrder($request->all());
 		} 
 		
 		//echo '<pre>';print_r($results);exit;

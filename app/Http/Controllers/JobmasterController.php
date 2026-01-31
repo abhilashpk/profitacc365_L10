@@ -145,7 +145,7 @@ class JobmasterController extends Controller
 		$data = array();
 		$department = $this->department->activeDepartmentList();
 		$res        = $this->voucherno->getVoucherNo('JM'); 
-		$jobtype    = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+		$jobtype    = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 		//echo '<pre>';print_r($res);exit;
 		return view('body.jobmaster.add')
 					->withDepartment($department)
@@ -156,7 +156,7 @@ class JobmasterController extends Controller
 	}
 	
 	public function save() {
-		$document=  $this->jobmaster->create(Input::all());
+		$document=  $this->jobmaster->create($request->all());
 		$jid=$document["id"];
 
 		if ($document["document_type"]=="0") {
@@ -178,7 +178,7 @@ class JobmasterController extends Controller
 		$data = array();
 		$jobmasterrow = $this->jobmaster->find($id);//echo '<pre>';print_r($jobmasterrow);exit;
 		$department = $this->department->activeDepartmentList();
-		$jobtype    = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+		$jobtype    = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 		return view('body.jobmaster.edit')
 					->withJobmasterrow($jobmasterrow)
 					->withDepartment($department)
@@ -207,8 +207,8 @@ class JobmasterController extends Controller
 	}
 	public function budgetsave() {
                   
-	//	echo '<pre>';print_r(Input::all());exit;
-		$budget_document=  $this->jobmaster->budgetcreate(Input::all());
+	//	echo '<pre>';print_r($request->all());exit;
+		$budget_document=  $this->jobmaster->budgetcreate($request->all());
 		
 		
 		Session::flash('message', 'Project Budgeting added successfully.');
@@ -228,7 +228,7 @@ $prints = DB::table('report_view_detail')
 						
 						->leftJoin('jobmaster AS J','J.id', '=', 'budgeting.job_id' )
 						->select('budgeting.total_cost','J.name AS jobname','budgeting.total_income','J.code AS jobcode','budgeting.created_at','budgeting.id')
-						->where('budgeting.deleted_at', '0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->get(); 
 	
 						//echo '<pre>';print_r($acctype);exit;
@@ -261,7 +261,7 @@ $prints = DB::table('report_view_detail')
 		
 		public function updatebudget($id)
 	{
-		$document= $this->jobmaster->updatebudget($id, Input::all());//print_r(Input::all());exit;
+		$document= $this->jobmaster->updatebudget($id, $request->all());//print_r($request->all());exit;
 		
 	
 		Session::flash('message', 'budget updated successfully.');
@@ -432,12 +432,12 @@ $prints = DB::table('report_view_detail')
 	}
 	public function update($id)
 	{
-		$document= $this->jobmaster->update($id, Input::all());//print_r(Input::all());exit;
+		$document= $this->jobmaster->update($id, $request->all());//print_r($request->all());exit;
 		
 		$jid=$document["id"];
 		$cid=$document["cid"];
 
-		$data = DB::table('sales_split')->where('customer_id',$cid)->where('status',1)->where('job_id',$jid)->where('deleted_at','0000-00-00 00:00:00')->select('id')->get();
+		$data = DB::table('sales_split')->where('customer_id',$cid)->where('status',1)->where('job_id',$jid)->whereNull('deleted_at')->select('id')->get();
 
 		if ($document["document_type"]=="0") {
 			Session::flash('message', 'Jobmaster updated successfully');
@@ -486,7 +486,7 @@ $prints = DB::table('report_view_detail')
 	 }
 	public function checkjobcode($id) {
 
-		$check = $this->jobmaster->check_jobmaster_code(Input::get('code'), Input::get('id')); //
+		$check = $this->jobmaster->check_jobmaster_code($request->get('code'), $request->get('id')); //
 		echo '<pre>';print_r($check);
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
@@ -495,7 +495,7 @@ $prints = DB::table('report_view_detail')
 	}
 	public function checkcode() {
 
-		$check = $this->jobmaster->check_jobmaster_code(Input::get('code'), Input::get('id')); //echo '<pre>';print_r($check);
+		$check = $this->jobmaster->check_jobmaster_code($request->get('code'), $request->get('id')); //echo '<pre>';print_r($check);
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -504,7 +504,7 @@ $prints = DB::table('report_view_detail')
 	
 	public function checkname() {
 
-		$check = $this->jobmaster->check_jobmaster_name(Input::get('jobname'), Input::get('id'));
+		$check = $this->jobmaster->check_jobmaster_name($request->get('jobname'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -549,9 +549,11 @@ $prints = DB::table('report_view_detail')
 	}
 	public function ajaxSave() {
 		
-		$as = $this->jobmaster->ajaxCreate(Input::all());
+		$as = $this->jobmaster->ajaxCreate($request->all());
 		return $as;
 			
 	}
 }
+
+
 

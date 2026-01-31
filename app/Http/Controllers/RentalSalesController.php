@@ -27,7 +27,7 @@ class RentalSalesController extends Controller
 	public function index() {
 		$customer = DB::table('account_master')
 			->where('category','CUSTOMER')
-			->where('deleted_at','0000-00-00 00:00:00')
+			->whereNull('deleted_at')
 			->where('status',1)
 			->select('id','master_name')->get();
 		return view('body.rentalsales.index')
@@ -131,7 +131,7 @@ class RentalSalesController extends Controller
 										'account_master.id','account_master.master_name')
 								->first();
 							
-		$units = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$units = DB::table('units')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.rentalsales.add')->withUnits($units)->withVouchers($vouchers)->withPrint($print)->withPrintid($lastid);
 					
 	}
@@ -159,7 +159,7 @@ class RentalSalesController extends Controller
 		$row = $this->rental_sales->findRSdata($id);
 		$items = $this->rental_sales->getItems($id); 
 		//echo '<pre>';print_r($orditems);exit;					
-		$units = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$units = DB::table('units')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.rentalsales.edit')->withUnits($units)
 					->withRow($row)
 					->withPrint($print)
@@ -357,3 +357,5 @@ class RentalSalesController extends Controller
 	
 //SELECT rental_sales.voucher_no,rental_sales.voucher_date,rental_sales.total,rental_sales.discount,rental_sales.vat_amount,rental_sales.net_amount,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,rental_sales_item.service_date,rental_sales_item.quantity,rental_sales_item.rate,rental_sales_item.vat,rental_sales_item.vat_amount AS line_vat,rental_sales_item.line_total,rental_sales_item.extra_hr,rental_sales_item.extra_rate,itemmaster.description,units.unit_name,rental_sales_item.id AS sii_id,rental_driver.driver_name FROM rental_sales JOIN account_master ON(account_master.id=rental_sales.customer_id) JOIN rental_sales_item ON(rental_sales_item.rental_sales_id=rental_sales.id) JOIN itemmaster ON(itemmaster.id=rental_sales_item.item_id) JOIN units ON(units.id=rental_sales_item.unit_id) LEFT JOIN rental_driver ON(rental_driver.id=rental_sales_item.driver_id) WHERE rental_sales_item.deleted_at IS NULL AND rental_sales.id=2 ORDER BY rental_sales_item.id ASC
 	
+
+

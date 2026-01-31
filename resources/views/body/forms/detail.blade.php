@@ -71,20 +71,13 @@
 											</thead>
 												<tbody>
 												@foreach($forms as $row)
-												@if($row->active==1)
-													{{--*/ $chk = "checked";
-													/*--}}
-													@else
-													{{--*/ $chk = "";
-													/*--}}	
-												@endif
 												<tr>
 													<td class="table_simple">{{$row->field_name}}</td>
 													<td class="table_simple"><input type="text" class="form-control" id="field_name" value="{{$row->field_name}}" name="field_name[{{$row->id}}]" autocomplete="off"></td>
 													<td class="table_simple"><input type="number" class="form-control" style="width:50px;" id="list_ord" value="{{$row->list_ord}}" name="list_ord[{{$row->id}}]" autocomplete="off"></td>
 													<td class="table_superuser">
 														<label class="radio-inline iradio">
-														<input type="checkbox" class="custom_icheck" id="para_name" name="para_name[{{$row->id}}]" {{ $chk }}> 
+														<input type="checkbox" class="custom_icheck" id="para_name" name="para_name[{{$row->id}}]" {{ $row->active == 1 ? 'checked' : '' }}> 
 													</label>
 													</td>
 												</tr>

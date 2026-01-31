@@ -189,9 +189,9 @@ class CreditNoteJournalController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -220,7 +220,7 @@ class CreditNoteJournalController extends Controller
 					->withData($data);
 	}
 	public function save(Request $request) {
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		
 			//echo '<pre>';print_r($idarr);exit;
 		$validator = Validator::make($request->all(), [
@@ -234,9 +234,9 @@ class CreditNoteJournalController extends Controller
                         ->withInput();
         }
 		
-		 if(Input::get('voucher_type')==7) {
+		 if($request->get('voucher_type')==7) {
 			
-			if( $this->journal->create(Input::all()) )
+			if( $this->journal->create($request->all()) )
 				Session::flash('message', 'Credit Note JV added successfully.');
 			else 
 				Session::flash('error', 'Something went wrong, Purchase voucher failed to add!');
@@ -247,7 +247,7 @@ class CreditNoteJournalController extends Controller
 	}
 	
 	public function saveold(Request $request) {    // 2021 Sep20
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		
 		$validator = Validator::make($request->all(), [
             'voucher_no' => 'required|max:255',
@@ -260,9 +260,9 @@ class CreditNoteJournalController extends Controller
                         ->withInput();
         }
 		
-		if(Input::get('voucher_type')==9) {
+		if($request->get('voucher_type')==9) {
 			
-			if( $this->receipt_voucher->create(Input::all()))
+			if( $this->receipt_voucher->create($request->all()))
 			{
 				Session::flash('message', 'Customer receipt added successfully.');
 				$journals = $this->receipt_voucher->getLastId();
@@ -273,7 +273,7 @@ class CreditNoteJournalController extends Controller
 			             ->get();
 				$id = $journals->id;
 				$rid = $prints[0]->id;
-				$vouchertype =  Input::get('voucher_type');
+				$vouchertype =  $request->get('voucher_type');
                 return redirect('creditnotejournal/add/'.$id.'/'.$rid.'/'.$vouchertype);
 			}
 			else 
@@ -281,9 +281,9 @@ class CreditNoteJournalController extends Controller
 			
 			return redirect('creditnotejournal/add'); //return redirect('customer_receipt');
 			
-		} else if(Input::get('voucher_type')==10) {
+		} else if($request->get('voucher_type')==10) {
 			
-			if( $this->payment_voucher->create(Input::all()) )
+			if( $this->payment_voucher->create($request->all()) )
 
 			{
 				Session::flash('message', 'Supplier payment added successfully.');
@@ -295,7 +295,7 @@ class CreditNoteJournalController extends Controller
 			             ->get();
 				$id = $journals->id;
 				$rid = $prints[0]->id;
-				$vouchertype =  Input::get('voucher_type');
+				$vouchertype =  $request->get('voucher_type');
                 return redirect('creditnotejournal/add/'.$id.'/'.$rid.'/'.$vouchertype);
 				
 			}
@@ -304,9 +304,9 @@ class CreditNoteJournalController extends Controller
 			
 			return redirect('creditnotejournal/add'); //return redirect('supplier_payment');
 			
-		} else if(Input::get('voucher_type')==5) {
+		} else if($request->get('voucher_type')==5) {
 			
-			if( $this->journal->create(Input::all()) )
+			if( $this->journal->create($request->all()) )
 			{ 
 				Session::flash('message', 'Purchase voucher added successfully.');
 				$journals = $this->journal->journalList('PIN');
@@ -320,7 +320,7 @@ class CreditNoteJournalController extends Controller
 			$id = $journals[0]->id;
 			
 			$rid = $prints[0]->id;
-			$vouchertype =  Input::get('voucher_type');
+			$vouchertype =  $request->get('voucher_type');
 			return redirect('creditnotejournal/add/'.$id.'/'.$rid.'/'.$vouchertype); 
 		  
 			
@@ -333,9 +333,9 @@ class CreditNoteJournalController extends Controller
 			}
 				//return redirect('purchase_voucher');
 			
-		} else if(Input::get('voucher_type')==6) {
+		} else if($request->get('voucher_type')==6) {
 			
-			if( $this->journal->create(Input::all()) )
+			if( $this->journal->create($request->all()) )
 			{
 				
 				
@@ -351,7 +351,7 @@ class CreditNoteJournalController extends Controller
 		    $id = $journals[0]->id;
 		
 		    $rid = $prints[0]->id;
-		    $vouchertype =  Input::get('voucher_type');
+		    $vouchertype =  $request->get('voucher_type');
 		    return redirect('creditnotejournal/add/'.$id.'/'.$rid.'/'.$vouchertype); 
 				}
 			else 
@@ -361,7 +361,7 @@ class CreditNoteJournalController extends Controller
 			
 		} else {
 			
-			if( $this->journal->create(Input::all()) )
+			if( $this->journal->create($request->all()) )
 				Session::flash('message', 'Journal voucher added successfully.');
 			else 
 				Session::flash('error', 'Something went wrong, Journal voucher failed to add!');
@@ -370,25 +370,25 @@ class CreditNoteJournalController extends Controller
 	}
 	
 	/* public function save() {
-		try { //echo '<pre>';print_r(Input::all());exit;
-			if(Input::get('voucher_type')==9) {
-				$this->receipt_voucher->create(Input::all());
+		try { //echo '<pre>';print_r($request->all());exit;
+			if($request->get('voucher_type')==9) {
+				$this->receipt_voucher->create($request->all());
 				Session::flash('message', 'Customer receipt added successfully.');
 				return redirect('customer_receipt');
-			} else if(Input::get('voucher_type')==10) {
-				$this->payment_voucher->create(Input::all());
+			} else if($request->get('voucher_type')==10) {
+				$this->payment_voucher->create($request->all());
 				Session::flash('message', 'Supplier payment added successfully.');
 				return redirect('supplier_payment');
-			} else if(Input::get('voucher_type')==5) {
-				$this->journal->create(Input::all());
+			} else if($request->get('voucher_type')==5) {
+				$this->journal->create($request->all());
 				Session::flash('message', 'Purchase voucher added successfully.');
 				return redirect('purchase_voucher');
-			} else if(Input::get('voucher_type')==6) {
-				$this->journal->create(Input::all());
+			} else if($request->get('voucher_type')==6) {
+				$this->journal->create($request->all());
 				Session::flash('message', 'Sales voucher added successfully.');
 				return redirect('sales_voucher');
 			} else {
-				$this->journal->create(Input::all());//exit;
+				$this->journal->create($request->all());//exit;
 				Session::flash('message', 'Journal voucher added successfully.');
 				return redirect('journal');
 			}
@@ -414,9 +414,9 @@ class CreditNoteJournalController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -478,17 +478,17 @@ class CreditNoteJournalController extends Controller
                         ->withInput();
         }
 		
-		if(Input::get('voucher_type')==5) {
+		if($request->get('voucher_type')==5) {
 			
-			if( $this->journal->update($id, Input::all()) )
+			if( $this->journal->update($id, $request->all()) )
 				Session::flash('message', 'Purchase voucher updated successfully.');
 			else
 				Session::flash('error', 'Something went wrong, Purchase voucher failed to edit!');
 			
 			return redirect('purchase_voucher');
-		} else if(Input::get('voucher_type')==6) {
+		} else if($request->get('voucher_type')==6) {
 			
-			if( $this->journal->update($id, Input::all()) )
+			if( $this->journal->update($id, $request->all()) )
 				Session::flash('message', 'Sales voucher updated successfully.');
 			else
 				Session::flash('error', 'Something went wrong, Sales voucher failed to edit!');
@@ -496,7 +496,7 @@ class CreditNoteJournalController extends Controller
 			return redirect('sales_voucher');
 		} else {
 			
-			if( $this->journal->update($id,Input::all()) )
+			if( $this->journal->update($id,$request->all()) )
 				Session::flash('message', 'Journal voucher updated successfully.');
 			else
 				Session::flash('error', 'Something went wrong, Journal voucher failed to edit!');
@@ -504,7 +504,7 @@ class CreditNoteJournalController extends Controller
 			return redirect('creditnotejournal');
 		}
 			
-		/* $this->journal->update($id, Input::all());
+		/* $this->journal->update($id, $request->all());
 		Session::flash('message', 'Journal voucher updated successfully');
 		return redirect('journal'); */
 	}
@@ -603,9 +603,9 @@ class CreditNoteJournalController extends Controller
 	
 	public function getVoucherprint()
 	{                
-		$type = Input::get('voucher_typeprint');
+		$type = $request->get('voucher_typeprint');
 		//echo '<pre>';print_r($type);exit;
-		$voucher_no = Input::get('voucherprnt_no');
+		$voucher_no = $request->get('voucherprnt_no');
 		if(($type !=0) &&  (!empty($voucher_no)))
 		{
 		$journals = $this->journal->journalListprit($type,$voucher_no);
@@ -668,7 +668,7 @@ class CreditNoteJournalController extends Controller
 	
 	public function checkVchrNo() {
 
-		$check = $this->journal->check_voucher_no(Input::get('voucher_no'), Input::get('vtype'), Input::get('id'));
+		$check = $this->journal->check_voucher_no($request->get('voucher_no'), $request->get('vtype'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -750,9 +750,9 @@ class CreditNoteJournalController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -876,4 +876,6 @@ class CreditNoteJournalController extends Controller
 		return $str;
 	}
 }
+
+
 

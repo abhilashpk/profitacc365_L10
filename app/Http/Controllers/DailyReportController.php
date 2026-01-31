@@ -38,8 +38,8 @@ class DailyReportController extends Controller
 		$acntid = ($groupdata->account_ids!='')?unserialize($groupdata->account_ids):null;
 		$groups = $accounts = [];
 		if($groupid) {
-			$groups = DB::table('account_group')->whereIn('id', $groupid)->select('id','name')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-			$accounts = $this->sortByGroupId( DB::table('account_master')->whereIn('account_group_id', $groupid)->select('id','master_name','account_group_id')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get() );
+			$groups = DB::table('account_group')->whereIn('id', $groupid)->select('id','name')->where('status',1)->whereNull('deleted_at')->get();
+			$accounts = $this->sortByGroupId( DB::table('account_master')->whereIn('account_group_id', $groupid)->select('id','master_name','account_group_id')->where('status',1)->whereNull('deleted_at')->get() );
 		}
 		
 		//echo '<pre>';print_r($accounts);exit;
@@ -276,13 +276,13 @@ class DailyReportController extends Controller
 
 	public function dataExport()
 	{
-		$data = array();	//echo '<pre>';print_r(Input::all());exit;
+		$data = array();	//echo '<pre>';print_r($request->all());exit;
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			$voucher_head = 'VAT Report Summary';
-			$reports = $this->accountmaster->getVatSummary(Input::all()); 
+			$reports = $this->accountmaster->getVatSummary($request->all()); 
 			$datareport[] = ['','',strtoupper($voucher_head),'',''];
 			$datareport[] = ['','','','','','',''];
 			
@@ -297,9 +297,9 @@ class DailyReportController extends Controller
 			}
 			$datareport[] = ['','','','Total VAT Payable',($vat < 0)?'('.number_format($vat*-1,2).')':number_format($vat,2)];
 			
-		} else if(Input::get('search_type')=='detail') {
+		} else if($request->get('search_type')=='detail') {
 			$voucher_head = 'VAT Report Detail';
-			$reports = $this->makeTreeTyp($this->accountmaster->getVatDetail(Input::all()));//
+			$reports = $this->makeTreeTyp($this->accountmaster->getVatDetail($request->all()));//
 			$datareport[] = ['','','','',$voucher_head,'','','',''];
 			$datareport[] = ['','','','','','',''];
 			
@@ -353,9 +353,9 @@ class DailyReportController extends Controller
 			$datareport[] = ['','','','','','TOTAL OUTPUT:','','',number_format($vatinput,2)];
 			$datareport[] = ['','','','','','VAT PAYABLE:','','',number_format($payable,2)];
 			
-		} else if(Input::get('search_type')=='partywise') {
+		} else if($request->get('search_type')=='partywise') {
 			$voucher_head = 'VAT Payable Report(Partywise)';
-			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail(Input::all()));//DB::raw('"GI" AS type')
+			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail($request->all()));//DB::raw('"GI" AS type')
 			
 			$datareport[] = ['','','','',strtoupper($voucher_head),'','','',''];
 			$datareport[] = ['','','','','','',''];
@@ -386,9 +386,9 @@ class DailyReportController extends Controller
 				$datareport[] = ['','','','','','',''];
 			}
 
-		} else if(Input::get('search_type')=='areawise') {
+		} else if($request->get('search_type')=='areawise') {
 			$voucher_head = 'VAT Payable Report(Areawise)';
-			$result = $this->accountmaster->getVatDetail(Input::all());
+			$result = $this->accountmaster->getVatDetail($request->all());
 			$reports = $this->makeTreeAr($result['sales']);
 			
 			$datareport[] = ['','','','',strtoupper($voucher_head),'','','',''];
@@ -443,9 +443,9 @@ class DailyReportController extends Controller
 			$net_vattotal += $area_vattotal;
 			$datareport[] = ['','','','','','Net Total',number_format($net_total,2),number_format($net_nettotal,2),number_format($net_vattotal,2)];
 			
-		} else if(Input::get('search_type')=='summary_taxcode') {
+		} else if($request->get('search_type')=='summary_taxcode') {
 			$voucher_head = 'VAT Report(Tax Code Summary)';
-			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail(Input::all()));
+			$reports = $this->makeTreeParty($this->accountmaster->getVatDetail($request->all()));
 			
 			$datareport[] = ['',strtoupper($voucher_head)];
 			$datareport[] = ['','','','','','',''];
@@ -475,12 +475,12 @@ class DailyReportController extends Controller
 	 	$data = array(); //echo '<pre>';print_r($request->all());exit;
 	 	
 	 	$data = $pdctransactions = array(); $opn_balnce = null;
-		$frmdate = Input::get('date_from');
-		$todate = Input::get('date_to');
-		Input::merge(['curr_from_date' => $this->acsettings->from_date]); 
-		if(Input::get('search_type')=='detail') {
+		$frmdate = $request->get('date_from');
+		$todate = $request->get('date_to');
+		$request->merge(['curr_from_date' => $this->acsettings->from_date]); 
+		if($request->get('search_type')=='detail') {
 		    $voucher_head = 'Daily Report Detail';
-		$transaction = $this->accountmaster->getDailyReport(Input::all()); 
+		$transaction = $this->accountmaster->getDailyReport($request->all()); 
 			//echo '<pre>';print_r($transaction);exit;
 			$sales = $this->SortByVoucher($transaction['sales']);
 			$sales_return=$this->SortByVoucher($transaction['salesr']);
@@ -497,11 +497,11 @@ class DailyReportController extends Controller
 		}
 		else {
 		$voucher_head = 'Daily Report Summary';
-		$transaction = $this->accountmaster->getDailyReport(Input::all()); 
+		$transaction = $this->accountmaster->getDailyReport($request->all()); 
 			//echo '<pre>';print_r($transaction);exit;
 		$reports = $this->SortByAccount($transaction);
 	//	echo '<pre>';print_r($reports);exit;
-		// $opn_balnce = $this->getOpeningBalance($this->accountmaster->getdailySummary(Input::all()));
+		// $opn_balnce = $this->getOpeningBalance($this->accountmaster->getdailySummary($request->all()));
 	
 		$titles = ['main_head' => 'Daily Report Summary','subhead' => 'Daily Report Summary'];
 			
@@ -524,9 +524,11 @@ class DailyReportController extends Controller
 	 				->withTitles($titles)
 					->withSettings($this->acsettings)
 					->withUrl('daily_report')
-					->withSearchtype(Input::get('search_type'))
+					->withSearchtype($request->get('search_type'))
 	 				->withData($data);
 	 }	
 }
+
+
 
 

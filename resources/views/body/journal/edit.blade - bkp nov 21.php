@@ -72,13 +72,13 @@
                             </h3>
                            
 						   <div class="pull-right">
-								@permission('rv-print')
+								@can('rv-print')
 								 <a href="{{ url('journal/print/'.$jrow->id.'/'.$prints[0]->id) }}" target="_blank" class="btn btn-info btn-sm">
 									<span class="btn-label">
 										<i class="fa fa-fw fa-print"></i>
 									</span>
 								 </a>
-								@endpermission
+								@endcan
 							</div>
                         </div>
                         

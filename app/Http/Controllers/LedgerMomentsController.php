@@ -92,27 +92,27 @@ class LedgerMomentsController extends Controller
 	{
 		$data = array();
 		$voucher_head = 'Account Balance with PDC';
-		//$reports = $this->calculateAmount($this->accountmaster->getLedgerMoments(Input::all()));
-		$reports = $this->accountmaster->getLedgerMoments(Input::all());
+		//$reports = $this->calculateAmount($this->accountmaster->getLedgerMoments($request->all()));
+		$reports = $this->accountmaster->getLedgerMoments($request->all());
 				
 		//echo '<pre>';print_r($reports);exit;
 		return view('body.ledgermoments.preprint')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withSettings($this->acsettings)
 					->withData($data);
 	}
 	
 	public function dataExport()
 	{
-		$data = array(); //echo '<pre>';print_r(Input::all());exit;
+		$data = array(); //echo '<pre>';print_r($request->all());exit;
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		$voucher_head = 'Account Balance with PDC';
-		$reports = $this->accountmaster->getLedgerMoments(Input::all());
+		$reports = $this->accountmaster->getLedgerMoments($request->all());
 		$datareport[] = ['','',strtoupper($voucher_head),'','','',''];
 		$datareport[] = ['Account Code','Account Name','Balance','PDC Received','PDC Issued','Net Balance'];
 		$total_bal = $total_pdcr = $total_pdci = $net_bal = $total_cash = 0;
@@ -122,7 +122,7 @@ class LedgerMomentsController extends Controller
 			$total_pdcr += $report->pdcr_amount; 
 			$total_pdci += $report->pdci_amount; 
 			
-			if(Input::get('search_type')=='CUSTOMER') {
+			if($request->get('search_type')=='CUSTOMER') {
 				$net_balance = $report->cl_balance + $report->pdcr_amount;
 				$pdi = 0;
 				if($report->pdcr_amount < 0) {

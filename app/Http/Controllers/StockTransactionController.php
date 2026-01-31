@@ -28,9 +28,9 @@ class StockTransactionController extends Controller
 		$data = array();
 		
 		return view('body.stocktransaction.index')
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withSettings($this->acsettings)
 					->withData($data);
 	}
@@ -48,9 +48,9 @@ class StockTransactionController extends Controller
 	{
 		$data = array();
 		
-		if(Input::get('search_type')=='detail') {
+		if($request->get('search_type')=='detail') {
 			$voucher_head = 'Stock Transaction Report';
-			$results = $this->itemmaster->getStockTransactionReport(Input::all()); 
+			$results = $this->itemmaster->getStockTransactionReport($request->all()); 
 			$titles = ['main_head' => 'Stock Transaction Report','subhead' => 'Stock Transaction Report'];
 			
 		} 
@@ -58,14 +58,14 @@ class StockTransactionController extends Controller
 		//echo '<pre>';print_r($results);exit;
 		return view('body.stocktransaction.print')
 					->withResults($results)
-					->withType(Input::get('search_type'))
+					->withType($request->get('search_type'))
 					->withVoucherhead($voucher_head)
 					->withTitles($titles)
 					->withUrl('stock_ledger')
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					//->withLocation($location)
-					->withDocid(Input::get('document_id'))
+					->withDocid($request->get('document_id'))
 					->withData($data);
 	}
 	
@@ -73,7 +73,7 @@ class StockTransactionController extends Controller
 	{
 		$data = array();
 		$voucher_head = 'Stock Transaction Report';
-		$results = $this->itemmaster->getStockTransactionReport(Input::all()); 
+		$results = $this->itemmaster->getStockTransactionReport($request->all()); 
 		$titles = ['main_head' => 'Stock Transaction Report','subhead' => 'Stock Transaction Report'];
 			
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];

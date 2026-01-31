@@ -38,11 +38,11 @@ class CargoUnitController extends Controller
 	}
 	
 	public function save() {
-		//print_r(Input::all());
+		//print_r($request->all());
 		DB::table('units')
 				->insert([
-					'unit_name' => Input::get('unit_name'),
-					'description' => Input::get('description'),
+					'unit_name' => $request->get('unit_name'),
+					'description' => $request->get('description'),
 					'status'=>1,
 				
 				]);
@@ -63,10 +63,10 @@ class CargoUnitController extends Controller
 	{
 		DB::table('units')->where('id',$id)
 				->update([
-					'unit_name' => Input::get('unit_name'),
-					'description' => Input::get('description'),
+					'unit_name' => $request->get('unit_name'),
+					'description' => $request->get('description'),
 					'status'=>1,
-				]);//print_r(Input::all());exit;
+				]);//print_r($request->all());exit;
 		Session::flash('message', 'Unit updated successfully');
 		return redirect('cargounit');
 	}
@@ -81,7 +81,7 @@ class CargoUnitController extends Controller
 	
 	public function checkname() {
 
-		$check = $this->check_unit_name(Input::get('unit_name'), Input::get('id'));
+		$check = $this->check_unit_name($request->get('unit_name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		//echo '<pre>';print_r($isAvailable);exit;
 		echo json_encode(array(
@@ -104,7 +104,7 @@ class CargoUnitController extends Controller
 	
 	public function destroyGroup()
 	{
-		$ids = Input::get('ids');
+		$ids = $request->get('ids');
 		if($ids) {
 			$idarr = explode(',', $ids);
 			DB::table('units')->whereIn('id',$idarr)->update(['deleted_at' => date('Y-m-d H:i:s')]);

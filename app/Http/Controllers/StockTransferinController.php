@@ -43,17 +43,17 @@ class StockTransferinController extends Controller
 		$data = array();
 		$stocktrans = $this->stock_transferin->stockTransList();
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
 		}
-		$item = DB::table('itemmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$item = DB::table('itemmaster')->where('status',1)->whereNull('deleted_at')->get();
 		
-		$category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$category = DB::table('category')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
+		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
 		
 		return view('body.stocktransferin.index')
 		->withCategory($category)
@@ -71,17 +71,17 @@ class StockTransferinController extends Controller
 	public function add() {
 
 		$data = array();
-		$lastid = DB::table('stock_transferin')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$lastid = DB::table('stock_transferin')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
 		//$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=21);//echo '<pre>';print_r($vouchers);exit;
-		$mvcount=DB::table('manufacture')->where('deleted_at','0000-00-00 00:00:00')->count();
+		$mvcount=DB::table('manufacture')->whereNull('deleted_at')->count();
 		//echo '<pre>';print_r($mvcount);exit;
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -166,7 +166,7 @@ class StockTransferinController extends Controller
 		$data = array();
 		$orderrow = $this->stock_transferin->findRow($id);
 		$orditems = $this->stock_transferin->getItems($id);
-		$mvcount=DB::table('manufacture')->where('deleted_at','0000-00-00 00:00:00')->count();
+		$mvcount=DB::table('manufacture')->whereNull('deleted_at')->count();
 		$getItemLocation = $this->itemmaster->getItemLocation($id,'TI');
 		$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($id,'TI') );
 		//echo '<pre>';print_r($getItemLocation);print_r($itemlocedit); exit;
@@ -174,7 +174,7 @@ class StockTransferinController extends Controller
 						->join('account_master AS DrAC', 'DrAC.id', '=', 'sti_other_cost.dr_account_id')
 						->join('account_master AS CrAC', 'CrAC.id', '=', 'sti_other_cost.cr_account_id')
 						->where('sti_other_cost.transfer_id',$id)
-						->where('sti_other_cost.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('sti_other_cost.*','DrAC.master_name AS dr_name','CrAC.master_name AS cr_name')
 						->get();
 		
@@ -182,9 +182,9 @@ class StockTransferinController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $orderrow->department_id;
 			}
 			$is_dept = true;
@@ -234,7 +234,7 @@ class StockTransferinController extends Controller
 		$data = array();
 		$orderrow = $this->stock_transferin->findRow($id);
 		$orditems = $this->stock_transferin->getItems($id);
-		$mvcount=DB::table('manufacture')->where('deleted_at','0000-00-00 00:00:00')->count();
+		$mvcount=DB::table('manufacture')->whereNull('deleted_at')->count();
 		$getItemLocation = $this->itemmaster->getItemLocation($id,'TI');
 		$itemlocedit = $this->makeTreeArr( $this->itemmaster->getItemLocEdit($id,'TI') );
 		//echo '<pre>';print_r($getItemLocation);print_r($itemlocedit); exit;
@@ -242,7 +242,7 @@ class StockTransferinController extends Controller
 						->join('account_master AS DrAC', 'DrAC.id', '=', 'sti_other_cost.dr_account_id')
 						->join('account_master AS CrAC', 'CrAC.id', '=', 'sti_other_cost.cr_account_id')
 						->where('sti_other_cost.transfer_id',$id)
-						->where('sti_other_cost.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('sti_other_cost.*','DrAC.master_name AS dr_name','CrAC.master_name AS cr_name')
 						->get();
 		
@@ -250,9 +250,9 @@ class StockTransferinController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $orderrow->department_id;
 			}
 			$is_dept = true;
@@ -495,4 +495,6 @@ class StockTransferinController extends Controller
 		return $result;
 	}
 }
+
+
 

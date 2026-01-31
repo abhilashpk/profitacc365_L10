@@ -512,7 +512,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 						  $join->on('J.id','=','budgeting.job_id');
 					  })
 					  	->where('PSI.is_log', 0)
-					  ->where('PSI.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('PSI.*','AM.account_id AS account_code','budgeting.total','AM.master_name','J.code AS jobcode','J.transport_type','PSI.ac_id AS account_id','PSI.description AS item_description','PSI.amount AS item_total','PSI.amount AS unit_price')
 					  ->orderBY('PSI.id')
 					  ->groupBY('PSI.id')
@@ -532,7 +532,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 						  $join->on('J.id','=','budgeting.job_id');
 					  })
 					  	->where('PSI.is_log',1)
-					  ->where('PSI.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('PSI.*','AM.account_id AS account_code','budgeting.total','AM.master_name','J.code AS jobcode','J.transport_type','PSI.ac_id AS account_id','PSI.description AS item_description','PSI.amount AS item_total','PSI.amount AS unit_price')
 					  ->orderBY('PSI.id')
 					  ->groupBY('PSI.id')
@@ -666,7 +666,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 		                     ->select('jobmaster.id','jobmaster.name','jobmaster.code','jobmaster.transport_type','AM.master_name')
 		                     ->where('jobmaster.status', 1)
 		                     ->where('jobmaster.is_salary_job',0)
-		                     //->where('jobmaster.deleted_at', '0000-00-00 00:00:00')
+		                     //->whereNull('deleted_at')
 		                      ->orderBy('name', 'ASC')->groupBy('jobmaster.code')->get()->toArray();
 	}
 	
@@ -733,7 +733,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PS.job_id','=','jobmaster.id');
 									} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PS.status', 1)->whereNull('deleted_at');
 				//	if($job_id)
 						//$qry1->where('jobmaster.id', $job_id);
 						
@@ -756,7 +756,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PS.job_id','=','jobmaster.id');
 									} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -775,7 +775,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','SI.cr_account_id');
 									} )
 							
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry16->where('jobmaster.id', $job_id);
 					
@@ -806,7 +806,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','SI.cr_account_id');
 									} )
 							
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry16->where('jobmaster.id', $job_id);
 					
@@ -851,7 +851,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('PS.job_id','=','jobmaster.id');
 								} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry1->where('jobmaster.id', $job_id);
 					
@@ -872,7 +872,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('PS.job_id','=','jobmaster.id');
 								} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry2->where('jobmaster.id', $job_id);
 				
@@ -892,7 +892,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$join->on('AC.id','=','SI.cr_account_id');
 					} )
 			
-				->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+				->where('SI.status', 1)->whereNull('deleted_at');
 	         if($job_id)
 			 
 			 {
@@ -930,8 +930,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry1->where('jobmaster.id', $job_id);
 				
@@ -954,8 +954,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry2->where('jobmaster.id', $job_id);
 				
@@ -981,7 +981,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 							->where('PVE.status', 1)
 							->where('PVE.entry_type','Dr')
-							->where('PVE.deleted_at', '0000-00-00 00:00:00');
+							->whereNull('deleted_at');
 				if($job_id)
 					$qry3->where('jobmaster.id', $job_id);
 				
@@ -1007,7 +1007,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 							->where('PVE.status', 1)
 							->where('PVE.entry_type','Dr')
-							->where('PVE.deleted_at', '0000-00-00 00:00:00');
+							->whereNull('deleted_at');
 				if($job_id)
 					$qry4->where('jobmaster.id', $job_id);
 				
@@ -1032,7 +1032,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								} )
 							->join('account_category', 'account_category.id', '=', 'AC.account_category_id')
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00')
+							->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at')
 							->where('account_category.parent_id',4);
 				if($job_id)
 					$qry5->where('jobmaster.id', $job_id);
@@ -1058,7 +1058,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','SI.cr_account_id');
 								} )
 						
-							->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+							->where('SI.status', 1)->whereNull('deleted_at');
 							
 						 if($job_id)
 						 
@@ -1103,7 +1103,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PSI.purchase_split_id','=','PS.id');
 									} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PS.status', 1)->whereNull('deleted_at');
 				//	if($job_id)
 						//$qry1->where('jobmaster.id', $job_id);
 						
@@ -1126,7 +1126,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PS.job_id','=','jobmaster.id');
 									} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -1153,8 +1153,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PIM.account_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -1177,8 +1177,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PIM.account_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -1204,7 +1204,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 								->where('PVE.status', 1)
 								->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -1230,7 +1230,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 								->where('PVE.status', 1)
 								->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 					
@@ -1255,7 +1255,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									} )
 								->join('account_category', 'account_category.id', '=', 'AC.account_category_id')
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00')
+								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at')
 								->where('account_category.parent_id',4);
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
@@ -1302,7 +1302,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									} )
 								->whereNotIn('AC.account_category_id',$excludearr)
 								->where('PI.status', 1)
-								->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -1322,7 +1322,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									} )
 								->where('AC.job_assign', 1)
 								->where('PI.status', 1)
-								->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query1_1->where('jobmaster.id', $job_id);
 					
@@ -1341,7 +1341,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('GI.id','=','GIM.goods_issued_id');
 									} )
 								->where('GI.status', 1)
-								->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -1359,7 +1359,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('JE.job_id','=','jobmaster.id');
 									} )
 								->where('JE.status', 1)->where('JE.entry_type','Dr')
-								->where('JE.deleted_at', '0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereNotIn('JE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								});
@@ -1379,7 +1379,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('JE.job_id','=','jobmaster.id');
 									} )
 								->where('JE.status', 1)->where('JE.entry_type','Dr')
-								->where('JE.deleted_at', '0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereIn('JE.account_id', function($qury) {
 									$qury->select('id')->from('account_master')->where('job_assign', 1); 
 								});
@@ -1397,7 +1397,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PVE.job_id','=','jobmaster.id');
 									} )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereNotIn('PVE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								});
@@ -1413,7 +1413,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PVE.job_id','=','jobmaster.id');
 									} )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereIn('PVE.account_id', function($qury) {
 									$qury->select('id')->from('account_master')->where('job_assign', 1);  
 								});
@@ -1428,7 +1428,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PCE.job_id','=','jobmaster.id');
 									} )
 								->where('PCE.status', 1)->where('PCE.entry_type','Dr')
-								->where('PCE.deleted_at', '0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereNotIn('PCE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								});
@@ -1447,7 +1447,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PCE.job_id','=','jobmaster.id');
 									} )
 								->where('PCE.status', 1)->where('PCE.entry_type','Dr')
-								->where('PCE.deleted_at', '0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereIn('PCE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->where('job_assign', 1);  
 								});
@@ -1467,8 +1467,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('purchase_split AS PS', function($join) {
 										$join->on('PS.id','=','PIM.purchase_split_id');
 									} )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query6->where('jobmaster.id', $job_id);
 					
@@ -1486,8 +1486,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('salessplit_return AS SS', function($join) {
 										$join->on('SS.id','=','SIM.salessplit_return_id');
 									} )
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
+								->where('SIM.status', 1)->whereNull('deleted_at')
+								->where('SS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query6_1->where('jobmaster.id', $job_id);
 					
@@ -1511,7 +1511,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','SI.cr_account_id');
 									} )
 								->whereNotIn('AC.account_category_id',$excludearr)		
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -1531,7 +1531,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','SI.cr_account_id');
 									} )
 								->where('AC.job_assign',1)		
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1_1->where('jobmaster.id', $job_id);
 					
@@ -1549,7 +1549,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','GR.account_master_id');
 									} )
 								->whereNotIn('AC.account_category_id',$excludearr)
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -1569,7 +1569,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','GR.account_master_id');
 									} )
 								->where('AC.job_assign',1)
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2_1->where('jobmaster.id', $job_id);
 					
@@ -1584,7 +1584,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('journal_entry AS JE', function($join) {
 										$join->on('JE.job_id','=','jobmaster.id');
 									} )
-								->where('JE.status', 1)->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00')
+								->where('JE.status', 1)->where('JE.entry_type','Cr')->whereNull('deleted_at')
 								->whereNotIn('JE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								});
@@ -1600,7 +1600,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('journal_entry AS JE', function($join) {
 										$join->on('JE.job_id','=','jobmaster.id');
 									} )
-								->where('JE.status', 1)->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00')
+								->where('JE.status', 1)->where('JE.entry_type','Cr')->whereNull('deleted_at')
 								->whereIn('JE.account_id', function($qury) {
 									$qury->select('id')->from('account_master')->where('job_assign', 1); 
 								});
@@ -1615,7 +1615,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('receipt_voucher_entry AS RVE', function($join) {
 										$join->on('RVE.job_id','=','jobmaster.id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00')
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at')
 								->whereNotIn('RVE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								});
@@ -1631,7 +1631,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('receipt_voucher_entry AS RVE', function($join) {
 										$join->on('RVE.job_id','=','jobmaster.id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00')
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at')
 								->whereIn('RVE.account_id', function($qury) {
 									$qury->select('id')->from('account_master')->where('job_assign', 1); 
 								});
@@ -1649,7 +1649,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->whereNotIn('PCE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								})
-								->where('PCE.status', 1)->where('PCE.entry_type','Cr')->where('PCE.deleted_at', '0000-00-00 00:00:00');
+								->where('PCE.status', 1)->where('PCE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
 					
@@ -1664,7 +1664,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->whereNotIn('PCE.account_id', function($qury) {
 									$qury->select('id')->from('account_master')->where('job_assign', 1); 
 								})
-								->where('PCE.status', 1)->where('PCE.entry_type','Cr')->where('PCE.deleted_at', '0000-00-00 00:00:00');
+								->where('PCE.status', 1)->where('PCE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry5_1->where('jobmaster.id', $job_id);
 					
@@ -1678,8 +1678,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('sales_split AS SS', function($join) {
 										$join->on('SS.id','=','SIM.sales_split_id');
 									} )
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
+								->where('SIM.status', 1)->whereNull('deleted_at')
+								->where('SS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry6->where('jobmaster.id', $job_id);
 					
@@ -1698,8 +1698,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('purchasesplit_return AS PS', function($join) {
 										$join->on('PS.id','=','PIM.purchasesplit_return_id');
 									} )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry6_1->where('jobmaster.id', $job_id);
 					
@@ -1729,7 +1729,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','PI.account_master_id');
 									} )
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->where('PI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -1747,7 +1747,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','GI.job_account_id');
 									} )
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->where('GI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -1768,7 +1768,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('JE.entry_type','Dr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('JE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query3->where('jobmaster.id', $job_id);
 					
@@ -1789,7 +1789,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','PVE.account_id');
 									} )
-								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query4->where('jobmaster.id', $job_id);
 					
@@ -1809,7 +1809,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','SI.cr_account_id');
 									} )
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -1827,7 +1827,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','GR.account_master_id');
 									} )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -1848,7 +1848,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('JE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -1869,7 +1869,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 					
@@ -1912,7 +1912,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('IM.id','=','PIM.item_id');
 								} )
 								->whereNotIn('AC.account_category_id',$excludearr)
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->where('PI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -1938,7 +1938,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('IM.id','=','GIM.item_id');
 								} )
 								->whereNotIn('AC.account_category_id',$excludearr)
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->where('GI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -1961,7 +1961,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query3->where('jobmaster.id', $job_id);
 					
@@ -1985,7 +1985,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PVE.account_id');
 									} )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query4->where('jobmaster.id', $job_id);
 					
@@ -2009,7 +2009,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PVE.account_id');
 									} )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query5->where('jobmaster.id', $job_id);
 					
@@ -2034,7 +2034,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','PIN')->where('JE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query6->where('jobmaster.id', $job_id);
 					
@@ -2060,7 +2060,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','SIN')->where('JE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query7->where('jobmaster.id', $job_id);
 					
@@ -2084,8 +2084,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PIM.account_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query8->where('jobmaster.id', $job_id);
 					
@@ -2109,8 +2109,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','SIM.account_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
+								->where('SIM.status', 1)->whereNull('deleted_at')
+								->where('SS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query9->where('jobmaster.id', $job_id);
 					
@@ -2144,7 +2144,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','SIM.item_id');
 								} )
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -2171,7 +2171,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','GRM.item_id');
 								} )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -2195,7 +2195,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -2221,7 +2221,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
 								->where('RVE.status', 1)->where('RVE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 					
@@ -2245,7 +2245,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
 								->where('RVE.status', 1)->where('RVE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
 					
@@ -2273,7 +2273,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','PIN')->where('JE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry6->where('jobmaster.id', $job_id);
 					
@@ -2298,7 +2298,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','SIN')->where('JE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry7->where('jobmaster.id', $job_id);
 					
@@ -2322,8 +2322,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','SIM.account_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
+								->where('SIM.status', 1)->whereNull('deleted_at')
+								->where('SS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry8->where('jobmaster.id', $job_id);
 					
@@ -2346,8 +2346,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PIM.account_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry9->where('jobmaster.id', $job_id);
 					
@@ -2393,7 +2393,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 													} )
 												->whereNotIn('AC.account_category_id',$excludearr)
 												->where('PI.status', 1)
-												->where('PI.deleted_at', '0000-00-00 00:00:00');
+												->whereNull('deleted_at');
 					if($job_id)
 						$query->where('jobmaster.id', $job_id);
 					
@@ -2418,7 +2418,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('IM.id','=','GRM.item_id');
 									} )
 								->where('GR.status', 1)
-								->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -2444,8 +2444,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PS.supplier_id');
 								} )
 								
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query3->where('jobmaster.id', $job_id);
 					
@@ -2469,8 +2469,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','SS.customer_id');
 								} )
 								
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
+								->where('SIM.status', 1)->whereNull('deleted_at')
+								->where('SS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query4->where('jobmaster.id', $job_id);
 					
@@ -2507,7 +2507,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 													} )
 												->where('IM.class_id',1)
 												->where('SI.status', 1)
-												->where('SI.deleted_at', '0000-00-00 00:00:00');
+												->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -2534,7 +2534,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('IM.id','=','GIM.item_id');
 									} )
 								->where('GI.status', 1)
-								->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -2560,8 +2560,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','SS.customer_id');
 								} )
 								
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
+								->where('SIM.status', 1)->whereNull('deleted_at')
+								->where('SS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query3->where('jobmaster.id', $job_id);
 					
@@ -2586,8 +2586,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PS.supplier_id');
 								} )
 								
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query4->where('jobmaster.id', $job_id);
 					
@@ -2664,7 +2664,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PI.job_id','=','jobmaster.id');
 									} )
 								->where('PI.status', 1)
-								->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 			if($job_id)
 				$query1->where('jobmaster.id', $job_id);
 			
@@ -2680,7 +2680,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('GI.job_id','=','jobmaster.id');
 							} )
 						->where('GI.status', 1)
-						->where('GI.deleted_at', '0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 			if($job_id)
 				$query2->where('jobmaster.id', $job_id);
 			
@@ -2696,7 +2696,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('JE.job_id','=','jobmaster.id');
 							} )
 						->where('JE.status', 1)->where('JE.entry_type','Dr')
-						->where('JE.deleted_at', '0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 			if($job_id)
 				$query3->where('jobmaster.id', $job_id);
 			
@@ -2712,7 +2712,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('PVE.job_id','=','jobmaster.id');
 							} )
 						->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-						->where('PVE.deleted_at', '0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 			if($job_id)
 				$query4->where('jobmaster.id', $job_id);
 			
@@ -2725,7 +2725,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('PCE.job_id','=','jobmaster.id');
 							} )
 						->where('PCE.status', 1)->where('PCE.entry_type','Dr')
-						->where('PCE.deleted_at', '0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 			if($job_id)
 				$query5->where('jobmaster.id', $job_id);
 			
@@ -2741,7 +2741,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PS.job_id','=','jobmaster.id');
 									} )
 								->where('PS.status', 1)
-								->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 			if($job_id)
 				$query6->where('jobmaster.id', $job_id);
 			
@@ -2765,7 +2765,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 							$join->on('V.id','=','SI.vehicle_id');
 						} )
 						->where('SI.is_rental', 2)		
-						->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+						->where('SI.status', 1)->whereNull('deleted_at');
 			if($job_id)
 				$qry1->where('jobmaster.id', $job_id);
 			
@@ -2789,7 +2789,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						->join('goods_return AS GR', function($join) {
 								$join->on('GR.job_id','=','jobmaster.id');
 							} )
-						->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+						->where('GR.status', 1)->whereNull('deleted_at');
 			if($job_id)
 				$qry2->where('jobmaster.id', $job_id);
 			
@@ -2804,7 +2804,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						->join('journal_entry AS JE', function($join) {
 								$join->on('JE.job_id','=','jobmaster.id');
 							} )
-						->where('JE.status', 1)->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+						->where('JE.status', 1)->where('JE.entry_type','Cr')->whereNull('deleted_at');
 			if($job_id)
 				$qry3->where('jobmaster.id', $job_id);
 			
@@ -2816,7 +2816,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						->join('receipt_voucher_entry AS RVE', function($join) {
 								$join->on('RVE.job_id','=','jobmaster.id');
 							} )
-						->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+						->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 			if($job_id)
 				$qry4->where('jobmaster.id', $job_id);
 						
@@ -2828,7 +2828,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						->join('petty_cash_entry AS PCE', function($join) {
 								$join->on('PCE.job_id','=','jobmaster.id');
 							} )
-						->where('PCE.status', 1)->where('PCE.entry_type','Cr')->where('PCE.deleted_at', '0000-00-00 00:00:00');
+						->where('PCE.status', 1)->where('PCE.entry_type','Cr')->whereNull('deleted_at');
 			if($job_id)
 				$qry5->where('jobmaster.id', $job_id);
 			
@@ -2840,7 +2840,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						->join('sales_split AS SS', function($join) {
 								$join->on('SS.job_id','=','jobmaster.id');
 							} )
-						->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
+						->where('SS.status', 1)->whereNull('deleted_at');
 			if($job_id)
 				$qry6->where('jobmaster.id', $job_id);
 			
@@ -2873,7 +2873,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					->join('sales_order AS JO', function($join) {
 							$join->on('JO.id','=','SI.document_id')->where('SI.document_type','=','SO');
 						} )
-					->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00')->where('SI.is_rental', 2);
+					->where('SI.status', 1)->whereNull('deleted_at')->where('SI.is_rental', 2);
 		
 		if($job_id)
 			$qry = $qry->where('jobmaster.id', $job_id);
@@ -2916,8 +2916,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry1->where('jobmaster.id', $job_id);
 				
@@ -2942,8 +2942,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry2->where('jobmaster.id', $job_id);
 				
@@ -2971,7 +2971,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 					->where('PVE.status', 1)
 					->where('PVE.entry_type','Dr')
-					->where('PVE.deleted_at', '0000-00-00 00:00:00');
+					->whereNull('deleted_at');
 		if($job_id)
 			$qry3->where('jobmaster.id', $job_id);
 		
@@ -2999,7 +2999,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 					->where('PVE.status', 1)
 					->where('PVE.entry_type','Dr')
-					->where('PVE.deleted_at', '0000-00-00 00:00:00');
+					->whereNull('deleted_at');
 		if($job_id)
 			$qry4->where('jobmaster.id', $job_id);
 		
@@ -3026,7 +3026,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						} )
 					->join('account_category', 'account_category.id', '=', 'AC.account_category_id')
 					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-					->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00');
+					->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at');
 					//->where('account_category.parent_id',4);
 		if($job_id)
 			$qry5->where('jobmaster.id', $job_id);
@@ -3055,8 +3055,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','PIM.item_id');
 								} )
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00')
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00');
+								->where('PI.status', 1)->whereNull('deleted_at')
+								->where('PIM.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry6->where('jobmaster.id', $job_id);
 					
@@ -3084,8 +3084,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','GIM.item_id');
 								} )
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00')
-								->where('GIM.status', 1)->where('GIM.deleted_at', '0000-00-00 00:00:00');
+								->where('GI.status', 1)->whereNull('deleted_at')
+								->where('GIM.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry7->where('jobmaster.id', $job_id);
 					
@@ -3121,8 +3121,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 					->leftjoin('sales_order AS JO', function($join) {
 							$join->on('JO.id','=','SI.document_id')->where('SI.document_type','=','SO');
 						} )
-					->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00')//
-					->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00');
+					->where('SI.status', 1)->whereNull('deleted_at')//
+					->where('SIM.status', 1)->whereNull('deleted_at');
 					
 		
 				
@@ -3163,8 +3163,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','GRM.item_id');
 								} )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00')
-								->where('GRM.status', 1)->where('GRM.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at')
+								->where('GRM.status', 1)->whereNull('deleted_at');
 			if($job_id)
 				$qry2->where('jobmaster.id', $job_id);
 			
@@ -3188,7 +3188,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')->whereNull('deleted_at');
 			if($job_id)
 				$qry3->where('jobmaster.id', $job_id);
 			
@@ -3211,7 +3211,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 			if($job_id)
 				$qry4->where('jobmaster.id', $job_id);
 			
@@ -3235,7 +3235,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
 					
@@ -3262,8 +3262,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry6->where('jobmaster.id', $job_id);
 				
@@ -3286,8 +3286,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry7->where('jobmaster.id', $job_id);
 				
@@ -3329,7 +3329,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('IM.id','=','PIM.item_id');
 									} )
 								->where('PI.status', 1)
-								->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 		if($job_id)
 			$query->where('jobmaster.id', $job_id);
 		
@@ -3354,7 +3354,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 							$join->on('IM.id','=','GRM.item_id');
 						} )
 					->where('GR.status', 1)
-					->where('GR.deleted_at', '0000-00-00 00:00:00');
+					->whereNull('deleted_at');
 		if($job_id)
 			$query2->where('jobmaster.id', $job_id);
 		
@@ -3397,7 +3397,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										} )
 									->where('IM.class_id',1)
 									->where('SI.status', 1)
-									->where('SI.deleted_at', '0000-00-00 00:00:00');
+									->whereNull('deleted_at');
 		if($job_id)
 			$query1->where('jobmaster.id', $job_id);
 		
@@ -3423,7 +3423,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 							$join->on('IM.id','=','GIM.item_id');
 						} )
 					->where('GI.status', 1)
-					->where('GI.deleted_at', '0000-00-00 00:00:00');
+					->whereNull('deleted_at');
 		if($job_id)
 			$query2->where('jobmaster.id', $job_id);
 		
@@ -3453,7 +3453,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 							$join->on('J.id','=','purchase_order.job_id');
 						})
 						->where('purchase_order.status',1)
-						->where('purchase_order.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 								
 						if( $date_from!='' && $date_to!='' ) { 
 							$query->whereBetween('purchase_order.voucher_date', array($date_from, $date_to));
@@ -3473,7 +3473,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 							$join->on('J.id','=','sales_order.job_id');
 						})
 						->where('sales_order.status',1)
-						->where('sales_order.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 								
 						if( $date_from!='' && $date_to!='' ) { 
 							$query2->whereBetween('sales_order.voucher_date', array($date_from, $date_to));
@@ -3519,8 +3519,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 						})
 						->where('purchase_order.status',1)
 						->where('POI.status',1)
-						->where('purchase_order.deleted_at','0000-00-00 00:00:00')
-						->where('POI.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at')
+						->whereNull('deleted_at');
 								
 						if( $date_from!='' && $date_to!='' ) { 
 							$query->whereBetween('purchase_order.voucher_date', array($date_from, $date_to));
@@ -3548,7 +3548,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 							$join->on('J.id','=','sales_order.job_id');
 						})
 						->where('sales_order.status',1)
-						->where('sales_order.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 								
 						if( $date_from!='' && $date_to!='' ) { 
 							$query2->whereBetween('sales_order.voucher_date', array($date_from, $date_to));
@@ -3596,7 +3596,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('IM.id','=','PIM.item_id');
 								} )
 								->whereNotIn('AC.account_category_id',$excludearr)
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->where('PI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -3623,7 +3623,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('IM.id','=','GIM.item_id');
 								} )
 								->whereNotIn('AC.account_category_id',$excludearr)
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->where('GI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -3647,7 +3647,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query3->where('jobmaster.id', $job_id);
 					
@@ -3671,7 +3671,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PVE.account_id');
 									} )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query4->where('jobmaster.id', $job_id);
 					
@@ -3695,7 +3695,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PVE.account_id');
 									} )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query5->where('jobmaster.id', $job_id);
 					
@@ -3720,7 +3720,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','PIN')->where('JE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query6->where('jobmaster.id', $job_id);
 					
@@ -3746,7 +3746,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','SIN')->where('JE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query7->where('jobmaster.id', $job_id);
 					
@@ -3770,8 +3770,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PS.supplier_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query8->where('jobmaster.id', $job_id);
 					
@@ -3796,8 +3796,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','SS.customer_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
+								->where('SIM.status', 1)->whereNull('deleted_at')
+								->where('SS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query9->where('jobmaster.id', $job_id);
 					
@@ -3833,7 +3833,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->leftjoin('vehicle AS V', function($join) {
         							$join->on('V.id','=','SI.vehicle_id');
         						} )
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -3861,7 +3861,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','GRM.item_id');
 								} )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -3886,7 +3886,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -3913,7 +3913,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
 								->where('RVE.status', 1)->where('RVE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 					
@@ -3937,7 +3937,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
 								->where('RVE.status', 1)->where('RVE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
 					
@@ -3965,7 +3965,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','PIN')->where('JE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry6->where('jobmaster.id', $job_id);
 					
@@ -3990,7 +3990,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','SIN')->where('JE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry7->where('jobmaster.id', $job_id);
 					
@@ -4014,8 +4014,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','SS.customer_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
+								->where('SIM.status', 1)->whereNull('deleted_at')
+								->where('SS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry8->where('jobmaster.id', $job_id);
 					
@@ -4040,8 +4040,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 									$join->on('AC.id','=','PS.supplier_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry9->where('jobmaster.id', $job_id);
 					
@@ -4083,8 +4083,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry1->where('jobmaster.id', $job_id);
 				
@@ -4110,8 +4110,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry2->where('jobmaster.id', $job_id);
 				
@@ -4140,7 +4140,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 					->where('PVE.status', 1)
 					->where('PVE.entry_type','Dr')
-					->where('PVE.deleted_at', '0000-00-00 00:00:00');
+					->whereNull('deleted_at');
 		if($job_id)
 			$qry3->where('jobmaster.id', $job_id);
 		
@@ -4168,7 +4168,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 					->where('PVE.status', 1)
 					->where('PVE.entry_type','Dr')
-					->where('PVE.deleted_at', '0000-00-00 00:00:00');
+					->whereNull('deleted_at');
 		if($job_id)
 			$qry4->where('jobmaster.id', $job_id);
 		
@@ -4195,7 +4195,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						} )
 					->join('account_category', 'account_category.id', '=', 'AC.account_category_id')
 					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-					->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00');
+					->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at');
 					//->where('account_category.parent_id',4);
 		if($job_id)
 			$qry5->where('jobmaster.id', $job_id);
@@ -4224,8 +4224,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','PIM.item_id');
 								} )
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00')
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00');
+								->where('PI.status', 1)->whereNull('deleted_at')
+								->where('PIM.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry6->where('jobmaster.id', $job_id);
 					
@@ -4254,8 +4254,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','GIM.item_id');
 								} )
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00')
-								->where('GIM.status', 1)->where('GIM.deleted_at', '0000-00-00 00:00:00');
+								->where('GI.status', 1)->whereNull('deleted_at')
+								->where('GIM.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry7->where('jobmaster.id', $job_id);
 					
@@ -4292,8 +4292,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 					->leftjoin('sales_order AS JO', function($join) {
 							$join->on('JO.id','=','SI.document_id')->where('SI.document_type','=','SO');
 						} )
-					->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00')//
-					->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00');
+					->where('SI.status', 1)->whereNull('deleted_at')//
+					->where('SIM.status', 1)->whereNull('deleted_at');
 				
 		if($job_id)
 			$qry = $qry->where('jobmaster.id', $job_id);
@@ -4333,8 +4333,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','GRM.item_id');
 								} )
-								->where('GRM.status', 1)->where('GRM.deleted_at', '0000-00-00 00:00:00')
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GRM.status', 1)->whereNull('deleted_at')
+								->where('GR.status', 1)->whereNull('deleted_at');
 			if($job_id)
 				$qry2->where('jobmaster.id', $job_id);
 			
@@ -4358,7 +4358,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')->whereNull('deleted_at');
 			if($job_id)
 				$qry3->where('jobmaster.id', $job_id);
 			
@@ -4381,7 +4381,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 			if($job_id)
 				$qry4->where('jobmaster.id', $job_id);
 			
@@ -4405,7 +4405,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
 					
@@ -4436,8 +4436,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 							       $join->on('V.id','=','PS.vehicle_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry6->where('jobmaster.id', $job_id);
 				
@@ -4462,8 +4462,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 							} )
 							
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry6->where('jobmaster.id', $job_id);
 				
@@ -4485,4 +4485,6 @@ if(!empty( array_filter($attributes['account_id']))) {
 	}
 	
 }
+
+
 

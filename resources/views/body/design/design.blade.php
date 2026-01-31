@@ -41,7 +41,7 @@ require_once $path;
 		
 		// Load and design report
 		var report = new Stimulsoft.Report.StiReport();
-		report.loadFile("reports/{{$view}}");
+		report.loadFile("stimulsoftV2/reports/{{$view}}");
 		designer.report = report;
 		
 		function onLoad() {

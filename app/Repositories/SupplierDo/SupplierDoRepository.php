@@ -271,8 +271,8 @@ class SupplierDoRepository extends AbstractValidator implements SupplierDoInterf
 			$ids = explode(',', $attributes['document_id']);
 			foreach($ids as $id) {
 				DB::table('purchase_order')->where('id', $id)->update(['is_editable' => 1]);
-				$count1 = DB::table('purchase_order_item')->where('purchase_order_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
-				$count2 = DB::table('purchase_order_item')->where('purchase_order_id',$id)->where('is_transfer',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+				$count1 = DB::table('purchase_order_item')->where('purchase_order_id',$id)->where('status',1)->whereNull('deleted_at')->count();
+				$count2 = DB::table('purchase_order_item')->where('purchase_order_id',$id)->where('is_transfer',1)->where('status',1)->whereNull('deleted_at')->count();
 				if($count1 == $count2)
 					DB::table('purchase_order')->where('id', $id)->update(['is_transfer' => 1]);
 			} 
@@ -280,8 +280,8 @@ class SupplierDoRepository extends AbstractValidator implements SupplierDoInterf
 			$ids = explode(',', $attributes['document_id']);
 			foreach($ids as $id) {
 				//DB::table('material_requisition')->where('id', $id)->update(['is_editable' => 1]);
-				$count1 = DB::table('material_requisition_item')->where('material_requisition_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
-				$count2 = DB::table('material_requisition_item')->where('material_requisition_id',$id)->where('is_transfer',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+				$count1 = DB::table('material_requisition_item')->where('material_requisition_id',$id)->where('status',1)->whereNull('deleted_at')->count();
+				$count2 = DB::table('material_requisition_item')->where('material_requisition_id',$id)->where('is_transfer',1)->where('status',1)->whereNull('deleted_at')->count();
 				if($count1 == $count2)
 					DB::table('material_requisition')->where('id', $id)->update(['is_transfer' => 1]);
 			} 
@@ -532,7 +532,7 @@ public function getReportExcel($attributes)
 									   $join->on('IM.id','=','SI.item_id');
 								   })
 								   ->where('SI.status',1)
-								   ->where('SI.deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->where('supplier_do.status',1);
 							
 							if($date_from !='' && $date_to != '')	   
@@ -666,7 +666,7 @@ public function getReportExcel($attributes)
 				$dept = isset($attributes['department_id'])?$attributes['department_id']:0;
 
 				 // 2️⃣ Get the highest numeric part from voucher_master
-				$qry = DB::table('supplier_do')->where('deleted_at', '0000-00-00 00:00:00')->where('status', 1);
+				$qry = DB::table('supplier_do')->whereNull('deleted_at')->where('status', 1);
 				if($dept > 0)	
 					$qry->where('department_id', $dept);
 
@@ -697,7 +697,7 @@ public function getReportExcel($attributes)
 							$dept = isset($attributes['department_id'])?$attributes['department_id']:0;
 
 							// 2️⃣ Get the highest numeric part from voucher_master
-							$qry = DB::table('supplier_do')->where('deleted_at', '0000-00-00 00:00:00')->where('status', 1);
+							$qry = DB::table('supplier_do')->whereNull('deleted_at')->where('status', 1);
 							if($dept > 0)	
 								$qry->where('department_id', $dept);
 
@@ -782,7 +782,7 @@ public function getReportExcel($attributes)
 								
 								$qtys = DB::table('item_location')->where('status',1)->where('location_id', $locid[$key][$lk])
 															  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-													          ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+													          ->whereNull('deleted_at')->select('id')->first();
 								if($qtys) {
 									DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$lcqty) ]);
 								} else {
@@ -815,7 +815,7 @@ public function getReportExcel($attributes)
 							
 						$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
 														  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-														  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+														  ->whereNull('deleted_at')->select('id')->first();
 														  
 						$lcqty = $attributes['quantity'][$key];
                 		if($attributes['packing'][$key]=="1") 
@@ -1189,7 +1189,7 @@ public function getReportExcel($attributes)
 									$edit = DB::table('item_location_pi')->where('id', $attributes['editid'][$key][$lk])->where('is_sdo',1)->first();
 									$idloc = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
 																  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																  ->whereNull('deleted_at')->select('id')->first();
 																 
 									if($edit) {
 										
@@ -1220,7 +1220,7 @@ public function getReportExcel($attributes)
 
 									}
 									
-									DB::table('item_location_pi')->where('id', $attributes['editid'][$key][$lk])->update(['quantity' => $lcqty,'status' => 1, 'deleted_at' => '0000-00-00 00:00:00','qty_entry' => $lq]);
+									DB::table('item_location_pi')->where('id', $attributes['editid'][$key][$lk])->update(['quantity' => $lcqty,'status' => 1, 'deleted_at' => null,'qty_entry' => $lq]);
 
 								} else { //NOV24
 									DB::table('item_location_pi')->where('id', $attributes['editid'][$key][$lk])->update(['quantity' => $lcqty,'status' => 0, 'deleted_at' => date('Y-m-d h:i:s'), 'qty_entry' => $lq]);
@@ -1235,7 +1235,7 @@ public function getReportExcel($attributes)
 								
 								$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['location_id'])
 																  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('*')->first();
+																  ->whereNull('deleted_at')->select('*')->first();
 																  
 								//$lcqty =  $attributes['quantity'][$key] * $attributes['packing'][$key];
 								
@@ -1412,7 +1412,7 @@ public function getReportExcel($attributes)
                             		
 									$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
 																  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																  ->whereNull('deleted_at')->select('id')->first();
 									if($qtys) {
 										DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$lcqty) ]);
 									} else {
@@ -1445,7 +1445,7 @@ public function getReportExcel($attributes)
 								
 							$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
 															  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-															  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+															  ->whereNull('deleted_at')->select('id')->first();
 															  
 							//$lcqty =  $attributes['quantity'][$key] * $attributes['packing'][$key];
 							
@@ -1839,7 +1839,7 @@ public function getReportExcel($attributes)
 					  })
 					->where('poi.status',1)
 					->whereIn('poi.is_transfer',[0,2])
-					->where('poi.deleted_at', '0000-00-00 00:00:00')
+					->whereNull('deleted_at')
 					->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty','iu.packing','iu.pkno')
 					->orderBY('poi.id')->groupBy('poi.id')
 					->get();
@@ -1884,7 +1884,7 @@ public function getReportExcel($attributes)
 						  $join->on('ci.id','=','poi.doc_row_id');
 					  })
 					  ->where('poi.status',1)
-					  ->where('poi.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty','iu.packing','ci.balance_quantity as po_balance_quantity','iu.pkno')
 					  ->orderBY('poi.id')
 					  ->groupBY('poi.id')
@@ -2004,7 +2004,7 @@ public function getReportExcel($attributes)
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->select('cur_quantity','pur_cost')
 										->get();
 										
@@ -2063,7 +2063,7 @@ public function getReportExcel($attributes)
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->where(function ($query) use($pid) {
 											$query->where('document_id','!=',$pid)
 												  ->orWhere('document_type','!=','SDO');
@@ -2140,7 +2140,7 @@ public function getReportExcel($attributes)
 					  })
 					  ->where('poi.status',1)
 					  ->whereIn('poi.is_transfer',[0,2])
-					  ->where('poi.deleted_at', '0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
 					  ->orderBY('poi.id')
 					  ->get();
@@ -2163,3 +2163,4 @@ public function getReportExcel($attributes)
 	}
 	
 }
+

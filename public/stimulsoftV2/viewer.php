@@ -1,5 +1,5 @@
 <?php
-require_once 'stimulsoftV2/helper.php';
+require_once 'stimulsoft/helper.php';
 ?>
 
 <!DOCTYPE html>

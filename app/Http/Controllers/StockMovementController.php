@@ -27,15 +27,15 @@ class StockMovementController extends Controller
 	public function index() 
 	{
 		$data = array();
-		$category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$category = DB::table('category')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
+		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
 		
 		return view('body.stockmovement.index')
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withCategory($category)
 					->withSubcategory($subcategory)
 					->withGroup($group)
@@ -57,20 +57,20 @@ class StockMovementController extends Controller
 	{
 		$data = array();
 		
-		if(Input::get('search_type')=='Movement_Summary') {
+		if($request->get('search_type')=='Movement_Summary') {
 			$voucher_head = 'Stock Movement Report';
-		$res=	$this->itemmaster->getStockMovementSummaryReport(Input::all());
-			$results = $this->doSummary( $this->itemmaster->getStockMovementSummaryReport(Input::all()) ); 
+		$res=	$this->itemmaster->getStockMovementSummaryReport($request->all());
+			$results = $this->doSummary( $this->itemmaster->getStockMovementSummaryReport($request->all()) ); 
 			$titles = ['main_head' => 'Stock Movement Report','subhead' => 'Stock Movement Report'];
 			
-		} else if(Input::get('search_type')=='Movement') {
+		} else if($request->get('search_type')=='Movement') {
 			$voucher_head = 'Stock Movement Report';
-			$results = $this->itemmaster->getStockMovementReport(Input::all()); 
+			$results = $this->itemmaster->getStockMovementReport($request->all()); 
 			$titles = ['main_head' => 'Stock Movement Report','subhead' => 'Stock Movement Report'];
 			
-		} else if(Input::get('search_type')=='nonMovement') {
+		} else if($request->get('search_type')=='nonMovement') {
 			$voucher_head = 'Stock Movement Report';
-			$results = $this->itemmaster->getStocknonMovementReport(Input::all()); 
+			$results = $this->itemmaster->getStocknonMovementReport($request->all()); 
 			$titles = ['main_head' => 'Stock Non Movement Report','subhead' => 'Stock Non Movement Report'];
 		}
 		
@@ -78,13 +78,13 @@ class StockMovementController extends Controller
 		
 		return view('body.stockmovement.print')
 					->withResults($results)
-					->withType(Input::get('search_type'))
+					->withType($request->get('search_type'))
 					->withVoucherhead($voucher_head)
 					->withTitles($titles)
 					->withUrl('stock_ledger')
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withDocid(Input::get('document_id'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withDocid($request->get('document_id'))
 					->withData($data);
 	}
 	public function dataExport()
@@ -93,13 +93,13 @@ class StockMovementController extends Controller
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		$voucher_head = 'Stock Movement  Report';
-		Input::merge(['type' => 'export']);
-	//	$reports = $this->purchase_invoice->getReportExcel(Input::all());
+		$request->merge(['type' => 'export']);
+	//	$reports = $this->purchase_invoice->getReportExcel($request->all());
 		
-	if(Input::get('search_type')=='Movement_Summary') 
+	if($request->get('search_type')=='Movement_Summary') 
 		{
 			$voucher_head = 'Stock Movement Summary Report';
-			$reports = $this->doSummary( $this->itemmaster->getStockMovementSummaryReport(Input::all()) ); 
+			$reports = $this->doSummary( $this->itemmaster->getStockMovementSummaryReport($request->all()) ); 
 			//echo '<pre>';print_r($results);exit;
 				$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
 		     $datareport[] = ['','','','','','',''];
@@ -123,9 +123,9 @@ class StockMovementController extends Controller
 									];
 			}
 		}
-		elseif(Input::get('search_type')=="detail") {
+		elseif($request->get('search_type')=="detail") {
 		
-			$reports = $this->purchase_invoice->getReportExcel(Input::all());
+			$reports = $this->purchase_invoice->getReportExcel($request->all());
 				$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
 		     $datareport[] = ['','','','','','',''];
 		
@@ -168,7 +168,7 @@ class StockMovementController extends Controller
 	{
 		$data = array();
 		$voucher_head = 'Stock Transaction Report';
-		$results = $this->itemmaster->getStockMovementSummaryReport(Input::all()); 
+		$results = $this->itemmaster->getStockMovementSummaryReport($request->all()); 
 		$titles = ['main_head' => 'Stock Transaction Report','subhead' => 'Stock Transaction Report'];
 			
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
@@ -258,3 +258,5 @@ class StockMovementController extends Controller
 		return $results;
 	}
 }
+
+

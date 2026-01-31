@@ -26,7 +26,7 @@ class MsWorkenquiryController extends Controller
 	
 	private function getOrderCount($etype=null)
 	{
-		$qry = DB::table('ms_workenquiry')->where('ms_workenquiry.deleted_at','0000-00-00 00:00:00')
+		$qry = DB::table('ms_workenquiry')->whereNull('deleted_at')
 								->join('ms_customer', 'ms_customer.id', '=', 'ms_workenquiry.customer_id')
 								->leftJoin('ms_location', 'ms_location.id', '=', 'ms_workenquiry.location_id')
 								->join('ms_worktype', 'ms_worktype.id', '=', 'ms_workenquiry.type_id');
@@ -54,7 +54,7 @@ class MsWorkenquiryController extends Controller
 			
 		}
 				
-		$qry->where('ms_workenquiry.deleted_at','0000-00-00 00:00:00');
+		$qry->whereNull('deleted_at');
 		$qry->select('ms_workenquiry.id','ms_workenquiry.enq_no','ms_workenquiry.enquiry_datetime',
 					'ms_workenquiry.status','ms_customer.name AS customer','ms_workenquiry.location',
 					'ms_worktype.name AS wo_type')
@@ -140,8 +140,8 @@ class MsWorkenquiryController extends Controller
 	
 	public function add() {
 
-		$location = DB::table('ms_location')->where('deleted_at','0000-00-00 00:00:00')->get();
-		$wotype = DB::table('ms_worktype')->where('deleted_at','0000-00-00 00:00:00')->get();
+		$location = DB::table('ms_location')->whereNull('deleted_at')->get();
+		$wotype = DB::table('ms_worktype')->whereNull('deleted_at')->get();
 		
 		$dat = DB::table('ms_workenquiry')->select('id')->orderBy('id','DESC')->first();
 		$enqno = ($dat)?100+$dat->id+1:100+1;
@@ -154,17 +154,17 @@ class MsWorkenquiryController extends Controller
 				->withWotype($wotype);
 	}
 	
-	public function save() { //echo '<pre>';print_r(Input::all());exit;
+	public function save() { //echo '<pre>';print_r($request->all());exit;
 		try {
 			$id = DB::table('ms_workenquiry')
 					->insertGetId([
-						'enquiry_datetime' => date('Y-m-d H:i', strtotime(Input::get('creation_datetime'))),
-						'location' => Input::get('location'),
-						'customer_id' => Input::get('customer_id'),
-						'description' => Input::get('description'),
-						'type_id' => Input::get('wo_type'),
-						//'status' => Input::get('status'),
-						'remarks' => Input::get('remarks'),
+						'enquiry_datetime' => date('Y-m-d H:i', strtotime($request->get('creation_datetime'))),
+						'location' => $request->get('location'),
+						'customer_id' => $request->get('customer_id'),
+						'description' => $request->get('description'),
+						'type_id' => $request->get('wo_type'),
+						//'status' => $request->get('status'),
+						'remarks' => $request->get('remarks'),
 						'created_at' => date('Y-m-d h:i:s')
 					]);
 				
@@ -190,8 +190,8 @@ class MsWorkenquiryController extends Controller
 						->select('ms_workenquiry.*','ms_customer.name AS customer','ms_worktype.name AS wotype')
 						->first();
 						
-		//$location = DB::table('ms_location')->where('deleted_at','0000-00-00 00:00:00')->get();
-		$wotype = DB::table('ms_worktype')->where('deleted_at','0000-00-00 00:00:00')->get();
+		//$location = DB::table('ms_location')->whereNull('deleted_at')->get();
+		$wotype = DB::table('ms_worktype')->whereNull('deleted_at')->get();
 		
 		return view('body.msworkenquiry.edit')
 					->withWorow($worow)
@@ -201,17 +201,17 @@ class MsWorkenquiryController extends Controller
 	}
 	
 	public function update($id)
-	{	//echo '<pre>';print_r(Input::all());exit;
+	{	//echo '<pre>';print_r($request->all());exit;
 			DB::table('ms_workenquiry')
 					->where('id', $id)
 					->update([
-						'enquiry_datetime' => date('Y-m-d H:i', strtotime(Input::get('creation_datetime'))),
-						'location' => Input::get('location'),
-						'customer_id' => Input::get('customer_id'),
-						'description' => Input::get('description'),
-						'type_id' => Input::get('wo_type'),
-						'status' => Input::get('status'),
-						'remarks' => Input::get('remarks'),
+						'enquiry_datetime' => date('Y-m-d H:i', strtotime($request->get('creation_datetime'))),
+						'location' => $request->get('location'),
+						'customer_id' => $request->get('customer_id'),
+						'description' => $request->get('description'),
+						'type_id' => $request->get('wo_type'),
+						'status' => $request->get('status'),
+						'remarks' => $request->get('remarks'),
 						'modified_at' => date('Y-m-d h:i:s')
 					]);
 			
@@ -313,4 +313,6 @@ class MsWorkenquiryController extends Controller
 	}
 	
 }
+
+
 

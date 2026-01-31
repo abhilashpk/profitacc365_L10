@@ -259,6 +259,7 @@
 								<?php } ?>
 								
 																
+								<?php if(!isset($formdata['export']) || $formdata['export']==1) { ?>
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-2 control-label"> Export</label>
 									<div class="col-xs-10">
@@ -269,6 +270,9 @@
 										</div>
 									</div>
                                 </div>
+								<?php } else { ?>
+									<input type="hidden" name="is_export" id="export" value="0">
+								<?php } ?>
 								
 								<br/>
 								<fieldset>
@@ -379,13 +383,21 @@
 											</tr>
 										</table>
 										
+											<?php if(!isset($formdata['more_info']) || $formdata['more_info']==1) { ?>
 											<div id="moreinfo" style="float:left; padding-right:5px;">
 												<button type="button" id="moreinfoItm_{{$j}}" class="btn btn-primary btn-xs more-info">More Info</button>
 											</div>
+											<?php } else { ?>
+								<input type="hidden" name="more_info" id="more_info">
+								<?php } ?>
 											
+											<?php if($formdata['item_location']==1) { ?>
 											<div id="loc">
 												<button type="button" id="loc_{{$j}}" class="btn btn-primary btn-xs loc-info">Location</button>
 											</div>
+											<?php } else { ?>
+								<input type="hidden" name="item_location" id="item_location">
+								<?php } ?>
 											
 											@if($isconloc)
 											<div id="cnloc" style="float:left; padding-right:5px;">
@@ -621,14 +633,22 @@
 											</tr>
 										</table>
 										
+											<?php if(!isset($formdata['more_info']) || $formdata['more_info']==1) { ?>
 											<div id="moreinfo" style="float:left; padding-right:5px;">
 												<button type="button" id="moreinfoItm_{{$i}}" class="btn btn-primary btn-xs more-info">More Info</button>
 											</div>
+											<?php } else { ?>
+								<input type="hidden" name="more_info" id="more_info">
+								<?php } ?>
 											
+											<?php if($formdata['item_location']==1) { ?>
 											<div id="loc" style="float:left; padding-right:5px;">
 												<button type="button" id="loc_{{$i}}" class="btn btn-primary btn-xs loc-info">Location</button>
 												<div class="form-group"><input type="text" name="iloc[]" id="iloc_{{$i}}" style="border:none;color:#FFF;"></div><!--NOV24-->
 											</div>
+											<?php } else { ?>
+								<input type="hidden" name="item_location" id="item_location">
+								<?php } ?>
 											
 											<?php if($formdata['dimension']==1) { ?>
 								              <div style="float:left; id="itmInfo">

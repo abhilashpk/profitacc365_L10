@@ -279,7 +279,7 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 									$updated = true;
 									$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
 																  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																  ->whereNull('deleted_at')->select('id')->first();
 									if($qtys)
 										DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$lq) ]);
 									
@@ -302,7 +302,7 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 								
 							$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
 															  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
-															  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+															  ->whereNull('deleted_at')->select('id')->first();
 							if($qtys)
 								DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$attributes['quantity'][$key]) ]);
 								
@@ -435,7 +435,7 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 									$edit = DB::table('item_location_pi')->where('id', $attributes['editid'][$key][$lk])->first();
 									$idloc = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
 																  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																  ->whereNull('deleted_at')->select('id')->first();
 									if($edit) {
 										if($edit->quantity < $lq) {
 											$balqty = $lq - $edit->quantity;
@@ -456,7 +456,7 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 						if(isset($attributes['default_location']) && ($attributes['default_location'] > 0) && ($updated == false)) {
 							$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
 															  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
-															  ->where('deleted_at', '0000-00-00 00:00:00')->select('*')->first();
+															  ->whereNull('deleted_at')->select('*')->first();
 							if($qtys) {
 								DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$attributes['quantity'][$key]) ]);
 								DB::table('item_location_pi')->where('invoice_id', $attributes['order_item_id'][$key] )
@@ -539,7 +539,7 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 										$updated = true;
 										$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
 																	  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
-																	  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																	  ->whereNull('deleted_at')->select('id')->first();
 										if($qtys)
 											DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$lq) ]);
 										
@@ -562,7 +562,7 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 									
 								$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
 																  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																  ->whereNull('deleted_at')->select('id')->first();
 								if($qtys)
 									DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$attributes['quantity'][$key]) ]);
 									
@@ -946,7 +946,7 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 									   $join->on('U.id','=','STI.unit_id');
 								   })
 								   ->where('STI.status', 1)
-								   ->where('STI.deleted_at', '0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->select('STI.*','IM.item_code','U.unit_name')//'sales_invoice.id',
 								   ->get();
 								   
@@ -978,7 +978,7 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 									   $join->on('U.id','=','STI.unit_id');
 								   })
 								   ->where('STI.status', 1)
-								   ->where('STI.deleted_at', '0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->select('STI.*','IM.item_code','U.unit_name')//'sales_invoice.id',
 								   ->get();
 								   
@@ -991,7 +991,7 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->select('cur_quantity','pur_cost')
 										->get();
 										
@@ -1084,7 +1084,7 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->where(function ($query) use($pid) {
 											$query->where('document_id','!=',$pid)
 												  ->orWhere('document_type','!=','TI');
@@ -1144,3 +1144,5 @@ class StockTransferinRepository extends AbstractValidator implements StockTransf
 	}
 	
 }
+
+

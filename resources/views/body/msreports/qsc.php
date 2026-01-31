@@ -246,7 +246,7 @@ class QuotationSalesController extends Controller
 		$res = $this->voucherno->getVoucherNo('QS');
 		//$vno = $res->no;//echo '<pre>';print_r($currency);exit;
 		$location = $this->location->locationList();
-		$row = DB::table('quotation_sales')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$row = DB::table('quotation_sales')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		if($row && in_array($row->doc_status, $apr))
 			$lastid = $row->id;
@@ -260,7 +260,7 @@ class QuotationSalesController extends Controller
 							->select('report_view_detail.id')
 							->first();
 		
-		$fcontent = DB::table('header_footer')->where('doc','QS')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('description')->first();
+		$fcontent = DB::table('header_footer')->where('doc','QS')->where('status',1)->whereNull('deleted_at')->select('description')->first();
 							
 		if($id) {
 			$ids = explode(',', $id);
@@ -318,7 +318,7 @@ class QuotationSalesController extends Controller
 					->withData($data);
 	}
 	
-	public function save(Request $request) { //echo '<pre>';print_r( Input::all() );exit;
+	public function save(Request $request) { //echo '<pre>';print_r( $request->all() );exit;
 		
 		/* $this->validate($request, [
         'reference_no' => 'required', 'voucher_date' => 'required','item_code.*' => 'required'
@@ -344,7 +344,7 @@ class QuotationSalesController extends Controller
 			return redirect('quotation_sales/add')->withInput()->withErrors();
 		}
 		
-		$id = $this->quotation_sales->create(Input::all());
+		$id = $this->quotation_sales->create($request->all());
 		if($id) {
 			Session::flash('message', 'Quotation added successfully.'); 
 			return redirect('quotation_sales/add');
@@ -366,7 +366,7 @@ public function destroy($id)
 	
 	public function checkRefNo() {
 
-		$check = $this->quotation_sales->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$check = $this->quotation_sales->check_reference_no($request->get('reference_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -411,7 +411,7 @@ public function destroy($id)
 							->first();
 		
 		//DEC22
-		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();
+		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();
 		//echo '<pre>';print_r($infoedit);exit;	
 		return view('body.quotationsales.edit')
 					->withItems($itemmaster)
@@ -434,7 +434,7 @@ public function destroy($id)
 	
 	public function update(Request $request)
 	{	
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		$id = $request->input('quotation_order_id');
 		if( $this->validate(
 			$request, 
@@ -457,11 +457,11 @@ public function destroy($id)
 			return redirect('quotation_sales/edit/'.$id)->withInput()->withErrors();
 		}
 		
-		$this->quotation_sales->update($id, Input::all()); 
-		//echo '<pre>';print_r(Input::all());exit;
+		$this->quotation_sales->update($id, $request->all()); 
+		//echo '<pre>';print_r($request->all());exit;
 		
 		########## email script #############
-		if($this->acsettings->doc_approve==1 && Input::get('doc_status')==1 && Input::get('chkmail')==1) {
+		if($this->acsettings->doc_approve==1 && $request->get('doc_status')==1 && $request->get('chkmail')==1) {
 					
 			$attributes['document_id'] = $id;
 			$attributes['is_fc'] = '';//($fc)?1:'';
@@ -473,12 +473,12 @@ public function destroy($id)
 			$pdf = PDF::loadView('body.quotationsales.pdfprint', $data); //echo $pdf->output(); exit;
 			//echo $pdfview = $this->getPrint($id,null,'PDF');exit;
 			
-			//$cust = DB::table('account_master')->where('id', Input::get('customer_id'))->select('master_name','email','contact_name')->first();
-			$mailmessage = Input::get('email_message');
-			$emails = explode(',', Input::get('email'));
+			//$cust = DB::table('account_master')->where('id', $request->get('customer_id'))->select('master_name','email','contact_name')->first();
+			$mailmessage = $request->get('email_message');
+			$emails = explode(',', $request->get('email'));
 			
 			if($emails[0]!='') {
-				$data = array('name'=> Input::get('customer_name'), 'mailmessage' => $mailmessage );
+				$data = array('name'=> $request->get('customer_name'), 'mailmessage' => $mailmessage );
 				try{
 					Mail::send('body.quotationsales.email', $data, function($message) use ($emails,$pdf) {
 						$message->to($emails[0]);
@@ -747,14 +747,14 @@ public function destroy($id)
 	{
 		$data = array();
 		
-		$reports = $this->quotation_sales->getPendingReport(Input::all());
+		$reports = $this->quotation_sales->getPendingReport($request->all());
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Quotation Sales Summary';
-		elseif(Input::get('search_type')=="summary_pending") {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Quotation Sales Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif(Input::get('search_type')=="detail") {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Quotation Sales Detail';
 			$reports = $this->makeTree($reports);
 		} else {
@@ -766,12 +766,12 @@ public function destroy($id)
 		return view('body.quotationsales.preprint')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withSalesman(Input::get('salesman'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withSalesman($request->get('salesman'))
 					->withSettings($this->acsettings)
-					->withJobids(json_encode(Input::get('job_id')))
+					->withJobids(json_encode($request->get('job_id')))
 					->withData($data);
 	}
 	
@@ -782,16 +782,16 @@ public function destroy($id)
 		$datareport[] = ['','','','',strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		Input::merge(['type' => 'export']);
-		Input::merge(['job_id' => json_decode(Input::get('job_id'))]);
-		$reports = $this->quotation_sales->getPendingReport(Input::all());
+		$request->merge(['type' => 'export']);
+		$request->merge(['job_id' => json_decode($request->get('job_id'))]);
+		$reports = $this->quotation_sales->getPendingReport($request->all());
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Quotation Sales Summary';
-		elseif(Input::get('search_type')=="summary_pending") {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Quotation Sales Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif(Input::get('search_type')=="detail") {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Quotation Sales Detail';
 		} else {
 			$voucher_head = 'Quotation Sales Pending Detail';
@@ -802,7 +802,7 @@ public function destroy($id)
 		$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		if(Input::get('search_type')=='detail' || Input::get('search_type')=='detail_pending') {
+		if($request->get('search_type')=='detail' || $request->get('search_type')=='detail_pending') {
 			
 			$datareport[] = ['SI.No.','Qtn.#', 'Qtn.Ref#', 'Job No.', 'Customer','Salesman','Item Code','Description','Qtn.Qty','Rate','Total Amt.'];
 			$i=0;
@@ -869,7 +869,7 @@ public function destroy($id)
 	
 	public function checkVchrNo() {
 
-		$check = $this->quotation_sales->check_voucher_no(Input::get('voucher_no'), Input::get('id'));
+		$check = $this->quotation_sales->check_voucher_no($request->get('voucher_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -917,7 +917,7 @@ public function destroy($id)
 							->first();
 		
 		//DEC22
-		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();
+		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();
 		//echo '<pre>';print_r($infoedit);exit;	
 		return view('body.quotationsales.revice-eqwep')
 					->withItems($itemmaster)
@@ -1046,3 +1046,5 @@ public function destroy($id)
 	}
 	
 }
+
+

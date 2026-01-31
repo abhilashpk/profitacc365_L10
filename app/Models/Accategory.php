@@ -28,7 +28,7 @@ class Accategory extends Model {
 	public function groups()
 	{
 		return $this->hasMany('App\Models\Acgroup', 'category_id', 'id')
-                //->where('deleted_at', '0000-00-00 00:00:00')
+                //->whereNull('deleted_at')
                 ->where('status', 1);
 	}
 
@@ -37,8 +37,10 @@ class Accategory extends Model {
 	{
 		return $this->hasMany(Accategory::class, 'parent_id', 'id')
 					->where('status', 1);
-					//->where('deleted_at', '0000-00-00 00:00:00');
+					//->whereNull('deleted_at');
 	}
 
 
 }
+
+

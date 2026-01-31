@@ -27,7 +27,7 @@ class PurchaseRentalController extends Controller
 	public function index() {
 		$supplier = DB::table('account_master')
 			->where('category','SUPPLIER')
-			->where('deleted_at','0000-00-00 00:00:00')
+			->whereNull('deleted_at')
 			->where('status',1)
 			->select('id','master_name')->get();
 		//echo '<pre>';print_r($supplier);exit;
@@ -133,7 +133,7 @@ class PurchaseRentalController extends Controller
 								
 		$lastid = DB::table('purchase_rental')->where('status',1)->where('deleted_at',null)->orderBy('id','DESC')->select('id')->first();
 		
-		$units = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$units = DB::table('units')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.purchaserental.add')->withUnits($units)->withVouchers($vouchers)->withPrint($print)->withPrintid($lastid);
 					
 	}
@@ -154,7 +154,7 @@ class PurchaseRentalController extends Controller
 		$row = $this->purchase_invoice->findPRdata($id);
 		$items = $this->purchase_invoice->getItems($id); 
 		//echo '<pre>';print_r($items);exit;					
-		$units = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$units = DB::table('units')->where('status',1)->whereNull('deleted_at')->get();
 		
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
@@ -364,3 +364,5 @@ class PurchaseRentalController extends Controller
 	
 //SELECT purchase_rental.voucher_no,purchase_rental.voucher_date,purchase_rental.total,purchase_rental.discount,purchase_rental.vat_amount,purchase_rental.net_amount,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,purchase_rental_item.service_date,purchase_rental_item.quantity,purchase_rental_item.rate,purchase_rental_item.vat,purchase_rental_item.vat_amount AS line_vat,purchase_rental_item.line_total,purchase_rental_item.extra_hr,purchase_rental_item.extra_rate,itemmaster.description,units.unit_name,purchase_rental_item.id AS sii_id,rental_driver.driver_name FROM purchase_rental JOIN account_master ON(account_master.id=purchase_rental.supplier_id) JOIN purchase_rental_item ON(purchase_rental_item.purchase_rental_id=purchase_rental.id) JOIN itemmaster ON(itemmaster.id=purchase_rental_item.item_id) JOIN units ON(units.id=purchase_rental_item.unit_id) LEFT JOIN rental_driver ON(rental_driver.id=purchase_rental_item.driver_id) WHERE purchase_rental_item.deleted_at IS NULL AND purchase_rental.id=2 ORDER BY purchase_rental_item.id ASC
 	
+
+

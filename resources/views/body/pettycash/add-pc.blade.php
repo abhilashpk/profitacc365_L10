@@ -88,13 +88,13 @@
                            
 						   <div class="pull-right">
 							<?php if($printid) { ?>
-								@permission('pc-print')
+								@can('pc-print')
 								 <a href="{{ url('pettycash/print/'.$printid->id.'/'.$prints[0]->id) }}" target="_blank" class="btn btn-info btn-sm">
 									<span class="btn-label">
 										<i class="fa fa-fw fa-print"></i>
 									</span>
 								 </a>
-								@endpermission
+								@endcan
 							<?php } ?>
 							</div>
                         </div>
@@ -196,8 +196,8 @@
                                 <div class="form-group">
                                     <label for="input-text" class="col-sm-3 control-label">Cash Account(Cr)</label>
                                     <div class="col-sm-9">
-                                        <input type="text" class="form-control" id="draccount_1" name="account_name[]" value="{{$cashac->master_name}}" readonly autocomplete="off" data-toggle="modal" data-target="#cash_modal">
-                                        <input type="hidden" name="account_id[]" id="draccountid_1" value="{{$cashac->id}}">
+                                        <input type="text" class="form-control" id="draccount_1" name="account_name[]" value="{{ $cashac->master_name ?? '' }}" readonly autocomplete="off" data-toggle="modal" data-target="#cash_modal">
+                                        <input type="hidden" name="account_id[]" id="draccountid_1" value="{{ $cashac->id ?? '' }}">
                                         <select id="acnttype_1" class="form-control select2 line-type" style="display:none;" name="account_type[]">
                                             <option value="Cr">Cr</option>
                                         </select>

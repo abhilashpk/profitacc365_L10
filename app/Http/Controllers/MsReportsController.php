@@ -22,8 +22,8 @@ class MsReportsController extends Controller
 	
 	public function index() {
 		
-		//$technician = DB::table('ms_technician')->where('deleted_at','0000-00-00 00:00:00')->get();
-		//$jobs = DB::table('ms_jobmaster')->where('deleted_at','0000-00-00 00:00:00')->get();
+		//$technician = DB::table('ms_technician')->whereNull('deleted_at')->get();
+		//$jobs = DB::table('ms_jobmaster')->whereNull('deleted_at')->get();
 		return view('body.msreports.index');
 					//->withJobs($jobs)
 					//->withTechnician($technician);
@@ -32,10 +32,10 @@ class MsReportsController extends Controller
 			
 	public function getSearch() {
 
-		$attributes = Input::all();
+		$attributes = $request->all();
 		
-		$date_from = (Input::get('date_from')=='')?date('Y-m-d').' 00:00:00':date('Y-m-d H:i:s', strtotime(Input::get('date_from')));
-		$date_to = (Input::get('date_from')=='')?date('Y-m-d').' 23:59:59':date('Y-m-d', strtotime(Input::get('date_to'))).' 23:59:59';
+		$date_from = ($request->get('date_from')=='')?date('Y-m-d').' 00:00:00':date('Y-m-d H:i:s', strtotime($request->get('date_from')));
+		$date_to = ($request->get('date_from')=='')?date('Y-m-d').' 23:59:59':date('Y-m-d', strtotime($request->get('date_to'))).' 23:59:59';
 		
 		if($attributes['type']=='wo') {
 			$reporthead = 'Work Order Report';
@@ -51,7 +51,7 @@ class MsReportsController extends Controller
 			if($attributes['status']!='')
 				$qry->where('ms_workorder.status', $attributes['status']);
 			
-			$qry->where('ms_workorder.deleted_at','0000-00-00 00:00:00');
+			$qry->whereNull('deleted_at');
 			$report = $qry->select('ms_workorder.*','ms_customer.name AS customer','ms_workorder.technician_id AS technician',
 									'ms_worktype.name AS wo_type','ms_jobmaster.name AS job')
 						  ->get();
@@ -68,7 +68,7 @@ class MsReportsController extends Controller
 			if($attributes['status']!='')
 				$qry->where('ms_workenquiry.status', $attributes['status']);
 			
-			$qry->where('ms_workenquiry.deleted_at','0000-00-00 00:00:00');
+			$qry->whereNull('deleted_at');
 			$report = $qry->select('ms_workenquiry.*','ms_customer.name AS customer',
 									'ms_worktype.name AS wo_type')
 						  ->get();
@@ -89,7 +89,7 @@ class MsReportsController extends Controller
 	
 	public function dataExport()
 	{
-		$attributes = Input::all();
+		$attributes = $request->all();
 		$datareport[] = ['','','',strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
@@ -107,7 +107,7 @@ class MsReportsController extends Controller
 			if($attributes['status']!='')
 				$qry->where('ms_workorder.status', $attributes['status']);
 			
-			$qry->where('ms_workorder.deleted_at','0000-00-00 00:00:00');
+			$qry->whereNull('deleted_at');
 			$report = $qry->select('ms_workorder.*','ms_customer.name AS customer','ms_workorder.technician_id AS technician',
 									'ms_worktype.name AS wo_type','ms_jobmaster.name AS job')
 						  ->get();
@@ -147,7 +147,7 @@ class MsReportsController extends Controller
 			if($attributes['status']!='')
 				$qry->where('ms_workenquiry.status', $attributes['status']);
 			
-			$qry->where('ms_workenquiry.deleted_at','0000-00-00 00:00:00');
+			$qry->whereNull('deleted_at');
 			$report = $qry->select('ms_workenquiry.*','ms_customer.name AS customer',
 									'ms_worktype.name AS wo_type')
 						  ->get();
@@ -236,4 +236,6 @@ class MsReportsController extends Controller
 	}
 	
 }
+
+
 

@@ -94,15 +94,15 @@ class SalesReturnController extends Controller
 		$subgroup=[];
 		$category=[];
 		$subcategory =[];
-		$item = DB::table('itemmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$item = DB::table('itemmaster')->where('status',1)->whereNull('deleted_at')->get();
+		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')
 		->select('id','master_name')->get(); 
-		$category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$category = DB::table('category')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
+		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
@@ -218,8 +218,8 @@ class SalesReturnController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$vouchers = $this->accountsetting->getAccountSettingsSR($vid=4); //echo '<pre>';print_r($vouchers);exit;
 		$location = $this->location->locationList();
-		$lastid = DB::table('sales_return')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
-		$footertxt = DB::table('header_footer')->where('doc','SR')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$lastid = DB::table('sales_return')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
+		$footertxt = DB::table('header_footer')->where('doc','SR')->where('status',1)->whereNull('deleted_at')->first();
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
 							->where('report_view.code','SR')
@@ -231,9 +231,9 @@ class SalesReturnController extends Controller
 			if(Session::get('department')==1) { //if active...
 				$deptid = Auth::user()->department_id;
 				if($deptid!=0)
-					$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+					$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				else {
-					$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+					$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 					$deptid = $departments[0]->id;
 				}
 				$is_dept = true;
@@ -251,7 +251,7 @@ class SalesReturnController extends Controller
 			$itemcat = null;	
 			if($this->mod_sr_with_cat->is_active==1) {
 				
-			    $itemcat = DB::table('category')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+			    $itemcat = DB::table('category')->where('status',1)->whereNull('deleted_at')->get();
 			    $view = 'addsi-batch';
 			} else
 			    $view = 'addsi';
@@ -473,7 +473,7 @@ class SalesReturnController extends Controller
 						})
 					
 				->where('SRI.status', 1)
-				->where('SRI.deleted_at', '0000-00-00 00:00:00')		 
+				->whereNull('deleted_at')		 
 				->select('sales_return.voucher_no','sales_return.total','sales_return.vat_amount','sales_return.net_amount','sales_return.created_at','SRI.*','IM.item_code','U.unit_name','users.name')
 				->orderBY('SRI.id','ASC')->get();
 		
@@ -551,12 +551,12 @@ class SalesReturnController extends Controller
 		$cngetItemLocation = $this->itemmaster->getcnItemLocations();
 		$cnitemlocedit = $this->makeTreeArrLoc( $this->itemmaster->getcnItemLocEdit($id,'SR') );
 
-		$lastid = DB::table('sales_return')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$lastid = DB::table('sales_return')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
 		
 		$itemcat = null;
 		if($this->mod_sr_with_cat->is_active==1) {
 				
-			    $itemcat = DB::table('category')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+			    $itemcat = DB::table('category')->where('status',1)->whereNull('deleted_at')->get();
 			    $view = 'editsi-batch';
 			} else
 			    $view = 'edit';
@@ -661,7 +661,7 @@ class SalesReturnController extends Controller
 				 })
 			 
 		->where('SRI.status', 1)
-		->where('SRI.deleted_at', '0000-00-00 00:00:00')		 
+		->whereNull('deleted_at')		 
 		->select('sales_return.voucher_no','sales_return.total','sales_return.vat_amount','sales_return.net_amount','sales_return.modify_at','SRI.*','IM.item_code','U.unit_name','users.name')
 		->orderBY('SRI.id','ASC')->get();
 		
@@ -718,12 +718,12 @@ class SalesReturnController extends Controller
 		$cngetItemLocation = $this->itemmaster->getcnItemLocations();
 		$cnitemlocedit = $this->makeTreeArrLoc( $this->itemmaster->getcnItemLocEdit($id,'SR') );
 
-		$lastid = DB::table('sales_return')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$lastid = DB::table('sales_return')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
 		
 		$itemcat = null;
 		if($this->mod_sr_with_cat->is_active==1) {
 				
-			    $itemcat = DB::table('category')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+			    $itemcat = DB::table('category')->where('status',1)->whereNull('deleted_at')->get();
 			    $view = 'editsi-batch';
 			} else
 			    $view = 'edit';
@@ -1003,11 +1003,11 @@ class SalesReturnController extends Controller
 	//	echo '<pre>';print_r($subgroup);exit;
 		//$category= $this->category->categoryList();
 		//echo '<pre>';print_r($category);exit;
-		 //$category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		 //$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		// $group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		 //$category = DB::table('category')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		 //$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
+		// $group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
 		 //echo '<pre>';print_r($group);exit;
-	//	 $subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+	//	 $subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
 		
 		return view('body.salesreturn.multiselect')
 		               // ->withCategory($category)
@@ -1045,7 +1045,7 @@ class SalesReturnController extends Controller
 	
 			$data = DB::table('sales_return')->where('sales_return.customer_id',$id)
 			                    ->join('jobmaster', 'jobmaster.id', '=', 'sales_return.job_id')
-			                   ->where('sales_return.status',1)->where('sales_return.deleted_at','0000-00-00 00:00:00')
+			                   ->where('sales_return.status',1)->whereNull('deleted_at')
 			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
 			return $data;
 		}
@@ -1304,5 +1304,7 @@ class SalesReturnController extends Controller
 	
 	
 }
+
+
 
 

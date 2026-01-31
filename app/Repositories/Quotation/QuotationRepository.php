@@ -272,8 +272,8 @@ class QuotationRepository extends AbstractValidator implements QuotationInterfac
 			if($idarr) {
 				foreach($idarr as $id) {
 					DB::table('customer_enquiry')->where('id', $id)->update(['is_editable' => 0]);
-					$row1 = DB::table('customer_enquiry_item')->where('customer_enquiry_id', $id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
-					$row2 = DB::table('customer_enquiry_item')->where('customer_enquiry_id', $id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_transfer',1)->count();
+					$row1 = DB::table('customer_enquiry_item')->where('customer_enquiry_id', $id)->where('status',1)->whereNull('deleted_at')->count();
+					$row2 = DB::table('customer_enquiry_item')->where('customer_enquiry_id', $id)->where('status',1)->whereNull('deleted_at')->where('is_transfer',1)->count();
 					if($row1==$row2) {
 						DB::table('customer_enquiry')
 								->where('id', $id)
@@ -533,7 +533,7 @@ class QuotationRepository extends AbstractValidator implements QuotationInterfac
 				$dept = isset($attributes['department_id'])?$attributes['department_id']:0;
 
 				 // 2️⃣ Get the highest numeric part from voucher_master
-				$qry = DB::table('quotation')->where('deleted_at', '0000-00-00 00:00:00')->where('status', 1);
+				$qry = DB::table('quotation')->whereNull('deleted_at')->where('status', 1);
 				if($dept > 0)	
 					$qry->where('department_id', $dept);
 
@@ -570,7 +570,7 @@ class QuotationRepository extends AbstractValidator implements QuotationInterfac
 							$dept = isset($attributes['department_id'])?$attributes['department_id']:0;
 
 							// 2️⃣ Get the highest numeric part from voucher_master
-							$qry = DB::table('quotation')->where('deleted_at', '0000-00-00 00:00:00')->where('status', 1);
+							$qry = DB::table('quotation')->whereNull('deleted_at')->where('status', 1);
 							if($dept > 0)	
 								$qry->where('department_id', $dept);
 
@@ -1175,7 +1175,7 @@ class QuotationRepository extends AbstractValidator implements QuotationInterfac
 									   $join->on('U.id','=','PI.unit_id');
 								   })
 								   ->where('PI.status',1)
-								   ->where('PI.deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->select('PI.*','IM.item_code','U.unit_name')
 								   ->orderBY('PI.id')
 								   ->get();
@@ -1255,7 +1255,7 @@ class QuotationRepository extends AbstractValidator implements QuotationInterfac
 						$query->where('im.class_id',$val);
 					  }
 					  
-		return $query->where('poi.deleted_at','0000-00-00 00:00:00')
+		return $query->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
 					  ->groupBy('poi.id')
 					  ->orderBY('poi.id')
@@ -1281,7 +1281,7 @@ class QuotationRepository extends AbstractValidator implements QuotationInterfac
 					  })
 					  ->where('poi.status',1)
 					  ->whereIn('poi.is_transfer',[0,2])
-					  ->where('poi.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty','iu.packing','iu.pkno')
 					  ->orderBY('poi.id')->groupBy('poi.id')
 					  ->get();
@@ -1301,9 +1301,9 @@ class QuotationRepository extends AbstractValidator implements QuotationInterfac
 						->where('quotation.id', $id)
 						->where('D.invoice_type','QP')
 						->where('QSI.status',1)
-						->where('QSI.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('D.status',1)
-						->where('D.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('D.*')
 						->get();
 	}
@@ -1573,7 +1573,7 @@ class QuotationRepository extends AbstractValidator implements QuotationInterfac
 	
 	public function getjobDescription($id)
 	{
-		return DB::table('jobestimate_details')->where('jobestimate_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		return DB::table('jobestimate_details')->where('jobestimate_id',$id)->where('status',1)->whereNull('deleted_at')->get();
 	}
 	
 	public function salesEstimateListCount()
@@ -1613,3 +1613,4 @@ class QuotationRepository extends AbstractValidator implements QuotationInterfac
 	
 
 }
+

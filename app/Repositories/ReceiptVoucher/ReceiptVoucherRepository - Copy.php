@@ -1461,7 +1461,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 			//clear opening balanace transaction details table.....
 			if($this->receipt_voucher->opening_balance_id > 0) {
 				
-				DB::table('opening_balance_tr')->where('id', $this->receipt_voucher->opening_balance_id)->update(['status' => 0, 'deleted_at' => '0000-00-00 00:00:00']);
+				DB::table('opening_balance_tr')->where('id', $this->receipt_voucher->opening_balance_id)->update(['status' => 0, 'deleted_at' => null]);
 				DB::table('account_transaction')->where('voucher_type', 'OBD')->where('voucher_type_id', $this->receipt_voucher->opening_balance_id)->update(['status' => 0,'deleted_at' => now(),'deleted_by' => Auth::User()->id ]);
 				
 				DB::table('account_master')->where('id', $account_id)->update(['cl_balance' => DB::raw('op_balance - '.$amount), 'op_balance' => DB::raw('op_balance - '.$amount)]);
@@ -1534,7 +1534,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 											->join('receipt_voucher_entry', 'receipt_voucher_entry.receipt_voucher_id', '=', 'receipt_voucher.id')
 											->whereIn('receipt_voucher.voucher_type', ['PDCR',9])
 											->where('receipt_voucher.is_transfer', 0)
-											->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00');
+											->whereNull('deleted_at');
 									if($date)
 										$query1->whereBetween('receipt_voucher.voucher_date',[$date->py_from_date, $date->py_to_date]);
 									
@@ -1581,7 +1581,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 									->join('journal_entry', 'journal_entry.journal_id', '=', 'journal.id')
 									->where('journal.is_transfer',0)
 									->where('journal_entry.account_id',$pdcr->pdc_account_id)
-									->where('journal_entry.deleted_at','0000-00-00 00:00:00'); //cheque_no
+									->whereNull('deleted_at'); //cheque_no
 									
 									if($date)
 										$query2->whereBetween('journal.voucher_date',[$date->py_from_date, $date->py_to_date]);
@@ -1986,7 +1986,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 													'status'			=> 1,
 													'modify_at' 		=> now(),
 													'modify_by' 		=> 1,
-													'deleted_at'		=> '0000-00-00 00:00:00',
+													'deleted_at' => null,
 													'description'		=> $description,
 													'reference'			=> $attributes['id'][$key],
 													'invoice_date'		=> date('Y-m-d', strtotime($attributes['voucher_date'])),
@@ -2072,7 +2072,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 							$join->where('RVE.entry_type', '=', 'Dr');
 						})
 						->join('bank AS B', 'B.id', '=', 'RVE.bank_id')
-						->where('pdc_received.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('pdc_received.*','account_master.master_name','AM.master_name AS customer','RV.voucher_no',
 						'RVE.cheque_no','RVE.cheque_date','B.code','RV.voucher_type AS vtype')
 						->get();
@@ -2267,4 +2267,6 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 		
 	}
 }
+
+
 

@@ -485,13 +485,13 @@
 <script>
 
 $(function() {
+	var dtInstance;
 	//$('#newCustomerFrm').toggle();
 	$('#sucessmsg').toggle();
 	$('#sucessmsgSupp').toggle();
 	
-	$(function() {
-          
-            var dtInstance = $("#Acmaster").DataTable({
+		$(function() {
+            dtInstance = $("#Acmaster").DataTable({
 				"bStateSave": true,
 				"fnStateSave": function (oSettings, oData) {
 					localStorage.setItem( 'DataTables_'+window.location.pathname, JSON.stringify(oData) );
@@ -571,6 +571,9 @@ $(function() {
 				success: function(data) { 
 					if(data > 0) {
 						$('#sucessmsg').toggle();
+						if (dtInstance) {
+							dtInstance.ajax.reload(null, false);
+						}
 					} else if(data == 0){
 						$('#addressDtls').toggle();
 						alert('Customer name already exist!');
@@ -613,6 +616,9 @@ $(function() {
 				success: function(data) { console.log(data);
 					if(data > 0) {
 						$('#sucessmsgSupp').toggle();
+						if (dtInstance) {
+							dtInstance.ajax.reload(null, false);
+						}
 					} else if(data == 0) {
 						$('#addressDtlsSupp').toggle();
 						//$('#sucessmsg').toggle();

@@ -72,7 +72,7 @@ class CustomerReceiptController extends Controller
 		$salesmans = $this->salesman->getSalesmanList();
 			//DEPT CHECK...
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
@@ -232,10 +232,10 @@ class CustomerReceiptController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -273,7 +273,7 @@ class CustomerReceiptController extends Controller
 							$join->where('AT.voucher_type','=','SI');
 							$join->where('AT.transaction_type','=','Dr');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('AT.deleted_at');
 						})
 						->select('AT.*');
 						
@@ -281,20 +281,20 @@ class CustomerReceiptController extends Controller
 					->join('receipt_voucher_tr AS RVT', function($join) {
 						$join->on('RVT.sales_invoice_id','=','sales_invoice.id');
 						$join->where('RVT.bill_type','=','SI');
-						$join->where('RVT.deleted_at','=','0000-00-00 00:00:00');
+						$join->whereNull('RVT.deleted_at');
 					})
 					->join('receipt_voucher_entry AS RVE', function($join) {
 						$join->on('RVE.id','=','RVT.receipt_voucher_entry_id');
 						$join->where('RVT.bill_type','=','SI');
 						$join->where('RVT.status','=',1);
-						$join->where('RVT.deleted_at','=','0000-00-00 00:00:00');
+						$join->whereNull('RVT.deleted_at');
 					})
 					->Join('account_transaction AS AT', function($join) {
 						$join->on('AT.voucher_type_id','=','RVE.id');
 						$join->where('AT.voucher_type','=','RV');
 						$join->where('AT.transaction_type','=','Cr');
 						$join->where('AT.status','=',1);
-						$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+						$join->whereNull('AT.deleted_at');
 					})
 					->select('AT.*');
 					
@@ -330,10 +330,10 @@ class CustomerReceiptController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -367,7 +367,7 @@ class CustomerReceiptController extends Controller
 	
 	public function save(Request $request) { //echo '<pre>';print_r($request->all());exit;
 		
-		if( $this->validate(
+		$this->validate(
 			$request, 
 			['amount' => 'required',
 			 'customer_account' => 'required','customer_id' => 'required',
@@ -387,10 +387,7 @@ class CustomerReceiptController extends Controller
 			 //'line_amount.*' => 'Invoice assign amount is required.',
 			 'credit.same' => 'Debit and Credit amount should be equal.'
 			]
-		)) {
-
-			return redirect('customer_receipt/add')->withInput()->withErrors();
-		}
+		);
 		
 		/* $validator = Validator::make($request->all(), [
             'voucher_no' => 'required|max:255',
@@ -412,7 +409,7 @@ class CustomerReceiptController extends Controller
 						$join->on('users.id','=','receipt_voucher.created_by');
 						})	
 						->where('receipt_voucher.status', 1)
-						->where('receipt_voucher.deleted_at', '0000-00-00 00:00:00')		 
+						->whereNull('receipt_voucher.deleted_at')		 
 						->select('receipt_voucher.*','users.name')->first();		
 			$data['invoicerow'] = $this->receipt_voucher->findRVdata($id);
 		
@@ -469,10 +466,10 @@ class CustomerReceiptController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -534,7 +531,7 @@ class CustomerReceiptController extends Controller
 						$join->on('users.id','=','receipt_voucher.modify_by');
 						})	
 						->where('receipt_voucher.status', 1)
-						->where('receipt_voucher.deleted_at', '0000-00-00 00:00:00')		 
+						->whereNull('receipt_voucher.deleted_at')		 
 						->select('receipt_voucher.*','users.name')->first();		
 		$data['invoicerow'] = $this->receipt_voucher->findRVdata($id);
 		//$data['words']= $this->number_to_word($crrow->debit);
@@ -660,7 +657,7 @@ class CustomerReceiptController extends Controller
 		$salesmans = $this->salesman->getSalesmanList();
 			//DEPT CHECK...
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
@@ -828,10 +825,10 @@ class CustomerReceiptController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -867,7 +864,7 @@ class CustomerReceiptController extends Controller
 	
 	public function saverv(Request $request) {
 
-		echo '<pre>';print_r($request->all());exit;
+		/*echo '<pre>';print_r($request->all());exit;
 
 		// --- Validation Rules ---
        $rules = [
@@ -932,7 +929,7 @@ class CustomerReceiptController extends Controller
             return Redirect::back()
                 ->withErrors($validator)
                 ->withInput();
-        }
+        } */
 
 		//echo '<pre>';print_r($request->all());exit;
 
@@ -986,10 +983,10 @@ class CustomerReceiptController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -1574,10 +1571,10 @@ public function dataExport(Request $request)
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -1610,17 +1607,17 @@ public function dataExport(Request $request)
 		$banks = $this->bank->activeBankList();
 		$jobs = $this->jobmaster->activeJobmasterList();
 		$cat = ($type=='PDC')?'PDCR':'BANK';
-		$accounts = DB::table('account_master')->where('category',$cat)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$accounts = DB::table('account_master')->where('category',$cat)->where('status',1)->whereNull('deleted_at')
 						->select('id','master_name','category')->first();
 		$acdata = DB::table('account_master')->where('id',$id)->select('id','master_name','vat_assign','category','vat_percentage')->first();
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -1641,4 +1638,12 @@ public function dataExport(Request $request)
 							->withJeid($jeid);
 	}
 }
+
+
+
+
+
+
+
+
 

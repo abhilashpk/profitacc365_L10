@@ -21,7 +21,7 @@ class MsTechnicianController extends Controller
 	
 	public function index() {
 		$data = array();
-		$tec = DB::table('ms_technician')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$tec = DB::table('ms_technician')->whereNull('deleted_at')->orderBy('id','DESC')->get();
 		return view('body.mstechnician.index')
 					->withTec($tec)
 					->withData($data);
@@ -36,7 +36,7 @@ class MsTechnicianController extends Controller
 		try {
 			$id = DB::table('ms_technician')
 					->insertGetId([
-						'name' => Input::get('name')
+						'name' => $request->get('name')
 					]);
 				
 			if($id) {
@@ -65,7 +65,7 @@ class MsTechnicianController extends Controller
 	{
 		DB::table('ms_technician')->where('id',$id)
 				->update([
-					'name' => Input::get('name')
+					'name' => $request->get('name')
 				]);
 		Session::flash('message', 'Technician updated successfully');
 		return redirect('ms_technician');
@@ -81,4 +81,6 @@ class MsTechnicianController extends Controller
 	
 	
 }
+
+
 

@@ -34,7 +34,7 @@ class VatMasterController extends Controller
 		$data = array();
 		
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = $deptaccounts = []; $is_dept = false;
@@ -66,7 +66,7 @@ class VatMasterController extends Controller
 		$accounts = $this->vat_master->getVatAccounts();
 		
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$deptaccounts = DB::table('vat_master')->where('vat_master.id', $id)
 								->join('vat_department', 'vat_department.vatmaster_id', '=', 'vat_master.id')
 								->leftJoin('account_master AS M1', 'M1.id', '=', 'vat_department.collection_account')
@@ -144,4 +144,6 @@ class VatMasterController extends Controller
 						));
 	}
 }
+
+
 

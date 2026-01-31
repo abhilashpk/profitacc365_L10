@@ -44,17 +44,17 @@ class AccountEnquiryController extends Controller
 		
 		$data = array();
 		$acmasters = [];//$this->accountmaster->accountMasterList();
-		$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->get();
-		$currency = DB::table('currency')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();//echo '<pre>';print_r($currency);exit;
+		$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',0)->get();
+		$currency = DB::table('currency')->where('status',1)->whereNull('deleted_at')->get();//echo '<pre>';print_r($currency);exit;
 		
 		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$department = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$department = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = '';
 			}
 			$is_dept = true;
@@ -64,9 +64,9 @@ class AccountEnquiryController extends Controller
 			$deptid = '';
 		}
 		
-		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$groups = DB::table('account_group')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$salesman = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->whereNull('deleted_at')->get();
+		$groups = DB::table('account_group')->where('status',1)->whereNull('deleted_at')->get();
+		$salesman = DB::table('salesman')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 		
 		return view('body.accountenquiry.index')
 					->withAcmasters($acmasters)
@@ -174,17 +174,17 @@ class AccountEnquiryController extends Controller
 		
 		$data = array();
 		$acmasters = [];//$this->accountmaster->accountMasterList();
-		$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->get();
-		$currency = DB::table('currency')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();//echo '<pre>';print_r($currency);exit;
+		$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',0)->get();
+		$currency = DB::table('currency')->where('status',1)->whereNull('deleted_at')->get();//echo '<pre>';print_r($currency);exit;
 		
 		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$department = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$department = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = '';
 			}
 			$is_dept = true;
@@ -194,9 +194,9 @@ class AccountEnquiryController extends Controller
 			$deptid = '';
 		}
 		
-		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$groups = DB::table('account_group')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$salesman = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->whereNull('deleted_at')->get();
+		$groups = DB::table('account_group')->where('status',1)->whereNull('deleted_at')->get();
+		$salesman = DB::table('salesman')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 		
 		return view('body.accountenquiry.indexcus')
 					->withAcmasters($acmasters)
@@ -303,17 +303,17 @@ class AccountEnquiryController extends Controller
 		
 		$data = array();
 		$acmasters = [];//$this->accountmaster->accountMasterList();
-		$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->get();
-		$currency = DB::table('currency')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();//echo '<pre>';print_r($currency);exit;
+		$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',0)->get();
+		$currency = DB::table('currency')->where('status',1)->whereNull('deleted_at')->get();//echo '<pre>';print_r($currency);exit;
 		
 		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$department = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$department = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = '';
 			}
 			$is_dept = true;
@@ -323,9 +323,9 @@ class AccountEnquiryController extends Controller
 			$deptid = '';
 		}
 		
-		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$groups = DB::table('account_group')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$salesman = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->whereNull('deleted_at')->get();
+		$groups = DB::table('account_group')->where('status',1)->whereNull('deleted_at')->get();
+		$salesman = DB::table('salesman')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 		
 		return view('body.accountenquiry.indexsup')
 					->withAcmasters($acmasters)
@@ -434,17 +434,17 @@ class AccountEnquiryController extends Controller
 		
 		$data = array();
 		$acmasters = [];//$this->accountmaster->accountMasterList();
-		$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->get();
-		$currency = DB::table('currency')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();//echo '<pre>';print_r($currency);exit;
+		$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',0)->get();
+		$currency = DB::table('currency')->where('status',1)->whereNull('deleted_at')->get();//echo '<pre>';print_r($currency);exit;
 		
 		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$department = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$department = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = '';
 			}
 			$is_dept = true;
@@ -454,9 +454,9 @@ class AccountEnquiryController extends Controller
 			$deptid = '';
 		}
 		
-		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$groups = DB::table('account_group')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$salesman = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->whereNull('deleted_at')->get();
+		$groups = DB::table('account_group')->where('status',1)->whereNull('deleted_at')->get();
+		$salesman = DB::table('salesman')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 		
 		return view('body.accountenquiry.indexbank')
 					->withAcmasters($acmasters)
@@ -564,17 +564,17 @@ class AccountEnquiryController extends Controller
 		
 		$data = array();
 		$acmasters = [];//$this->accountmaster->accountMasterList();
-		$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->get();
-		$currency = DB::table('currency')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();//echo '<pre>';print_r($currency);exit;
+		$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',0)->get();
+		$currency = DB::table('currency')->where('status',1)->whereNull('deleted_at')->get();//echo '<pre>';print_r($currency);exit;
 		
 		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$department = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$department = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = '';
 			}
 			$is_dept = true;
@@ -584,9 +584,9 @@ class AccountEnquiryController extends Controller
 			$deptid = '';
 		}
 		
-		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$groups = DB::table('account_group')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$salesman = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->whereNull('deleted_at')->get();
+		$groups = DB::table('account_group')->where('status',1)->whereNull('deleted_at')->get();
+		$salesman = DB::table('salesman')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 		
 		return view('body.accountenquiry.indexcash')
 					->withAcmasters($acmasters)
@@ -1515,7 +1515,7 @@ class AccountEnquiryController extends Controller
 		$account_id = $request->get('account_id');
 		$is_default = $request->get('is_default');
 		
-		$obt = DB::table('account_transaction')->where('account_master_id',$account_id)->where('voucher_type','OB')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('amount','<',0)->select('id','amount')->first();
+		$obt = DB::table('account_transaction')->where('account_master_id',$account_id)->where('voucher_type','OB')->where('status',1)->whereNull('deleted_at')->where('amount','<',0)->select('id','amount')->first();
 		if($obt) {
 		    DB::table('account_transaction')->where('id',$obt->id)->update(['amount' => ($obt->amount * -1)]);
 		}
@@ -1536,7 +1536,7 @@ class AccountEnquiryController extends Controller
 					$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 				
 					$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$account_id)->where('status',1)
-													->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+													->whereNull('deleted_at')->select('invoice_date')->first();
 													
 					$request->merge(['date_from' =>  $obtrn->invoice_date]);
 					$request->merge(['date_to' => $enddate]);
@@ -1548,7 +1548,7 @@ class AccountEnquiryController extends Controller
 				} else {
 					if(!$transactions || $transactions[0]->voucher_type!='OB') {
 						$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$account_id)->where('status',1)
-													->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+													->whereNull('deleted_at')->select('invoice_date')->first();
 						
 						$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 						$request->merge(['date_from' => $obtrn->invoice_date]);
@@ -1559,7 +1559,7 @@ class AccountEnquiryController extends Controller
 				}
 				
 			} else if($request->get('type')=='ageing') {
-				$accounts = DB::table('account_master')->where('category', $account_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->get();
+				$accounts = DB::table('account_master')->where('category', $account_id)->where('status',1)->whereNull('deleted_at')->select('id')->get();
 				
 				foreach($accounts as $row) {
 					$results = $this->accountmaster->getAgeingSummary($row->id, $request->all());
@@ -1614,7 +1614,7 @@ class AccountEnquiryController extends Controller
 							$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 						
 							$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$transaction[0]->account_master_id)->where('status',1)
-															->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+															->whereNull('deleted_at')->select('invoice_date')->first();
 															
 							$request->merge(['date_from' =>  $obtrn->invoice_date]);
 							$request->merge(['date_to' => $enddate]);
@@ -1630,7 +1630,7 @@ class AccountEnquiryController extends Controller
 						if(!$transaction || $transaction[0]->voucher_type!='OB') {
 							
 							$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$transaction[0]->account_master_id)->where('status',1)
-														->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+														->whereNull('deleted_at')->select('invoice_date')->first();
 							
 							$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 							$request->merge(['date_from' => $obtrn->invoice_date]);
@@ -1696,10 +1696,24 @@ class AccountEnquiryController extends Controller
 					$resultrow[$key] = $dat = $this->accountmaster->findDetails($transaction[0]['account_master_id']);
 					
 					if($dat->category=='PDCR' || $dat->category=='PDCI') {
-						$resultPdc[$key] = $this->accountmaster->getPDCs($dat);
+						 $osdat = $this->accountmaster->getPDCs($dat, $request->all());
+						 $resdat = null;
+						 foreach($osdat as $os) {
+
+							if($os->status==0) {
+								$resdat[] = $os;
+							} 
+
+							if($os->invoice_date > date('Y-m-d', strtotime($request->get('date_to')))) {
+								$resdat[] = $os;
+							} 
+						 }
+
+						 $resultPdc[$key] = $resdat;
 					}
+					
 				}
-				
+
 				//echo '<pre>';print_r($resultPdc);exit;
 				/* $results = $this->accountmaster->getPrintViewByAccount($request->all());  
 				$transactions = $this->makeSummary($this->makeTree($results));
@@ -1734,14 +1748,28 @@ class AccountEnquiryController extends Controller
 					$resultrow[$key] = $dat = $this->accountmaster->findDetails($transaction[0]['account_master_id']);
 					
 					if($dat->category=='PDCR' || $dat->category=='PDCI') {
-						$resultPdc[$key] = $this->accountmaster->getPDCs($dat);
+						 $osdat = $this->accountmaster->getPDCs($dat, $request->all());
+						 $resdat = null;
+						 foreach($osdat as $os) {
+
+							if($os->status==0) {
+								$resdat[] = $os;
+							} 
+
+							if($os->invoice_date > date('Y-m-d', strtotime($request->get('date_to')))) {
+								$resdat[] = $os;
+							} 
+						 }
+
+						 $resultPdc[$key] = $resdat;
 					}
+					
 				}
 				
 			} else if($request->get('type')=='ageing_summary'){ //AGEING......	
 				//AGEING SUMMARY.....
 				$voucher_head = ($infc=='')?'Statement of Account - Ageing Summary':'Statement of Account - Ageing Summary in FC';
-				$query = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00');
+				$query = DB::table('account_master')->where('status',1)->whereNull('deleted_at');
 				$inputs = $request->all(); //echo '<pre>';print_r($request->all());exit;
 				if($inputs['account_id']=='CUSTOM') {
 					if(isset($inputs['type_id']) && $inputs['type_id']!=null)
@@ -1828,7 +1856,7 @@ class AccountEnquiryController extends Controller
 		if($is_default==1) {
 			
 			if($request->get('type')=='ageing') {
-				$accounts = DB::table('account_master')->where('category', $account_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->get();
+				$accounts = DB::table('account_master')->where('category', $account_id)->where('status',1)->whereNull('deleted_at')->select('id')->get();
 				
 				foreach($accounts as $row) {
 					$results = $this->accountmaster->getAgeingSummary($row->id, $request->all());
@@ -1992,7 +2020,7 @@ class AccountEnquiryController extends Controller
 							$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 						
 							$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$report[0]->account_master_id)->where('status',1)
-															->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+															->whereNull('deleted_at')->select('invoice_date')->first();
 															
 							$request->merge(['date_from' =>  $obtrn->invoice_date]);
 							$request->merge(['date_to' => $enddate]);
@@ -2008,7 +2036,7 @@ class AccountEnquiryController extends Controller
 							$resultrow[$key] = $this->accountmaster->findDetails($report[0]->account_master_id);
 							if(!$report || $report[0]->voucher_type!='OB') {
 								$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$report[0]->account_master_id)->where('status',1)
-															->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+															->whereNull('deleted_at')->select('invoice_date')->first();
 								
 								$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 								$request->merge(['date_from' => $obtrn->invoice_date]);
@@ -2225,7 +2253,20 @@ class AccountEnquiryController extends Controller
 						$resultrow[$key] = $dat = $this->accountmaster->findDetails($report[0]['account_master_id']);
 						
 						if($dat->category=='PDCR' || $dat->category=='PDCI') {
-							$resultPdc[$key] = $this->accountmaster->getPDCs($dat);
+							$osdat = $this->accountmaster->getPDCs($dat, $request->all());
+							$resdat = null;
+							foreach($osdat as $os) {
+
+								if($os->status==0) {
+									$resdat[] = $os;
+								} 
+
+								if($os->invoice_date > date('Y-m-d', strtotime($request->get('date_to')))) {
+									$resdat[] = $os;
+								} 
+							}
+
+							$resultPdc[$key] = $resdat;
 						}
 					}
 					
@@ -2413,7 +2454,7 @@ class AccountEnquiryController extends Controller
 					
 				} else if($request->get('type')=='ageinggroup') {
 					
-					$accounts = DB::table('account_master')->where('category', $request->get('account_id'))->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->get();
+					$accounts = DB::table('account_master')->where('category', $request->get('account_id'))->where('status',1)->whereNull('deleted_at')->select('id')->get();
 						
 					foreach($accounts as $row) {
 						$results = $this->accountmaster->getAgeingSummary($row->id, $request->all());
@@ -3161,13 +3202,13 @@ class AccountEnquiryController extends Controller
 							$join->on('AT.voucher_type_id','=','RVE.id');
 							$join->where('AT.voucher_type','=','RV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_invoice AS SI', function($join) {
 							$join->on('SI.id','=','RVT.sales_invoice_id');
 							$join->where('RVT.bill_type','=','SI');
 							$join->where('RVT.status','=',1);
-							$join->where('RVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('receipt_voucher.id',$id)
 						->select('SI.voucher_date AS invoice_date','SI.voucher_no AS reference','RVE.description','RVE.amount AS amount','AT.reference_from','AT.id',
@@ -3180,13 +3221,13 @@ class AccountEnquiryController extends Controller
 							$join->on('AT.voucher_type_id','=','RVE.id');
 							$join->where('AT.voucher_type','=','RV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_split AS SS', function($join) {
 							$join->on('SS.id','=','RVT.sales_invoice_id');
 							$join->where('RVT.bill_type','=','SS');
 							$join->where('RVT.status','=',1);
-							$join->where('RVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('receipt_voucher.id',$id)
 						->select('SS.voucher_date AS invoice_date','SS.voucher_no AS reference','RVE.description','RVE.amount AS amount','AT.reference_from','AT.id',
@@ -3199,13 +3240,13 @@ class AccountEnquiryController extends Controller
 							$join->on('AT.voucher_type_id','=','RVE.id');
 							$join->where('AT.voucher_type','=','RV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_return AS SR', function($join) {
 							$join->on('SR.id','=','RVT.sales_invoice_id');
 							$join->where('RVT.bill_type','=','SR');
 							$join->where('RVT.status','=',1);
-							$join->where('RVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('receipt_voucher.id',$id)
 						->select('SR.voucher_date AS invoice_date','SR.voucher_no AS reference','RVE.description','RVE.amount AS amount','AT.reference_from','AT.id',
@@ -3222,13 +3263,13 @@ class AccountEnquiryController extends Controller
 							$join->on('AT.voucher_type_id','=','PVE.id');
 							$join->where('AT.voucher_type','=','PV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('purchase_invoice AS PI', function($join) {
 							$join->on('PI.id','=','PVT.purchase_invoice_id');
 							$join->where('PVT.bill_type','=','PI');
 							$join->where('PVT.status','=',1);
-							$join->where('PVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('payment_voucher.id',$id)
 						->select('PI.voucher_date AS invoice_date','PI.voucher_no AS reference','PVE.description','PVE.amount AS amount','AT.reference_from','AT.id',
@@ -3241,13 +3282,13 @@ class AccountEnquiryController extends Controller
 							$join->on('AT.voucher_type_id','=','PVE.id');
 							$join->where('AT.voucher_type','=','PV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('purchase_split AS PS', function($join) {
 							$join->on('PS.id','=','PVT.purchase_invoice_id');
 							$join->where('PVT.bill_type','=','PS');
 							$join->where('PVT.status','=',1);
-							$join->where('PVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('payment_voucher.id',$id)
 						->select('PS.voucher_date AS invoice_date','PS.voucher_no AS reference','PVE.description','PVE.amount AS amount','AT.reference_from','AT.id',
@@ -3260,13 +3301,13 @@ class AccountEnquiryController extends Controller
 							$join->on('AT.voucher_type_id','=','PVE.id');
 							$join->where('AT.voucher_type','=','PV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('purchase_return AS PR', function($join) {
 							$join->on('PR.id','=','PVT.purchase_invoice_id');
 							$join->where('PVT.bill_type','=','PR');
 							$join->where('PVT.status','=',1);
-							$join->where('PVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('payment_voucher.id',$id)
 						->select('PR.voucher_date AS invoice_date','PR.voucher_no AS reference','PVE.description','PVE.amount AS amount','AT.reference_from','AT.id',
@@ -3284,13 +3325,13 @@ class AccountEnquiryController extends Controller
 							$join->on('AT.voucher_type_id','=','JE.id');
 							$join->where('AT.voucher_type','=','JV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_invoice AS SI', function($join) {
 							$join->on('SI.id','=','JVT.invoice_id');
 							$join->where('JVT.bill_type','=','SI');
 							$join->where('JVT.status','=',1);
-							$join->where('JVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('journal.id',$id)
 						->select('SI.voucher_date AS invoice_date','SI.voucher_no AS reference','JE.description','JE.amount AS amount','AT.reference_from','AT.id',
@@ -3303,13 +3344,13 @@ class AccountEnquiryController extends Controller
 							$join->on('AT.voucher_type_id','=','JE.id');
 							$join->where('AT.voucher_type','=','JV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_split AS SS', function($join) {
 							$join->on('SS.id','=','JVT.invoice_id');
 							$join->where('JVT.bill_type','=','SS');
 							$join->where('JVT.status','=',1);
-							$join->where('JVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('journal.id',$id)
 						->select('SS.voucher_date AS invoice_date','SS.voucher_no AS reference','JE.description','JE.amount AS amount','AT.reference_from','AT.id',
@@ -3322,13 +3363,13 @@ class AccountEnquiryController extends Controller
 							$join->on('AT.voucher_type_id','=','JE.id');
 							$join->where('AT.voucher_type','=','JV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_return AS SR', function($join) {
 							$join->on('SR.id','=','JVT.invoice_id');
 							$join->where('JVT.bill_type','=','SR');
 							$join->where('JVT.status','=',1);
-							$join->where('JVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('journal.id',$id)
 						->select('SR.voucher_date AS invoice_date','SR.voucher_no AS reference','JE.description','JE.amount AS amount','AT.reference_from','AT.id',
@@ -3346,8 +3387,8 @@ class AccountEnquiryController extends Controller
 		
 		$results = DB::table('account_master')
 						->join('account_group AS AG','AG.id','=','account_master.account_group_id')
-						->where('account_master.status',1)->where('account_master.deleted_at','0000-00-00 00:00:00')
-						->where('AG.status',1)->where('AG.deleted_at','0000-00-00 00:00:00')
+						->where('account_master.status',1)->whereNull('deleted_at')
+						->where('AG.status',1)->whereNull('deleted_at')
 						->whereIn('AG.category',['CASH','BANK'])
 						->select('account_master.*')->get();
 		//echo '<pre>';print_r($results);exit;
@@ -3356,9 +3397,9 @@ class AccountEnquiryController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$department = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$department = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = '';
 			}
 			$is_dept = true;
@@ -3425,7 +3466,7 @@ class AccountEnquiryController extends Controller
 							$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 						
 							$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$transaction[0]->account_master_id)->where('status',1)
-															->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+															->whereNull('deleted_at')->select('invoice_date')->first();
 															
 							$request->merge(['date_from' =>  $obtrn->invoice_date]);
 							$request->merge(['date_to' => $enddate]);
@@ -3444,7 +3485,7 @@ class AccountEnquiryController extends Controller
 						if(!$transaction || $transaction[0]->voucher_type!='OB') {
 							
 							$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$transaction[0]->account_master_id)->where('status',1)
-														->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+														->whereNull('deleted_at')->select('invoice_date')->first();
 							
 							$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 							$request->merge(['date_from' => $obtrn->invoice_date]);
@@ -3702,7 +3743,7 @@ class AccountEnquiryController extends Controller
 							$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 						
 							$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$transaction[0]->account_master_id)->where('status',1)
-															->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+															->whereNull('deleted_at')->select('invoice_date')->first();
 															
 							$request->merge(['date_from' =>  $obtrn->invoice_date]);
 							$request->merge(['date_to' => $enddate]);
@@ -3721,7 +3762,7 @@ class AccountEnquiryController extends Controller
 						if(!$transaction || $transaction[0]->voucher_type!='OB') {
 							
 							$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$transaction[0]->account_master_id)->where('status',1)
-														->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+														->whereNull('deleted_at')->select('invoice_date')->first();
 							
 							$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 							$request->merge(['date_from' => $obtrn->invoice_date]);
@@ -3815,7 +3856,7 @@ public function dataSend(Request $request)
 		if($is_default==1) {
 			
 			if($request->get('type')=='ageing') {
-				$accounts = DB::table('account_master')->where('category', $account_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->get();
+				$accounts = DB::table('account_master')->where('category', $account_id)->where('status',1)->whereNull('deleted_at')->select('id')->get();
 				
 				foreach($accounts as $row) {
 					$results = $this->accountmaster->getAgeingSummary($row->id, $request->all());
@@ -3979,7 +4020,7 @@ public function dataSend(Request $request)
 							$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 						
 							$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$report[0]->account_master_id)->where('status',1)
-															->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+															->whereNull('deleted_at')->select('invoice_date')->first();
 															
 							$request->merge(['date_from' =>  $obtrn->invoice_date]);
 							$request->merge(['date_to' => $enddate]);
@@ -3995,7 +4036,7 @@ public function dataSend(Request $request)
 							$resultrow[$key] = $this->accountmaster->findDetails($report[0]->account_master_id);
 							if(!$report || $report[0]->voucher_type!='OB') {
 								$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$report[0]->account_master_id)->where('status',1)
-															->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+															->whereNull('deleted_at')->select('invoice_date')->first();
 								
 								$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 								$request->merge(['date_from' => $obtrn->invoice_date]);
@@ -4167,7 +4208,20 @@ public function dataSend(Request $request)
 						$resultrow[$key] = $dat = $this->accountmaster->findDetails($report[0]['account_master_id']);
 						
 						if($dat->category=='PDCR' || $dat->category=='PDCI') {
-							$resultPdc[$key] = $this->accountmaster->getPDCs($dat);
+							$osdat = $this->accountmaster->getPDCs($dat, $request->all());
+							$resdat = null;
+							foreach($osdat as $os) {
+
+								if($os->status==0) {
+									$resdat[] = $os;
+								} 
+
+								if($os->invoice_date > date('Y-m-d', strtotime($request->get('date_to')))) {
+									$resdat[] = $os;
+								} 
+							}
+
+							$resultPdc[$key] = $resdat;
 						}
 					}
 					//echo '<pre>';print_r($resultrow);exit;
@@ -4339,7 +4393,7 @@ public function dataSend(Request $request)
 					
 				} else if($request->get('type')=='ageinggroup') {
 					
-					$accounts = DB::table('account_master')->where('category', $request->get('account_id'))->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->get();
+					$accounts = DB::table('account_master')->where('category', $request->get('account_id'))->where('status',1)->whereNull('deleted_at')->select('id')->get();
 						
 					foreach($accounts as $row) {
 						$results = $this->accountmaster->getAgeingSummary($row->id, $request->all());
@@ -4769,5 +4823,7 @@ if ($err) {
 
 	}	
 }
+
+
 
 

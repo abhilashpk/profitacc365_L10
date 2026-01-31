@@ -30,9 +30,9 @@ class EmployeeReportController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				//$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -53,17 +53,17 @@ class EmployeeReportController extends Controller
 	public function getSearch()
 	{
 		$data = array();
-		$reports = $this->employee->getReport(Input::all()); 
+		$reports = $this->employee->getReport($request->all()); 
 		$voucher_head = 'Employee Report';
 		$titles = ['main_head' => 'Employee Report','subhead' => 'Employee Report'];
 		//echo '<pre>';print_r($reports);exit;
 		return view('body.employeereport.preprint')
 					->withReports($reports)
 					->withTitles($titles)
-					->withNationality(Input::get('nationality'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withDesignation(Input::get('designation'))
+					->withNationality($request->get('nationality'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withDesignation($request->get('designation'))
 					->withUrl('employee_report')
 					->withVoucherhead($voucher_head)
 					->withData($data);
@@ -73,7 +73,7 @@ class EmployeeReportController extends Controller
 	{
 		$data = array();
 		
-		$reports = $this->employee->getReport(Input::all()); 
+		$reports = $this->employee->getReport($request->all()); 
 		$voucher_head = 'Employee Report';
 				
 		$datareport[] = ['','','',$voucher_head,'','',''];	
@@ -176,5 +176,7 @@ class EmployeeReportController extends Controller
 		
 	} 
 }
+
+
 
 

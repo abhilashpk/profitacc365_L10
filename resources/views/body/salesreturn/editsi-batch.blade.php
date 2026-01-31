@@ -81,13 +81,13 @@
                             </h3>
 							
 							<div class="pull-right">
-							@permission('sr-print')
+							@can('sr-print')
 							 <a href="{{ url('sales_return/print/'.$printid->id.'/'.$print->id) }}" target="_blank" class="btn btn-info btn-sm">
 								<span class="btn-label">
 									<i class="fa fa-fw fa-print"></i>
 								</span>
 							 </a>
-							@endpermission
+							@endcan
 							</div>
                         </div>
                         <div class="panel-body">
@@ -301,7 +301,7 @@
 									</tr>
 									</thead>
 								</table>
-								{{--*/ $i = 0; $num = count($orditems); /*--}}
+								@php $i = 0; $num = isset($orditems) ? count($orditems) : 0; @endphp
 								<input type="hidden" id="rowNum" value="{{$num}}">
 								<input type="hidden" id="remitem" name="remove_item">
 								<div class="itemdivPrnt">

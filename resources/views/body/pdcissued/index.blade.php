@@ -110,7 +110,7 @@
                                     </tr>
                                     </thead>
                                     <tbody>
-									{{--*/ $i = 0; /*--}}
+									@php $i = 0; @endphp
 									@foreach($pdcs as $pdc)
 									@php $i++; @endphp
                                     <tr>

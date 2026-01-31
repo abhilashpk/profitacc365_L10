@@ -645,10 +645,10 @@ class PurchaseRentalRepository extends AbstractValidator implements PurchaseRent
 						->join('account_transaction', 'account_transaction.account_master_id', '=', 'account_master.id')
 						->where('account_transaction.voucher_type','!=','OBD')
 						->where('account_transaction.status',1)
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('account_master.status',1)
-						->where('account_master.deleted_at','0000-00-00 00:00:00')
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
+						->whereNull('deleted_at')
 						->whereBetween('account_transaction.invoice_date',[$date->from_date, $date->to_date])
 						->select('account_master.id','account_master.master_name','account_master.cl_balance','account_master.category',
 								 'account_transaction.transaction_type','account_transaction.amount','account_master.op_balance','account_transaction.invoice_date')
@@ -779,4 +779,6 @@ class PurchaseRentalRepository extends AbstractValidator implements PurchaseRent
 		
 	}
 }
+
+
 

@@ -3041,4 +3041,11 @@ function getDocument() {
 	return false
 }
 </script>
+<script>
+	window.invoiceFormSelector = '#frmPurchaseInvoice';
+	window.barcodeScannerEnabled = {!! json_encode($barcodeScanner ?? false) !!};
+</script>
+@if($barcodeScanner ?? false)
+	@include('includes.barcode_scanner_script')
+@endif
 @stop

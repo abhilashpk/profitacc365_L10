@@ -39,7 +39,7 @@ class DesignController extends Controller
 		$view = DB::table('design_view')->where('id',1)->first();
 
 		if($stimulsoft_v==2)
-			return view('body.design.designer')->withView($view->view_name);
+			return view('body.designer')->withView($view->view_name);
 		else
 			return view('body.design.design')->withPath($path)->withView($view->view_name);
 	}

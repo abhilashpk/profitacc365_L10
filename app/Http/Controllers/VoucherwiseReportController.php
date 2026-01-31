@@ -35,9 +35,9 @@ class VoucherwiseReportController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				//$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -252,7 +252,7 @@ class VoucherwiseReportController extends Controller
 	{
 		$data = array();
 		
-		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.voucherwisereport.pisireport')
 					->withCustomers($customers)
 					//->withJobs($jobs)
@@ -280,8 +280,8 @@ class VoucherwiseReportController extends Controller
 	{
 		$data = array();
 		
-		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->get();
+		$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.voucherwisereport.pisijobreport')
 					->withCustomers($customers)
 					->withJobs($jobs)
@@ -494,7 +494,7 @@ class VoucherwiseReportController extends Controller
 	{
 		$data = array();
 		
-		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.voucherwisereport.pisirtnreport')
 					->withCustomers($customers)
 					->withData($data);
@@ -521,8 +521,8 @@ class VoucherwiseReportController extends Controller
 	{
 		$data = array();
 		
-		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->get();
+		$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.voucherwisereport.pisirtnjobreport')
 					->withCustomers($customers)
 					->withJobs($jobs)
@@ -619,7 +619,7 @@ class VoucherwiseReportController extends Controller
 	{
 		$data = array();
 		
-		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.voucherwisereport.pisirvreport')
 					->withCustomers($customers)
 					->withData($data);
@@ -800,8 +800,8 @@ class VoucherwiseReportController extends Controller
 	{
 		$data = array();
 		
-		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->get();
+		$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.voucherwisereport.pisirvjobreport')
 					->withCustomers($customers)
 					->withJobs($jobs)
@@ -813,8 +813,8 @@ class VoucherwiseReportController extends Controller
 	{
 		$data = array();
 		
-		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->get();
+		$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.voucherwisereport.pisisummary')
 					->withCustomers($customers)
 					->withJobs($jobs)
@@ -916,5 +916,7 @@ class VoucherwiseReportController extends Controller
 		
 	}
 }
+
+
 
 

@@ -53,7 +53,7 @@ class StockLedgerController extends Controller
 			
 		//} 
 		$location = $this->location->locationListAll();
-		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$customers = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')
 					->select('id','master_name')->orderBy('master_name','ASC')->get();
 		//echo '<pre>';print_r($reports);exit;
 		return view('body.stockledger.index')
@@ -108,7 +108,7 @@ class StockLedgerController extends Controller
 			
 			$voucher_head = 'Stock Ledger with Location';
 			$results = $this->itemmaster->getStockLedgerLocReport($request->all()); 
-			$locdata = $this->locFilter(DB::table('location')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get());
+			$locdata = $this->locFilter(DB::table('location')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get());
 			$itemdata = DB::table('itemmaster')->where('id',$request->get('document_id'))->select('item_code','description')->first();
 			$results['pursales'] = $this->groupLoc($results['pursales']);
 			$titles = ['main_head' => 'Stock Ledger with Location','subhead' => 'Stock Ledger with Location'];
@@ -119,7 +119,7 @@ class StockLedgerController extends Controller
 			$results = $this->itemmaster->getStockLedgerLocReport($request->all()); 
 			$itemdata = DB::table('itemmaster')->where('id',$request->get('document_id'))->select('item_code','description')->first();
 			$results['pursales'] = $this->groupLoc($results['pursales']);
-			$locdata = $this->locFilter(DB::table('location')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get());
+			$locdata = $this->locFilter(DB::table('location')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get());
 			$titles = ['main_head' => 'Stock Ledger Quantity with Cost & Value Location','subhead' => 'Stock Ledger Quantity with Cost & Value Location'];
 			
 		} else if($request->get('search_type')=='quantity_conloc') { 
@@ -128,7 +128,7 @@ class StockLedgerController extends Controller
 			$results = $this->itemmaster->getStockLedgerLocReport($request->all()); 
 			$itemdata = DB::table('itemmaster')->where('id',$request->get('document_id'))->select('item_code','description')->first();
 			$results['pursales'] = $this->groupLoc($results['pursales']);
-			$locdata = $this->locFilter(DB::table('location')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get());
+			$locdata = $this->locFilter(DB::table('location')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get());
 			$titles = ['main_head' => 'Stock Ledger with Consignment Location','subhead' => 'Stock Ledger with Consignment Location'];	
 		
 		} else if($request->get('search_type')=='quantity_conloc_cost') {
@@ -137,7 +137,7 @@ class StockLedgerController extends Controller
 			$results = $this->itemmaster->getStockLedgerLocReport($request->all()); 
 			$itemdata = DB::table('itemmaster')->where('id',$request->get('document_id'))->select('item_code','description')->first();
 			$results['pursales'] = $this->groupLoc($results['pursales']);
-			$locdata = $this->locFilter(DB::table('location')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get());
+			$locdata = $this->locFilter(DB::table('location')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get());
 			$titles = ['main_head' => 'Stock Ledger Quantity with Cost & Value Consignment Location','subhead' => 'Stock Ledger Quantity with Cost & Value Consignment Location'];	
 			
 		}
@@ -262,7 +262,7 @@ class StockLedgerController extends Controller
 		     $voucher_head = 'Stock Ledger with Consignment Location';   
 		    }
 			$results = $this->itemmaster->getStockLedgerLocReport($request->all()); 
-			$locdata = $this->locFilter(DB::table('location')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get());
+			$locdata = $this->locFilter(DB::table('location')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get());
 			$itemdata = DB::table('itemmaster')->where('id',$request->get('document_id'))->select('item_code','description')->first();
 			$results['pursales'] = $this->groupLoc($results['pursales']);
 			
@@ -306,7 +306,7 @@ class StockLedgerController extends Controller
 		     $voucher_head = 'Stock Ledger with Cost and Value Consignment Location';   
 		    }
 			$results = $this->itemmaster->getStockLedgerLocReport($request->all()); 
-			$locdata = $this->locFilter(DB::table('location')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','code','name')->get());
+			$locdata = $this->locFilter(DB::table('location')->where('status',1)->whereNull('deleted_at')->select('id','code','name')->get());
 			$itemdata = DB::table('itemmaster')->where('id',$request->get('document_id'))->select('item_code','description')->first();
 			$results['pursales'] = $this->groupLoc($results['pursales']);
 			
@@ -377,4 +377,7 @@ class StockLedgerController extends Controller
 	}
 }
 
-//SELECT currency.decimal_name,purchase_invoice.voucher_no,purchase_invoice.reference_no,purchase_invoice.voucher_date,purchase_invoice.total,purchase_invoice.vat_amount AS total_vatt,purchase_invoice.discount,purchase_invoice.net_amount,purchase_invoice.subtotal,purchase_invoice.total_fc,purchase_invoice.discount_fc,purchase_invoice.vat_amount_fc,purchase_invoice.net_amount_fc,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,currency.code,terms.description AS terms,purchase_invoice_item.item_name,purchase_invoice_item.quantity,purchase_invoice_item.unit_price,purchase_invoice_item.vat,purchase_invoice_item.vat_amount,purchase_invoice_item.total_price,purchase_invoice_item.tax_include,purchase_invoice_item.item_total,purchase_invoice_item.unit_price_fc,purchase_invoice_item.total_price_fc,purchase_invoice_item.item_total_fc,purchase_invoice_item.vat_amount_fc AS line_vat_fc,itemmaster.item_code,units.unit_name,department.name AS department FROM purchase_invoice JOIN account_master ON(account_master.id=purchase_invoice.supplier_id) LEFT JOIN terms ON(terms.id=purchase_invoice.terms_id) JOIN purchase_invoice_item ON(purchase_invoice_item.purchase_invoice_id=purchase_invoice.id) JOIN itemmaster ON(itemmaster.id=purchase_invoice_item.item_id) JOIN units ON(units.id=purchase_invoice_item.unit_id) LEFT JOIN department ON(department.id=purchase_invoice.department_id) JOIN currency ON(currency.id=purchase_invoice.currency_id)  WHERE purchase_invoice_item.status=1 AND purchase_invoice_item.deleted_at='0000-00-00 00:00:00' AND purchase_invoice.id={id}
+//SELECT currency.decimal_name,purchase_invoice.voucher_no,purchase_invoice.reference_no,purchase_invoice.voucher_date,purchase_invoice.total,purchase_invoice.vat_amount AS total_vatt,purchase_invoice.discount,purchase_invoice.net_amount,purchase_invoice.subtotal,purchase_invoice.total_fc,purchase_invoice.discount_fc,purchase_invoice.vat_amount_fc,purchase_invoice.net_amount_fc,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,currency.code,terms.description AS terms,purchase_invoice_item.item_name,purchase_invoice_item.quantity,purchase_invoice_item.unit_price,purchase_invoice_item.vat,purchase_invoice_item.vat_amount,purchase_invoice_item.total_price,purchase_invoice_item.tax_include,purchase_invoice_item.item_total,purchase_invoice_item.unit_price_fc,purchase_invoice_item.total_price_fc,purchase_invoice_item.item_total_fc,purchase_invoice_item.vat_amount_fc AS line_vat_fc,itemmaster.item_code,units.unit_name,department.name AS department FROM purchase_invoice JOIN account_master ON(account_master.id=purchase_invoice.supplier_id) LEFT JOIN terms ON(terms.id=purchase_invoice.terms_id) JOIN purchase_invoice_item ON(purchase_invoice_item.purchase_invoice_id=purchase_invoice.id) JOIN itemmaster ON(itemmaster.id=purchase_invoice_item.item_id) JOIN units ON(units.id=purchase_invoice_item.unit_id) LEFT JOIN department ON(department.id=purchase_invoice.department_id) JOIN currency ON(currency.id=purchase_invoice.currency_id)  WHERE purchase_invoice_item.status=1 AND deleted_at IS NULL AND purchase_invoice.id={id}
+
+
+

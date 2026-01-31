@@ -73,13 +73,13 @@
                             </h3>
 							
 							<div class="pull-right">
-							@permission('so-print')
+							@can('so-print')
 							 <a href="{{ url('purchase_order/print/'.$orderrow->id.'/'.$print->id) }}" target="_blank" class="btn btn-info btn-sm">
 								<span class="btn-label">
 									<i class="fa fa-fw fa-print"></i>
 								</span>
 							 </a>
-							@endpermission
+							@endcan
 							</div>
                         </div>
                         <div class="panel-body">

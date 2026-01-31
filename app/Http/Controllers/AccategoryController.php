@@ -46,7 +46,7 @@ class AccategoryController extends Controller
 	}
 	
 	public function save(Request $request) {
-		//print_r(Input::all());exit;
+		//print_r($request->all());exit;
 		try {
 			$this->accategory->create($request->all());
 			Session::flash('message', 'Category added successfully.');
@@ -69,7 +69,7 @@ class AccategoryController extends Controller
 	
 	public function update($id, Request $request)
 	{
-		$this->accategory->update($id, $request->all());//print_r(Input::all());exit;
+		$this->accategory->update($id, $request->all());//print_r($request->all());exit;
 		Session::flash('message', 'Category updated successfully');
 		return redirect('accategory');
 	}
@@ -110,18 +110,22 @@ class AccategoryController extends Controller
 
 		if($ids) {
 			$idarr = explode(',', $ids);
-		   $row = DB::table('account_master')->whereIn('account_category_id',$idarr)
-		                  ->where('status', 1)
-			              ->where('deleted_at', '0000-00-00 00:00:00')
-						 ->count();
-            if( $row > 0 )
-			           Session::flash('errors', 'Category is already in use, you can\'t delete this!');
-		    else {
-			    DB::table('account_group')->whereIn('category_id', $idarr)->update(['deleted_at' => date('Y-m-d H:i:s')]);
+			$groupCount = DB::table('account_group')
+				->whereIn('category_id', $idarr)
+				->whereNull('deleted_at')
+				->count();
+			$accountCount = DB::table('account_master')
+				->whereIn('account_category_id', $idarr)
+				->where('status', 1)
+				->whereNull('deleted_at')
+				->count();
+            if ($groupCount > 0 || $accountCount > 0) {
+				Session::flash('errors', 'Category is already in use, you can\'t delete this!');
+			} else {
+				DB::table('account_group')->whereIn('category_id', $idarr)->update(['deleted_at' => date('Y-m-d H:i:s')]);
 				DB::table('account_category')->whereIn('id',$idarr)->update(['deleted_at' => date('Y-m-d H:i:s')]);
 				Session::flash('message', 'Category deleted successfully.');
-			
-		}	
+			}
 	}
 		return redirect('accategory');
 	
@@ -139,4 +143,3 @@ class AccategoryController extends Controller
 
 	
 }
-

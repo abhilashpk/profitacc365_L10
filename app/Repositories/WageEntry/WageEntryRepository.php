@@ -602,8 +602,8 @@ class WageEntryRepository extends AbstractValidator implements WageEntryInterfac
 						})
 						->where('jobmaster.status',1)
 						->where('jobmaster.is_salary_job',0)
-						->where('jobmaster.deleted_at','0000-00-00 00:00:00')
-						->where('WEI.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
+						->whereNull('deleted_at')
 						->select('jobmaster.id AS job_id','jobmaster.code','jobmaster.name',
 								 'WEI.wage','WEI.allowance')
 						->get();
@@ -620,8 +620,8 @@ class WageEntryRepository extends AbstractValidator implements WageEntryInterfac
 						})
 						->where('jobmaster.status',1)
 						->where('jobmaster.is_salary_job',0)
-						->where('jobmaster.deleted_at','0000-00-00 00:00:00')
-						->where('WEI.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
+						->whereNull('deleted_at')
 						->select('jobmaster.id AS job_id','jobmaster.code','jobmaster.name',
 								 'WEJ.*','WEI.wage','WEI.allowance')
 						->get();
@@ -637,9 +637,9 @@ class WageEntryRepository extends AbstractValidator implements WageEntryInterfac
 							$join->on('WEO.wage_entry_id', '=', 'WE.id');
 						})
 						->where('E.status',1)
-						->where('E.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('WE.status',1)
-						->where('WE.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('WE.month', $attributes['month'])
 						->where('WE.year', $attributes['year']);
 					if($attributes['employee_id']!='')
@@ -660,9 +660,9 @@ class WageEntryRepository extends AbstractValidator implements WageEntryInterfac
 						})
 						->where('WE.entry_type','daily')
 						->where('E.status',1)
-						->where('E.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('WE.status',1)
-						->where('WE.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('WE.month', $attributes['month'])
 						->where('WE.year', $attributes['year']);
 					if($attributes['employee_id']!='')
@@ -689,8 +689,8 @@ class WageEntryRepository extends AbstractValidator implements WageEntryInterfac
 						})
 						->where('jobmaster.is_salary_job',0)
 						->where('jobmaster.status',1)
-						->where('jobmaster.deleted_at','0000-00-00 00:00:00')
-						->where('WEI.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at')
+						->whereNull('deleted_at');
 						
 					if($attributes['job_id']!='')
 						$qry->where('jobmaster.id',$attributes['job_id']);
@@ -722,8 +722,8 @@ class WageEntryRepository extends AbstractValidator implements WageEntryInterfac
 						->where('jobmaster.id',$attributes['job_id'])
 						->where('jobmaster.status',1)
 						->where('jobmaster.is_salary_job',0)
-						->where('jobmaster.deleted_at','0000-00-00 00:00:00')
-						->where('WEI.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
+						->whereNull('deleted_at')
 						->select('jobmaster.id AS job_id','jobmaster.code AS job_code','jobmaster.name AS job_name','E.code','E.name',
 								 'WEJ.*','WEI.wage','WEI.allowance','WEI.day','WE.month','WE.year')
 						->get();
@@ -756,4 +756,6 @@ class WageEntryRepository extends AbstractValidator implements WageEntryInterfac
 						->get();
 	}
 }
+
+
 

@@ -42,8 +42,8 @@ class CollectionTypeController extends Controller
 		try {
 			DB::table('collection_type')
 				->insert([
-					'code' => Input::get('code'),
-					'description' => Input::get('description')
+					'code' => $request->get('code'),
+					'description' => $request->get('description')
 				]);
 				
 			Session::flash('message', 'Collection Type added successfully.');
@@ -70,8 +70,8 @@ class CollectionTypeController extends Controller
 	{
 		DB::table('collection_type')->where('id',$id)
 				->update([
-					'code' => Input::get('code'),
-					'description' => Input::get('description'),
+					'code' => $request->get('code'),
+					'description' => $request->get('description'),
 				]);
 		Session::flash('message', 'Collection Type updated successfully');
 		return redirect('collection_type');
@@ -79,7 +79,7 @@ class CollectionTypeController extends Controller
 
     public function checkcode() {
 
-		$check = $this->check_collection_code(Input::get('code'), Input::get('id'));
+		$check = $this->check_collection_code($request->get('code'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,

@@ -42,12 +42,12 @@ class RentalDriverController extends Controller
 		try {
 			DB::table('rental_driver')
 				->insert([
-					'code' => Input::get('code'),
-					'driver_name' => Input::get('dname'),
-					'mobile1' =>Input::get('mb1'),
-					'mobile2' =>Input::get('mb2'),
-					'driver_type' =>Input::get('driver_type'),
-					'account_id' => (Input::get('driver_type')=='supplier')?Input::get('supplier_id'):Input::get('customer_id')
+					'code' => $request->get('code'),
+					'driver_name' => $request->get('dname'),
+					'mobile1' =>$request->get('mb1'),
+					'mobile2' =>$request->get('mb2'),
+					'driver_type' =>$request->get('driver_type'),
+					'account_id' => ($request->get('driver_type')=='supplier')?$request->get('supplier_id'):$request->get('customer_id')
 				]);
 				
 			Session::flash('message', 'Driver added successfully.');
@@ -77,12 +77,12 @@ class RentalDriverController extends Controller
 	{
 		DB::table('rental_driver')->where('id',$id)
 				->update([
-					'code' => Input::get('code'),
-					'driver_name' => Input::get('dname'),
-					'mobile1' =>Input::get('mb1'),
-					'mobile2' =>Input::get('mb2'),
-					'driver_type' =>Input::get('driver_type'),
-					'account_id' => (Input::get('driver_type')=='supplier')?Input::get('supplier_id'):Input::get('customer_id')
+					'code' => $request->get('code'),
+					'driver_name' => $request->get('dname'),
+					'mobile1' =>$request->get('mb1'),
+					'mobile2' =>$request->get('mb2'),
+					'driver_type' =>$request->get('driver_type'),
+					'account_id' => ($request->get('driver_type')=='supplier')?$request->get('supplier_id'):$request->get('customer_id')
 				]);
 		Session::flash('message', 'Driver updated successfully');
 		return redirect('rental_driver');
@@ -101,7 +101,7 @@ class RentalDriverController extends Controller
 	
 	public function checkmobnumber1() {
 
-		$check = $this->check_mobile_number1(Input::get('mb1'), Input::get('id'));
+		$check = $this->check_mobile_number1($request->get('mb1'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -123,7 +123,7 @@ class RentalDriverController extends Controller
 
 	public function checkmobnumber2() {
 
-		$check = $this->check_mobile_number2(Input::get('mb2'), Input::get('id'));
+		$check = $this->check_mobile_number2($request->get('mb2'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,

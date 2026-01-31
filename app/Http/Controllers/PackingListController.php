@@ -225,7 +225,7 @@ class PackingListController extends Controller
 							->select('report_view_detail.id')
 							->first();
 	//	echo '<pre>';print_r($print);exit;					
-		$prntjobs = [];/* DB::table('packing_list')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$prntjobs = [];/* DB::table('packing_list')->where('status',1)->whereNull('deleted_at')
 						->select('id','voucher_no')
 						->offset(0)->limit(10)
 						->orderBy('id','DESC')
@@ -306,7 +306,7 @@ class PackingListController extends Controller
 		return $combined;
 	}
 	
-	public function save(Request $request) { //echo '<pre>';print_r(Input::all());exit;
+	public function save(Request $request) { //echo '<pre>';print_r($request->all());exit;
 	
 		DB::beginTransaction();
 		try {
@@ -352,7 +352,7 @@ class PackingListController extends Controller
 			return Redirect::to('packing_list/add')->withErrors($e->getErrors());
 		}
 		
-		if($this->packing_list->create(Input::all()))
+		if($this->packing_list->create($request->all()))
 			Session::flash('message', 'Packing List added successfully.');
 		else
 			Session::flash('error', 'Something went wrong, Order failed to add!');
@@ -370,7 +370,7 @@ class PackingListController extends Controller
 	
 	public function checkRefNo() {
 
-		$check = $this->packing_list->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$check = $this->packing_list->check_reference_no($request->get('reference_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -503,7 +503,7 @@ class PackingListController extends Controller
 
 	public function checkVchrNo() { 
 
-		$check = $this->packing_list->check_voucher_no(Input::get('voucher_no'), Input::get('id'));
+		$check = $this->packing_list->check_voucher_no($request->get('voucher_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -583,10 +583,10 @@ class PackingListController extends Controller
 	
 	public function setSessionVal()
 	{
-		Session::put('voucher_no', Input::get('vchr_no'));
-		Session::put('reference_no', Input::get('ref_no'));
-		Session::put('voucher_date', Input::get('vchr_dt'));
-		Session::put('lpo_date', Input::get('lpo_dt'));
+		Session::put('voucher_no', $request->get('vchr_no'));
+		Session::put('reference_no', $request->get('ref_no'));
+		Session::put('voucher_date', $request->get('vchr_dt'));
+		Session::put('lpo_date', $request->get('lpo_dt'));
 	}
 	
 	protected function makeTree($result)
@@ -633,21 +633,21 @@ class PackingListController extends Controller
 	{
 		$data = array();
 		
-		$reports = $this->packing_list->getPendingReport(Input::all());//echo '<pre>';print_r($reports);exit;
+		$reports = $this->packing_list->getPendingReport($request->all());//echo '<pre>';print_r($reports);exit;
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Packing List Summary';
-		elseif(Input::get('search_type')=="summary_pending") {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Packing List Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif(Input::get('search_type')=="detail") {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Packing List Detail';
 			$reports = $this->makeTree($reports);
-		} elseif(Input::get('search_type')=="jobwise") {
+		} elseif($request->get('search_type')=="jobwise") {
 			$voucher_head = 'Packing List - Jobwise';
-		} elseif(Input::get('search_type')=="customer_wise") {
+		} elseif($request->get('search_type')=="customer_wise") {
 			$voucher_head = 'Packing List - Customer Wise';
-		} elseif(Input::get('search_type')=="detail_pending") {
+		} elseif($request->get('search_type')=="detail_pending") {
 			$voucher_head = 'Packing List Pending Detail';
 			$reports = $this->makeTree($reports);
 		}
@@ -656,11 +656,11 @@ class PackingListController extends Controller
 		return view('body.packinglist.preprint') //preprint
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withJobids(json_encode(Input::get('job_id')))
-					->withSalesman(Input::get('salesman'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withJobids(json_encode($request->get('job_id')))
+					->withSalesman($request->get('salesman'))
 					->withSettings($this->acsettings)
 					->withData($data);
 	}
@@ -671,16 +671,16 @@ class PackingListController extends Controller
 		$datareport[] = ['','','','',strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		Input::merge(['type' => 'export']);
-		Input::merge(['job_id' => json_decode(Input::get('job_id'))]);
-		$reports = $this->packing_list->getPendingReport(Input::all());
+		$request->merge(['type' => 'export']);
+		$request->merge(['job_id' => json_decode($request->get('job_id'))]);
+		$reports = $this->packing_list->getPendingReport($request->all());
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Packing List Summary';
-		elseif(Input::get('search_type')=="summary_pending") {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Packing List Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif(Input::get('search_type')=="detail") {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Packing List Detail';
 		} else {
 			$voucher_head = 'Packing List Pending Detail';
@@ -691,7 +691,7 @@ class PackingListController extends Controller
 		
 		 //echo '<pre>';print_r($reports);exit;
 		
-		if(Input::get('search_type')=='detail' || Input::get('search_type')=='detail_pending') {
+		if($request->get('search_type')=='detail' || $request->get('search_type')=='detail_pending') {
 			
 			$datareport[] = ['SI.No.','SO.#', 'SO.Ref#', 'Job No', 'Customer','Salesman','Item Code','Description','SO.Qty','Rate','Total Amt.'];
 			$i=0;
@@ -800,7 +800,7 @@ class PackingListController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$res = $this->voucherno->getVoucherNo('SO'); //echo '<pre>';print_r($res);exit;
 		//$vno = $res->no;
-		$row = DB::table('packing_list')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$row = DB::table('packing_list')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		$location = $this->location->locationList();
 		if($row && in_array($row->doc_status, $apr))
@@ -860,7 +860,7 @@ class PackingListController extends Controller
 	public function getOrderNo(Request $request) {
 		
 		if($request->get('search')=='') {
-			$result = DB::table('packing_list')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			$result = DB::table('packing_list')->where('status',1)->whereNull('deleted_at')
 						->where('customer_id',$request->get('cid'))
 						->where('job_type',0)
 						->select('id','voucher_no as text')
@@ -868,7 +868,7 @@ class PackingListController extends Controller
 						->orderBy('id','DESC')
 						->get();
 		} else {
-			$result = DB::table('packing_list')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			$result = DB::table('packing_list')->where('status',1)->whereNull('deleted_at')
 						->where('customer_id',$request->get('cid'))
 						->where('job_type',0)
 						->where('voucher_no', 'like', '%' . $request->get('search') . '%')
@@ -957,5 +957,7 @@ class PackingListController extends Controller
 					->withData($data);
 	}
 }
+
+
 
 

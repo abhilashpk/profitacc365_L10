@@ -93,7 +93,7 @@
 										<th>Start Date</th>
 										<th>Expiry Date</th>
 										<th>Status</th>
-										<th>Letter</th>
+										<!--<th>Letter</th>-->
 										<!--<th>Renew</th>
 										<th>Close</th>
 										<th>Settle/Close</th>
@@ -248,7 +248,7 @@ $(function() {
 			{ "data": "start_date" },
 			{ "data": "exp_date" },
 			{ "data": "status" },
-			{ "data": "mailbtn","bSortable": false },
+			//{ "data": "mailbtn","bSortable": false },
 			/*{ "data": "renew","bSortable": false },
 			{ "data": "close","bSortable": false },
 			{ "data": "settle","bSortable": false }

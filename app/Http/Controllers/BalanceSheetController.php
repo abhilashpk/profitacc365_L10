@@ -40,9 +40,9 @@ class BalanceSheetController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				//$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -102,18 +102,18 @@ class BalanceSheetController extends Controller
 	}
 	
 	public function getSearch()
-	{	//echo '<pre>';print_r(Input::all());exit;
+	{	//echo '<pre>';print_r($request->all());exit;
 		$data = array();
 				
-		if(Input::get('search_type')=='summary')
+		if($request->get('search_type')=='summary')
 			$voucher_head = 'Balance Sheet - Summary';
-		else if(Input::get('search_type')=='detail')
+		else if($request->get('search_type')=='detail')
 			$voucher_head = 'Balance Sheet - Detail';
-		else if(Input::get('search_type')=='ason_date')
+		else if($request->get('search_type')=='ason_date')
 			$voucher_head = 'Balance Sheet - Summary as on Date';
 		
-		Input::merge(['opclbal_option' => ($this->option->is_active==1)?true:false]);
-		$result = $this->accountmaster->getBalanceSheet(Input::all());  //echo '<pre>';print_r($result);exit;
+		$request->merge(['opclbal_option' => ($this->option->is_active==1)?true:false]);
+		$result = $this->accountmaster->getBalanceSheet($request->all());  //echo '<pre>';print_r($result);exit;
 		if($result) {
 			
 			$total_lib = $total_ast = 0;
@@ -128,13 +128,13 @@ class BalanceSheetController extends Controller
 			}
 			
 			//CALCULATE NET PROFIT..... from P&L A/c.....
-			$attributes['date_from'] = (Input::get('date_from')!='')?date('Y-m-d', strtotime(Input::get('date_from'))):'';
-			$attributes['date_to'] = (Input::get('date_to')!='')?date('Y-m-d', strtotime(Input::get('date_to'))):''; 
+			$attributes['date_from'] = ($request->get('date_from')!='')?date('Y-m-d', strtotime($request->get('date_from'))):'';
+			$attributes['date_to'] = ($request->get('date_to')!='')?date('Y-m-d', strtotime($request->get('date_to'))):''; 
 			$attributes['search_type']='summary';
 			$attributes['curr_from_date'] = $this->acsettings->from_date;
-			$attributes['cl_stock'] = (Input::get('cl_stock',false))?1:null; //1
-			/* comented on 2021 FEB 23 */ //$attributes['op_stock'] = 1;//(Input::get('op_stock',false))?1:null;
-			/* comented on 2021 FEB 23 */  //$attributes['department_id'] = (Input::get('department_id',false))?Input::get('department_id'):null;
+			$attributes['cl_stock'] = ($request->get('cl_stock',false))?1:null; //1
+			/* comented on 2021 FEB 23 */ //$attributes['op_stock'] = 1;//($request->get('op_stock',false))?1:null;
+			/* comented on 2021 FEB 23 */  //$attributes['department_id'] = ($request->get('department_id',false))?$request->get('department_id'):null;
 			$result_pl = $this->accountmaster->getProfitLoss($attributes);  //echo '<pre>';print_r($result_pl);exit;
 			
 			if(count($result_pl['income'][0]) > 0 && count($result_pl['expense'][0]) > 0) {
@@ -223,29 +223,29 @@ class BalanceSheetController extends Controller
 					->withTotal($total)
 					->withReport($report)
 					->withDifferencer($difference_r)
-					->withType(Input::get('search_type'))
-					->withchkob(Input::get('chkob'))
+					->withType($request->get('search_type'))
+					->withchkob($request->get('chkob'))
 					->withSettings($this->acsettings)
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withCurrency($crow->code)
 					->withData($data);
 	}
 	
 	public function dataExport()
 	{
-	    //echo '<pre>';print_r(Input::all());exit;
+	    //echo '<pre>';print_r($request->all());exit;
 		$data = array();
 		$crow = DB::table('currency')->where('is_default',1)->select('code')->first();
 		$currency=$crow->code;
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		if(Input::get('search_type')=='summary')
+		if($request->get('search_type')=='summary')
 			$voucher_head = 'Balance Sheet - Summary';
-		else if(Input::get('search_type')=='detail')
+		else if($request->get('search_type')=='detail')
 			$voucher_head = 'Balance Sheet - Detail';
-		else if(Input::get('search_type')=='ason_date')
+		else if($request->get('search_type')=='ason_date')
 			$voucher_head = 'Balance Sheet - Summary as on Date';
 		
 		$datareport[] = ['','','',strtoupper($voucher_head), '','',''];
@@ -255,7 +255,7 @@ class BalanceSheetController extends Controller
 		$datareport[] = ['','','','','','',''];
 		$datareport[] = ['Description','','Amount','','Description','','Amount'];
 		
-		$result = $this->accountmaster->getBalanceSheet(Input::all());  //echo '<pre>';print_r($result);exit;
+		$result = $this->accountmaster->getBalanceSheet($request->all());  //echo '<pre>';print_r($result);exit;
 		if($result) {
 			
 			$total_lib = $total_ast = 0;
@@ -268,12 +268,12 @@ class BalanceSheetController extends Controller
 			}
 			
 			//CALCULATE NET PROFIT..... from P&L A/c.....
-			$attributes['date_from'] = (Input::get('date_from')!='')?date('Y-m-d', strtotime(Input::get('date_from'))):'';
-			$attributes['date_to'] = (Input::get('date_to')!='')?date('Y-m-d', strtotime(Input::get('date_to'))):''; 
+			$attributes['date_from'] = ($request->get('date_from')!='')?date('Y-m-d', strtotime($request->get('date_from'))):'';
+			$attributes['date_to'] = ($request->get('date_to')!='')?date('Y-m-d', strtotime($request->get('date_to'))):''; 
 			$attributes['search_type']='summary';
 			$attributes['curr_from_date'] = $this->acsettings->from_date;
-			$attributes['cl_stock'] = null;//(Input::get('cl_stock',false))?1:null;
-			//$attributes['op_stock'] = 1;//(Input::get('op_stock',false))?1:null;
+			$attributes['cl_stock'] = null;//($request->get('cl_stock',false))?1:null;
+			//$attributes['op_stock'] = 1;//($request->get('op_stock',false))?1:null;
 			$result_pl = $this->accountmaster->getProfitLoss($attributes);  //echo '<pre>';print_r($result_pl);exit;
 			
 			if(count($result_pl['income'][0]) > 0 && count($result_pl['expense'][0]) > 0) {
@@ -348,7 +348,7 @@ class BalanceSheetController extends Controller
 		
 	//	echo '<pre>';print_r($result);exit; 
 		
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			
 			foreach($result['liability'] as $key => $rows) {
 				
@@ -606,3 +606,5 @@ class BalanceSheetController extends Controller
 	
 			
 }
+
+

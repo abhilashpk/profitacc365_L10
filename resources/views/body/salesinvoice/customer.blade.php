@@ -115,7 +115,7 @@
 								       <input type="hidden" name="phone" id="phone">
 								    <?php } ?>
                                      
-									 <?php if($formdata['customer_trn']==1) { ?>
+									<?php if($formdata['customer_trn']==1) { ?>
 									<div class="form-group">
 										<label for="input-text" class="col-sm-5 control-label">TRN No</label>
 										<div class="col-sm-7">
@@ -125,6 +125,20 @@
 									<?php } else { ?>
 								       <input type="hidden" name="vat_no" id="vat_no">
 								    <?php } ?>
+
+									<div class="form-group">
+										<label for="input-text" class="col-sm-5 control-label">Reference</label>
+										<div class="col-sm-7">
+											<input type="text" class="form-control" id="reference" name="reference" placeholder="Reference">
+										</div>
+									</div>
+
+									<div class="form-group">
+										<label for="input-text" class="col-sm-5 control-label">Description</label>
+										<div class="col-sm-7">
+											<input type="text" class="form-control" id="description" name="description" placeholder="Description">
+										</div>
+									</div>
 									
 									<div class="form-group">
 										<label for="input-text" class="col-sm-5 control-label"></label>
@@ -175,6 +189,8 @@ $(function() {
 		var cn = $('#frmCustomer #country_id option:selected').val();
 		var ph = $('#frmCustomer #phone').val();
 		var vt = $('#frmCustomer #vat_no').val();
+		var ref = $('#frmCustomer #reference').val();
+		var desc = $('#frmCustomer #description').val();
 		if(name=="") {
 			alert('Customer name is required!');
 			return false;
@@ -184,22 +200,26 @@ $(function() {
 			$.ajax({
 				url: "{{ url('account_master/ajax_create/') }}",
 				type: 'get',
-				data: 'account_id='+ac+'&master_name='+name+'&address='+adrs+'&area_id='+ar+'&country_id='+cn+'&phone='+ph+'&vat_no='+vt+'&category=CUSTOMER',
+				data: 'account_id='+ac+'&master_name='+name+'&address='+adrs+'&area_id='+ar+'&country_id='+cn+'&phone='+ph+'&vat_no='+vt+'&category=CUSTOMER'+'&reference='+ref+'&description='+desc,
 				success: function(data) { //console.log(data);
 					if(data > 0) {
 						$('#sucessmsg').toggle( function() {
 							$('#cususe').attr("data-id",data);
 							$('#cususe').attr("data-name",name);
 						});
-					} else if(data == 0){
-						$('#addressDtls').toggle();
-						alert('Customer name already exist!');
-						return false;
 					} else {
 						$('#addressDtls').toggle();
-						alert('Something went wrong, Account failed to add!');
+						if(data == 0) {
+							alert('Customer name already exist!');
+						} else {
+							alert('Customer failed to add: ' + data);
+						}
 						return false;
 					}
+				},
+				error: function(xhr, status, error) {
+					$('#addressDtls').toggle();
+					alert('Customer failed to add: ' + (xhr.responseText || error));
 				}
 			})
 		}

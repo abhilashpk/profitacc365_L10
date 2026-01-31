@@ -43,7 +43,7 @@ class AccountSettingRepository extends AbstractValidator implements AccountSetti
 			
 			$this->accountsetting->voucher_type_id = $attributes['voucher_type_id'];
 			$this->accountsetting->voucher_name = $attributes['voucher_name'];
-			$this->accountsetting->department_id = $attributes['department_id'];
+			$this->accountsetting->department_id = isset($attributes['department_id']) && $attributes['department_id'] !== '' ? $attributes['department_id'] : 0;
 			$this->accountsetting->prefix = $attributes['prefix'];
 			$this->accountsetting->is_prefix = $attributes['is_prefix'];
 			$this->accountsetting->voucher_no = $attributes['voucher_no'];
@@ -173,7 +173,7 @@ class AccountSettingRepository extends AbstractValidator implements AccountSetti
 			
 			$this->accountsetting->voucher_type_id = $attributes['voucher_type_id'];
 			$this->accountsetting->voucher_name = $attributes['voucher_name'];
-			$this->accountsetting->department_id = $attributes['department_id'];
+			$this->accountsetting->department_id = isset($attributes['department_id']) && $attributes['department_id'] !== '' ? $attributes['department_id'] : 0;
 			$this->accountsetting->prefix = $attributes['prefix'];
 			$this->accountsetting->is_prefix = $attributes['is_prefix'];
 			$this->accountsetting->voucher_no = $attributes['voucher_no'];
@@ -283,7 +283,7 @@ class AccountSettingRepository extends AbstractValidator implements AccountSetti
 							$join->on('vt.id', '=', 'account_setting.voucher_type_id');
 					})
 					->where('account_setting.status',1)
-					//->where('account_setting.deleted_at', '0000-00-00 00:00:00')
+					//->whereNull('deleted_at')
 					->select('account_setting.*','de.name AS department','am.master_name AS dr_master_name','am2.master_name AS cr_master_name','vt.name AS type_name')
 					->get(); 
 	}
@@ -344,7 +344,13 @@ class AccountSettingRepository extends AbstractValidator implements AccountSetti
 
 	public function getAccountSettingsPR($id,$deptid=null)
 	{
-		$query = $this->accountsetting->where('account_setting.status',1)->where('account_setting.voucher_type_id',$id);
+		$query = $this->accountsetting->withTrashed()
+					->where('account_setting.status',1)
+					->where('account_setting.voucher_type_id',$id)
+					->where(function ($q) {
+						$q->whereNull('account_setting.deleted_at')
+						  ;
+					});
 		
 		 $query->join('voucher_type AS vt', function($join) {
 							$join->on('vt.id', '=', 'account_setting.voucher_type_id');
@@ -399,11 +405,27 @@ class AccountSettingRepository extends AbstractValidator implements AccountSetti
 							$join->on('am.id', '=', 'account_setting.dr_account_master_id');
 					})
 					->leftJoin('account_master AS am2', function($join) {
-							$join->on('am2.id', '=', 'account_setting.default_account_id'); //cr_account_master_id
+							$join->on('am2.id', '=', 'account_setting.cr_account_master_id');
 					})
-					->select('account_setting.prefix','account_setting.is_prefix','account_setting.voucher_no','account_setting.default_account_id',
-							 'account_setting.dr_account_master_id','am.master_name','am.id','am.account_id',
-							 'am2.id AS cid','am2.account_id AS caccount_id','am2.master_name AS cmaster_name','account_setting.is_cash_voucher','am2.master_name AS default_account')
+					->leftJoin('account_master AS am3', function($join) {
+							$join->on('am3.id', '=', 'account_setting.default_account_id');
+					})
+					->select(
+						'account_setting.prefix',
+						'account_setting.is_prefix',
+						'account_setting.voucher_no',
+						'account_setting.default_account_id',
+						'account_setting.dr_account_master_id',
+						'account_setting.cr_account_master_id',
+						'am.master_name',
+						'am.id',
+						'am.account_id',
+						'am2.id AS cid',
+						'am2.account_id AS caccount_id',
+						'am2.master_name AS cmaster_name',
+						'am3.master_name AS default_account',
+						'account_setting.is_cash_voucher'
+					)
 					->first(); 
 	}
 	
@@ -787,10 +809,14 @@ class AccountSettingRepository extends AbstractValidator implements AccountSetti
 					});
 					
 					if($isdept && $deptid !=0) {
-						return $qry->where('account_setting.department_id', $deptid)
-									->select('account_setting.id','AM.master_name','account_setting.voucher_name','voucher_no','account_setting.dr_account_master_id',
-											'AM.account_id','account_setting.is_cash_voucher','account_setting.default_account_id','AM2.master_name AS default_account')
-									->orderBy('account_setting.department_id','ASC')->get();
+						return $qry->where(function ($q) use ($deptid) {
+									$q->where('account_setting.department_id', $deptid)
+									  ->orWhere('account_setting.department_id', 0)
+									  ->orWhereNull('account_setting.department_id');
+								})
+								->select('account_setting.id','AM.master_name','account_setting.voucher_name','voucher_no','account_setting.dr_account_master_id',
+										'AM.account_id','account_setting.is_cash_voucher','account_setting.default_account_id','AM2.master_name AS default_account')
+								->orderBy('account_setting.department_id','DESC')->get();
 						
 					} else {
 						return $qry->select('account_setting.id','AM.master_name','account_setting.voucher_name','voucher_no','account_setting.dr_account_master_id','AM.account_id',
@@ -808,10 +834,14 @@ class AccountSettingRepository extends AbstractValidator implements AccountSetti
 						});
 						
 				if($isdept && $deptid !=0) {
-					return $qry->where('account_setting.department_id', $deptid)
+					return $qry->where(function ($q) use ($deptid) {
+									$q->where('account_setting.department_id', $deptid)
+									  ->orWhere('account_setting.department_id', 0)
+									  ->orWhereNull('account_setting.department_id');
+								})
 									->select('account_setting.id','AM.master_name','account_setting.voucher_name','voucher_no','account_setting.cr_account_master_id',
 									'AM.account_id','account_setting.is_cash_voucher','account_setting.default_account_id','AM2.master_name AS default_account')
-									->orderBy('account_setting.department_id','ASC')->get();
+									->orderBy('account_setting.department_id','DESC')->get();
 				/* } elseif($isdept && $deptid == 0) {
 					return $qry->where('account_setting.department_id','!=',0)
 								->select('account_setting.id','AM.master_name','account_setting.voucher_name','voucher_no','account_setting.cr_account_master_id',
@@ -1156,7 +1186,7 @@ class AccountSettingRepository extends AbstractValidator implements AccountSetti
 		return DB::table('vat_master')
 					->join('account_master', 'account_master.id', '=', 'vat_master.expense_account')
 					->where('vat_master.status',1)
-					->where('vat_master.deleted_at','0000-00-00 00:00:00')
+					->whereNull('account_master.deleted_at')
 					->select('vat_master.expense_account','account_master.master_name','vat_master.id')
 					->first();
 	}
@@ -1165,7 +1195,7 @@ class AccountSettingRepository extends AbstractValidator implements AccountSetti
 		return DB::table('vat_master')
 					->join('account_master', 'account_master.id', '=', 'vat_master.payment_account')
 					->where('vat_master.status',1)
-					->where('vat_master.deleted_at','0000-00-00 00:00:00')
+					->whereNull('account_master.deleted_at')
 					->select('vat_master.payment_account','account_master.master_name','vat_master.id')
 					->first();
 	}
@@ -1274,4 +1304,7 @@ class AccountSettingRepository extends AbstractValidator implements AccountSetti
 	}
 	
 }
+
+
+
 

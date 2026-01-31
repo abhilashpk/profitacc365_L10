@@ -74,13 +74,13 @@
                             </h3>
                            
 						   <div class="pull-right">
-								@permission('pc-print')
+								@can('pc-print')
 								 <a href="{{ url('pettycash/print/'.$prow->id) }}" target="_blank" class="btn btn-info btn-sm">
 									<span class="btn-label">
 										<i class="fa fa-fw fa-print"></i>
 									</span>
 								 </a>
-								@endpermission
+								@endcan
 							</div>
                         </div>
                         <div class="panel-body">

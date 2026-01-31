@@ -388,11 +388,15 @@ $(function() {
             });
      });
 	
-	$('.getform').click(function() {
+	$('.getform').click(function(e) {
+		e.preventDefault();
 		var item_id = $("input[name='item']:checked").val();
-		if(item_id!='') {
-			getForm(item_id);
+		if(!item_id) {
+			alert('Please select an item.');
+			return false;
 		}
+		getForm(item_id);
+		return false;
 	});
 	
 });
@@ -424,6 +428,10 @@ function updateStock() {
 }
 
 function getForm(id) { 
+	if(!id || id === 'undefined') {
+		alert('Please select an item.');
+		return false;
+	}
 	var itmurl = "{{ url('itemenquiry/openform/') }}/"+id;
 	popup = window.open(itmurl, "Popup", "width=900,height=500,top=100,left=200");
 	popup.focus();

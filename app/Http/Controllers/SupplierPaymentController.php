@@ -63,7 +63,7 @@ class SupplierPaymentController extends Controller
 		$salesmans = $this->salesman->getSalesmanList();
 			//DEPT CHECK...
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
@@ -244,10 +244,10 @@ class SupplierPaymentController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -284,8 +284,8 @@ class SupplierPaymentController extends Controller
 	
 	public function save(Request $request) { //echo '<pre>';print_r($request->all());exit;
 		
-		if( $this->validate(
-			$request, 
+		$validator = Validator::make(
+			$request->all(),
 			['amount' => 'required',
 			 'supplier_account' => 'required','supplier_id' => 'required',
 			 'cheque_no' => ($request->get('voucher_type')=='PDCI')?'required':'', 
@@ -304,9 +304,10 @@ class SupplierPaymentController extends Controller
 			 //'line_amount.*' => 'Invoice assign amount is required.',
 			 'debit' => 'Debit and Credit amount should be equal.'
 			]
-		)) {
+		);
 
-			return redirect('supplier_payment/add')->withInput()->withErrors();
+		if ($validator->fails()) {
+			return redirect('supplier_payment/add')->withErrors($validator)->withInput();
 		}
 		 //echo '<pre>';print_r($request->all());exit;
 		/* $validator = Validator::make($request->all(), [
@@ -328,7 +329,7 @@ class SupplierPaymentController extends Controller
 						$join->on('users.id','=','payment_voucher.created_by');
 						})	
 						//->where('payment_voucher.status', 1)
-						->where('payment_voucher.deleted_at', '0000-00-00 00:00:00')		 
+						->whereNull('payment_voucher.deleted_at')		 
 						->select('payment_voucher.*','users.name')->first();
 						//echo '<pre>';print_r($data['crrow']);exit;
 		$data['invoicerow'] = $this->payment_voucher->findPVdata($id);
@@ -393,10 +394,10 @@ class SupplierPaymentController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -453,7 +454,7 @@ class SupplierPaymentController extends Controller
 			$join->on('users.id','=','payment_voucher.modify_by');
 			})	
 			->where('payment_voucher.status', 1)
-			->where('payment_voucher.deleted_at', '0000-00-00 00:00:00')		 
+			->whereNull('payment_voucher.deleted_at')		 
 			->select('payment_voucher.*','users.name')->first();		
 			$data['invoicerow'] = $this->payment_voucher->findPVdata($id);
 			$email='numaktech@gmail.com';
@@ -532,7 +533,7 @@ class SupplierPaymentController extends Controller
 		public function indexpv() {
 		$data = array();
 			if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
@@ -719,10 +720,10 @@ class SupplierPaymentController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -760,7 +761,7 @@ class SupplierPaymentController extends Controller
 		//echo '<pre>';print_r($request->all());exit;
 
 		// --- Validation Rules ---
-		$rules = [
+		/*$rules = [
 			'voucher_type'   => 'required',
 			'voucher'        => 'required|integer',
 			'voucher_no'     => 'required',
@@ -775,7 +776,7 @@ class SupplierPaymentController extends Controller
 			'credit'         => 'required|numeric|min:0',
 
 			// Optional fields - remove `nullable`, just keep valid type rules
-			'bank_id.*'      => 'integer|exists:Bank,id',
+			'bank_id.*'      => 'integer|exists:bank,id',
 			'cheque_no.*'    => 'string|max:50',
 			'cheque_date.*'  => 'date_format:d-m-Y',
 			'party_name.*'   => 'string|max:100',
@@ -797,7 +798,7 @@ class SupplierPaymentController extends Controller
 		// Laravel 5.2: Apply optional fields only if present
 		$validator = Validator::make($request->all(), $rules, $messages);
 
-		$validator->sometimes('bank_id.*', 'integer|exists:Bank,id', function($input) {
+		$validator->sometimes('bank_id.*', 'integer|exists:bank,id', function($input) {
 			return !empty($input->bank_id);
 		});
 		$validator->sometimes('cheque_no.*', 'string|max:50', function($input) {
@@ -822,7 +823,7 @@ class SupplierPaymentController extends Controller
             return Redirect::back()
                 ->withErrors($validator)
                 ->withInput();
-        }
+        }*/
 		
 		/*$validator = Validator::make($request->all(), [
             'voucher_no' => 'required|max:255',
@@ -870,10 +871,10 @@ class SupplierPaymentController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -936,10 +937,10 @@ class SupplierPaymentController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -1476,10 +1477,10 @@ public function dataExport(Request $request)
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -1488,7 +1489,7 @@ public function dataExport(Request $request)
 			$deptid = '';
 		}
 		$cashac = null;
-		$cashac = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CASH')->select('id','master_name','category')->first();
+		$cashac = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CASH')->select('id','master_name','category')->first();
 		$vouchers = $this->accountsetting->getAccountSettingsById($vid=10,$is_dept,$deptid);
 		$vchrdata = $this->getVoucher($id=10,$type='CASH');
 		return view('body.supplierpayment.quickadd')
@@ -1525,10 +1526,10 @@ public function dataExport(Request $request)
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -1560,17 +1561,17 @@ public function dataExport(Request $request)
 		$banks = $this->bank->activeBankList();
 		$jobs = $this->jobmaster->activeJobmasterList();
 		$cat = ($type=='PDC')?'PDCI':'BANK';
-		$accounts = DB::table('account_master')->where('category',$cat)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$accounts = DB::table('account_master')->where('category',$cat)->where('status',1)->whereNull('deleted_at')
 						->select('id','master_name','category')->first();
 		$acdata = DB::table('account_master')->where('id',$id)->select('id','master_name','vat_assign','category','vat_percentage')->first();
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-				$deptid = $departments[0]->id;
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments->isEmpty() ? '' : $departments[0]->id;
 			}
 			$is_dept = true;
 		} else {
@@ -1592,4 +1593,5 @@ public function dataExport(Request $request)
 	}
 
 }
+
 

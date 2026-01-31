@@ -11,14 +11,18 @@ use App\Repositories\ManualJournal\ManualJournalInterface;
 use App\Repositories\AccountSetting\AccountSettingInterface;
 use App\Repositories\ReceiptVoucher\ReceiptVoucherInterface;
 use App\Repositories\PaymentVoucher\PaymentVoucherInterface;
+use App\Repositories\UpdateUtility;
 
 use App\Http\Requests;
+use Input;
 use Session;
 use Response;
 use Validator;
 use DB;
 use Auth;
 use App;
+use Mail;
+use PDF;
 
 class ManualJournalController extends Controller
 {
@@ -28,11 +32,12 @@ class ManualJournalController extends Controller
 	protected $jobmaster;
 	protected $department;
 	protected $manual_journal;
+	public $objUtility;
 	protected $accountsetting;
 	protected $receipt_voucher;
 	protected $payment_voucher;
 	
-	public function __construct(AccountSettingInterface $accountsetting,  ReceiptVoucherInterface $receipt_voucher, PaymentVoucherInterface $payment_voucher, BankInterface $bank, CurrencyInterface $currency, VoucherNoInterface $voucherno, JobmasterInterface $jobmaster, DepartmentInterface $department,ManualJournalInterface $manual_journal) {
+	public function __construct(AccountSettingInterface $accountsetting, ManualJournalInterface $manual_journal, ReceiptVoucherInterface $receipt_voucher, PaymentVoucherInterface $payment_voucher, BankInterface $bank, CurrencyInterface $currency, VoucherNoInterface $voucherno, JobmasterInterface $jobmaster, DepartmentInterface $department) {
 		
 		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
 		$this->middleware('auth');
@@ -45,27 +50,127 @@ class ManualJournalController extends Controller
 		$this->accountsetting = $accountsetting;
 		$this->receipt_voucher = $receipt_voucher;
 		$this->payment_voucher = $payment_voucher;
+		$this->objUtility = new UpdateUtility();
 	}
 	
 	public function index() {
 		$data = array();
-		$journals = $this->manual_journal->journalList();//
-	//	echo '<pre>';print_r($journals);exit;
-		$prints = DB::table('report_view_detail')
-							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
-							->where('report_view.code','MJV')
-							->select('report_view_detail.name','report_view_detail.id')
-							->get();
-							
+		$journals = [];//$this->manual_journal->journalList();//
+		
 		return view('body.manualjournal.index')
 					->withJournals($journals)
-					->withPrints($prints)
+					//->withPrints($prints)
 					->withData($data);
 	}
 	
+	public function ajaxPaging(Request $request)
+	{
+		$columns = array( 
+                            0 =>'journal.id', 
+                            1 =>'voucher_no',
+							2 =>'voucher_type',
+                            3=> 'voucher_date',
+                            4=> 'description',
+                            5=>'reference',
+                            6=> 'amount'
+                        );
+						
+		//$totalData = $this->manual_journal->journalListCount();
+            
+        //$totalFiltered = $totalData; 
+
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = 'manual_journal.id';//$columns[$request->input('order.0.column')];
+        $dir = 'desc';//$request->input('order.0.dir');
+		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
+        
+		$totalData =  $this->manual_journal->journalListPara('count', $start, $limit, $order, $dir, $search);
+		$totalFiltered = $totalData; 
+		
+		$invoices = $this->manual_journal->journalListPara('get', $start, $limit, $order, $dir, $search);
+		
+		if($search)
+			$totalFiltered =  $this->manual_journal->journalListPara('count', $start, $limit, $order, $dir, $search);
+		
+		
+		$prints = DB::table('report_view_detail')
+			->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+			->where('report_view.code','MJV')
+			->select('report_view_detail.name','report_view_detail.id')
+			->get();
+			
+        $data = array();
+        if(!empty($invoices))
+        {
+			foreach ($invoices as $row)
+            {
+                $edit =  '"'.url('manual_journal/edit/'.$row->id).'"';
+                $delete =  'funDelete("'.$row->id.'")';
+				$print = url('manual_journal/print/'.$row->id.'/'.$prints[0]->id);
+                $nestedData['id'] = $row->id;
+                $nestedData['voucher_no'] = $row->voucher_no;
+				$nestedData['voucher_type'] = ($row->voucher_type==9)?'CASH':$row->voucher_type;
+				$nestedData['voucher_date'] = date('d-m-Y', strtotime($row->voucher_date));
+				$nestedData['description'] = $row->description;
+				$nestedData['reference'] = $row->reference;
+				$nestedData['amount'] = $row->credit;
+				$editcon =  'funPdcr()';
+				
+				
+				if($row->is_transfer==1) {
+					$nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='{$editcon}'>
+													<span class='glyphicon glyphicon-pencil'></span></button></p>";
+													
+					$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$editcon}'>
+												<span class='glyphicon glyphicon-trash'></span>";
+												
+				} else {
+					$nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
+													<span class='glyphicon glyphicon-pencil'></span></button></p>";
+													
+					$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+												<span class='glyphicon glyphicon-trash'></span>";
+				}
+				
+				
+				/*$nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
+												<span class='glyphicon glyphicon-pencil'></span></button></p>";
+												
+				$nestedData['delete'] = "<button class='btn btn-danger btn-xs delete' onClick='{$delete}'>
+											<span class='glyphicon glyphicon-trash'></span>";*/
+				
+				$nestedData['print'] = "<p><a href='{$print}' target='_blank'  role='menuitem' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";
+				
+				/* "<div class='btn-group drop_btn' role='group'>
+									<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
+											id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
+										<i class='fa fa-fw fa-print' aria-hidden='true'></i><span class='caret'></span>
+									</button>
+									<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
+										".$opts."
+									</ul>
+								</div>"; */
+					
+				
+						
+                $data[] = $nestedData;
+
+            }
+        }
+          
+        $json_data = array(
+                    "draw"            => intval($request->input('draw')),  
+                    "recordsTotal"    => intval($totalData),  
+                    "recordsFiltered" => intval($totalFiltered), 
+                    "data"            => $data   
+                    );
+            
+        echo json_encode($json_data);
+	}
+	
 	public function add($id=null,$rid=null,$vouchertype=null) {
-       // echo '<pre>';print_r($id);
-		//echo '<pre>';print_r($rid);
+			
 		//echo '<pre>';print_r($vouchertype);exit;
 		$data = array();
 		$currency = $this->currency->activeCurrencyList();
@@ -76,19 +181,23 @@ class ManualJournalController extends Controller
 		$lastid = $this->manual_journal->getLastId();
 		$prints = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
-							->where('report_view.code','JV')
+							->where('report_view.code','MJV')
 							->select('report_view_detail.name','report_view_detail.id')
 							->get();
-		$vouchers = $this->accountsetting->getAccountSettingsById($vid=28);
+		$isjv = false;
+		$vouchers = $this->accountsetting->getAccountSettingsById($vid=28); //echo '<pre>';print_r($vouchers);exit;
+		if(sizeof($vouchers)==0)
+		    $isjv = true;
+		
 		$vchrdata = $this->getVoucherJV($id=28,$type='CASH');
-		//echo '<pre>';print_r($vchrdata);exit;
+		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -97,6 +206,11 @@ class ManualJournalController extends Controller
 			$departments = [];
 			$deptid = '';
 		}
+		
+		if(sizeof($vouchers)==0)
+		    $vouchers = $this->accountsetting->getAccountSettingsById($vid=9,$is_dept,$deptid);
+		if(sizeof($vouchers)==0)
+		    $vouchers = $this->accountsetting->getAccountSettingsById($vid=10,$is_dept,$deptid);
 		
 		return view('body.manualjournal.add')
 					->withCurrency($currency)
@@ -113,15 +227,17 @@ class ManualJournalController extends Controller
 					->withIsdept($is_dept)
 					->withDepartments($departments)
 					->withDeptid($deptid)
+					->withSettings($this->acsettings)
+					->withIsjv($isjv)
 					->withData($data);
 	}
-	
-	
+
+
 	public function save(Request $request) {
-	//echo '<pre>';print_r($request->all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		
-		$validator = Validator::make($request->all(), [
-            'voucher_no' => 'required|max:255',
+		/*$validator = Validator::make($request->all(), [
+            //'voucher_no' => 'required|max:255',
 			'debit' => 'required|same:credit'
         ]);
 		
@@ -130,19 +246,83 @@ class ManualJournalController extends Controller
                         ->withErrors($validator)
                         ->withInput();
         }
-		
-		//echo '<pre>';print_r($request->all());exit;
+		*/
+		if($request->get('voucher_type')==9) {
 			
-		if( $this->manual_journal->create($request->all()) )
-			Session::flash('message', 'Manual journal voucher added successfully.');
-		else 
-			Session::flash('error', 'Manual journal entry validation error! Please try again!');
+			if( $this->receipt_voucher->create($request->all()) )
+				Session::flash('message', 'Customer receipt added successfully.');
+			else 
+				Session::flash('error', 'Something went wrong, Customer receipt failed to add!');
+			
+			return redirect('manual_journal/add'); //return redirect('customer_receipt');
+			
+		} else if($request->get('voucher_type')==10) {
+			
+			if( $this->payment_voucher->create($request->all()) )
+				Session::flash('message', 'Supplier payment added successfully.');
+			else 
+				Session::flash('error', 'Something went wrong, Supplier payment failed to add!');
+			
+			return redirect('supplier_payment/add'); //return redirect('supplier_payment');
+			
+		} else if($request->get('voucher_type')==5) {
+			$id=$this->manual_journal->create($request->all());
+			if($id)
+				Session::flash('message', 'Purchase voucher added successfully.');
+			else 
+				Session::flash('error', 'Something went wrong, Purchase voucher failed to add!');
+			
+			return redirect('journal/add'); //return redirect('purchase_voucher');
+			
+		} else if($request->get('voucher_type')==6) {
+			$id=$this->manual_journal->create($request->all());
+			if($id)
+				Session::flash('message', 'Sales voucher added successfully.');
+			else 
+				Session::flash('error', 'Something went wrong, Sales voucher failed to add!');
+			
+			return redirect('manual_journal/add');//return redirect('sales_voucher');
+			
+		} else {
+			$id=$this->manual_journal->create($request->all());
+			if($id) {
+				$attributes = $request->all();
+				if(isset($attributes['jvtype']) && $attributes['jvtype']=='RC') {
+					$this->saveRecurringJV($request->all());
+				}
+            
+				Session::flash('message', 'Manual Journal voucher added successfully.');
+			} else 
+				Session::flash('error', 'Journal entry validation error! Please try again!');
+			
+			return redirect('manual_journal/add');
+		}
+	}
+
+	public function quickSave(Request $request) {
+		//echo '<pre>';print_r($request->all());exit;
 		
-		return redirect('manual_journal/add');
+		/*$validator = Validator::make($request->all(), [
+            'voucher_no' => 'required|max:255',
+			'debit' => 'required|same:credit'
+        ]);
+		
+		if ($validator->fails()) {
+            return redirect('manual_journal/add')
+                        ->withErrors($validator)
+                        ->withInput();
+        }*/
+			
+		if( $this->payment_voucher->create($request->all()) )
+			Session::flash('message', 'Supplier payment added successfully.');
+		else 
+			Session::flash('error', 'Something went wrong, Supplier payment failed to add!');
+		
+		return redirect('supplier_payment/quick-add'); //return redirect('supplier_payment');
+		
 	}
 	
 	
-		
 	public function edit($id) { 
 
 		$data = array();
@@ -151,22 +331,18 @@ class ManualJournalController extends Controller
 		$jobs = $this->jobmaster->activeJobmasterList();
 		//$departments = $this->department->activeDepartmentList();
 				
-		$jrow = $this->manual_journal->find($id);//echo '<pre>';print_r($jrow);exit;
-		$vouchertype = $this->accountsetting->getAccountSettings( $jrow->voucher_type ); //$this->getVid(
+		$jrow = $this->manual_journal->find($id);
+		$vouchertype = $this->accountsetting->getAccountSettings( $this->getVid($jrow->voucher_type) );
 		$jerow = $this->manual_journal->findJEdata($id);
-	//	echo '<pre>';print_r($jerow);exit;
-		$prints = DB::table('report_view_detail')
-							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
-							->where('report_view.code','MJV')
-							->select('report_view_detail.name','report_view_detail.id')
-							->get();
+		//echo '<pre>';print_r($jrow);exit;
+		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -175,6 +351,12 @@ class ManualJournalController extends Controller
 			$departments = [];
 			$deptid = '';
 		}
+		
+		$prints = DB::table('report_view_detail')
+			->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+			->where('report_view.code','MJV')
+			->select('report_view_detail.name','report_view_detail.id')
+			->get();
 		
 		return view('body.manualjournal.edit')
 					->withJrow($jrow)
@@ -187,6 +369,7 @@ class ManualJournalController extends Controller
 					->withIsdept($is_dept)
 					->withDepartments($departments)
 					->withDeptid($deptid)
+					->withSettings($this->acsettings)
 					->withPrints($prints)
 					->withData($data);
 	}
@@ -196,7 +379,7 @@ class ManualJournalController extends Controller
 		switch($v)
 		{
 			case 'MJV':
-				return 25;
+				return 28;
 			break;
 			
 			case 'PV':
@@ -219,7 +402,7 @@ class ManualJournalController extends Controller
 	
 	public function update(Request $request,$id)
 	{
-		$validator = Validator::make($request->all(), [
+		/*$validator = Validator::make($request->all(), [
 			'debit' => 'required|same:credit'
         ]);
 		
@@ -228,46 +411,443 @@ class ManualJournalController extends Controller
                         ->withErrors($validator)
                         ->withInput();
         }
+		*/
+		if($request->get('voucher_type')==5) {
 			
-		if( $this->manual_journal->update($id,$request->all()) )
-			Session::flash('message', 'Journal voucher updated successfully.');
-		else
-			Session::flash('error', 'Something went wrong, Journal voucher failed to edit!');
-		
-		return redirect('manual_journal');
-		
+			if( $this->manual_journal->update($id, $request->all()) )
+				Session::flash('message', 'Purchase voucher updated successfully.');
+			else
+				Session::flash('error', 'Something went wrong, Purchase voucher failed to edit!');
 			
-		/* $this->journal->update($id, $request->all());
-		Session::flash('message', 'Journal voucher updated successfully');
-		return redirect('journal'); */
+			return redirect('purchase_voucher');
+		} else if($request->get('voucher_type')==6) {
+			
+			if( $this->manual_journal->update($id, $request->all()) )
+				Session::flash('message', 'Sales voucher updated successfully.');
+			else
+				Session::flash('error', 'Something went wrong, Sales voucher failed to edit!');
+			
+			return redirect('sales_voucher');
+		} else {
+			
+			if( $this->manual_journal->update($id,$request->all()) ){
+            
+				Session::flash('message', 'Journal voucher updated successfully.');
+			}else
+				Session::flash('error', 'Journal entry validation error! Please try again.');
+			
+			return redirect('manual_journal');
+		}
+
 	}
 	
-	public function getprintGrp($id)
+	public function destroy($id, $type)
 	{
-		$voucherhead = 'Manual Journal';
+		$row = $this->manual_journal->find($id);
+		if($row->is_transfer==1) {
+		    Session::flash('error', 'PDC Received already transfered, you cant delete!');
+    		return redirect('manual_journal');
+		} else {
+    		if( $this->manual_journal->delete($id) ) { 
+    			if($type=='PI') {
+    				Session::flash('message', 'Purchase voucher deleted successfully.');
+    				return redirect('purchase_voucher');
+    			} if($type=='SI') {
+    				Session::flash('message', 'Sales voucher deleted successfully.');
+    				return redirect('sales_voucher');
+    			} else if($type=='MJV') {
+    				Session::flash('message', 'Journal voucher deleted successfully.');
+    				return redirect('manual_journal');
+    			}
+    		} else {
+    			if($type=='PI') {
+    				Session::flash('error', 'Something went wrong, Purchase voucher failed to delete!');
+    				return redirect('purchase_voucher');
+    			} if($type=='SI') {
+    				Session::flash('error', 'Something went wrong, Sales voucher failed to delete!');
+    				return redirect('sales_voucher');
+    			} else if($type=='MJV') {
+    				Session::flash('error', 'Something went wrong, Journal voucher failed to delete!');
+    				return redirect('manual_journal');
+    			}
+    		}
+		}
+	}
+	public function getVoucherJV($id,$type) {
 		
-		$crrow = $this->manual_journal->find($id);
+		 $row = $this->accountsetting->getDrVoucherByID2($id);//return $row;//print_r($row);
+		// echo '<pre>';print_r($row);exit;
+		 if($row) {
+			 if($row->voucher_no != '' || $row->voucher_no != null) {
+				 if($row->is_prefix==0)
+					 $voucher = $row->voucher_no;
+				 else {
+					 $no = (int)$row->voucher_no;
+					 $voucher = $row->prefix.''.$no;
+				 }
+			 }
+			 
+			 if($type=='CASH') {
+				 $master_name = $row->cashaccount;
+				 $id = $row->cash_account_id;
+			 } else if($type=='BANK') {
+				 $master_name = $row->bankaccount;
+				 $id = $row->bank_account_id;
+			 } else if($type=='PDCR') {
+				 $master_name = $row->pdcaccount;
+				 $id = $row->pdc_account_id;
+			} else if($type=='PDCI') {
+				 $master_name = $row->pdcaccount;
+				 $id = $row->pdc_account_id;
+			 }
+			 
+			 return $result = array('voucher_no' => $voucher,
+									'account_name' => $master_name, 
+									'vno' => $row->voucher_no, //MY23
+									'id' => $id);
+		 } else
+			 return null;
 		
-		$invoicerow =$this->manual_journal->findJEdata($id);
-		//echo '<pre>';print_r($invoicerow);exit;		
-		$words = $this->number_to_word($crrow->debit);
-		$arr = explode('.',number_format($crrow->debit,2));
-		if(sizeof($arr) >1 ) {
-			if($arr[1]!=00) {
-				$dec = $this->number_to_word($arr[1]);
-				$words .= ' and Fils '.$dec.' Only';
-			} else 
-				$words .= ' Only';
-		} else
-			$words .= ' Only'; 
-		
-		return view('body.manualjournal.printgrp')
-					->withVoucherhead($voucherhead)
-					->withDetails($crrow)
-					->withInvoicerow($invoicerow)
-					->withAmtwords($words);
 	}
 	
+	
+	public function getVoucher($id) {
+		
+		 $row = $this->accountsetting->getDrVoucherByID($id);
+		 if($row->voucher_no != '' || $row->voucher_no != null) {
+			 if($row->is_prefix==0)
+				 $voucher = $row->voucher_no;
+			 else {
+				 $no = (int)$row->voucher_no;
+				 $voucher = $row->prefix.''.$no;
+			 }
+			 echo $voucher;
+		 }
+
+
+	}
+	
+	public function getVoucherType($id) {
+		
+		return $row = $this->accountsetting->getAccountSettings($id);
+		 
+	}
+	
+	public function getVoucherprint(Request $request)
+	{                
+		$type = $request->get('voucher_typeprint');
+		//echo '<pre>';print_r($type);exit;
+		$voucher_no = $request->get('voucherprnt_no');
+		if(($type !=0) &&  (!empty($voucher_no)))
+		{
+		    $journals = $this->manual_journal->journalListprit($type,$voucher_no);
+		
+		if($type ==28 ) {
+		    $prints = DB::table('report_view_detail')
+								->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+								->where('report_view.code','MJV')
+								->select('report_view_detail.name','report_view_detail.id')
+								->get();
+								
+			if(isset($journals[0])) {
+			    $id = $journals[0]->id; 
+    		    $rid = $prints[0]->id;
+               return redirect('manual_journal/print/'.$id.'/'.$rid);
+		    } else {
+		        echo "<script>alert('Voucher No. not found!');window.close();</script>";
+		        return false;
+		    }
+
+            
+		} elseif($type ==5) {
+		    $prints = DB::table('report_view_detail')
+		                       ->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+		                        ->where('report_view.code','PVR')
+		                        ->select('report_view_detail.name','report_view_detail.id')
+		                        ->get();
+		                        
+		    if(isset($journals[0])) {
+			    $id = $journals[0]->id; 
+    		    $rid = $prints[0]->id;
+               return redirect('manual_journal/print/'.$id.'/'.$rid);
+		    } else {
+		        echo "<script>alert('Voucher No. not found!');window.close();</script>";
+		        return false;
+		    }
+		   
+		} elseif($type ==6) {
+			$prints = DB::table('report_view_detail')
+													  ->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+													   ->where('report_view.code','SVR')
+												        ->select('report_view_detail.name','report_view_detail.id')
+													   ->get();
+													   
+            if(isset($journals[0])) {
+			    $id = $journals[0]->id; 
+    		    $rid = $prints[0]->id;
+               return redirect('manual_journal/print/'.$id.'/'.$rid);
+		    } else {
+		        echo "<script>alert('Voucher No. not found!');window.close();</script>";
+		        return false;
+		    }
+		    
+		} elseif($type ==9) {
+			$prints = DB::table('report_view_detail')
+    					 ->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+    					  ->where('report_view.code','RV')
+    					   ->select('report_view_detail.name','report_view_detail.id')
+    					  ->get();
+    					  
+    		if(isset($journals[0])) {
+			    $id = $journals[0]->id; 
+    		    $rid = $prints[0]->id;
+               return redirect('customer_receipt/print2/'.$id.'/'.$rid);
+		    } else {
+		        echo "<script>alert('Voucher No. not found!');window.close();</script>";
+		        return false;
+		    }
+    					  
+    		
+               
+		} elseif($type ==10) {
+				$prints = DB::table('report_view_detail')->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+														->where('report_view.code','PV')
+															->where('report_view_detail.is_default',1)
+													->select('report_view_detail.name','report_view_detail.id')
+																			->get();
+																			
+			    if(isset($journals[0])) {
+    			    $id = $journals[0]->id; 
+        		    $rid = $prints[0]->id;
+                   return redirect('supplier_payment/print/'.$id.'/'.$rid);
+			    } else {
+			        echo "<script>alert('Voucher No. not found!');window.close();</script>";
+			        return false;
+			    }
+							   
+		}
+		
+		//return 'true';
+		
+	}
+	
+	
+    	else
+    	{
+    	    $journals = $this->manual_journal->journalListpritlast($type);
+            if($type ==28) {
+        		$prints = DB::table('report_view_detail')
+        								->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+        								->where('report_view.code','MJV')
+        								->select('report_view_detail.name','report_view_detail.id')
+        								->get();
+               
+               
+               if(isset($journals)) {
+    			    $id = $journals->id; 
+    		        $rid = $prints[0]->id;
+                    return redirect('manual_journal/print/'.$id.'/'.$rid);
+			    } else {
+			        echo "<script>alert('Voucher entries not found!');window.close();</script>";
+			        return false;
+			    }
+               
+            } elseif($type ==9) {
+                $prints = DB::table('report_view_detail')
+        								->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+        								->where('report_view.code','RV')
+        								->select('report_view_detail.name','report_view_detail.id')
+        								->get();
+    
+        	   
+               
+               if(isset($journals)) {
+    			    $id = $journals->id; 
+    		         $rid = $prints[0]->id;
+                     return redirect('customer_receipt/print2/'.$id.'/'.$rid);
+			    } else {
+			        echo "<script>alert('Voucher entries not found!');window.close();</script>";
+			        return false;
+			    }
+               
+            } elseif($type ==10) {
+                $prints = DB::table('report_view_detail')
+        								->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+        								->where('report_view.code','PV')
+        								->select('report_view_detail.name','report_view_detail.id')
+        								->get();
+        								
+        	    if(isset($journals)) {
+    			    $id = $journals->id; 
+    		        $rid = $prints[0]->id;
+                    return redirect('supplier_payment/print/'.$id.'/'.$rid);
+			    } else {
+			        echo "<script>alert('Voucher entries not found!');window.close();</script>";
+			        return false;
+			    }
+    
+        	   
+               
+            } elseif($type ==5) {
+                $prints = DB::table('report_view_detail')
+        								->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+        								->where('report_view.code','PVR')
+        								->select('report_view_detail.name','report_view_detail.id')
+        								->get();
+        								
+        		if(isset($journals)) {
+    			    $id = $journals->id; 
+    		        $rid = $prints[0]->id;
+                    return redirect('manual_journal/print/'.$id.'/'.$rid);
+			    } else {
+			        echo "<script>alert('Voucher entries not found!');window.close();</script>";
+			        return false;
+			    }
+			    
+            } elseif($type ==6) {
+                $prints = DB::table('report_view_detail')
+        								->join('report_view','report_view.id','=','report_view_detail.report_view_id')
+        								->where('report_view.code','SVR')
+        								->select('report_view_detail.name','report_view_detail.id')
+        								->get();
+        								
+        		if(isset($journals)) {
+    			    $id = $journals->id; 
+    		        $rid = $prints[0]->id;
+                    return redirect('manual_journal/print/'.$id.'/'.$rid);
+			    } else {
+			        echo "<script>alert('Voucher entries not found!');window.close();</script>";
+			        return false;
+			    }
+			    
+    
+        	   
+            }
+               
+            
+    
+        }
+	}
+	
+	public function checkVchrNo(Request $request) {
+
+		$check = $this->manual_journal->check_voucher_no($request->get('voucher_no'), $request->get('vtype'), $request->get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	
+	public function checkVNo(Request $request) {
+
+		$check = $this->manual_journal->check_vno($request->get('voucher_no'), $request->get('id'));
+		$isAvailable = ($check) ? false : true;
+		echo json_encode(array(
+							'valid' => $isAvailable,
+						));
+	}
+	public function getPrint($id,$rid=null)
+	{ 
+		
+        if($rid==null) {
+			$voucherhead = 'Journal Voucher';
+			$jvrow = $this->manual_journal->find($id); 
+			$jerow = $this->manual_journal->findJEdata($id); //echo '<pre>';print_r($jerow);exit;
+
+			return view('body.manualjournal.print')
+						->withVoucherhead($voucherhead)
+						->withDetails($jvrow)
+						->withJerow($jerow);
+		} else {
+			$viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first(); 
+			//echo '<pre>';print_r($viewfile);exit;	
+			if($viewfile->print_name=='') {
+				$fc='';
+				$attributes['document_id'] = $id; //echo "892 : ".$this->number_to_word(12495);exit;
+				$attributes['is_fc'] = ($fc)?1:'';
+				$titles = ['main_head' => 'Payment Voucher','subhead' => 'Payment Voucher'];
+				
+				$view = 'print';
+
+				$voucherhead = 'Journal Voucher';
+				$jvrow = $this->manual_journal->find($id); 
+				$jerow = $this->manual_journal->findJEdata($id);
+			
+						
+				$words = $this->number_to_word($jvrow->debit);
+				$arr = explode('.',number_format($jvrow->debit,2));
+				if(sizeof($arr) >1 ) {
+					if($arr[1]!=00) {
+						$dec = $this->number_to_word($arr[1]);
+						$words .= ' and Fils '.$dec.' Only';
+					} else 
+						$words .= ' Only';
+				} else
+					$words .= ' Only'; 
+				
+				return view('body.manualjournal.'.$view)
+							->withVoucherhead($voucherhead)
+							->withDetails($jvrow)
+						->withJerow($jerow)
+							->withAmtwords($words);
+
+
+			} else {
+						
+				$path = app_path() . '/stimulsoft/helper.php';
+				if(env('STIMULSOFT_VER')==2)
+			        return view('body.reports')->withPath($path)->withView($viewfile->print_name);
+			   else
+			        return view('body.manualjournal.viewer')->withPath($path)->withView($viewfile->print_name);
+				
+			}
+		}
+		
+	}
+
+	public function getPrintold($id)
+	{
+		$voucherhead = 'Journal Voucher';
+		$jvrow = $this->manual_journal->find($id); 
+		$jerow = $this->manual_journal->findJEdata($id); //echo '<pre>';print_r($jerow);exit;
+
+		return view('body.manualjournal.print')
+					->withVoucherhead($voucherhead)
+					->withDetails($jvrow)
+					->withJerow($jerow);
+	}
+	
+	public function setTransactions($type,$id,$n,$jeid=null) {
+		
+		$banks = $this->bank->activeBankList();
+		$jobs = $this->jobmaster->activeJobmasterList();
+		$acdata = DB::table('account_master')->where('id',$id)->select('id','master_name','vat_assign','category','vat_percentage')->first();
+		//CHECK DEPARTMENT.......
+		if(Session::get('department')==1) { //if active...
+			$deptid = Auth::user()->department_id;
+			if($deptid!=0)
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+			else {
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+				$deptid = $departments[0]->id;
+			}
+			$is_dept = true;
+		} else {
+			$is_dept = false;
+			$departments = [];
+			$deptid = '';
+		}
+		
+		return view('body.manualjournal.transactions')
+							->withBanks($banks)
+							->withJobs($jobs)
+							->withIsdept($is_dept)
+							->withDepartments($departments)
+							->withAcdata($acdata)
+							->withNum($n)
+							->withType($type)
+							->withJeid($jeid);
+	}
 	
 	private function number_to_word( $num = '' )
 	{
@@ -373,248 +953,18 @@ class ManualJournalController extends Controller
 		return $str;
 	}
 	
-	
-	public function destroy($id, $type)
-	{
-		if( $this->journal->delete($id) ) { 
-			if($type=='PI') {
-				Session::flash('message', 'Purchase voucher deleted successfully.');
-				return redirect('purchase_voucher');
-			} if($type=='SI') {
-				Session::flash('message', 'Sales voucher deleted successfully.');
-				return redirect('sales_voucher');
-			} else if($type=='JV') {
-				Session::flash('message', 'Journal voucher deleted successfully.');
-				return redirect('journal');
-			}
-		} else {
-			if($type=='PI') {
-				Session::flash('error', 'Something went wrong, Purchase voucher failed to delete!');
-				return redirect('purchase_voucher');
-			} if($type=='SI') {
-				Session::flash('error', 'Something went wrong, Sales voucher failed to delete!');
-				return redirect('sales_voucher');
-			} else if($type=='JV') {
-				Session::flash('error', 'Something went wrong, Journal voucher failed to delete!');
-				return redirect('journal');
-			}
-		}
-	}
-	
-	public function getVoucherJV($id,$type) {
+	public function recurringAdd(Request $request) {
 		
-		 $row = $this->accountsetting->getDrVoucherByID2($id);//return $row;//print_r($row);
-		// echo '<pre>';print_r($row);exit;
-		 if($row) {
-			 if($row->voucher_no != '' || $row->voucher_no != null) {
-				 if($row->is_prefix==0)
-					 $voucher = $row->voucher_no;
-				 else {
-					 $no = (int)$row->voucher_no;
-					 $voucher = $row->prefix.''.$no;
-				 }
-			 }
-			 
-			 if($type=='CASH') {
-				 $master_name = $row->cashaccount;
-				 $id = $row->cash_account_id;
-			 } else if($type=='BANK') {
-				 $master_name = $row->bankaccount;
-				 $id = $row->bank_account_id;
-			 } else if($type=='PDCR') {
-				 $master_name = $row->pdcaccount;
-				 $id = $row->pdc_account_id;
-			} else if($type=='PDCI') {
-				 $master_name = $row->pdcaccount;
-				 $id = $row->pdc_account_id;
-			 }else if($type=='MJV') {
-				$master_name = $row->pdcaccount;
-				$id = $row->pdc_account_id;
-			}
-			
-			 return $result = array('voucher_no' => $voucher,
-									'account_name' => $master_name, 
-									'id' => $id);
-		 } else
-			 return null;
-		
-	}
-	
-	public function getVoucher($id) {
-		
-		 $row = $this->accountsetting->getDrVoucherByID($id);
-		 if($row->voucher_no != '' || $row->voucher_no != null) {
-			 if($row->is_prefix==0)
-				 $voucher = $row->voucher_no;
-			 else {
-				 $no = (int)$row->voucher_no;
-				 $voucher = $row->prefix.''.$no;
-			 }
-			 echo $voucher;
-		 }
-		 
-		/*  $row = $this->voucherno->getVoucherNo($id);
-		 if($row['no'] != '' || $row['no'] != null) {
-			echo $no = $row['no']+1;
-		 } else if($row['no'] == 0) {
-			echo $no = 1;
-		 } */
-
-	}
-	
-	public function getVoucherType($id) {
-		
-		return $row = $this->accountsetting->getAccountSettings($id);
-		 
-	}
-	
-	public function getVoucherprint()
-	{                
-		$type = $request->get('voucher_typeprint');
-		//echo '<pre>';print_r($type);exit;
-		$voucher_no = $request->get('voucherprnt_no');
-		if(($type !=0) &&  (!empty($voucher_no)))
-		{
-		$journals = $this->manual_journal->journalListprit($type,$voucher_no);
-		//echo '<pre>';print_r($journals);,,,PV
-		if($type ==16 )
-		$prints = DB::table('report_view_detail')
-														->join('report_view','report_view.id','=','report_view_detail.report_view_id')
-														->where('report_view.code','JV')
-														->select('report_view_detail.name','report_view_detail.id')
-														->get();
-		elseif($type ==5)
-		 $prints = DB::table('report_view_detail')
-		                       ->join('report_view','report_view.id','=','report_view_detail.report_view_id')
-		                        ->where('report_view.code','PVR')
-		                    ->select('report_view_detail.name','report_view_detail.id')
-		                        ->get();
-		elseif($type ==6)
-			$prints = DB::table('report_view_detail')
-													  ->join('report_view','report_view.id','=','report_view_detail.report_view_id')
-													   ->where('report_view.code','SVR')
-												        ->select('report_view_detail.name','report_view_detail.id')
-													   ->get();
-		elseif($type ==9)
-			$prints = DB::table('report_view_detail')
-																			 ->join('report_view','report_view.id','=','report_view_detail.report_view_id')
-																			  ->where('report_view.code','RV')
-																			   ->select('report_view_detail.name','report_view_detail.id')
-																			  ->get();
-		elseif($type ==10)
-				$prints = DB::table('report_view_detail')->join('report_view','report_view.id','=','report_view_detail.report_view_id')
-														->where('report_view.code','PV')
-													->select('report_view_detail.name','report_view_detail.id')
-																			->get();
-							   
-		
-		$id = $journals[0]->id; 
-		//echo '<pre>';print_r($id);
-		$rid = $prints[0]->id;
-		//echo '<pre>';print_r($rid);exit;
-           return redirect('manual_journal/print/'.$id.'/'.$rid);
-		//return 'true';
-	}
-	else
-	{
-        $journal = $this->manual_journal->getLastId(); 
-		$prints = DB::table('report_view_detail')
-														->join('report_view','report_view.id','=','report_view_detail.report_view_id')
-														//->where('report_view.code',$type)
-														->select('report_view_detail.name','report_view_detail.id')
-														->get(); 
-		
-		$id = $journal->id;
-		
-		$rid = $prints[0]->id;
-	
-           return redirect('manual_journal/print/'.$id.'/'.$rid);   
-
-	}
-	}
-	
-	public function checkVchrNo(Request $request) {
-
-		$check = $this->manual_journal->check_voucher_no($request->get('voucher_no'), $request->get('vtype'), $request->get('id'));
-	    echo '<pre>';print_r($check);exit;	
-		$isAvailable = ($check) ? false : true;
-		echo json_encode(array(
-							'valid' => $isAvailable,
-						));
-	}
-	public function getPrint($id,$rid=null)
-	{ 
-		
-        $viewfile = DB::table('report_view_detail')->where('id', $rid)->select('print_name')->first(); 
-		//echo '<pre>';print_r($viewfile);exit;	
-		if($viewfile->print_name=='') {
-			$fc='';
-			$attributes['document_id'] = $id; //echo "892 : ".$this->number_to_word(12495);exit;
-			$attributes['is_fc'] = ($fc)?1:'';
-			$titles = ['main_head' => 'Payment Voucher','subhead' => 'Payment Voucher'];
-			
-			$view = 'printgrp';
-
-			$voucherhead = 'Manual Journal Voucher';
-			$jvrow = $this->journal->find($id); 
-		     $jerow = $this->journal->findJEdata($id);
-		
-					
-			$words = $this->number_to_word($crrow->debit);
-			$arr = explode('.',number_format($crrow->debit,2));
-			if(sizeof($arr) >1 ) {
-				if($arr[1]!=00) {
-					$dec = $this->number_to_word($arr[1]);
-					$words .= ' and Fils '.$dec.' Only';
-				} else 
-					$words .= ' Only';
-			} else
-				$words .= ' Only'; 
-			
-			return view('body.manualjournal.'.$view)
-						->withVoucherhead($voucherhead)
-						->withDetails($jvrow)
-					->withJerow($jerow)
-						->withAmtwords($words);
-
-
-		} else {
-					
-			$path = app_path() . '/stimulsoft/helper.php';
-			
-			if(env('STIMULSOFT_VER')==2)
-			        return view('body.reports')->withPath($path)->withView($viewfile->print_name);
-			   else
-			        return view('body.manualjournal.viewer')->withPath($path)->withView($viewfile->print_name);
-			        
-			
-		}
-		
-	}
-
-	public function getPrintold($id)
-	{
-		$voucherhead = 'Journal Voucher';
-		$jvrow = $this->journal->find($id); 
-		$jerow = $this->journal->findJEdata($id); //echo '<pre>';print_r($jerow);exit;
-
-		return view('body.journal.print')
-					->withVoucherhead($voucherhead)
-					->withDetails($jvrow)
-					->withJerow($jerow);
-	}
-	public function setTransactions($type,$id,$n) {
-		
+		//echo '<pre>';print_r($request->all());exit;
 		$banks = $this->bank->activeBankList();
 		$jobs = $this->jobmaster->activeJobmasterList();
-		$acdata = DB::table('account_master')->where('id',$id)->select('id','master_name','vat_assign','category','vat_percentage')->first();
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -624,16 +974,41 @@ class ManualJournalController extends Controller
 			$deptid = '';
 		}
 		
-		return view('body.manualjournal.transactions')
-							->withBanks($banks)
-							->withJobs($jobs)
-							->withIsdept($is_dept)
-							->withDepartments($departments)
-							->withAcdata($acdata)
-							->withNum($n)
-							->withType($type);
-							//->withDescr($descr);
+		$is_pdc = false;
+		foreach($request->get('group_id') as $grp) {
+			if($grp=='PDCR')
+			 $is_pdc = true;
+		}
+		
+		return view('body.manualjournal.recrform')
+						->withJobs($jobs)
+						->withBanks($banks)
+						->withIsdept($is_dept)
+						->withDepartments($departments)
+						->withIspdc($is_pdc)
+						->withData($request->all());
 	}
 	
+	
+	private function setAccountTransaction($attributes, $journal_id, $key)
+	{
+		DB::table('account_transaction')
+				->insert([  'voucher_type' 		=> 'MJV',
+						    'voucher_type_id'   => $journal_id,
+							'account_master_id' => $attributes['account_id'][$key],
+							'transaction_type'  => $attributes['account_type'][$key],
+							'amount'   			=> $attributes['line_amount'][$key],
+							'status' 			=> 1,
+							'created_at' 		=> date('Y-m-d H:i:s'),
+							'created_by' 		=> Auth::User()->id,
+							'description' 		=> $attributes['description'][$key],
+							'reference'			=> $attributes['voucher_no'],
+							'invoice_date'		=> date('Y-m-d', strtotime($attributes['voucher_date'])),
+							'reference_from'	=> $attributes['reference'][$key]
+							]);
+		
+		return true;
+	}
 }
+
 

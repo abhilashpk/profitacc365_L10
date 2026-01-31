@@ -36,16 +36,16 @@ class RealestateStatementController extends Controller
 		
 		$data = array();
 		$acmasters = [];//$this->accountmaster->accountMasterList();
-		$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->get();
-		$currency = DB::table('currency')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();//echo '<pre>';print_r($currency);exit;
+		$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',0)->get();
+		$currency = DB::table('currency')->where('status',1)->whereNull('deleted_at')->get();//echo '<pre>';print_r($currency);exit;
 		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$department = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$department = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = '';
 			}
 			$is_dept = true;
@@ -55,8 +55,8 @@ class RealestateStatementController extends Controller
 			$deptid = '';
 		}
 		
-		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$groups = DB::table('account_group')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$category = DB::table('account_category')->where('parent_id','!=',0)->where('status',1)->whereNull('deleted_at')->get();
+		$groups = DB::table('account_group')->where('status',1)->whereNull('deleted_at')->get();
 		
 		return view('body.realestatestatement.index')
 					->withAcmasters($acmasters)
@@ -661,68 +661,68 @@ class RealestateStatementController extends Controller
 	
 	public function searchAccount()
 	{
-		//echo '<pre>';print_r(Input::all());
+		//echo '<pre>';print_r($request->all());
 		$data = $pdctransactions = array(); $opn_balnce = null;
-		$frmdate = Input::get('date_from');
-		$todate = Input::get('date_to');
-		Input::merge(['curr_from_date' => $this->acsettings->from_date]); 
-		$job_id = (Input::get('job_id')!='')?Input::get('job_id'):null;
+		$frmdate = $request->get('date_from');
+		$todate = $request->get('date_to');
+		$request->merge(['curr_from_date' => $this->acsettings->from_date]); 
+		$job_id = ($request->get('job_id')!='')?$request->get('job_id'):null;
 		
 		//JUN3....
 		$infc = $currency = '';
-		if(Input::get('inFC')==1) {
-			$currency = DB::table('currency')->where('id',Input::get('currency_id'))->first();
+		if($request->get('inFC')==1) {
+			$currency = DB::table('currency')->where('id',$request->get('currency_id'))->first();
 			if(!$currency) 
 				$currency = DB::table('currency')->where('status', 1)->where('is_default', 0)->first();
 			
-			$infc = Input::get('inFC');
+			$infc = $request->get('inFC');
 		}
 			
-		$account_id = Input::get('account_id');
-		$is_default = Input::get('is_default');
+		$account_id = $request->get('account_id');
+		$is_default = $request->get('is_default');
 		$headarr = [];
 		if($is_default=='1') { //***************NOT IN USE	
-			if(Input::get('type')=='statement') {
+			if($request->get('type')=='statement') {
 				$voucher_head = ($infc=='')?'Statement of Account':'Statement of Account in FC';
-				if(Input::get('is_con')==1) {
-					$transactions = $this->makeConsolidated( $this->accountmaster->getPrintViewByAccount(Input::all()) );
+				if($request->get('is_con')==1) {
+					$transactions = $this->makeConsolidated( $this->accountmaster->getPrintViewByAccount($request->all()) );
 				} else 
-					$transactions = $this->accountmaster->getPrintViewByAccount(Input::all());
+					$transactions = $this->accountmaster->getPrintViewByAccount($request->all());
 				
-				$pdctransactions = $this->accountmaster->getPDCPrintViewByAccount(Input::all());
+				$pdctransactions = $this->accountmaster->getPDCPrintViewByAccount($request->all());
 				//echo '<pre>';print_r($transactions);exit;
-				//echo $this->acsettings->from_date.' '.Input::get('date_from');exit; 01-01-2021 01-10-2020
-				if( (date('d-m-Y',strtotime($this->acsettings->from_date))!=Input::get('date_from'))) { // && (date('d-m-Y',strtotime($this->acsettings->to_date))!=Input::get('date_to')) 
-					$enddate = date('Y-m-d', strtotime('-1 day', strtotime(Input::get('date_from'))));
+				//echo $this->acsettings->from_date.' '.$request->get('date_from');exit; 01-01-2021 01-10-2020
+				if( (date('d-m-Y',strtotime($this->acsettings->from_date))!=$request->get('date_from'))) { // && (date('d-m-Y',strtotime($this->acsettings->to_date))!=$request->get('date_to')) 
+					$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 				
 					$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$account_id)->where('status',1)
-													->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+													->whereNull('deleted_at')->select('invoice_date')->first();
 													
-					Input::merge(['date_from' =>  $obtrn->invoice_date]);
-					Input::merge(['date_to' => $enddate]);
+					$request->merge(['date_from' =>  $obtrn->invoice_date]);
+					$request->merge(['date_to' => $enddate]);
 					
 					if($transactions[0]->voucher_type!='OB')
-						$opn_balnce = $this->getOpeningBalance($this->accountmaster->getPrintViewByAccount(Input::all()));
+						$opn_balnce = $this->getOpeningBalance($this->accountmaster->getPrintViewByAccount($request->all()));
 					
 					//echo '<pre>'.print_r($opn_balnce);exit;
 				} else {
 					if(!$transactions || $transactions[0]->voucher_type!='OB') {
 						$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$account_id)->where('status',1)
-													->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+													->whereNull('deleted_at')->select('invoice_date')->first();
 						
-						$enddate = date('Y-m-d', strtotime('-1 day', strtotime(Input::get('date_from'))));
-						Input::merge(['date_from' => $obtrn->invoice_date]);
-						Input::merge(['date_to' => $enddate]);
-						$opn_balnce = $this->getOpeningBalance($this->accountmaster->getPrintViewByAccount(Input::all()));
+						$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
+						$request->merge(['date_from' => $obtrn->invoice_date]);
+						$request->merge(['date_to' => $enddate]);
+						$opn_balnce = $this->getOpeningBalance($this->accountmaster->getPrintViewByAccount($request->all()));
 						//echo '<pre>'.print_r($opn_balnce);exit;
 					}
 				}
 				
-			} else if(Input::get('type')=='ageing') {
-				$accounts = DB::table('account_master')->where('category', $account_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->get();
+			} else if($request->get('type')=='ageing') {
+				$accounts = DB::table('account_master')->where('category', $account_id)->where('status',1)->whereNull('deleted_at')->select('id')->get();
 				
 				foreach($accounts as $row) {
-					$results = $this->accountmaster->getAgeingSummary($row->id, Input::all());
+					$results = $this->accountmaster->getAgeingSummary($row->id, $request->all());
 					$transactions[] = $this->makeAgeingSummary($this->makeTree($results));
 					
 				}
@@ -732,7 +732,7 @@ class RealestateStatementController extends Controller
 				return view('body.realestatestatement.printgroup')
 							->withTransactions($transactions)
 							->withVoucherhead($voucher_head)
-							->withType(Input::get('type'))
+							->withType($request->get('type'))
 							->withTitles($titles)
 							->withFromdate($frmdate)
 							->withTodate($todate)
@@ -748,34 +748,34 @@ class RealestateStatementController extends Controller
 		
 			$resultrow = [];//$this->accountmaster->findDetails($account_id);
 			//echo $account_id;
-			if(Input::get('type')=='statement') {
+			if($request->get('type')=='statement') {
 				$voucher_head = ($infc=='')?'Statement of Account':'Statement of Account in FC';
-				if(Input::get('is_con')==1) {
-					$transactions = $this->SortByAccount($this->makeConsolidated($this->accountmaster->getPrintViewByAccount(Input::all())) );
+				if($request->get('is_con')==1) {
+					$transactions = $this->SortByAccount($this->makeConsolidated($this->accountmaster->getPrintViewByAccount($request->all())) );
 					usort($transactions, array($this, "date_compare_obj"));
 				} else 
-					$transactions = $this->SortByAccount($this->accountmaster->getPrintViewByAccount(Input::all()));
+					$transactions = $this->SortByAccount($this->accountmaster->getPrintViewByAccount($request->all()));
 				
 				//echo '<pre>';print_r($transactions);exit;
-				$pdctransactions = $this->accountmaster->getPDCPrintViewByAccount(Input::all());
+				$pdctransactions = $this->accountmaster->getPDCPrintViewByAccount($request->all());
 				//echo '<pre>';print_r($transactions);exit;
 				
-				if((date('d-m-Y',strtotime($this->acsettings->from_date))!=Input::get('date_from'))) { 
+				if((date('d-m-Y',strtotime($this->acsettings->from_date))!=$request->get('date_from'))) { 
 					foreach($transactions as $key => $transaction ) {
 						$resultrow[$key] = $this->accountmaster->findDetails($transaction[0]->account_master_id);
-						if(Input::get('exclude_ob')==1) {
+						if($request->get('exclude_ob')==1) {
 							$opn_balnce[$key] = null;
 						} else {
-							$enddate = date('Y-m-d', strtotime('-1 day', strtotime(Input::get('date_from'))));
+							$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
 						
 							$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$transaction[0]->account_master_id)->where('status',1)
-															->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+															->whereNull('deleted_at')->select('invoice_date')->first();
 															
-							Input::merge(['date_from' =>  $obtrn->invoice_date]);
-							Input::merge(['date_to' => $enddate]);
+							$request->merge(['date_from' =>  $obtrn->invoice_date]);
+							$request->merge(['date_to' => $enddate]);
 							
 							if($transaction[0]->voucher_type!='OB')
-								$opn_balnce[$key] = $this->getOpeningBalance($this->accountmaster->getPrintViewByAccount(Input::all()));
+								$opn_balnce[$key] = $this->getOpeningBalance($this->accountmaster->getPrintViewByAccount($request->all()));
 						}
 					}
 				} else { 
@@ -785,19 +785,19 @@ class RealestateStatementController extends Controller
 						if(!$transaction || $transaction[0]->voucher_type!='OB') {
 							
 							$obtrn = DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$transaction[0]->account_master_id)->where('status',1)
-														->where('deleted_at','0000-00-00 00:00:00')->select('invoice_date')->first();
+														->whereNull('deleted_at')->select('invoice_date')->first();
 							
-							$enddate = date('Y-m-d', strtotime('-1 day', strtotime(Input::get('date_from'))));
-							Input::merge(['date_from' => $obtrn->invoice_date]);
-							Input::merge(['date_to' => $enddate]);
-							$opn_balnce[$key] = $this->getOpeningBalance($this->accountmaster->getPrintViewByAccount(Input::all()));
+							$enddate = date('Y-m-d', strtotime('-1 day', strtotime($request->get('date_from'))));
+							$request->merge(['date_from' => $obtrn->invoice_date]);
+							$request->merge(['date_to' => $enddate]);
+							$opn_balnce[$key] = $this->getOpeningBalance($this->accountmaster->getPrintViewByAccount($request->all()));
 						}
 					}
 				}
 				
 			//	echo '<pre>';print_r($resultrow);exit;
 				//SORT BY CATEGORY & GETING CATEGORY HEADING...
-				if(!empty(Input::get('category_id'))) {
+				if(!empty($request->get('category_id'))) {
 					$transactions = $this->SortByCategory($transactions);
 					foreach($transactions as $key => $val) {
 						$headarr[$key] = DB::table('account_category')->where('id',$key)->select('name AS heading')->first();
@@ -805,7 +805,7 @@ class RealestateStatementController extends Controller
 				}
 				
 				//SORT BY GROUP & GETING GROUP HEADING...
-				if(!empty(Input::get('group_id'))) {
+				if(!empty($request->get('group_id'))) {
 					$transactions = $this->SortByGroup($transactions);
 					foreach($transactions as $key => $val) {
 						$headarr[$key] = DB::table('account_group')->where('id',$key)->select('name AS heading')->first();
@@ -813,15 +813,15 @@ class RealestateStatementController extends Controller
 				}
 				
 				//SORT BY TYPE & GETING TYPE HEADING...
-				if(!empty(Input::get('type_id'))) {
+				if(!empty($request->get('type_id'))) {
 					$transactions = $this->SortByType($transactions);
-					foreach(Input::get('type_id') as $key) {
+					foreach($request->get('type_id') as $key) {
 						$headarr[$key] = (object)array('heading'=>$key);
 					}
 				}
 				
 				//DEFAULT SORTING...
-				if(Input::get('is_custom')==0) {
+				if($request->get('is_custom')==0) {
 					$transactions = $this->SortByCategory($transactions);
 					foreach($transactions as $key => $val) {
 						$headarr[$key] = DB::table('account_category')->where('id',$key)->select('name AS heading')->first();
@@ -829,10 +829,10 @@ class RealestateStatementController extends Controller
 				}
 				//echo '<pre>';print_r($headarr);
 				
-			} else if(Input::get('type')=='outstanding') {
+			} else if($request->get('type')=='outstanding') {
 				
 				$voucher_head = ($infc=='')?'Statement of Account - Outstanding':'Statement of Account - Outstanding in FC';
-				$results = $this->accountmaster->getPrintViewByAccount(Input::all());//echo '<pre>';print_r($results);exit;
+				$results = $this->accountmaster->getPrintViewByAccount($request->all());//echo '<pre>';print_r($results);exit;
 				$transactions = $this->makeSummary($this->makeTree($results)); 
 				usort($transactions, array($this, "date_compare"));
 				$transactions = $this->SortByAccountOS($transactions);
@@ -840,30 +840,30 @@ class RealestateStatementController extends Controller
 				foreach($transactions as $key => $transaction ) {
 					$resultrow[$key] = $this->accountmaster->findDetails($transaction[0]['account_master_id']);
 				}
-				/* $results = $this->accountmaster->getPrintViewByAccount(Input::all());  
+				/* $results = $this->accountmaster->getPrintViewByAccount($request->all());  
 				$transactions = $this->makeSummary($this->makeTree($results));
 				usort($transactions, array($this, "date_compare"));
 				echo '<pre>';print_r($resultrow);*/
 				//echo '<pre>';print_r($transactions);exit; 
 				
-				/* $pdcres = $this->accountmaster->getPDCPrintViewByAccountOS(Input::all(), $resultrow->category);
+				/* $pdcres = $this->accountmaster->getPDCPrintViewByAccountOS($request->all(), $resultrow->category);
 				$pdctransactions = $this->makeSummaryOS($this->makeTree($pdcres)); */
 				
-				$pdctransactions = $this->accountmaster->getPDCPrintViewByAccount(Input::all(),'OS');
+				$pdctransactions = $this->accountmaster->getPDCPrintViewByAccount($request->all(),'OS');
 				
-			} else if(Input::get('type')=='item-statement') {
+			} else if($request->get('type')=='item-statement') {
 				
 				$voucher_head = 'Statement with Stock';
-				$transactions = $this->makeTreeVchr($this->accountmaster->getItemStatement(Input::all()));
+				$transactions = $this->makeTreeVchr($this->accountmaster->getItemStatement($request->all()));
 				
-			} else if(Input::get('type')=='osmonthly') {
+			} else if($request->get('type')=='osmonthly') {
 				$voucher_head = 'Statement of Account - Outstanding(Monthly)';
 				$resultrow = $this->accountmaster->findDetails($account_id);
-				$results = $this->accountmaster->getPrintViewByAccount(Input::all()); 
+				$results = $this->accountmaster->getPrintViewByAccount($request->all()); 
 				$transactions = $this->monthly($this->correction($this->makeSummary($this->makeTree($results)),$resultrow));
 			} else {
 				$voucher_head = ($infc=='')?'Statement of Account - Ageing':'Statement of Account - Ageing in FC';
-				$results = $this->accountmaster->getPrintViewByAccount(Input::all());
+				$results = $this->accountmaster->getPrintViewByAccount($request->all());
 				$transactions = $this->makeSummary($this->makeTree($results));
 				$transactions = $this->SortByAccountOS($transactions);
 				
@@ -886,25 +886,25 @@ class RealestateStatementController extends Controller
 						->withTransactions($transactions)
 						->withResultrow($resultrow)
 						->withVoucherhead($voucher_head)
-						->withType(Input::get('type'))
+						->withType($request->get('type'))
 						->withTitles($titles)
 						->withFromdate($frmdate)
 						->withTodate($todate)
 						->withUrl('account_enquiry')
 						->withSettings($this->acsettings)
 						->withId($account_id)
-						->withIspdc(Input::get('is_pdc'))
-						->withIscon(Input::get('is_con'))
+						->withIspdc($request->get('is_pdc'))
+						->withIscon($request->get('is_con'))
 						->withPdcs($pdctransactions)
 						->withOpenbalance($opn_balnce)
 						->withFc($infc)
 						->withCurrency($currency)
 						->withJobid($job_id)
 						->withHeadarr($headarr)
-						->withIscustom(Input::get('is_custom'))
-						->withTypeid(!empty(Input::get('type_id'))?implode(',',Input::get('type_id')):'')
-						->withCatid(!empty(Input::get('category_id'))?implode(',',Input::get('category_id')):'')
-						->withGroupid(!empty(Input::get('group_id'))?implode(',',Input::get('group_id')):'')
+						->withIscustom($request->get('is_custom'))
+						->withTypeid(!empty($request->get('type_id'))?implode(',',$request->get('type_id')):'')
+						->withCatid(!empty($request->get('category_id'))?implode(',',$request->get('category_id')):'')
+						->withGroupid(!empty($request->get('group_id'))?implode(',',$request->get('group_id')):'')
 						->withData($data);
 		}//....JUN3
 	}
@@ -917,17 +917,17 @@ class RealestateStatementController extends Controller
 		$data = $pdcreports = array();
 		
 		//hjjbkjbmnmm
-		//Input::merge(['type' => 'export']);
-		Input::merge(['curr_from_date' => $this->acsettings->from_date]);
+		//$request->merge(['type' => 'export']);
+		$request->merge(['curr_from_date' => $this->acsettings->from_date]);
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
-		$account_id = Input::get('account_id');
+		$account_id = $request->get('account_id');
 
-		$is_default = Input::get('is_default');
+		$is_default = $request->get('is_default');
 
-		(Input::get('group_id')!='')?(Input::merge(['group_id' => explode(',',Input::get('group_id'))])):null;
-		(Input::get('type_id')!='')?(Input::merge(['type_id' => explode(',',Input::get('type_id'))])):null;
-		(Input::get('category_id')!='')?(Input::merge(['category_id' => explode(',',Input::get('category_id'))])):null;
+		($request->get('group_id')!='')?($request->merge(['group_id' => explode(',',$request->get('group_id'))])):null;
+		($request->get('type_id')!='')?($request->merge(['type_id' => explode(',',$request->get('type_id'))])):null;
+		($request->get('category_id')!='')?($request->merge(['category_id' => explode(',',$request->get('category_id'))])):null;
 	
 		
 	}
@@ -960,13 +960,13 @@ class RealestateStatementController extends Controller
 	public function searchAddress()
 	{
 		$data = array();
-		$resultrow = $this->accountmaster->searchAddressList(Input::all());
-		$heading = Input::get('account_type');
+		$resultrow = $this->accountmaster->searchAddressList($request->all());
+		$heading = $request->get('account_type');
 		return view('body.realestatestatement.addresslist')
 					->withAddresslist($resultrow)
 					->withHeading($heading)
-					->withType(Input::get('account_type'))
-					->withName(Input::get('account_name'))
+					->withType($request->get('account_type'))
+					->withName($request->get('account_name'))
 					->withData($data);
 					
 		//echo '<pre>';print_r($resultrow);
@@ -975,8 +975,8 @@ class RealestateStatementController extends Controller
 	public function addressExport()
 	{
 		$data = array();
-		$voucher_head = 'Address List - '.Input::get('account_type');
-		$reports = $this->accountmaster->searchAddressList(Input::all());
+		$voucher_head = 'Address List - '.$request->get('account_type');
+		$reports = $this->accountmaster->searchAddressList($request->all());
 		$datareport[] = ['Account ID','Account Name','Address','Phone','Email','TRN No'];
 		
 		foreach($reports as $row) {
@@ -1008,14 +1008,14 @@ class RealestateStatementController extends Controller
 	//public function outStandingBills($id,$mod=null,$no=null,$ref=null,$rid=null) {
 	public function outStandingBills($id,$no=null,$mod=null,$rvid=null) {
 		
-		Input::merge(['account_id' => $id]);
-		Input::merge(['date_from' => date('d-m-Y')]);
-		Input::merge(['date_to' => '']);
-		Input::merge(['type' => 'outstanding']);
-		Input::merge(['is_custom' => 0]);
+		$request->merge(['account_id' => $id]);
+		$request->merge(['date_from' => date('d-m-Y')]);
+		$request->merge(['date_to' => '']);
+		$request->merge(['type' => 'outstanding']);
+		$request->merge(['is_custom' => 0]);
 		
 		$account = DB::table('account_master')->where('id',$id)->select('category')->first();
-		$results = $this->accountmaster->getPrintViewByAccount(Input::all()); //echo '<pre>';print_r($account);exit;
+		$results = $this->accountmaster->getPrintViewByAccount($request->all()); //echo '<pre>';print_r($account);exit;
 		$results_edit = [];
 		if($mod) {
 			$results_edit = $this->getDatas($mod,$rvid);
@@ -1149,13 +1149,13 @@ class RealestateStatementController extends Controller
 							$join->on('AT.voucher_type_id','=','RVE.id');
 							$join->where('AT.voucher_type','=','RV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_invoice AS SI', function($join) {
 							$join->on('SI.id','=','RVT.sales_invoice_id');
 							$join->where('RVT.bill_type','=','SI');
 							$join->where('RVT.status','=',1);
-							$join->where('RVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('receipt_voucher.id',$id)
 						->select('SI.voucher_date AS invoice_date','SI.voucher_no AS reference','RVE.description','RVE.amount AS amount','AT.reference_from','AT.id',
@@ -1168,13 +1168,13 @@ class RealestateStatementController extends Controller
 							$join->on('AT.voucher_type_id','=','RVE.id');
 							$join->where('AT.voucher_type','=','RV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_split AS SS', function($join) {
 							$join->on('SS.id','=','RVT.sales_invoice_id');
 							$join->where('RVT.bill_type','=','SS');
 							$join->where('RVT.status','=',1);
-							$join->where('RVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('receipt_voucher.id',$id)
 						->select('SS.voucher_date AS invoice_date','SS.voucher_no AS reference','RVE.description','RVE.amount AS amount','AT.reference_from','AT.id',
@@ -1187,13 +1187,13 @@ class RealestateStatementController extends Controller
 							$join->on('AT.voucher_type_id','=','RVE.id');
 							$join->where('AT.voucher_type','=','RV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_return AS SR', function($join) {
 							$join->on('SR.id','=','RVT.sales_invoice_id');
 							$join->where('RVT.bill_type','=','SR');
 							$join->where('RVT.status','=',1);
-							$join->where('RVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('receipt_voucher.id',$id)
 						->select('SR.voucher_date AS invoice_date','SR.voucher_no AS reference','RVE.description','RVE.amount AS amount','AT.reference_from','AT.id',
@@ -1210,13 +1210,13 @@ class RealestateStatementController extends Controller
 							$join->on('AT.voucher_type_id','=','PVE.id');
 							$join->where('AT.voucher_type','=','PV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('purchase_invoice AS PI', function($join) {
 							$join->on('PI.id','=','PVT.purchase_invoice_id');
 							$join->where('PVT.bill_type','=','PI');
 							$join->where('PVT.status','=',1);
-							$join->where('PVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('payment_voucher.id',$id)
 						->select('PI.voucher_date AS invoice_date','PI.voucher_no AS reference','PVE.description','PVE.amount AS amount','AT.reference_from','AT.id',
@@ -1229,13 +1229,13 @@ class RealestateStatementController extends Controller
 							$join->on('AT.voucher_type_id','=','PVE.id');
 							$join->where('AT.voucher_type','=','PV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('purchase_split AS PS', function($join) {
 							$join->on('PS.id','=','PVT.purchase_invoice_id');
 							$join->where('PVT.bill_type','=','PS');
 							$join->where('PVT.status','=',1);
-							$join->where('PVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('payment_voucher.id',$id)
 						->select('PS.voucher_date AS invoice_date','PS.voucher_no AS reference','PVE.description','PVE.amount AS amount','AT.reference_from','AT.id',
@@ -1248,13 +1248,13 @@ class RealestateStatementController extends Controller
 							$join->on('AT.voucher_type_id','=','PVE.id');
 							$join->where('AT.voucher_type','=','PV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('purchase_return AS PR', function($join) {
 							$join->on('PR.id','=','PVT.purchase_invoice_id');
 							$join->where('PVT.bill_type','=','PR');
 							$join->where('PVT.status','=',1);
-							$join->where('PVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('payment_voucher.id',$id)
 						->select('PR.voucher_date AS invoice_date','PR.voucher_no AS reference','PVE.description','PVE.amount AS amount','AT.reference_from','AT.id',
@@ -1272,13 +1272,13 @@ class RealestateStatementController extends Controller
 							$join->on('AT.voucher_type_id','=','JE.id');
 							$join->where('AT.voucher_type','=','JV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_invoice AS SI', function($join) {
 							$join->on('SI.id','=','JVT.invoice_id');
 							$join->where('JVT.bill_type','=','SI');
 							$join->where('JVT.status','=',1);
-							$join->where('JVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('journal.id',$id)
 						->select('SI.voucher_date AS invoice_date','SI.voucher_no AS reference','JE.description','JE.amount AS amount','AT.reference_from','AT.id',
@@ -1291,13 +1291,13 @@ class RealestateStatementController extends Controller
 							$join->on('AT.voucher_type_id','=','JE.id');
 							$join->where('AT.voucher_type','=','JV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_split AS SS', function($join) {
 							$join->on('SS.id','=','JVT.invoice_id');
 							$join->where('JVT.bill_type','=','SS');
 							$join->where('JVT.status','=',1);
-							$join->where('JVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('journal.id',$id)
 						->select('SS.voucher_date AS invoice_date','SS.voucher_no AS reference','JE.description','JE.amount AS amount','AT.reference_from','AT.id',
@@ -1310,13 +1310,13 @@ class RealestateStatementController extends Controller
 							$join->on('AT.voucher_type_id','=','JE.id');
 							$join->where('AT.voucher_type','=','JV');
 							$join->where('AT.status','=',1);
-							$join->where('AT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->join('sales_return AS SR', function($join) {
 							$join->on('SR.id','=','JVT.invoice_id');
 							$join->where('JVT.bill_type','=','SR');
 							$join->where('JVT.status','=',1);
-							$join->where('JVT.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('journal.id',$id)
 						->select('SR.voucher_date AS invoice_date','SR.voucher_no AS reference','JE.description','JE.amount AS amount','AT.reference_from','AT.id',
@@ -1332,4 +1332,7 @@ class RealestateStatementController extends Controller
 		
 }
 
-//SELECT itemmaster.item_code,department.name AS department,sales_invoice.voucher_no,sales_invoice.voucher_date,sales_invoice.lpo_no,sales_invoice.lpo_date,sales_invoice.total,sales_invoice.discount,sales_invoice.vat_amount,sales_invoice.net_total,sales_invoice.total_fc,sales_invoice.discount_fc,sales_invoice.vat_amount_fc,sales_invoice.net_total_fc,sales_invoice.customer_name,sales_invoice.customer_phone,sales_invoice.subtotal,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.description AS terms,salesman.name AS salesman,sales_invoice_item.item_name,sales_invoice_item.quantity,sales_invoice_item.unit_price,sales_invoice_item.vat,sales_invoice_item.vat,sales_invoice_item.vat_amount AS line_vat,sales_invoice_item.line_total,sales_invoice_item.tax_include,sales_invoice_item.item_total,units.unit_name,sales_invoice_item.id AS sii_id,vehicle.reg_no,vehicle.model,vehicle.make,sales_invoice.kilometer FROM sales_invoice JOIN account_master ON(account_master.id=sales_invoice.customer_id) LEFT JOIN terms ON(terms.id=sales_invoice.terms_id) LEFT JOIN salesman ON(salesman.id=sales_invoice.salesman_id) JOIN sales_invoice_item ON(sales_invoice_item.sales_invoice_id=sales_invoice.id) JOIN itemmaster ON(itemmaster.id=sales_invoice_item.item_id) JOIN units ON(units.id=sales_invoice_item.unit_id) LEFT JOIN department ON(department.id=sales_invoice.department_id) LEFT JOIN vehicle ON(vehicle.id=sales_invoice.vehicle_id) WHERE sales_invoice_item.status=1 AND sales_invoice_item.deleted_at='0000-00-00 00:00:00' AND sales_invoice.id={id}
+//SELECT itemmaster.item_code,department.name AS department,sales_invoice.voucher_no,sales_invoice.voucher_date,sales_invoice.lpo_no,sales_invoice.lpo_date,sales_invoice.total,sales_invoice.discount,sales_invoice.vat_amount,sales_invoice.net_total,sales_invoice.total_fc,sales_invoice.discount_fc,sales_invoice.vat_amount_fc,sales_invoice.net_total_fc,sales_invoice.customer_name,sales_invoice.customer_phone,sales_invoice.subtotal,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.description AS terms,salesman.name AS salesman,sales_invoice_item.item_name,sales_invoice_item.quantity,sales_invoice_item.unit_price,sales_invoice_item.vat,sales_invoice_item.vat,sales_invoice_item.vat_amount AS line_vat,sales_invoice_item.line_total,sales_invoice_item.tax_include,sales_invoice_item.item_total,units.unit_name,sales_invoice_item.id AS sii_id,vehicle.reg_no,vehicle.model,vehicle.make,sales_invoice.kilometer FROM sales_invoice JOIN account_master ON(account_master.id=sales_invoice.customer_id) LEFT JOIN terms ON(terms.id=sales_invoice.terms_id) LEFT JOIN salesman ON(salesman.id=sales_invoice.salesman_id) JOIN sales_invoice_item ON(sales_invoice_item.sales_invoice_id=sales_invoice.id) JOIN itemmaster ON(itemmaster.id=sales_invoice_item.item_id) JOIN units ON(units.id=sales_invoice_item.unit_id) LEFT JOIN department ON(department.id=sales_invoice.department_id) LEFT JOIN vehicle ON(vehicle.id=sales_invoice.vehicle_id) WHERE sales_invoice_item.status=1 AND deleted_at IS NULL AND sales_invoice.id={id}
+
+
+

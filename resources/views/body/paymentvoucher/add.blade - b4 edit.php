@@ -98,7 +98,7 @@
 
 
 							
-								@permission('jv-print')
+								@can('jv-print')
 								<form class="form-horizontal" role="form" method="GET" target="_blank" name="frmItem" id="frmItem" action="{{ url('journal/getvoucherprint') }}">
 								
 								<div class="form-group">
@@ -127,7 +127,7 @@
                                 
 								</form>
 								 
-								@endpermission
+								@endcan
 							
 							</div>
 							

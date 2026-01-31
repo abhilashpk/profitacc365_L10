@@ -856,7 +856,7 @@ class ManualJournalRepository extends AbstractValidator implements ManualJournal
 							 })
 							// ->where('voucher_type', $type)
 							 ->where('JE.status',1)
-							 ->where('JE.deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('manual_journal.*','JE.description')
 							 ->groupBy('manual_journal.id')
 							 ->orderBy('manual_journal.id', 'DESC')
@@ -867,7 +867,7 @@ class ManualJournalRepository extends AbstractValidator implements ManualJournal
 		// 					 })
 		// 					 ->where('voucher_type', $type)
 		// 					 ->where('JE.status',1)
-		// 					 ->where('JE.deleted_at','0000-00-00 00:00:00')
+		// 					 ->whereNull('deleted_at')
 		// 					 ->select('journal.*','JE.description')
 		// 					 ->groupBy('journal.id')
 		// 					 ->orderBy('journal.id', 'DESC')
@@ -885,7 +885,7 @@ class ManualJournalRepository extends AbstractValidator implements ManualJournal
 										 $join->on('JE.journal_id', '=', 'journal.id');
 						 			 })
 									->where('voucher_type','JV')->where('voucher_no', $voucher_no)
-								 ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+								 ->where('JE.status',1)->whereNull('deleted_at')
 						 			 ->select('journal.*','JE.description')->get();
 		elseif($type ==5)
 		       $result = $this->journal->where('journal.status', 1)
@@ -893,7 +893,7 @@ class ManualJournalRepository extends AbstractValidator implements ManualJournal
 		                                  $join->on('JE.journal_id', '=', 'journal.id');
 		                                      })
 	                                     ->where('voucher_type','PIN')->where('voucher_no', $voucher_no)
-                                      ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+                                      ->where('JE.status',1)->whereNull('deleted_at')
 		                           ->select('journal.*','JE.description')->get();
 		elseif($type ==6)
 								   $result = $this->journal->where('journal.status', 1)
@@ -901,7 +901,7 @@ class ManualJournalRepository extends AbstractValidator implements ManualJournal
 															  $join->on('JE.journal_id', '=', 'journal.id');
 																  })
 															 ->where('voucher_type','SIN')->where('voucher_no', $voucher_no)
-														  ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+														  ->where('JE.status',1)->whereNull('deleted_at')
 													   ->select('journal.*','JE.description')->get();
 		elseif($type ==10)
 													   $result = $this->journal->where('journal.status', 1)
@@ -909,7 +909,7 @@ class ManualJournalRepository extends AbstractValidator implements ManualJournal
 																				  $join->on('JE.journal_id', '=', 'journal.id');
 																					  })
 																				 ->where('voucher_type','PV')->where('voucher_no', $voucher_no)
-																			  ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+																			  ->where('JE.status',1)->whereNull('deleted_at')
 																		   ->select('journal.*','JE.description')->get();
 
 		elseif($type ==9)
@@ -918,7 +918,7 @@ class ManualJournalRepository extends AbstractValidator implements ManualJournal
 															  $join->on('JE.journal_id', '=', 'journal.id');
 																  })
 															 ->where('voucher_type','RV')->where('voucher_no', $voucher_no)
-														  ->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+														  ->where('JE.status',1)->whereNull('deleted_at')
 													   ->select('journal.*','JE.description')->get();
 		//echo '<pre>';print_r($result);exit;
 		return $result;
@@ -1003,7 +1003,7 @@ class ManualJournalRepository extends AbstractValidator implements ManualJournal
 				$query1->where('PV.opening_balance_id', '>', 0);
 			}			
 				
-				$result = $query1->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+				$result = $query1->whereNull('deleted_at')
 								->select('pdc_issued.*','account_master.master_name AS debitor','AM.master_name AS customer','PV.voucher_no',
 										'PVE.cheque_no','PVE.cheque_date','B.code','PV.voucher_type AS vtype',
 										DB::raw('EXTRACT(MONTH FROM pdc_issued.voucher_date) AS month'))
@@ -1043,7 +1043,7 @@ class ManualJournalRepository extends AbstractValidator implements ManualJournal
 				$query1->where('RV.opening_balance_id', '>', 0);
 			}			
 				
-				$result = $query1->where('pdc_received.deleted_at','0000-00-00 00:00:00')
+				$result = $query1->whereNull('deleted_at')
 								->select('pdc_received.*','account_master.master_name AS debitor','AM.master_name AS customer','RV.voucher_no',
 										'RVE.cheque_no','RVE.cheque_date','B.code','RV.voucher_type AS vtype',
 										DB::raw('EXTRACT(MONTH FROM pdc_received.voucher_date) AS month'))
@@ -1066,4 +1066,6 @@ class ManualJournalRepository extends AbstractValidator implements ManualJournal
 
 	}
 }
+
+
 

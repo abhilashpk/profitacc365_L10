@@ -1443,7 +1443,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 			//clear opening balanace transaction details table.....
 			if($this->payment_voucher->opening_balance_id > 0) {
 				
-				DB::table('opening_balance_tr')->where('id', $this->payment_voucher->opening_balance_id)->update(['status' => 0, 'deleted_at' => '0000-00-00 00:00:00']);
+				DB::table('opening_balance_tr')->where('id', $this->payment_voucher->opening_balance_id)->update(['status' => 0, 'deleted_at' => null]);
 				DB::table('account_transaction')->where('voucher_type', 'OBD')->where('voucher_type_id', $this->payment_voucher->opening_balance_id)->update(['status' => 0,'deleted_at' => now(),'deleted_by' => Auth::User()->id ]);
 				
 				DB::table('account_master')->where('id', $account_id)->update(['op_balance' => DB::raw('op_balance + '.$amount)]);
@@ -1550,7 +1550,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 									->join('journal_entry', 'journal_entry.journal_id', '=', 'journal.id')
 									->where('journal.is_transfer',0)
 									->where('journal_entry.account_id',$pdci->pdc_account_id)
-									->where('journal_entry.deleted_at','0000-00-00 00:00:00'); 
+									->whereNull('deleted_at'); 
 									
 								if($date)
 									 $query2->whereBetween('journal.voucher_date', [$date->py_from_date, $date->py_to_date]);
@@ -1597,7 +1597,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 								->join('petty_cash_entry', 'petty_cash_entry.petty_cash_id', '=', 'petty_cash.id')
 								->where('petty_cash.is_transfer',0)
 								->where('petty_cash_entry.account_id',$pdci->pdc_account_id)
-								->where('petty_cash_entry.deleted_at','0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 								
 							if($date)
 								 $query3->whereBetween('petty_cash.voucher_date', [$date->py_from_date, $date->py_to_date]);
@@ -1653,7 +1653,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 							$join->where('PVE.entry_type', '=', 'Cr');
 						})
 						->join('bank AS B', 'B.id', '=', 'PVE.bank_id')
-						->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('pdc_issued.*','account_master.master_name AS creditor','AM.master_name AS supplier','PV.voucher_no',
 								'PVE.cheque_no','PVE.cheque_date','B.code','PV.voucher_type AS vtype',
 								DB::raw('EXTRACT(MONTH FROM pdc_issued.voucher_date) AS month'))
@@ -2050,7 +2050,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 							$join->on('CE.id','=','payment_voucher_tr.purchase_invoice_id');
 							$join->where('payment_voucher_tr.bill_type','=','PI');
 							$join->where('payment_voucher_tr.status','=',1);
-							$join->where('payment_voucher_tr.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('payment_voucher_entry.status', 1)
 						->select('payment_voucher_entry.*','account_master.master_name','AM.master_name AS party_name','bank.name','CE.voucher_date')
@@ -2068,7 +2068,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 							$join->where('PVE.entry_type', '=', 'Dr');
 						})
 						->join('bank AS B', 'B.id', '=', 'PVE.bank_id')
-						->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('pdc_issued.*','account_master.master_name','AM.master_name AS supplier','PV.voucher_no',
 						'PVE.cheque_no','PVE.cheque_date','B.code','PV.voucher_type AS vtype')
 						->get();
@@ -2269,7 +2269,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 													'status'			=> 1,
 													'modify_at' 		=> now(),
 													'modify_by' 		=> 1,
-													'deleted_at'		=> '0000-00-00 00:00:00',
+													'deleted_at' => null,
 													'description'		=> $description,
 													'reference'			=> $trnarr['id'][$key],
 													'invoice_date'		=> date('Y-m-d', strtotime($trnarr['vdate'])),
@@ -2298,7 +2298,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 													'status'			=> 1,
 													'modify_at' 		=> now(),
 													'modify_by' 		=> 1,
-													'deleted_at'		=> '0000-00-00 00:00:00',
+													'deleted_at' => null,
 													'reference'			=> $attributes['id'][$key],
 													'invoice_date'		=> date('Y-m-d', strtotime($attributes['voucher_date'])),
 													'reference_from'	=> $attributes['reference'][$key] 
@@ -3907,7 +3907,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 			//clear opening balanace transaction details table.....
 			if($this->payment_voucher->opening_balance_id > 0) {
 				
-				DB::table('opening_balance_tr')->where('id', $this->payment_voucher->opening_balance_id)->update(['status' => 0, 'deleted_at' => '0000-00-00 00:00:00']);
+				DB::table('opening_balance_tr')->where('id', $this->payment_voucher->opening_balance_id)->update(['status' => 0, 'deleted_at' => null]);
 				DB::table('account_transaction')->where('voucher_type', 'OBD')->where('voucher_type_id', $this->payment_voucher->opening_balance_id)->update(['status' => 0,'deleted_at' => now(),'deleted_by' => Auth::User()->id ]);
 				
 				DB::table('account_master')->where('id', $account_id)->update(['op_balance' => DB::raw('op_balance + '.$amount)]);
@@ -4014,7 +4014,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 									->join('journal_entry', 'journal_entry.journal_id', '=', 'journal.id')
 									->where('journal.is_transfer',0)
 									->where('journal_entry.account_id',$pdci->pdc_account_id)
-									->where('journal_entry.deleted_at','0000-00-00 00:00:00'); 
+									->whereNull('deleted_at'); 
 									
 								if($date)
 									 $query2->whereBetween('journal.voucher_date', [$date->py_from_date, $date->py_to_date]);
@@ -4061,7 +4061,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 								->join('petty_cash_entry', 'petty_cash_entry.petty_cash_id', '=', 'petty_cash.id')
 								->where('petty_cash.is_transfer',0)
 								->where('petty_cash_entry.account_id',$pdci->pdc_account_id)
-								->where('petty_cash_entry.deleted_at','0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 								
 							if($date)
 								 $query3->whereBetween('petty_cash.voucher_date', [$date->py_from_date, $date->py_to_date]);
@@ -4497,7 +4497,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 							$join->on('CE.id','=','payment_voucher_tr.purchase_invoice_id');
 							$join->where('payment_voucher_tr.bill_type','=','PI');
 							$join->where('payment_voucher_tr.status','=',1);
-							$join->where('payment_voucher_tr.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('payment_voucher_entry.status', 1)
 						->select('payment_voucher_entry.*','account_master.master_name','AM.master_name AS party_name','bank.name','CE.voucher_date')
@@ -4515,7 +4515,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 							$join->where('PVE.entry_type', '=', 'Dr');
 						})
 						->join('bank AS B', 'B.id', '=', 'PVE.bank_id')
-						->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('pdc_issued.*','account_master.master_name','AM.master_name AS supplier','PV.voucher_no',
 						'PVE.cheque_no','PVE.cheque_date','B.code','PV.voucher_type AS vtype')
 						->get();
@@ -4621,7 +4621,7 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 													'status'			=> 1,
 													'modify_at' 		=> now(),
 													'modify_by' 		=> 1,
-													'deleted_at'		=> '0000-00-00 00:00:00',
+													'deleted_at' => null,
 													'reference'			=> $attributes['id'][$key],
 													'invoice_date'		=> date('Y-m-d', strtotime($attributes['voucher_date'])),
 													'reference_from'	=> $attributes['reference'][$key] 
@@ -4790,4 +4790,6 @@ class PaymentVoucherRepository extends AbstractValidator implements PaymentVouch
 	
 }
 >>>>>>> 436fae7b7c92997876ad1a9caff9c3fb25dc70cd
+
+
 

@@ -186,9 +186,9 @@ $(function() {
 			{ "data": "voucher_date" },
 			{ "data": "net_total" },
 			<?php if($settings->doc_approve==1) { ?>{ "data": "status" },<?php } else { ?>{ "data": "reference_no" }, <?php } ?>
-			@permission('so-edit'){ "data": "edit","bSortable": false },@endpermission
-			@permission('so-print'){ "data": "print","bSortable": false },@endpermission
-			@permission('so-delete'){ "data": "delete","bSortable": false },@endpermission
+			@can('so-edit'){ "data": "edit","bSortable": false },@endcan
+			@can('so-print'){ "data": "print","bSortable": false },@endcan
+			@can('so-delete'){ "data": "delete","bSortable": false },@endcan
 		]	
 		  
 		});

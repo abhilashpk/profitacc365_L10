@@ -66,7 +66,7 @@ class RentalSupplierDriverController extends Controller
 		$data = array();
 		$supplier = DB::table('account_master')
 		          ->where('category','SUPPLIER')
-				  ->where('deleted_at','0000-00-00 00:00:00')
+				  ->whereNull('deleted_at')
 				  ->where('status',1)
 				  ->select('id','master_name')->get();
 				  //echo '<pre>';print_r($supplier);exit;
@@ -78,11 +78,11 @@ class RentalSupplierDriverController extends Controller
 	}
 	
 	public function save() {
-		//print_r(Input::all());
+		//print_r($request->all());
 		DB::table('rental_supplierdriver')
 				->insert([
-					'supplier_id' => Input::get('supplier'),
-					'driver_id' => serialize(Input::get('driver'))
+					'supplier_id' => $request->get('supplier'),
+					'driver_id' => serialize($request->get('driver'))
 				]);
 		Session::flash('message', 'Driver selected successfully.');
 		return redirect('rental_supplierdriver/add');
@@ -101,7 +101,7 @@ class RentalSupplierDriverController extends Controller
 		$driver = DB::table('rental_driver')->where('driver_type','supplier')->where('deleted_at',null)->select('id','driver_name')->get();
 		$supplier = DB::table('account_master')
 		          ->where('category','SUPPLIER')
-				  ->where('deleted_at','0000-00-00 00:00:00')
+				  ->whereNull('deleted_at')
 				  ->where('status',1)
 				  ->select('id','master_name')->get();
 				  
@@ -117,9 +117,9 @@ class RentalSupplierDriverController extends Controller
 	{
 		DB::table('rental_supplierdriver')->where('id',$id)
 				->update([
-					'supplier_id' => Input::get('supplier'),
-					'driver_id' => serialize(Input::get('driver'))
-				]);//print_r(Input::all());exit;
+					'supplier_id' => $request->get('supplier'),
+					'driver_id' => serialize($request->get('driver'))
+				]);//print_r($request->all());exit;
 		Session::flash('message', 'Driver updated successfully');
 		return redirect('rental_supplierdriver');
 	}
@@ -135,3 +135,5 @@ class RentalSupplierDriverController extends Controller
 	
 	
 }
+
+

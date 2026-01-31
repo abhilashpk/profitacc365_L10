@@ -278,6 +278,7 @@
 								<input type="hidden" name="currency_rate" id="currency_rate">
 								<?php } ?>
 								
+								<?php if(!isset($formdata['export']) || $formdata['export']==1) { ?>
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-2 control-label"> Export</label>
 									<div class="col-xs-10">
@@ -288,6 +289,9 @@
 										</div>
 									</div>
                                 </div>
+								<?php } else { ?>
+								<input type="hidden" name="is_export" id="export" value="0">
+								<?php } ?>
 							
 								
 								<br/>

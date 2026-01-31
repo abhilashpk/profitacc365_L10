@@ -167,6 +167,10 @@ class StiResult {
     public $handlerVersion = null;
     public $adapterVersion = null;
     public $checkVersion = null;
+    public $types = null;
+    public $columns = null;
+    public $rows = null;
+    public $count = null;
 
     public static function success($notice = null, $object = null) {
         $result = new StiResult();

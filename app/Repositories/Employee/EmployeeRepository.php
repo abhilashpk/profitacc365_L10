@@ -1068,7 +1068,7 @@ class EmployeeRepository extends AbstractValidator implements EmployeeInterface 
 							$join->on('E.id','=','expiry_docs.employee_id');
 						})
 						->where('E.status',1)
-						->where('E.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->whereBetween('expiry_docs.expiry_date', array($fromdate, $todate))
 						->select('E.name','E.code','expiry_docs.*')
 						->get();
@@ -1243,4 +1243,6 @@ class EmployeeRepository extends AbstractValidator implements EmployeeInterface 
 	}
 	
 }
+
+
 

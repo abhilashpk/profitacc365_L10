@@ -54,13 +54,13 @@ class YearendingController extends Controller
 			//Update Stock...	
 			$result = $this->makeSummaryStock( $this->itemmaster->updateUtility() );
 			//QUICK UPDATE ITEM STOCK ....
-			$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+			$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->whereNull('deleted_at')->get();
 			foreach($items as $item) {
 				
 				$itemlog = DB::table('item_log')
 								  ->where('item_id', $item->itemmaster_id)
 								  ->where('status',1)
-								  ->where('deleted_at','0000-00-00 00:00:00')
+								  ->whereNull('deleted_at')
 								  ->select('item_log.*')
 								  ->orderBy('id','DESC')
 								  ->first();
@@ -106,11 +106,11 @@ class YearendingController extends Controller
 	public function backup()
 	{ 
 		DB::table('parameter1')->where('id',1)
-							   ->update(['from_date' => date('Y-m-d',strtotime(Input::get('nw_from_date'))),
-										 'to_date' => date('Y-m-d',strtotime(Input::get('nw_to_date'))),
-										 'py_from_date' => date('Y-m-d',strtotime(Input::get('from_date'))),
-										 'py_to_date' => date('Y-m-d',strtotime(Input::get('to_date'))),
-										 ]);//echo '<pre>';print_r(Input::all());exit;
+							   ->update(['from_date' => date('Y-m-d',strtotime($request->get('nw_from_date'))),
+										 'to_date' => date('Y-m-d',strtotime($request->get('nw_to_date'))),
+										 'py_from_date' => date('Y-m-d',strtotime($request->get('from_date'))),
+										 'py_to_date' => date('Y-m-d',strtotime($request->get('to_date'))),
+										 ]);//echo '<pre>';print_r($request->all());exit;
 		//$this->backupDatabase();
 		return redirect('year_ending/step2');  //step1
 	}
@@ -128,12 +128,12 @@ class YearendingController extends Controller
 		$data = array(); 
 		
 		################ ITEMS QUANTITY OPENING ENTRY ####################
-		$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->whereNull('deleted_at')->get();
 		foreach($items as $item) {
 			$itemlog = DB::table('item_log')
 									  ->where('item_id', $item->itemmaster_id)
 									  ->where('status',1)
-									  ->where('deleted_at','0000-00-00 00:00:00')
+									  ->whereNull('deleted_at')
 									  ->whereBetween('voucher_date', [$this->acsettings->py_from_date, $this->acsettings->py_to_date])
 									  ->select('item_log.*')
 									  ->orderBy('id','DESC')
@@ -208,11 +208,11 @@ class YearendingController extends Controller
 		
 		
 		//Update to Retained profit account....
-		DB::table('account_master')->where('id',Input::get('account_id'))->update(['cl_balance' => $netprofit,'op_balance' => $netprofit]);
+		DB::table('account_master')->where('id',$request->get('account_id'))->update(['cl_balance' => $netprofit,'op_balance' => $netprofit]);
 		
-		DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',Input::get('account_id'))->update(['amount' => $netprofit]);
+		DB::table('account_transaction')->where('voucher_type','OB')->where('account_master_id',$request->get('account_id'))->update(['amount' => $netprofit]);
 		
-		return redirect('year_ending/step3/'.Input::get('account_id'));
+		return redirect('year_ending/step3/'.$request->get('account_id'));
 		
 		
 	}
@@ -795,9 +795,9 @@ class YearendingController extends Controller
 	
 	private function getItemQtyFromLog($item_id)
 	{
-		$qtyin = DB::table('item_log')->where('item_id', $item_id)->where('trtype',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->sum('quantity');
+		$qtyin = DB::table('item_log')->where('item_id', $item_id)->where('trtype',1)->where('status',1)->whereNull('deleted_at')->sum('quantity');
 		
-		$qtyout = DB::table('item_log')->where('item_id', $item_id)->where('trtype',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->sum('quantity');
+		$qtyout = DB::table('item_log')->where('item_id', $item_id)->where('trtype',0)->where('status',1)->whereNull('deleted_at')->sum('quantity');
 		
 		return ['in' => $qtyin, 'out' => $qtyout];
 	}
@@ -810,7 +810,7 @@ class YearendingController extends Controller
 						->where('item_id',$row->item_id)
 						->where('unit_id', $row->unit_id)
 						->where('status',1)
-						->where('deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('document_type','PI')
 						->where('id','>',$row->id)
 						->first(); //echo '<pre>';print_r($res);exit;
@@ -1018,7 +1018,7 @@ class YearendingController extends Controller
 	private function backupDatabase()
 	{
 		//GETTING PREVIOUS FINC. YEAR....
-		$year = date('Y',strtotime(Input::get('from_date')));
+		$year = date('Y',strtotime($request->get('from_date')));
 		
 		//CREATE NEW DATABASE FOR BACKUP..
 		exec('F:\xampp\mysql\bin\mysql.exe -u'.$this->dbcon['mysql']['username'].' -p'.$this->dbcon['mysql']['password'].' -e "CREATE DATABASE "'.$this->dbcon['mysql']['database'].'yr'.$year);
@@ -1132,19 +1132,19 @@ class YearendingController extends Controller
 	
 	private function outStandingBills() {
 		
-		Input::merge(['date_from' => $this->acsettings->py_from_date ]); 
-		Input::merge(['date_to' => $this->acsettings->py_to_date ]);
-		Input::merge(['type' => 'outstanding']);
-		Input::merge(['is_custom' => 0]);
+		$request->merge(['date_from' => $this->acsettings->py_from_date ]); 
+		$request->merge(['date_to' => $this->acsettings->py_to_date ]);
+		$request->merge(['type' => 'outstanding']);
+		$request->merge(['is_custom' => 0]);
 		
-		$accounts = DB::table('account_master')->whereIn('category',['CUSTOMER','SUPPLIER'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','category')->get();
+		$accounts = DB::table('account_master')->whereIn('category',['CUSTOMER','SUPPLIER'])->where('status',1)->whereNull('deleted_at')->select('id','category')->get();
 		$sales = $purchase = [];
 		foreach($accounts as $acrow) {
 			
-			Input::merge(['account_id' => $acrow->id]);
+			$request->merge(['account_id' => $acrow->id]);
 			
 			$category = $acrow->category;
-			$results = $this->accountmaster->getPrintViewByAccount(Input::all()); //echo '<pre>';print_r($account);exit;
+			$results = $this->accountmaster->getPrintViewByAccount($request->all()); //echo '<pre>';print_r($account);exit;
 			
 			$transactions = $this->groupAccounts($this->sortByRefno($results)); //echo '<pre>';print_r($transactions);exit;
 			usort($transactions, array($this, "date_compare"));
@@ -1295,4 +1295,6 @@ class YearendingController extends Controller
 		return $t1 - $t2;
 	}
 }
+
+
 

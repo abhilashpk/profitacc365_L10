@@ -23,8 +23,8 @@ class RentalReportController extends Controller
 	
 	public function index() {
 		
-		$vehicle = DB::table('itemmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','description')->get();
-		$custsup = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->whereIn('category',['CUSTOMER','SUPPLIER'])
+		$vehicle = DB::table('itemmaster')->where('status',1)->whereNull('deleted_at')->select('id','description')->get();
+		$custsup = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->whereIn('category',['CUSTOMER','SUPPLIER'])
 				->select('id','master_name')->get();
 		return view('body.rentalreport.index')->withVehicle($vehicle)->withCustsup($custsup);
 	}
@@ -92,3 +92,5 @@ class RentalReportController extends Controller
 	}
 	
 }
+
+

@@ -49,7 +49,7 @@ class ItemmasterController extends Controller
 	}
 	
 	/* private function setItemlogs() {
-		$items = DB::table('itemmaster')->where('itemmaster.status',1)->where('itemmaster.deleted_at','0000-00-00 00:00:00')
+		$items = DB::table('itemmaster')->where('itemmaster.status',1)->whereNull('deleted_at')
 					->join('item_unit', 'item_unit.itemmaster_id', '=', 'itemmaster.id')
 					->where('item_unit.is_baseqty',1)
 					->select('itemmaster.id','item_unit.unit_id')->get();
@@ -362,7 +362,7 @@ public function ajaxPaging(Request $request)
 		$data = array();
 		$arrData = $this->getGroupCategory();
 		$vats = $this->vatmaster->activeVatMasterList();
-		$location = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+		$location = DB::table('location')->where('is_default',1)->where('status',1)->whereNull('deleted_at')->select('id')->first();
 		$items = $this->itemmaster->activeItemmasterList();
 		//echo '<pre>';print_r($vats);exit;
 		
@@ -446,41 +446,42 @@ public function ajaxPaging(Request $request)
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','mfg_items.subitem_id');
 								})
-								->where('mfg_items.deleted_at','0000-00-00 00:00:00')
+								->whereNull('mfg_items.deleted_at')
+								->whereNull('IM.deleted_at')
 								->select('mfg_items.*','IM.item_code','IM.description')
 								->get();
 								
 		//CHECK ITEM ALREADY IN USE OTHER DOCS	...					
 		$readonly = false;						
-		$logcount = DB::table('item_log')->where('item_id', $id)->where('document_type','!=','OQ')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+		$logcount = DB::table('item_log')->where('item_id', $id)->where('document_type','!=','OQ')->where('status',1)->whereNull('deleted_at')->count();
 		if($logcount > 0)
 		    $readonly = true;
 		else {
-		    $qp = DB::table('quotation_item')->where('item_id', $id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+		    $qp = DB::table('quotation_item')->where('item_id', $id)->where('status',1)->whereNull('deleted_at')->count();
 		    if($qp > 0)
 		        $readonly = true;
 		    else {
-        		$mr = DB::table('material_requisition_item')->where('item_id', $id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+        		$mr = DB::table('material_requisition_item')->where('item_id', $id)->where('status',1)->whereNull('deleted_at')->count();
         		if($mr > 0)
 		            $readonly = true;
 		        else {
-            		$ce = DB::table('customer_enquiry_item')->where('item_id', $id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+            		$ce = DB::table('customer_enquiry_item')->where('item_id', $id)->where('status',1)->whereNull('deleted_at')->count();
             		if($ce > 0)
     		            $readonly = true;
     		        else {
-                		$sdo = DB::table('supplier_do_item')->where('item_id', $id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+                		$sdo = DB::table('supplier_do_item')->where('item_id', $id)->where('status',1)->whereNull('deleted_at')->count();
                 		if($sdo > 0)
         		            $readonly = true;
         		        else {
-                    		$qs = DB::table('quotation_sales_item')->where('item_id', $id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+                    		$qs = DB::table('quotation_sales_item')->where('item_id', $id)->where('status',1)->whereNull('deleted_at')->count();
                     		if($qs > 0)
             		            $readonly = true;
             		        else {
-                    		    $so = DB::table('sales_order_item')->where('item_id', $id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+                    		    $so = DB::table('sales_order_item')->where('item_id', $id)->where('status',1)->whereNull('deleted_at')->count();
                     		    if($so > 0)
                 		            $readonly = true;
                 		        else 
-                    		        $cdo = DB::table('customer_do_item')->where('item_id', $id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+                    		        $cdo = DB::table('customer_do_item')->where('item_id', $id)->where('status',1)->whereNull('deleted_at')->count();
                     		        if($cdo > 0)
                 		                $readonly = true;
             		        }
@@ -929,7 +930,7 @@ public function ajaxPaging(Request $request)
 		foreach($itemLogs as $loc => $rows) {
 		   foreach($rows as $row) {
 			DB::table('item_location')->where('location_id',$loc)->where('item_id',$row['item_id'])->where('unit_id',$row['unit'])
-					->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->update(['quantity' => $row['quantity'] ]);
+					->where('status',1)->whereNull('deleted_at')->update(['quantity' => $row['quantity'] ]);
 		   }
 		} */
 		
@@ -1378,4 +1379,6 @@ public function ajaxPaging(Request $request)
     }
     
 }
+
+
 

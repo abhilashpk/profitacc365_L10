@@ -42,10 +42,10 @@ class ConsigneeController extends Controller
 		try {
 			DB::table('consignee')
 				->insert([
-					'consignee_name' => Input::get('name'),
-					'phone' => Input::get('phone'),
-					'alter_phone' => Input::get('phone1'),
-					'address' => Input::get('address')
+					'consignee_name' => $request->get('name'),
+					'phone' => $request->get('phone'),
+					'alter_phone' => $request->get('phone1'),
+					'address' => $request->get('address')
 				]);
 				
 			Session::flash('message', 'Consignee added successfully.');
@@ -72,10 +72,10 @@ class ConsigneeController extends Controller
 	{
 		DB::table('consignee')->where('id',$id)
 				->update([
-					'consignee_name' => Input::get('name'),
-					'phone' => Input::get('phone'),
-					'alter_phone' => Input::get('phone1'),
-					'address' => Input::get('address'),
+					'consignee_name' => $request->get('name'),
+					'phone' => $request->get('phone'),
+					'alter_phone' => $request->get('phone1'),
+					'address' => $request->get('address'),
 				]);
 		Session::flash('message', 'Consignee updated successfully');
 		return redirect('consignee');
@@ -83,7 +83,7 @@ class ConsigneeController extends Controller
 
     public function checkphone() {
 
-		$check = $this->check_consignee_phone(Input::get('phone'), Input::get('id'));
+		$check = $this->check_consignee_phone($request->get('phone'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -102,7 +102,7 @@ class ConsigneeController extends Controller
 	}
 	public function checkphone1() {
 
-		$check = $this->check_consignee_phone1(Input::get('phone1'), Input::get('id'));
+		$check = $this->check_consignee_phone1($request->get('phone1'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -122,7 +122,7 @@ class ConsigneeController extends Controller
 	
 	public function checkname() {
 
-		$check = $this->check_consignee_name(Input::get('name'), Input::get('id'));
+		$check = $this->check_consignee_name($request->get('name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,

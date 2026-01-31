@@ -933,7 +933,7 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 			return $this->salessplit_return->where('salessplit_return.status',1)
 									   ->leftJoin('payment_voucher_tr AS PV', function($join){
 										   $join->on('PV.salessplit_return_id','=','salessplit_return.id');
-										   $join->where('PV.deleted_at','=','0000-00-00 00:00:00');
+										   $join->whereNull('deleted_at');
 										   $join->where('PV.status','=',1);
 									   }) 
 									   ->where('salessplit_return.customer_id', $customer_id)
@@ -981,11 +981,11 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 								})
 								->leftJoin('payment_voucher_tr AS PV', function($join){
 								   $join->on('PV.salessplit_return_id','=','journal.id');
-								   $join->where('PV.deleted_at','=','0000-00-00 00:00:00');
+								   $join->whereNull('deleted_at');
 								   $join->where('PV.status','=',1);
 							   }) 
 								//->where('JE.entry_type','Cr')
-								->where('journal.deleted_at','=','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('journal.voucher_type','PIN')
 								->where('JE.account_id',$customer_id)
 								->whereIn('journal.is_transfer',$arr)
@@ -1000,7 +1000,7 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 									$join->on('JE.journal_id','=','journal.id');
 								})
 								//->where('JE.entry_type','Cr')
-								->where('journal.deleted_at','=','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('journal.voucher_type','PIN')
 								->where('JE.account_id',$customer_id)
 								->whereIn('journal.is_transfer',$arr)
@@ -1033,7 +1033,7 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 							   ->join('salessplit_return AS PI', function($join) {
 								   $join->on('PI.id','=','pi_other_cost.sales_split_id');
 							   })
-								->where('pi_other_cost.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('pi_other_cost.cr_account_id',$customer_id)
 								->whereIn('pi_other_cost.is_transfer',$arr)
 								->select('pi_other_cost.*','PI.voucher_no','PI.voucher_date')
@@ -1045,7 +1045,7 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 							   ->join('salessplit_return AS PI', function($join) {
 								   $join->on('PI.id','=','pi_other_cost.sales_split_id');
 							   })
-								->where('pi_other_cost.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('pi_other_cost.cr_account_id',$customer_id)
 								->whereIn('pi_other_cost.is_transfer',$arr)
 								->select('pi_other_cost.*','PI.voucher_no','PI.voucher_date')
@@ -1082,7 +1082,7 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 									   $join->on('U.id','=','PI.unit_id');
 								   })
 								   ->where('PI.status',1)
-								   //->where('PI.deleted_at','0000-00-00 00:00:00')
+								   //->whereNull('deleted_at')
 								   ->select('PI.*','salessplit_return.id','IM.item_code','U.unit_name')
 								   ->orderBY('PI.id')
 								   ->get();
@@ -1121,7 +1121,7 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 						  $join->on('J.id','=','SSI.item_jobid');
 					  })
 					  ->where('SSI.status',1)
-					  ->where('SSI.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('SSI.*','AM.account_id AS account_code','AM.master_name','J.code AS jobcode','J.transport_type')
 					  ->orderBY('SSI.id')
 					  ->groupBY('SSI.id')
@@ -1249,7 +1249,7 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 		 						'salessplit_return.amount_transfer','salessplit_return.discount','salessplit_return.total','salessplit_return.id AS id','salessplit_return.net_amount',
 		 						'salessplit_return.voucher_date','POI.quantity','AM.id AS cid','POI.unit_price','AM.account_id','AM.master_name','AM.master_name AS supplier',
 								'AM.vat_no','POI.tax_code','J.code AS jobcode','salessplit_return.amount_transfer AS amount_transfer',
-								DB::raw("(SELECT SUM(SI.quantity) FROM salessplit_return_item SI WHERE (SI.salessplit_return_id=salessplit_return.id) AND (SI.status=1) AND (SI.deleted_at='0000-00-00 00:00:00')
+								DB::raw("(SELECT SUM(SI.quantity) FROM salessplit_return_item SI WHERE (SI.salessplit_return_id=salessplit_return.id) AND (SI.status=1) AND (deleted_at IS NULL)
 		 						)AS quantity") )
 		 						->groupBy('salessplit_return.id')
 								->orderBY('salessplit_return.voucher_date','ASC')
@@ -1332,7 +1332,7 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 // 		// 						'sales_split.amount_transfer','sales_split.discount','sales_split.total',
 // 		// 						'sales_split.voucher_date','POI.quantity','POI.unit_price','AM.account_id','AM.master_name',
 // 		// 						'AM.vat_no','POI.tax_code','J.code AS jobcode',
-// 		// 						DB::raw("(SELECT SUM(SI.quantity) FROM sales_split_item SI WHERE (SI.sales_split_id=sales_split.id) AND (SI.status=1) AND (SI.deleted_at='0000-00-00 00:00:00')
+// 		// 						DB::raw("(SELECT SUM(SI.quantity) FROM sales_split_item SI WHERE (SI.sales_split_id=sales_split.id) AND (SI.status=1) AND (deleted_at IS NULL)
 // 		// 						)AS quantity") )
 // 		// 						->groupBy('sales_split.id')
 // 		// 						->orderBY('sales_split.voucher_date','ASC')
@@ -1412,10 +1412,10 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 						->join('account_transaction', 'account_transaction.account_master_id', '=', 'account_master.id')
 						->where('account_transaction.voucher_type','!=','OBD')
 						->where('account_transaction.status',1)
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('account_master.status',1)
-						->where('account_master.deleted_at','0000-00-00 00:00:00')
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
+						->whereNull('deleted_at')
 						->whereBetween('account_transaction.invoice_date',[$date->from_date, $date->to_date])
 						->select('account_master.id','account_master.master_name','account_master.cl_balance','account_master.category',
 								 'account_transaction.transaction_type','account_transaction.amount','account_master.op_balance','account_transaction.invoice_date')
@@ -1576,7 +1576,7 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 									   $join->on('IM.id','=','PI.item_id');
 								   })
 								   ->where('PI.status',1)
-								   ->where('PI.deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->where('salessplit_return.status',1);
 							
 							if($date_from !='' && $date_to != '')	   
@@ -1602,4 +1602,7 @@ class SalesSplitReturnRepository extends AbstractValidator implements SalesSplit
 	
 	
 }
+
+
+
 

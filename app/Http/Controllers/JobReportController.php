@@ -35,7 +35,7 @@ class JobReportController extends Controller
 		$data = array(); $reports = null;
 		$reports = null;
 		$jobmasters = $this->jobmaster->activeJobmasterList();
-		$customers = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CUSTOMER')->orderBy('master_name','ASC')->get();
+		$customers = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CUSTOMER')->orderBy('master_name','ASC')->get();
 		return view('body.jobreport.'.$view)
 					->withReports($reports)
 					->withType('')
@@ -135,7 +135,7 @@ class JobReportController extends Controller
 	
 	public function vehicleIndex() {
 		$data = array(); 
-	    $vehicle = DB::table('vehicle')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','reg_no')->get();
+	    $vehicle = DB::table('vehicle')->where('status',1)->whereNull('deleted_at')->select('id','reg_no')->get();
 		return view('body.jobreport.vehicleindex')
 				->withVehicle($vehicle)
 			    ->withData($data);
@@ -148,7 +148,7 @@ class JobReportController extends Controller
 								->join('jobmaster AS JM','JM.id','=','SO.job_id')
 								->join('account_master AS AM','AM.id','=','JM.customer_id')
 								->where('SO.status',1)
-								->where('SO.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 			                     ->where('vehicle.id',$val)
 			                     ->select('JM.code','JM.name','SO.voucher_date','JM.id AS job_id','AM.master_name')->get();
 		$vehicle_info=DB::table('vehicle')->where('vehicle.id',$val)->select('vehicle.*')->first();
@@ -158,17 +158,17 @@ class JobReportController extends Controller
 		    $income = $cost = 0;
 		    
 		    //INCOMES....
-		    $si = DB::table('sales_invoice')->where('job_id',$res->job_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(sales_invoice.subtotal) AS total'))->first();
+		    $si = DB::table('sales_invoice')->where('job_id',$res->job_id)->where('status',1)->whereNull('deleted_at')->select(DB::raw('SUM(sales_invoice.subtotal) AS total'))->first();
 		    
-		    $gr = DB::table('goods_return')->where('job_id',$res->job_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(goods_return.net_amount) AS total'))->first();
+		    $gr = DB::table('goods_return')->where('job_id',$res->job_id)->where('status',1)->whereNull('deleted_at')->select(DB::raw('SUM(goods_return.net_amount) AS total'))->first();
 		    
 		    $income += ($si)?$si->total:0;
 		    $income += ($gr)?$gr->total:0;
 		    
 		    //COST....
-		    $gi= DB::table('goods_issued')->where('job_id',$res->job_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(goods_issued.net_amount) AS total'))->first();
+		    $gi= DB::table('goods_issued')->where('job_id',$res->job_id)->where('status',1)->whereNull('deleted_at')->select(DB::raw('SUM(goods_issued.net_amount) AS total'))->first();
 		    
-		    $pi= DB::table('purchase_invoice')->where('job_id',$res->job_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(purchase_invoice.net_amount) AS total'))->first();
+		    $pi= DB::table('purchase_invoice')->where('job_id',$res->job_id)->where('status',1)->whereNull('deleted_at')->select(DB::raw('SUM(purchase_invoice.net_amount) AS total'))->first();
 		    
 		    $cost += ($pi)?$pi->total:0;
 		    $cost += ($gi)?$gi->total:0;
@@ -272,7 +272,7 @@ class JobReportController extends Controller
 	   
 	   	public function jobIndex() {
 		$data = array(); 
-	    $job = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+	    $job = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')
 		                                 ->where('is_salary_job',0)->where('is_subjob',0)
 		                        ->select('id','code','name')->get();
 								//echo '<pre>';print_r($job);exit;
@@ -289,7 +289,7 @@ class JobReportController extends Controller
 								 ->join('itemmaster AS SIM','SIM.id','=','SOI.item_id')
 								 ->join('account_master AS AM','AM.id','=','JM.customer_id')
 								 ->where('SO.status',1)
-								 ->where('SO.deleted_at','0000-00-00 00:00:00')
+								 ->whereNull('deleted_at')
 								  ->where('JM.id',$val)
 								  ->select('JM.code','JM.name','SO.voucher_no','SO.id AS so_id','JM.id AS job_id','AM.master_name',
 								  'SIM.item_code AS itmcode','SIM.description AS item_name','SOI.quantity AS so_qty')->get();
@@ -316,7 +316,7 @@ class JobReportController extends Controller
 		           ->join('sales_order_item AS SOI','SOI.sales_order_id','=','WO.id')
 		           ->join('itemmaster AS IM','IM.id','=','SOI.item_id')
 				   ->where('SOI.status',1)
-				   ->where('SOI.deleted_at','0000-00-00 00:00:00')
+				   ->whereNull('deleted_at')
 				   ->select('sales_order.voucher_no','am.master_name AS customer','IM.item_code','IM.description',
 				   'SOI.quantity','SOI.balance_quantity','SOI.unit_price','SOI.line_total','SOI.is_transfer','sales_order.net_total','WO.voucher_no AS wvoucher_no')
 				 ->get();
@@ -331,12 +331,12 @@ class JobReportController extends Controller
 	   
 	
 	public function getSearch(Request $request)
-	{ //echo '<pre>';print_r(Input::all());exit;
+	{ //echo '<pre>';print_r($request->all());exit;
 		//echo '<pre>';print_r($request->get('type'));exit;
 		$data = $report = $reports = array();
 	$vehicle='';
 		if($request->get('type') == 'workshop') {
-		    	$vehicle=(Input::get('is_vehicle'))?Input::get('is_vehicle'):'';
+		    	$vehicle=($request->get('is_vehicle'))?$request->get('is_vehicle'):'';
 			if($request->get('search_type') == 'summary') {
 				$voucher_head = 'Vehicle Job Summary Report';
 				$reports = $this->sortJob($this->jobmaster->getVehicleJobSummaryReport($request->all())); 
@@ -364,24 +364,24 @@ class JobReportController extends Controller
 			
 		} else if($request->get('type') == 'normal') {
 			
-			if(Input::get('search_type')=='summary') {
+			if($request->get('search_type')=='summary') {
 				$voucher_head = 'Job Report - Summary';
-				//$reports = $this->jobmaster->getJobReport(Input::all()); echo '<pre>';print_r($reports);exit;
-				$reports = $this->sortJob( $this->jobmaster->getJobReport(Input::all()) ); 
-				$repo=$this->jobmaster->getJobReport(Input::all());
+				//$reports = $this->jobmaster->getJobReport($request->all()); echo '<pre>';print_r($reports);exit;
+				$reports = $this->sortJob( $this->jobmaster->getJobReport($request->all()) ); 
+				$repo=$this->jobmaster->getJobReport($request->all());
 						//echo '<pre>';print_r($repo);exit;
-			} else if(Input::get('search_type')=='summary_ac') {
+			} else if($request->get('search_type')=='summary_ac') {
 				$voucher_head = 'Job Report - Summary Account Wise';
-				$reports = $this->makeTree($this->jobmaster->getJobReport(Input::all()));
+				$reports = $this->makeTree($this->jobmaster->getJobReport($request->all()));
 				
-			} else if(Input::get('search_type')=='detail') {
+			} else if($request->get('search_type')=='detail') {
 				$voucher_head = 'Job Report - Detail Account Wise';
-				$report = $this->jobmaster->getJobReport(Input::all());
+				$report = $this->jobmaster->getJobReport($request->all());
 				
 				//echo '<pre>';print_r($report);exit;
 				if(count($report) > 0) {
 					
-					if(Input::get('is_jobsplit')==1){
+					if($request->get('is_jobsplit')==1){
 						$reports = $this->makeTreeAc( $report ); 
 						$report = $report[0]; 
 					} else {
@@ -389,7 +389,7 @@ class JobReportController extends Controller
 						$report = $report[0]; 
 					}
 					
-					if(Input::get('is_workshopsplit')==1){
+					if($request->get('is_workshopsplit')==1){
 						
 						$reports = $this->makeTreeAc( $report ); 
 						$report = $report[0]; 
@@ -397,9 +397,9 @@ class JobReportController extends Controller
 				}
                 //echo '<pre>';print_r($report);exit;
 			
-			} else if(Input::get('search_type')=='stockin' || Input::get('search_type')=='stockout') {
-				$voucher_head = (Input::get('search_type')=='stockin')?'Jobwise Stock In Report':'Jobwise Stock Out Report';
-				$invoice = $this->sortByType( $this->jobmaster->getJobReport(Input::all()) );
+			} else if($request->get('search_type')=='stockin' || $request->get('search_type')=='stockout') {
+				$voucher_head = ($request->get('search_type')=='stockin')?'Jobwise Stock In Report':'Jobwise Stock Out Report';
+				$invoice = $this->sortByType( $this->jobmaster->getJobReport($request->all()) );
 				/* if(sizeof($results['invoice']) > 0) {
 					$invoice = $this->makeTreeItm($results['invoice']);
 				} else 
@@ -432,13 +432,13 @@ class JobReportController extends Controller
 			
 		} else if($request->get('type') == 'cargo') {
 			
-			if(Input::get('search_type')=='summary') {
+			if($request->get('search_type')=='summary') {
 				$voucher_head = 'Cargo Job Report - Summary';
-				$reports = $this->sortJob( $this->jobmaster->getJobReport(Input::all()) ); 
+				$reports = $this->sortJob( $this->jobmaster->getJobReport($request->all()) ); 
 						
-			} else if(Input::get('search_type')=='detail') {
+			} else if($request->get('search_type')=='detail') {
 				$voucher_head = 'Cargo Job Report - Detail Account Wise';
-				$report = $this->jobmaster->getJobReport(Input::all());
+				$report = $this->jobmaster->getJobReport($request->all());
 				//echo '<pre>';print_r($report);exit;
 				
 				if(count($report) > 0) {
@@ -446,9 +446,9 @@ class JobReportController extends Controller
 					$report = $report[0]; 
 				}
 			
-			} else if(Input::get('search_type')=='stockin' || Input::get('search_type')=='stockout') {
-				$voucher_head = (Input::get('search_type')=='stockin')?'Jobwise Stock In Report':'Jobwise Stock Out Report';
-				$invoice = $this->sortByType( $this->jobmaster->getJobReport(Input::all()) );
+			} else if($request->get('search_type')=='stockin' || $request->get('search_type')=='stockout') {
+				$voucher_head = ($request->get('search_type')=='stockin')?'Jobwise Stock In Report':'Jobwise Stock Out Report';
+				$invoice = $this->sortByType( $this->jobmaster->getJobReport($request->all()) );
 				/* if(sizeof($results['invoice']) > 0) {
 					$invoice = $this->makeTreeItm($results['invoice']);
 				} else 
@@ -470,13 +470,13 @@ class JobReportController extends Controller
 		return view('body.jobreport.'.$view)
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withStype(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withStype($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withSettings($this->acsettings)
-					->withJobsplit(Input::get('is_jobsplit'))
-					->withWorkshopsplit(Input::get('is_workshopsplit'))
-					->withInput(Input::all())
+					->withJobsplit($request->get('is_jobsplit'))
+					->withWorkshopsplit($request->get('is_workshopsplit'))
+					->withInput($request->all())
 					->withReport($report)
 					->withVehicle($vehicle)
 					->withData($data);
@@ -487,21 +487,21 @@ class JobReportController extends Controller
 	{
 		$data = array();
 		
-		if(Input::get('search_type')=='opening_quantity' || Input::get('search_type')=='qtyhand_ason_date') {
+		if($request->get('search_type')=='opening_quantity' || $request->get('search_type')=='qtyhand_ason_date') {
 			$voucher_head = 'Job Report';
-			$results = $this->jobmaster->getQuantityReport(Input::all()); 
+			$results = $this->jobmaster->getQuantityReport($request->all()); 
 			$titles = ['main_head' => 'Quantity Report','subhead' => 'Quantity Report'];
 			
-		} else if(Input::get('search_type')=='purchase_order') {
+		} else if($request->get('search_type')=='purchase_order') {
 			$voucher_head = 'Job Order';
-			$results = $this->jobmaster->getQuantityReport(Input::all()); 
+			$results = $this->jobmaster->getQuantityReport($request->all()); 
 			$titles = ['main_head' => 'Purchase Order','subhead' => 'Purchase Order'];
 		} 
 		
 		//echo '<pre>';print_r($results);exit;
 		return view('body.jobreport.print')
 					->withResults($results)
-					->withType(Input::get('search_type'))
+					->withType($request->get('search_type'))
 					->withVoucherhead($voucher_head)
 					->withTitles($titles)
 					->withUrl('quantity_report')
@@ -514,9 +514,9 @@ class JobReportController extends Controller
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			$voucher_head = 'Job Report - Summary';
-			$reports = $this->sortJob( $this->jobmaster->getJobReport(Input::all()) ); 
+			$reports = $this->sortJob( $this->jobmaster->getJobReport($request->all()) ); 
 			
 			$datareport[] = ['','',strtoupper($voucher_head),'',''];
 			$datareport[] = ['','','','','','',''];
@@ -551,11 +551,11 @@ class JobReportController extends Controller
 			
 			$datareport[] = ['','Grand Total',number_format($total_income,2),number_format($total_expense,2),$total_netincome];
 					
-		} else if(Input::get('search_type')=='summary_ac') {
+		} else if($request->get('search_type')=='summary_ac') {
 			$voucher_head = 'Job Report - Summary Account Wise';
-			$reports = $this->makeTree($this->jobmaster->getJobReport(Input::all()));
+			$reports = $this->makeTree($this->jobmaster->getJobReport($request->all()));
 			
-		} else if(Input::get('search_type')=='detail') {
+		} else if($request->get('search_type')=='detail') {
 			$voucher_head = 'Job Report - Detail Account Wise';
 			
 			$datareport[] = ['','',strtoupper($voucher_head),'',''];
@@ -563,7 +563,7 @@ class JobReportController extends Controller
 			$datareport[] = ['Type','Tr.No','Date','Description','Income','Cost','Balance'];
 			$datareport[] = ['','','','','','',''];
 			
-			$report = $this->jobmaster->getJobReport(Input::all()); //echo '<pre>';print_r($report);exit;
+			$report = $this->jobmaster->getJobReport($request->all()); //echo '<pre>';print_r($report);exit;
 			$reports = $this->makeTree( $report ); 	
 			$report = $report[0]; 
 			
@@ -618,20 +618,20 @@ class JobReportController extends Controller
 			
 			$datareport[] = ['','','','Total',number_format($inctotal,2),number_format($exptotal,2),$balance_total];
 			
-		} else if(Input::get('search_type')=='stockin' || Input::get('search_type')=='stockout') {
-			$voucher_head = (Input::get('search_type')=='stockin')?'Jobwise Stock In Report':'Jobwise Stock Out Report';
+		} else if($request->get('search_type')=='stockin' || $request->get('search_type')=='stockout') {
+			$voucher_head = ($request->get('search_type')=='stockin')?'Jobwise Stock In Report':'Jobwise Stock Out Report';
 			
 			$datareport[] = ['',strtoupper($voucher_head),'',''];
 			$datareport[] = ['','','','','','',''];
 			
-			$invoice = $this->sortByType( $this->jobmaster->getJobReport(Input::all()) );
+			$invoice = $this->sortByType( $this->jobmaster->getJobReport($request->all()) );
 			/* if(sizeof($results['invoice']) > 0) {
 				$invoice = $this->makeTreeItm($results['invoice']);
 			} else 
 				$invoice = null; */
 			
 			$reports = ['invoice' => $invoice]; //echo '<pre>';print_r($reports);exit;
-			if(Input::get('job_id')!='') {
+			if($request->get('job_id')!='') {
 				$arr = current($reports['invoice']);
 				$datareport[] = ['Job Code:'.$arr[0]->code,'','Job Name:'.$arr[0]->name,''];
 			}
@@ -684,3 +684,5 @@ class JobReportController extends Controller
 		})->download('xlsx');
 	}
 }
+
+

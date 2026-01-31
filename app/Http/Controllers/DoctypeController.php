@@ -22,7 +22,7 @@ class DoctypeController extends Controller
 	
 	public function index() {
 		$data = array();
-		$doctype = DB::table('doc_department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$doctype = DB::table('doc_department')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.doctype.index')
 					->withDoctype($doctype)
 					->withData($data);
@@ -39,7 +39,7 @@ class DoctypeController extends Controller
 		try {
 			DB::table('doc_department')
 				->insert([
-					'department_name' => Input::get('name'),
+					'department_name' => $request->get('name'),
 					'status' => 1
 				]);
 			Session::flash('message', 'Department added successfully.');
@@ -63,7 +63,7 @@ class DoctypeController extends Controller
 	{
 		DB::table('doc_department')->where('id',$id)
 				->update([
-					'department_name' => Input::get('name'),
+					'department_name' => $request->get('name'),
 				]);
 		Session::flash('message', 'Department updated successfully');
 		return redirect('doctype');
@@ -78,4 +78,6 @@ class DoctypeController extends Controller
 	
 	
 }
+
+
 

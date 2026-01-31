@@ -26,7 +26,7 @@ class PdcReportController extends Controller
 		$data = array(); $reports = null;
 		$voucher_head = 'PDC Report';
 		$custsup = DB::table('account_master')->whereIn('category',['CUSTOMER','SUPPLIER'])->where('status',1)
-						->where('deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('id','master_name')
 						->orderBy('master_name','ASC')->get();
 		return view('body.pdcreport.index')
@@ -55,7 +55,7 @@ class PdcReportController extends Controller
 		$voucher_head = 'PDC Report';
 		$reports = $this->makeTree($this->journal->getPDCreport($request->all())); 
 		$custsup = DB::table('account_master')->whereIn('category',['CUSTOMER','SUPPLIER'])->where('status',1)
-						->where('deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('id','master_name')
 						->orderBy('master_name','ASC')->get();
 		
@@ -156,5 +156,7 @@ class PdcReportController extends Controller
 					->withData($data);
 	}	
 }
+
+
 
 

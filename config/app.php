@@ -188,5 +188,7 @@ return [
         // 'Example' => App\Facades\Example::class,
     ])->toArray(),
 
+    'stimulsoft_ver' => env('STIMULSOFT_VER', 1),
+
 ];
 

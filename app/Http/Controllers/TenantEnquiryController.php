@@ -63,7 +63,7 @@ class TenantEnquiryController extends Controller
 		$data = array();
 		$building = DB::table('buildingmaster')->where('deleted_at',null)->select('buildingcode','id')->get();
 		$flat = DB::table('flat_master')->where('deleted_at',null)->select('flat_no','id')->get();
-		//$tenants = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('master_name','id')->get();
+		//$tenants = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->select('master_name','id')->get();
 		$res = $this->voucherno->getVoucherNo('CE');
 		$vno = $res->no;
 		//echo '<pre>';print_r($building_ids);exit;
@@ -76,17 +76,17 @@ class TenantEnquiryController extends Controller
 	
 	
 	public function save(Request $request) {
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		try {
 		$id=DB::table('tenant_enquiry')
 			->insertGetId([
-				'enquiry_no' => Input::get('voucher_no'),
-				'enquiry_date' => date('Y-m-d', strtotime(Input::get('enq_date'))),
-				'building_id' => Input::get('building_id'),
+				'enquiry_no' => $request->get('voucher_no'),
+				'enquiry_date' => date('Y-m-d', strtotime($request->get('enq_date'))),
+				'building_id' => $request->get('building_id'),
 				'flat_no'     => isset($request['flat_no'])?$request['flat_no']:'',
-				'tenant'     => Input::get('customer_account'),
-				'description'     => Input::get('description'),
-				'tenant_id'     => Input::get('customer_id')
+				'tenant'     => $request->get('customer_account'),
+				'description'     => $request->get('description'),
+				'tenant_id'     => $request->get('customer_id')
 			]);
 			
 			//echo '<pre>';print_r($id);exit;
@@ -135,7 +135,7 @@ class TenantEnquiryController extends Controller
 	
 	public function update(Request $request, $id)
 	{
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		$ids=$request->get('id');
 		//echo '<pre>';print_r($ids);exit;
 		DB::table('tenant_enquiry')->where('id',$id)
@@ -146,7 +146,7 @@ class TenantEnquiryController extends Controller
 					'flat_no' => isset($request['flat_no'])?$request['flat_no']:'',
 					'tenant' => $request->get('customer_account'),
 					'description' => $request->get('description'),
-					'tenant_id'     => Input::get('customer_id')	
+					'tenant_id'     => $request->get('customer_id')	
 				]);
 				if(isset($request['photo_id'])) {
 					
@@ -186,10 +186,10 @@ class TenantEnquiryController extends Controller
 	
 	public function checkcode() {
 
-		if(Input::get('id') != '')
-			$check = DB::table('flat_master')->where('flat_no',Input::get('flat_no'))->where('building_id',Input::get('bid'))->where('id', '!=', Input::get('id'))->count();
+		if($request->get('id') != '')
+			$check = DB::table('flat_master')->where('flat_no',$request->get('flat_no'))->where('building_id',$request->get('bid'))->where('id', '!=', $request->get('id'))->count();
 		else
-			$check = DB::table('flat_master')->where('flat_no',Input::get('flat_no'))->where('building_id',Input::get('bid'))->count();
+			$check = DB::table('flat_master')->where('flat_no',$request->get('flat_no'))->where('building_id',$request->get('bid'))->count();
 		
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
@@ -199,5 +199,7 @@ class TenantEnquiryController extends Controller
 	
 	
 }
+
+
 
 

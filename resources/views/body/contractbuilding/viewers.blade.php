@@ -52,7 +52,7 @@ require_once $path;
 		
 		// Load and show report
 		var report = new Stimulsoft.Report.StiReport(); var view = '{{$view}}';
-		report.loadFile("{{asset('reports/')}}/"+view); var id; //Numak1.mrt Numak2.mrt Numak3.mrt
+		report.loadFile("{{asset('stimulsoftV2/reports/')}}/"+view); var id; //Numak1.mrt Numak2.mrt Numak3.mrt
 		
 		
 		var parts = window.location.href.split("/");

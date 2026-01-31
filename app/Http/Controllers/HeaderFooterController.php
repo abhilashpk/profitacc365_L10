@@ -40,7 +40,7 @@ class HeaderFooterController extends Controller
 	
 	public function save() {
 		//try {
-			$this->header_footer->create(Input::all());
+			$this->header_footer->create($request->all());
 			Session::flash('message', 'Header/Footer added successfully.');
 			return redirect('header_footer/add');
 		/* } catch(ValidationException $e) { 
@@ -59,7 +59,7 @@ class HeaderFooterController extends Controller
 	
 	public function update($id)
 	{
-		$this->header_footer->update($id, Input::all());//print_r(Input::all());exit;
+		$this->header_footer->update($id, $request->all());//print_r($request->all());exit;
 		Session::flash('message', 'HeaderFooter updated successfully');
 		return redirect('header_footer');
 	}

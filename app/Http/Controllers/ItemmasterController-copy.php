@@ -50,7 +50,7 @@ class ItemmasterController extends Controller
 	}
 	
 	/* private function setItemlogs() {
-		$items = DB::table('itemmaster')->where('itemmaster.status',1)->where('itemmaster.deleted_at','0000-00-00 00:00:00')
+		$items = DB::table('itemmaster')->where('itemmaster.status',1)->whereNull('deleted_at')
 					->join('item_unit', 'item_unit.itemmaster_id', '=', 'itemmaster.id')
 					->where('item_unit.is_baseqty',1)
 					->select('itemmaster.id','item_unit.unit_id')->get();
@@ -354,7 +354,7 @@ class ItemmasterController extends Controller
 		$data = array();
 		$arrData = $this->getGroupCategory();
 		$vats = $this->vatmaster->activeVatMasterList();
-		$location = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+		$location = DB::table('location')->where('is_default',1)->where('status',1)->whereNull('deleted_at')->select('id')->first();
 		$items = $this->itemmaster->activeItemmasterList();
 		//echo '<pre>';print_r($vats);exit;
 		return view('body.itemmaster.add')
@@ -371,8 +371,8 @@ class ItemmasterController extends Controller
 	}
 	
 	public function save() {
-		//echo '<pre>';print_r(json_encode(Input::all()));exit;
-		$this->itemmaster->create(Input::all());
+		//echo '<pre>';print_r(json_encode($request->all()));exit;
+		$this->itemmaster->create($request->all());
 		Session::flash('message', 'Item added successfully.');
 		return redirect('itemmaster/add');
 	}
@@ -391,7 +391,7 @@ class ItemmasterController extends Controller
 	
 	public function checkcode() {
 
-		$check = $this->itemmaster->check_item_code(trim(Input::get('item_code')), Input::get('id'));
+		$check = $this->itemmaster->check_item_code(trim($request->get('item_code')), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -400,7 +400,7 @@ class ItemmasterController extends Controller
 	
 	public function checkdesc() {
 
-		$check = $this->itemmaster->check_item_description(trim(Input::get('description')), Input::get('id'));
+		$check = $this->itemmaster->check_item_description(trim($request->get('description')), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -422,7 +422,7 @@ class ItemmasterController extends Controller
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','mfg_items.subitem_id');
 								})
-								->where('mfg_items.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->select('mfg_items.*','IM.item_code','IM.description')
 								->get();
 		
@@ -446,10 +446,10 @@ class ItemmasterController extends Controller
 	
 	public function update($id)
 	{
-		//echo '<pre>';print_r(Input::all());
-		$this->itemmaster->update($id, Input::all());//exit;
+		//echo '<pre>';print_r($request->all());
+		$this->itemmaster->update($id, $request->all());//exit;
 		Session::flash('message', 'Item Master updated successfully');
-		return redirect(Input::get('fromurl'));
+		return redirect($request->get('fromurl'));
 		//return redirect('itemmaster');
 	}
 	
@@ -480,10 +480,10 @@ class ItemmasterController extends Controller
 	
 	public function getPurchaseCost()
 	{
-		//print_r(Input::all());
-		$result = $this->itemmaster->getLastPurchaseCost(Input::all());
+		//print_r($request->all());
+		$result = $this->itemmaster->getLastPurchaseCost($request->all());
 		if($result) {
-			$cr = (Input::get('cr')!='' && Input::get('cr') > 0)?Input::get('cr'):1;
+			$cr = ($request->get('cr')!='' && $request->get('cr') > 0)?$request->get('cr'):1;
 			echo number_format(($result->unit_price/$cr),2);
 		} else
 			echo '';
@@ -491,11 +491,11 @@ class ItemmasterController extends Controller
 	
 	public function getSaleCost()
 	{
-		//echo '<pre>';print_r(Input::all());
-		$result = $this->itemmaster->getLastSaleCost(Input::all());
+		//echo '<pre>';print_r($request->all());
+		$result = $this->itemmaster->getLastSaleCost($request->all());
 		if($result) {
-			if(Input::get('crate')!='' && Input::get('crate') > 0) {
-				$unit_price = $result->unit_price / Input::get('crate');
+			if($request->get('crate')!='' && $request->get('crate') > 0) {
+				$unit_price = $result->unit_price / $request->get('crate');
 			} else 
 				$unit_price = $result->unit_price;
 			
@@ -506,8 +506,8 @@ class ItemmasterController extends Controller
 	
 	public function getSaleCostAvg()
 	{
-		//print_r(Input::all());
-		$result = $this->itemmaster->getSaleCostAvg(Input::all()); //echo '<pre>';print_r($result);exit;
+		//print_r($request->all());
+		$result = $this->itemmaster->getSaleCostAvg($request->all()); //echo '<pre>';print_r($result);exit;
 		if($result)
 			echo $result->unit_price;
 		else
@@ -516,7 +516,7 @@ class ItemmasterController extends Controller
 	
 	public function getItemCostAvg()
 	{
-		$result = $this->itemmaster->getItemCostAvg(Input::all());
+		$result = $this->itemmaster->getItemCostAvg($request->all());
 		if($result)
 			echo $result->unit_price;
 		else
@@ -587,10 +587,10 @@ class ItemmasterController extends Controller
 	
 	public function getCostAvg()
 	{
-		//print_r(Input::all());
-		$result = $this->itemmaster->getCostAvg(Input::all());
+		//print_r($request->all());
+		$result = $this->itemmaster->getCostAvg($request->all());
 		if($result) {
-			$cr = (Input::get('cr')!='' && Input::get('cr') > 0)?Input::get('cr'):1;
+			$cr = ($request->get('cr')!='' && $request->get('cr') > 0)?$request->get('cr'):1;
 			echo number_format(($result->cost_avg/$cr),2);
 		} else
 			echo '';
@@ -599,9 +599,9 @@ class ItemmasterController extends Controller
 	
 	public function getCostAvgMfg()
 	{
-		$result = $this->itemmaster->getCostAvgMfg(Input::all());
+		$result = $this->itemmaster->getCostAvgMfg($request->all());
 		if($result) {
-			$cr = (Input::get('cr')!='' && Input::get('cr') > 0)?Input::get('cr'):1;
+			$cr = ($request->get('cr')!='' && $request->get('cr') > 0)?$request->get('cr'):1;
 			echo number_format(($result->cost_avg/$cr),2);
 		} else
 			echo '';
@@ -610,8 +610,8 @@ class ItemmasterController extends Controller
 	
 	public function getCostSale()
 	{
-		//print_r(Input::all());
-		$result = $this->itemmaster->getCostSale(Input::all());
+		//print_r($request->all());
+		$result = $this->itemmaster->getCostSale($request->all());
 		if($result)
 			echo $result->cost_avg;
 		else
@@ -620,7 +620,7 @@ class ItemmasterController extends Controller
 	
 	public function ajaxSave() {
 		
-		$as = $this->itemmaster->ajaxCreate(Input::all());
+		$as = $this->itemmaster->ajaxCreate($request->all());
 		return $as;
 			
 	}
@@ -785,7 +785,7 @@ class ItemmasterController extends Controller
 		foreach($itemLogs as $loc => $rows) {
 		   foreach($rows as $row) {
 			DB::table('item_location')->where('location_id',$loc)->where('item_id',$row['item_id'])->where('unit_id',$row['unit'])
-					->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->update(['quantity' => $row['quantity'] ]);
+					->where('status',1)->whereNull('deleted_at')->update(['quantity' => $row['quantity'] ]);
 		   }
 		} */
 		
@@ -803,8 +803,8 @@ class ItemmasterController extends Controller
 	
 	public function getDesc()
 	{
-		//print_r(Input::all());
-		$result = DB::table('itemmaster')->where('id',Input::get('id'))->select('other_info')->first();
+		//print_r($request->all());
+		$result = DB::table('itemmaster')->where('id',$request->get('id'))->select('other_info')->first();
 		if($result)
 			echo $result->other_info; //json_encode($result);
 		else
@@ -821,11 +821,11 @@ class ItemmasterController extends Controller
 		
 		DB::table('mfg_items')
 				->insert([
-					'item_id'	=> Input::get('item_id'),
-					'subitem_id'	=> Input::get('sitem_id'),
-					'quantity'	=> Input::get('qty'),
-					'unit_price'	=> Input::get('cost'),
-					'total'	=> Input::get('qty') * Input::get('cost')
+					'item_id'	=> $request->get('item_id'),
+					'subitem_id'	=> $request->get('sitem_id'),
+					'quantity'	=> $request->get('qty'),
+					'unit_price'	=> $request->get('cost'),
+					'total'	=> $request->get('qty') * $request->get('cost')
 					]);
 		
 	}
@@ -1108,4 +1108,6 @@ class ItemmasterController extends Controller
 		return $arrSummarry;
 	}
 }
+
+
 

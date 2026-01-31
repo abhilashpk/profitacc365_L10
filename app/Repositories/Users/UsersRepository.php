@@ -96,26 +96,29 @@ class UsersRepository extends AbstractValidator implements UsersInterface {
 	{
 		$today = date('Y-m-d');
 		$userdata = $this->users->where('username', $input['username'])
-								->where('password',sha1($input['password']))
+								->where('password', sha1($input['password']))
 								->first(); 
 		if($userdata) {
-			if($userdata->role_id==3) {
-				if(strtotime($userdata->start_date) <= strtotime(date('Y-m-d')) && strtotime($userdata->end_date) >= strtotime(date('Y-m-d')) ) {
-					$config = Config::get('siteconfig');
-					Session::push('user', $userdata); //echo $userdata['role_id'];exit;
-					$roles = $config['roles'][$userdata['role_id']];
-					Session::push('roles', $roles);
-				} else 
-					$userdata = null;
+			// Check if user has role assigned (for role_id based access control)
+			if($userdata->role_id == 3) {
+				// For temporary users, check date range
+				if(strtotime($userdata->start_date) <= strtotime(date('Y-m-d')) && 
+				   strtotime($userdata->end_date) >= strtotime(date('Y-m-d'))) {
+					// Load user roles and permissions using Spatie Permission
+					Session::push('user', $userdata);
+					Session::push('roles', $userdata->getRoleNames()); // Get role names from Spatie
+					Session::push('permissions', $userdata->getPermissionNames()); // Get permissions
+				} else {
+					$userdata = null; // User date range expired
+				}
 			} else {
-				$config = Config::get('siteconfig');
-				Session::push('user', $userdata); //echo $userdata['role_id'];exit;
-				$roles = $config['roles'][$userdata['role_id']];
-				Session::push('roles', $roles);
+				// Regular users - load roles and permissions
+				Session::push('user', $userdata);
+				Session::push('roles', $userdata->getRoleNames()); // Get role names from Spatie
+				Session::push('permissions', $userdata->getPermissionNames()); // Get permissions
 			}
 		}
 		return $userdata;
-		
 	}
 }
 

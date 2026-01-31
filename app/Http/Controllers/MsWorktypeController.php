@@ -21,7 +21,7 @@ class MsWorktypeController extends Controller
 	
 	public function index() {
 		$data = array();
-		$locs = DB::table('ms_worktype')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$locs = DB::table('ms_worktype')->whereNull('deleted_at')->orderBy('id','DESC')->get();
 		return view('body.msworktype.index')
 					->withWorktype($locs)
 					->withData($data);
@@ -36,7 +36,7 @@ class MsWorktypeController extends Controller
 		try {
 			$id = DB::table('ms_worktype')
 					->insertGetId([
-						'name' => Input::get('name')
+						'name' => $request->get('name')
 					]);
 				
 			if($id) {
@@ -65,7 +65,7 @@ class MsWorktypeController extends Controller
 	{
 		DB::table('ms_worktype')->where('id',$id)
 				->update([
-					'name' => Input::get('name')
+					'name' => $request->get('name')
 				]);
 		Session::flash('message', 'Work Type updated successfully');
 		return redirect('ms_worktype');
@@ -81,4 +81,6 @@ class MsWorktypeController extends Controller
 	
 	
 }
+
+
 

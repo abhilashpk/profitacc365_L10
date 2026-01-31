@@ -84,9 +84,9 @@ class AccountMasterController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$department = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$department = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = '';
 			}
 			$is_dept = true;
@@ -192,7 +192,7 @@ class AccountMasterController extends Controller
 		$accategory = $this->category->activeAccategoryList();
 		$currency = $this->currency->activeCurrencyList();
 	$cid=$this->acsettings->bcurrency_id;
-	$bcurrency=DB::table('currency')->where('id','!=',$cid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name','code')->get();
+	$bcurrency=DB::table('currency')->where('id','!=',$cid)->where('status',1)->whereNull('deleted_at')->select('id','name','code')->get();
 		//$department = $this->department->activeDepartmentList();
 		$salesman = $this->salesman->activeSalesmanList();
 		$terms = $this->terms->activeTermsList();
@@ -220,9 +220,9 @@ class AccountMasterController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$department = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$department = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$department = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = '';
 			}
 			$is_dept = true;
@@ -263,7 +263,13 @@ class AccountMasterController extends Controller
 	
 	public function save(Request $request) {
 		//echo '<pre>';print_r($request->all() );exit;
-		$request->merge(['invoice_date' => $this->acsettings->from_date]);
+		$opBalance = $request->input('op_balance');
+		$fcopBalance = $request->input('fcop_balance');
+		$request->merge([
+			'invoice_date' => $this->acsettings->from_date,
+			'op_balance' => ($opBalance === '' || $opBalance === null) ? 0 : $opBalance,
+			'fcop_balance' => ($fcopBalance === '' || $fcopBalance === null) ? 0 : $fcopBalance,
+		]);
 		if( $this->accountmaster->create($request->all()) )
 			Session::flash('message', 'Account Master added successfully.');
 		else
@@ -380,7 +386,7 @@ class AccountMasterController extends Controller
 		$acctype = $this->category->accountType();
 		$currency = $this->currency->activeCurrencyList();
 		$cid=$this->acsettings->bcurrency_id;
-	    $bcurrency=DB::table('currency')->where('id','!=',$cid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name','code')->get();
+	    $bcurrency=DB::table('currency')->where('id','!=',$cid)->where('status',1)->whereNull('deleted_at')->select('id','name','code')->get();
         $department = $this->department->activeDepartmentList();
 		$salesman = $this->salesman->activeSalesmanList();
 		$terms = $this->terms->activeTermsList();
@@ -389,7 +395,7 @@ class AccountMasterController extends Controller
 		$type = $this->category->find($acmasterrow->account_category_id);
 		$accategory = $this->category->getCategorybyType($type->parent_id);
 		$groups = $this->group->getGroupbyCategory($acmasterrow->account_category_id);
-		$opening_bals = $this->accountmaster->getOpeningBalance($id);	//echo '<pre>';print_r($opening_bals);exit;
+		$opening_bals = $this->accountmaster->getOpeningBalance($id, $acmasterrow->category);	//echo '<pre>';print_r($opening_bals);exit;
 		$banks = $this->bank->activeBankList();
 		$obfrom_date = date('Y-m-d', strtotime($this->acsettings->from_date.' -1 day'));
 		$obto_date = date('Y-m-d', strtotime($this->acsettings->to_date.' -1 day'));
@@ -416,7 +422,15 @@ class AccountMasterController extends Controller
 	
 	public function update($id, Request $request)
 	{
-		$request->merge(['invoice_date' => $this->acsettings->from_date]);
+		$opBalance = $request->input('op_balance');
+		$fcopBalance = $request->input('fcop_balance');
+		$clBalance = $request->input('cl_balance');
+		$request->merge([
+			'invoice_date' => $this->acsettings->from_date,
+			'op_balance' => ($opBalance === '' || $opBalance === null) ? 0 : $opBalance,
+			'fcop_balance' => ($fcopBalance === '' || $fcopBalance === null) ? 0 : $fcopBalance,
+			'cl_balance' => ($clBalance === '' || $clBalance === null) ? 0 : $clBalance,
+		]);
 		if( $this->accountmaster->update($id, $request->all()) )
 			Session::flash('message', 'Account Master updated successfully');
 		else
@@ -575,9 +589,9 @@ class AccountMasterController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -612,9 +626,9 @@ class AccountMasterController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -646,9 +660,9 @@ class AccountMasterController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -714,7 +728,7 @@ class AccountMasterController extends Controller
 	
 	public function budgetEntry() {
 		
-		$resultrow = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','account_id','master_name')->get();
+		$resultrow = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->select('id','account_id','master_name')->get();
 		//echo '<pre>';print_r($resultrow);exit;
 		return view('body.accountmaster.budgetentry')
 					->withAccounts($resultrow);
@@ -727,4 +741,5 @@ class AccountMasterController extends Controller
 	
 	
 }
+
 

@@ -54,25 +54,25 @@ class DocumentReportController extends Controller
 		$data = array();
 		
 		$voucher_head = 'Document Report';
-		switch(Input::get('search_type')) {
+		switch($request->get('search_type')) {
 			case 'PO':
 				$voucher_head = 'Purchase Order Summary';
-				$reports = $this->purchase_order->getPendingReport(Input::all()); 
+				$reports = $this->purchase_order->getPendingReport($request->all()); 
 			break;
 			
 			case 'QS':
 				$voucher_head = 'Quotation Sales Summary';
-				$reports = $this->quotation_sales->getPendingReport(Input::all()); 
+				$reports = $this->quotation_sales->getPendingReport($request->all()); 
 			break;
 			
 			case 'SO':
 				$voucher_head = 'Sales Order Summary';
-				$reports = $this->sales_order->getPendingReport(Input::all()); 
+				$reports = $this->sales_order->getPendingReport($request->all()); 
 			break;
 			
 			case 'SDO':
 				$voucher_head = 'Sales Delivery Order Summary';
-				$reports = $this->customer_do->getPendingReport(Input::all()); 
+				$reports = $this->customer_do->getPendingReport($request->all()); 
 			break;
 		}
 		
@@ -80,9 +80,9 @@ class DocumentReportController extends Controller
 		return view('body.documentreport.preprint')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withSettings($this->acsettings)
 					->withData($data);
 	}
@@ -91,14 +91,14 @@ class DocumentReportController extends Controller
 	public function getPrint()
 	{
 		$data = array();
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			$voucher_head = 'Vat Report Summary';
-			$reports = $this->journal->getVatSummary(Input::all()); 
+			$reports = $this->journal->getVatSummary($request->all()); 
 			$titles = ['main_head' => 'Vat Report Summary','subhead' => 'Vat Report Summary'];
 			
-		} else if(Input::get('search_type')=='detail') {
+		} else if($request->get('search_type')=='detail') {
 			$voucher_head = 'Vat Report Detail';
-			$reports = $this->journal->getVatDetail(Input::all());
+			$reports = $this->journal->getVatDetail($request->all());
 			$titles = ['main_head' => 'Vat Report Detail','subhead' => 'Vat Report Detail'];
 		}
 		
@@ -122,16 +122,16 @@ class DocumentReportController extends Controller
 		$data = array();
 		
 		$voucher_head = 'Document Expiry Report';
-		$reports = $this->employee->getDocumentReport(Input::all()); 
+		$reports = $this->employee->getDocumentReport($request->all()); 
 		$titles = ['main_head' => 'Document Expiry Report','subhead' => 'Document Expiry Report'];	
 		
 		//echo '<pre>';print_r($reports);exit;
 		return view('body.documentreport.searchresult')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withTitles($titles)
 					->withUrl('document_report/search_result')
 					->withData($data);
@@ -141,7 +141,7 @@ class DocumentReportController extends Controller
 	{
 		$data = array();
 		
-		$reports = $this->employee->getDocumentReport(Input::all()); 
+		$reports = $this->employee->getDocumentReport($request->all()); 
 		$voucher_head = 'Document Expiry Report';
 				
 		$datareport[] = ['','','',$voucher_head,'','','','','','','','','',''];	

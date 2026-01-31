@@ -505,7 +505,7 @@ class StockTransferoutRepository extends AbstractValidator implements StockTrans
 									   $join->on('U.id','=','STO.unit_id');
 								   })
 								   ->where('STO.status', 1)
-								   ->where('STO.deleted_at', '0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->select('STO.*','IM.item_code','U.unit_name')//'sales_invoice.id',
 								   ->get();
 								   
@@ -557,4 +557,6 @@ class StockTransferoutRepository extends AbstractValidator implements StockTrans
 	}
 	
 }
+
+
 

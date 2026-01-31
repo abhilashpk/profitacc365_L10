@@ -80,8 +80,8 @@ class SalesOrderBookingController extends Controller
 		$data = array();
 		$quotations = [];//$this->sales_order->quotationSalesList();
 		$salesmans = $this->salesman->getSalesmanList();
-		//$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->select('id','code')->get();
-		$custs = [];//DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CUSTOMER')->select('id','master_name')->get();
+		//$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',0)->select('id','code')->get();
+		$custs = [];//DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CUSTOMER')->select('id','master_name')->get();
 		$jobs = $this->jobmaster->activeJobmasterList();
 		return view('body.salesorderbooking.index')
 					->withQuotations($quotations)
@@ -205,7 +205,7 @@ class SalesOrderBookingController extends Controller
 	
 	public function listing() {
 		
-		$serItem = DB::table('itemmaster')->where('class_id',2)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','description')->get();
+		$serItem = DB::table('itemmaster')->where('class_id',2)->where('status',1)->whereNull('deleted_at')->select('id','description')->get();
 		return view('body.salesorderbooking.list')
 					->withServitem($serItem)
 					->withSettings($this->acsettings);
@@ -273,7 +273,7 @@ class SalesOrderBookingController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$res = $this->voucherno->getVoucherNo('SO'); //echo '<pre>';print_r($res);exit;
 		//$vno = $res->no;
-		$row = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$row = DB::table('sales_order')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		$location = $this->location->locationList();
 		if($row && in_array($row->doc_status, $apr))
@@ -345,7 +345,7 @@ class SalesOrderBookingController extends Controller
 					->withData($data);
 	}
 	
-	public function save(Request $request) { //echo '<pre>';print_r(Input::all());exit;
+	public function save(Request $request) { //echo '<pre>';print_r($request->all());exit;
 	
 		if( $this->validate(
 			$request, 
@@ -369,7 +369,7 @@ class SalesOrderBookingController extends Controller
 			//return redirect('sales_order/add')->withInput()->withErrors();
 		}
 		
-		if($this->sales_order->create(Input::all()))
+		if($this->sales_order->create($request->all()))
 			Session::flash('message', 'Sales Order booking added successfully.');
 		else
 			Session::flash('error', 'Something went wrong, Order failed to add!');
@@ -388,7 +388,7 @@ class SalesOrderBookingController extends Controller
 	
 	public function checkRefNo() {
 
-		$check = $this->sales_order->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$check = $this->sales_order->check_reference_no($request->get('reference_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -477,10 +477,10 @@ class SalesOrderBookingController extends Controller
 			return redirect('sales_order_booking/edit/'.$id)->withInput()->withErrors();
 		}
 		
-		$this->sales_order->update($id, Input::all());
+		$this->sales_order->update($id, $request->all());
 		
 		########## email script #############
-		if($this->acsettings->doc_approve==1 && Input::get('doc_status')==1 && Input::get('chkmail')==1) {
+		if($this->acsettings->doc_approve==1 && $request->get('doc_status')==1 && $request->get('chkmail')==1) {
 					
 			$attributes['document_id'] = $id;
 			$attributes['is_fc'] = '';
@@ -489,11 +489,11 @@ class SalesOrderBookingController extends Controller
 			$data = array('details'=> $result['details'], 'titles' => $titles, 'fc' => $attributes['is_fc'], 'items' => $result['items']);
 			$pdf = PDF::loadView('body.salesorder.pdfprint', $data);
 			
-			$mailmessage = Input::get('email_message');
-			$emails = explode(',', Input::get('email'));
+			$mailmessage = $request->get('email_message');
+			$emails = explode(',', $request->get('email'));
 			
 			if($emails[0]!='') {
-				$data = array('name'=> Input::get('customer_name'), 'mailmessage' => $mailmessage );
+				$data = array('name'=> $request->get('customer_name'), 'mailmessage' => $mailmessage );
 				try{
 					Mail::send('body.salesorder.email', $data, function($message) use ($emails,$pdf) {
 						$message->to($emails[0]);
@@ -528,7 +528,7 @@ class SalesOrderBookingController extends Controller
 		$vchr = DB::table('account_setting')
 							->join('account_master','account_master.id','=','account_setting.cr_account_master_id')
 							->where('account_setting.voucher_type_id',3)
-							->where('account_setting.is_cash_voucher',0)->where('account_setting.status',1)->where('account_setting.deleted_at','0000-00-00 00:00:00')
+							->where('account_setting.is_cash_voucher',0)->where('account_setting.status',1)->whereNull('deleted_at')
 							->select('account_setting.id','account_setting.voucher_no','account_setting.cr_account_master_id','account_master.master_name')->first();
 							
 		Session::put('voucher_id',$vchr->id);
@@ -566,7 +566,7 @@ class SalesOrderBookingController extends Controller
 						->join('goods_issued_item','goods_issued_item.goods_issued_id','=','sales_order_gi.gi_id')
 						->where('sales_order_gi.row_id',$orow->id)
 						->where('goods_issued_item.status',1)
-						->where('goods_issued_item.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('goods_issued_item.quantity')
 						->first();
 		}
@@ -613,37 +613,37 @@ class SalesOrderBookingController extends Controller
 						
 				if($girow) {  //GOES TO UPDATE CURRENT ROW ID WITH GI
 					$edit = true;
-					Input::merge(['goods_issued_id' => $girow->id]);
-					Input::merge(['curno' => $girow->voucher_no]);
-					Input::merge(['voucher_id' => $girow->voucher_id]);
-					Input::merge(['voucher_no' => $girow->voucher_no]);
-					Input::merge(['voucher_date' => $girow->voucher_date]);
-					Input::merge(['job_id' => $girow->job_id]);
-					Input::merge(['account_master_id' => $girow->account_master_id]);
-					Input::merge(['job_account_id' => $girow->job_account_id]);
-					Input::merge(['job_account_id_old' => $girow->job_account_id]);
-					Input::merge(['remove_item' => '']);
+					$request->merge(['goods_issued_id' => $girow->id]);
+					$request->merge(['curno' => $girow->voucher_no]);
+					$request->merge(['voucher_id' => $girow->voucher_id]);
+					$request->merge(['voucher_no' => $girow->voucher_no]);
+					$request->merge(['voucher_date' => $girow->voucher_date]);
+					$request->merge(['job_id' => $girow->job_id]);
+					$request->merge(['account_master_id' => $girow->account_master_id]);
+					$request->merge(['job_account_id' => $girow->job_account_id]);
+					$request->merge(['job_account_id_old' => $girow->job_account_id]);
+					$request->merge(['remove_item' => '']);
 					$gi_id = $girow->gi_id;
 					
-					$gitms = DB::table('goods_issued_item')->where('goods_issued_id',$girow->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->get();
+					$gitms = DB::table('goods_issued_item')->where('goods_issued_id',$girow->id)->where('status',1)->whereNull('deleted_at')->select('id')->get();
 					foreach($gitms as $itm) {
 						$orditmid[] = $itm->id;
 					}
 				} else {
 					//ADD NEW ITEMS INTO SAME DATE OF GI
 					$edit = true;
-					Input::merge(['goods_issued_id' => $sorow->id]);
-					Input::merge(['curno' => $sorow->voucher_no]);
-					Input::merge(['voucher_id' => $sorow->voucher_id]);
-					Input::merge(['voucher_no' => $sorow->voucher_no]);
-					Input::merge(['voucher_date' => $sorow->voucher_date]);
-					Input::merge(['job_id' => $sorow->job_id]);
-					Input::merge(['account_master_id' => $sorow->account_master_id]);
-					Input::merge(['job_account_id' => $sorow->job_account_id]);
-					Input::merge(['job_account_id_old' => $sorow->job_account_id]);
-					Input::merge(['remove_item' => '']);
+					$request->merge(['goods_issued_id' => $sorow->id]);
+					$request->merge(['curno' => $sorow->voucher_no]);
+					$request->merge(['voucher_id' => $sorow->voucher_id]);
+					$request->merge(['voucher_no' => $sorow->voucher_no]);
+					$request->merge(['voucher_date' => $sorow->voucher_date]);
+					$request->merge(['job_id' => $sorow->job_id]);
+					$request->merge(['account_master_id' => $sorow->account_master_id]);
+					$request->merge(['job_account_id' => $sorow->job_account_id]);
+					$request->merge(['job_account_id_old' => $sorow->job_account_id]);
+					$request->merge(['remove_item' => '']);
 					
-					$gitms = DB::table('goods_issued_item')->where('goods_issued_id',$sorow->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('*')->get();
+					$gitms = DB::table('goods_issued_item')->where('goods_issued_id',$sorow->id)->where('status',1)->whereNull('deleted_at')->select('*')->get();
 					foreach($gitms as $itm) { //FETCH EXISTING GI ITEMS AND BINDING
 						$orditmid[] = $itm->id;
 						$items[] = $itm->item_id;
@@ -673,16 +673,16 @@ class SalesOrderBookingController extends Controller
 						
 				if($girow) { //ITEM ROW ID IS HERE AND UPDATE WITH NEWLY ENTERED VALUES
 					$edit = true;
-					Input::merge(['goods_issued_id' => $girow->id]);
-					Input::merge(['curno' => $girow->voucher_no]);
-					Input::merge(['voucher_id' => $girow->voucher_id]);
-					Input::merge(['voucher_no' => $girow->voucher_no]);
-					Input::merge(['voucher_date' => $girow->voucher_date]);
-					Input::merge(['job_id' => $girow->job_id]);
-					Input::merge(['account_master_id' => $girow->account_master_id]);
-					Input::merge(['job_account_id' => $girow->job_account_id]);
-					Input::merge(['job_account_id_old' => $girow->job_account_id]);
-					Input::merge(['remove_item' => '']);
+					$request->merge(['goods_issued_id' => $girow->id]);
+					$request->merge(['curno' => $girow->voucher_no]);
+					$request->merge(['voucher_id' => $girow->voucher_id]);
+					$request->merge(['voucher_no' => $girow->voucher_no]);
+					$request->merge(['voucher_date' => $girow->voucher_date]);
+					$request->merge(['job_id' => $girow->job_id]);
+					$request->merge(['account_master_id' => $girow->account_master_id]);
+					$request->merge(['job_account_id' => $girow->job_account_id]);
+					$request->merge(['job_account_id_old' => $girow->job_account_id]);
+					$request->merge(['remove_item' => '']);
 					$gi_id = $girow->gi_id;
 					$orditmid = '';
 					
@@ -695,25 +695,25 @@ class SalesOrderBookingController extends Controller
 				//GOODS ISSUED NOTE BOOKING
 				$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=13,false,'');
 				//echo '<pre>';print_r($vouchers);exit;
-				Input::merge(['curno' => $vouchers[0]->voucher_no]);
-				Input::merge(['voucher_id' => $vouchers[0]->id]);
-				Input::merge(['voucher_no' => $vouchers[0]->voucher_no]);
-				Input::merge(['voucher_date' => date('Y-m-d')]);
-				Input::merge(['voucher_type' => 'GI']);
-				Input::merge(['autoincrement' => 1]);
-				Input::merge(['job_id' => $request->get('jobid')]);
-				Input::merge(['stock_account' => $vouchers[0]->master_name]);
-				Input::merge(['account_master_id' => $vouchers[0]->cr_account_master_id]);
-				Input::merge(['job_account' => $vouchers[0]->dr_master_name]);
-				Input::merge(['job_account_id' => $vouchers[0]->dr_account_master_id]);
-				//Input::merge(['order_item_id' => '']);
+				$request->merge(['curno' => $vouchers[0]->voucher_no]);
+				$request->merge(['voucher_id' => $vouchers[0]->id]);
+				$request->merge(['voucher_no' => $vouchers[0]->voucher_no]);
+				$request->merge(['voucher_date' => date('Y-m-d')]);
+				$request->merge(['voucher_type' => 'GI']);
+				$request->merge(['autoincrement' => 1]);
+				$request->merge(['job_id' => $request->get('jobid')]);
+				$request->merge(['stock_account' => $vouchers[0]->master_name]);
+				$request->merge(['account_master_id' => $vouchers[0]->cr_account_master_id]);
+				$request->merge(['job_account' => $vouchers[0]->dr_master_name]);
+				$request->merge(['job_account_id' => $vouchers[0]->dr_account_master_id]);
+				//$request->merge(['order_item_id' => '']);
 			} 
 			
-			Input::merge(['description' => '']);
-			Input::merge(['num' => '']);
-			Input::merge(['posts_length' => '']);
-			Input::merge(['prefix' => '']);
-			Input::merge(['jobname' => '']);
+			$request->merge(['description' => '']);
+			$request->merge(['num' => '']);
+			$request->merge(['posts_length' => '']);
+			$request->merge(['prefix' => '']);
+			$request->merge(['jobname' => '']);
 			
 			$input = $request->all(); //echo '<pre>';print_r($input);exit;  
 			
@@ -733,37 +733,37 @@ class SalesOrderBookingController extends Controller
 				$net_amount += $input['quantity'][$ik] * $irow->cost_avg;
 				$orditmid[] = '';
 			}
-			Input::merge(['order_item_id' => $orditmid]);
-			Input::merge(['item_id' => $items]);
-			Input::merge(['item_code' => $itemscode]);
-			Input::merge(['item_name' => $itemsname]);
-			Input::merge(['unit_id' => $unitid]);
-			Input::merge(['quantity' => $itemsqty]);
-			Input::merge(['cost' => $itemscost]);
-			Input::merge(['actcost' => $actcost]);
-			Input::merge(['tax_code' => $txcod]);
-			Input::merge(['tax_include' => $tinc]);
-			Input::merge(['hidunit' => $hdu]);
-			Input::merge(['packing' => $pkng]);
-			Input::merge(['vatdiv' => $vat]);
-			Input::merge(['line_vat' => $vtln]);
-			Input::merge(['vatline_amt' => $vtamt]);
-			Input::merge(['line_discount' => $vtds]);
-			Input::merge(['item_total' => $itmt]);
-			Input::merge(['line_total' => $lnt]);
-			Input::merge(['conloc_id' => $itemsloc]);
-			Input::merge(['conloc_qty' => $itemsqty]);
+			$request->merge(['order_item_id' => $orditmid]);
+			$request->merge(['item_id' => $items]);
+			$request->merge(['item_code' => $itemscode]);
+			$request->merge(['item_name' => $itemsname]);
+			$request->merge(['unit_id' => $unitid]);
+			$request->merge(['quantity' => $itemsqty]);
+			$request->merge(['cost' => $itemscost]);
+			$request->merge(['actcost' => $actcost]);
+			$request->merge(['tax_code' => $txcod]);
+			$request->merge(['tax_include' => $tinc]);
+			$request->merge(['hidunit' => $hdu]);
+			$request->merge(['packing' => $pkng]);
+			$request->merge(['vatdiv' => $vat]);
+			$request->merge(['line_vat' => $vtln]);
+			$request->merge(['vatline_amt' => $vtamt]);
+			$request->merge(['line_discount' => $vtds]);
+			$request->merge(['item_total' => $itmt]);
+			$request->merge(['line_total' => $lnt]);
+			$request->merge(['conloc_id' => $itemsloc]);
+			$request->merge(['conloc_qty' => $itemsqty]);
 			
-			Input::merge(['total' => $total]);
-			Input::merge(['total_fc' => 0]);
-			Input::merge(['discount' => 0]);
-			Input::merge(['discount_fc' => 0]);
-			Input::merge(['net_amount' => $net_amount]);
-			Input::merge(['net_amount_fc' => '']);
+			$request->merge(['total' => $total]);
+			$request->merge(['total_fc' => 0]);
+			$request->merge(['discount' => 0]);
+			$request->merge(['discount_fc' => 0]);
+			$request->merge(['net_amount' => $net_amount]);
+			$request->merge(['net_amount_fc' => '']);
 			//echo  $edit;exit;
-			//echo '<pre>';print_r(Input::all());exit;
+			//echo '<pre>';print_r($request->all());exit;
 			if($edit==true) {
-				$this->goods_issued->update($gi_id, Input::all());
+				$this->goods_issued->update($gi_id, $request->all());
 				DB::table('sales_order_gi')
 						->insert([
 							'row_id' => $input['irow'],
@@ -771,7 +771,7 @@ class SalesOrderBookingController extends Controller
 							'so_id'	 => $input['id']
 						]);
 			} else {
-				$id = $this->goods_issued->create(Input::all());
+				$id = $this->goods_issued->create($request->all());
 			
 				DB::table('sales_order_gi')
 						->insert([
@@ -783,8 +783,8 @@ class SalesOrderBookingController extends Controller
 			
 			DB::table('sales_order_item')->where('id',$input['irow'])->update(['discount' => $request->get('status')]);
 			
-			$row1 = DB::table('sales_order_item')->where('sales_order_id', $request->get('id'))->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
-			$row2 = DB::table('sales_order_item')->where('sales_order_id', $request->get('id'))->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('discount',1)->count();
+			$row1 = DB::table('sales_order_item')->where('sales_order_id', $request->get('id'))->where('status',1)->whereNull('deleted_at')->count();
+			$row2 = DB::table('sales_order_item')->where('sales_order_id', $request->get('id'))->where('status',1)->whereNull('deleted_at')->where('discount',1)->count();
 			if($row1==$row2) {
 				DB::table('sales_order')->where('id',$request->get('id'))->update(['is_warning' => 1]);
 			}
@@ -902,10 +902,10 @@ class SalesOrderBookingController extends Controller
 	
 	public function setSessionVal()
 	{
-		Session::put('voucher_no', Input::get('vchr_no'));
-		Session::put('reference_no', Input::get('ref_no'));
-		Session::put('voucher_date', Input::get('vchr_dt'));
-		Session::put('lpo_date', Input::get('lpo_dt'));
+		Session::put('voucher_no', $request->get('vchr_no'));
+		Session::put('reference_no', $request->get('ref_no'));
+		Session::put('voucher_date', $request->get('vchr_dt'));
+		Session::put('lpo_date', $request->get('lpo_dt'));
 	}
 	
 	protected function makeTree($result)
@@ -952,21 +952,21 @@ class SalesOrderBookingController extends Controller
 	{
 		$data = array();
 		
-		$reports = $this->sales_order->getPendingReport(Input::all());//echo '<pre>';print_r($reports);exit;
+		$reports = $this->sales_order->getPendingReport($request->all());//echo '<pre>';print_r($reports);exit;
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Sales Order Summary';
-		elseif(Input::get('search_type')=="summary_pending") {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Sales Order Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif(Input::get('search_type')=="detail") {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Sales Order Detail';
 			$reports = $this->makeTree($reports);
-		} elseif(Input::get('search_type')=="jobwise") {
+		} elseif($request->get('search_type')=="jobwise") {
 			$voucher_head = 'Sales Order - Jobwise';
-		} elseif(Input::get('search_type')=="customer_wise") {
+		} elseif($request->get('search_type')=="customer_wise") {
 			$voucher_head = 'Sales Order - Customer Wise';
-		} elseif(Input::get('search_type')=="detail_pending") {
+		} elseif($request->get('search_type')=="detail_pending") {
 			$voucher_head = 'Sales Order Pending Detail';
 			$reports = $this->makeTree($reports);
 		}
@@ -975,11 +975,11 @@ class SalesOrderBookingController extends Controller
 		return view('body.salesorder.preprint') //preprint
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withJobids(json_encode(Input::get('job_id')))
-					->withSalesman(Input::get('salesman'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withJobids(json_encode($request->get('job_id')))
+					->withSalesman($request->get('salesman'))
 					->withSettings($this->acsettings)
 					->withData($data);
 	}
@@ -990,16 +990,16 @@ class SalesOrderBookingController extends Controller
 		$datareport[] = ['','','','',strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		Input::merge(['type' => 'export']);
-		Input::merge(['job_id' => json_decode(Input::get('job_id'))]);
-		$reports = $this->sales_order->getPendingReport(Input::all());
+		$request->merge(['type' => 'export']);
+		$request->merge(['job_id' => json_decode($request->get('job_id'))]);
+		$reports = $this->sales_order->getPendingReport($request->all());
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Sales Order Summary';
-		elseif(Input::get('search_type')=="summary_pending") {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Sales Order Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif(Input::get('search_type')=="detail") {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Sales Order Detail';
 		} else {
 			$voucher_head = 'Sales Order Pending Detail';
@@ -1010,7 +1010,7 @@ class SalesOrderBookingController extends Controller
 		
 		 //echo '<pre>';print_r($reports);exit;
 		
-		if(Input::get('search_type')=='detail' || Input::get('search_type')=='detail_pending') {
+		if($request->get('search_type')=='detail' || $request->get('search_type')=='detail_pending') {
 			
 			$datareport[] = ['SI.No.','SO.#', 'SO.Ref#', 'Job No', 'Customer','Salesman','Item Code','Description','SO.Qty','Rate','Total Amt.'];
 			$i=0;
@@ -1102,5 +1102,7 @@ class SalesOrderBookingController extends Controller
 	}
 	
 }
+
+
 
 

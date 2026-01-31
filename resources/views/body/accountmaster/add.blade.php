@@ -34,6 +34,7 @@
 .col-xs-1-qtr { width:5% !important; float: left; }
 .col-xs-1-half { width:10% !important; float: left; }
 .col-xs-2-half { width:20% !important; float: left; }
+ .toast-msg { position: fixed; top: 20px; right: 20px; z-index: 9999; background: #d9534f; color: #fff; padding: 10px 14px; border-radius: 4px; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 
 input[type=number]::-webkit-inner-spin-button, 
 input[type=number]::-webkit-outer-spin-button { 
@@ -683,6 +684,8 @@ input[type=number]::-webkit-outer-spin-button {
 @stop
 
 {{-- page level scripts --}}
+<div id="toast_msg" class="toast-msg"></div>
+
 @section('footer_scripts')
     <!-- begining of page level js -->
 <script type="text/javascript" src="{{asset('assets/vendors/bootstrapvalidator/js/bootstrapValidator.min.js')}}"></script>
@@ -709,6 +712,29 @@ input[type=number]::-webkit-outer-spin-button {
 <script type="text/javascript" src="{{asset('assets/vendors/datatables/js/dataTables.scroller.js')}}"></script>
 
 <script>
+function showToast(message) {
+    var $toast = $('#toast_msg');
+    if (!$toast.length) return;
+    $toast.text(message).stop(true, true).fadeIn(150);
+    setTimeout(function(){ $toast.fadeOut(300); }, 2000);
+}
+
+$(document).on('submit', '#frmMaster', function(e) {
+    if ($('#ob_chqdetail').is(':visible')) {
+        var invalid = false;
+        $('input[name="cheque_date[]"]:visible:not(:disabled)').each(function() {
+            if ($.trim($(this).val()) === '') {
+                invalid = true;
+                return false;
+            }
+        });
+        if (invalid) {
+            showToast('Cheque date is empty');
+            e.preventDefault();
+            return false;
+        }
+    }
+});
 "use strict";
 var cat;
 $('#trdate_1').datepicker( { autoClose:true ,dateFormat: 'dd-mm-yyyy' } );

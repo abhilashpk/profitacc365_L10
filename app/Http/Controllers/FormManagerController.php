@@ -33,8 +33,153 @@ class FormManagerController extends Controller
 	
 	public function detail($type) { 
 		$data = array();
+		if($type === 'ITMAD') {
+			$form = DB::table('forms')->where('code', $type)->first();
+			if($form) {
+				$maxOrd = (int) DB::table('form_details')->where('form_id', $form->id)->max('list_ord');
+				$maxOrd = $maxOrd > 0 ? $maxOrd : 0;
+				$missing = [
+					'dimension' => 'Dimension Required',
+					'batch_req' => 'Batch Required',
+				];
+				foreach($missing as $code => $name) {
+					$exists = DB::table('form_details')
+						->where('form_id', $form->id)
+						->where('field_code', $code)
+						->exists();
+					if(!$exists) {
+						$maxOrd++;
+						DB::table('form_details')->insert([
+							'form_id' => $form->id,
+							'field_name' => $name,
+							'field_code' => $code,
+							'active' => 1,
+							'status' => 1,
+							'list_ord' => $maxOrd,
+						]);
+					}
+				}
+			}
+		}
+		if($type === 'PI') {
+			$form = DB::table('forms')->where('code', $type)->first();
+			if($form) {
+				$maxOrd = (int) DB::table('form_details')->where('form_id', $form->id)->max('list_ord');
+				$maxOrd = $maxOrd > 0 ? $maxOrd : 0;
+				$missing = [
+					'due_days' => 'Day',
+					'due_date' => 'Due Date',
+					'import' => 'Import',
+					'item_import' => 'Items Import',
+					'batch_req' => 'Batch',
+				];
+				foreach($missing as $code => $name) {
+					$exists = DB::table('form_details')
+						->where('form_id', $form->id)
+						->where('field_code', $code)
+						->exists();
+					if(!$exists) {
+						$maxOrd++;
+						DB::table('form_details')->insert([
+							'form_id' => $form->id,
+							'field_name' => $name,
+							'field_code' => $code,
+							'active' => 1,
+							'status' => 1,
+							'list_ord' => $maxOrd,
+						]);
+					}
+				}
+			}
+		}
+		if($type === 'SI') {
+			$form = DB::table('forms')->where('code', $type)->first();
+			if($form) {
+				$maxOrd = (int) DB::table('form_details')->where('form_id', $form->id)->max('list_ord');
+				$maxOrd = $maxOrd > 0 ? $maxOrd : 0;
+				$missing = [
+					'due_days' => 'Day',
+					'due_date' => 'Due Date',
+					'export' => 'Export',
+				];
+				foreach($missing as $code => $name) {
+					$exists = DB::table('form_details')
+						->where('form_id', $form->id)
+						->where('field_code', $code)
+						->exists();
+					if(!$exists) {
+						$maxOrd++;
+						DB::table('form_details')->insert([
+							'form_id' => $form->id,
+							'field_name' => $name,
+							'field_code' => $code,
+							'active' => 1,
+							'status' => 1,
+							'list_ord' => $maxOrd,
+						]);
+					}
+				}
+			}
+		}
+		if($type === 'SR') {
+			$form = DB::table('forms')->where('code', $type)->first();
+			if($form) {
+				$maxOrd = (int) DB::table('form_details')->where('form_id', $form->id)->max('list_ord');
+				$maxOrd = $maxOrd > 0 ? $maxOrd : 0;
+				$missing = [
+					'export' => 'Export',
+				];
+				foreach($missing as $code => $name) {
+					$exists = DB::table('form_details')
+						->where('form_id', $form->id)
+						->where('field_code', $code)
+						->exists();
+					if(!$exists) {
+						$maxOrd++;
+						DB::table('form_details')->insert([
+							'form_id' => $form->id,
+							'field_name' => $name,
+							'field_code' => $code,
+							'active' => 1,
+							'status' => 1,
+							'list_ord' => $maxOrd,
+						]);
+					}
+				}
+			}
+		}
+		if($type === 'PR') {
+			$form = DB::table('forms')->where('code', $type)->first();
+			if($form) {
+				$maxOrd = (int) DB::table('form_details')->where('form_id', $form->id)->max('list_ord');
+				$maxOrd = $maxOrd > 0 ? $maxOrd : 0;
+				$missing = [
+					'export' => 'Export',
+				];
+				foreach($missing as $code => $name) {
+					$exists = DB::table('form_details')
+						->where('form_id', $form->id)
+						->where('field_code', $code)
+						->exists();
+					if(!$exists) {
+						$maxOrd++;
+						DB::table('form_details')->insert([
+							'form_id' => $form->id,
+							'field_name' => $name,
+							'field_code' => $code,
+							'active' => 1,
+							'status' => 1,
+							'list_ord' => $maxOrd,
+						]);
+					}
+				}
+			}
+		}
 		$forms = $this->forms->getForm($type);
-		
+		if($forms->isEmpty()) {
+			Session::flash('message', 'Form not found for code: '.$type);
+			return redirect('forms');
+		}
 		return view('body.forms.detail')
 					->withForms($forms)
 					->withData($data);

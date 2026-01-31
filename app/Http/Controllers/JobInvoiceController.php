@@ -91,12 +91,12 @@ class JobInvoiceController extends Controller
 		$data = array();
 		$invoices = [];//$this->sales_invoice->salesInvoiceList();//echo '<pre>';print_r($quotations);exit;
 		$salesmans = $this->salesman->getSalesmanList();
-		$item = DB::table('itemmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$item = DB::table('itemmaster')->where('status',1)->whereNull('deleted_at')->get();
 		$customer = $this->accountmaster->getCustomerList();
-		$category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$category = DB::table('category')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
+		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
 		$jobs = $this->jobmaster->activeJobmasterList();
 		return view('body.jobinvoice.index')
 					->withInvoices($invoices)
@@ -234,14 +234,14 @@ class JobInvoiceController extends Controller
 		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=3); //'Sales Stock' voucher from account settings...
 		$department = $this->department->activeDepartmentList();
 		$lastid = $this->sales_invoice->getLastId();
-		$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->whereNull('deleted_at')->select('id')->first();
+		$jobtype = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->get();
 		$sales_location = DB::table('parameter3')
 							 ->join('location', 'location.id', '=', 'parameter3.location_id')
 							 ->join('account_master', 'account_master.id', '=', 'parameter3.account_id')
 							 ->select('location.name','location.id','account_master.master_name','account_master.id AS account_id')
 							 ->get();
-		$footertxt = DB::table('header_footer')->where('doc','JI')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();					 
+		$footertxt = DB::table('header_footer')->where('doc','JI')->where('status',1)->whereNull('deleted_at')->first();					 
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
 							->where('report_view.code','JI')
@@ -254,9 +254,9 @@ class JobInvoiceController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -628,7 +628,7 @@ class JobInvoiceController extends Controller
 		$custdata = DB::table('account_master')->where('id',$orderrow->customer_id)->select('cl_balance','credit_limit','pdc_amount')->first();
 		$vouchers = $this->accountsetting->find($orderrow->voucher_id);
 		$jobdesc = $this->sales_invoice->getjobDescription($id);
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$jobtype = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->get();
 		
 		//$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=3);
 		//$optvouchers = $this->accountsetting->getAccountSettingsDefault2($vid=3);
@@ -674,9 +674,9 @@ class JobInvoiceController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -791,7 +791,7 @@ class JobInvoiceController extends Controller
 		$custdata = DB::table('account_master')->where('id',$orderrow->customer_id)->select('cl_balance','credit_limit','pdc_amount')->first();
 		$vouchers = $this->accountsetting->find($orderrow->voucher_id);
 		$jobdesc = $this->sales_invoice->getjobDescription($id);
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$jobtype = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->get();
 		
 		//$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=3);
 		//$optvouchers = $this->accountsetting->getAccountSettingsDefault2($vid=3);
@@ -837,9 +837,9 @@ class JobInvoiceController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -1100,7 +1100,7 @@ class JobInvoiceController extends Controller
 			
 			
 			$jobdesc = DB::table('jobinvoice_details')->where('jobinvoice_id',$id)
-							->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+							->where('status',1)->whereNull('deleted_at')
 							->select('description','comment')->orderBy('id','ASC')->get();
 			//split item and service
 			$items = null;
@@ -1743,7 +1743,7 @@ class JobInvoiceController extends Controller
 									$join->on('PS.job_id','=','jobmaster.id');
 								} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry1->where('jobmaster.id', $job_id);
 					
@@ -1764,7 +1764,7 @@ class JobInvoiceController extends Controller
 									$join->on('PS.job_id','=','jobmaster.id');
 								} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry2->where('jobmaster.id', $job_id);
 				
@@ -1784,7 +1784,7 @@ class JobInvoiceController extends Controller
 						$join->on('AC.id','=','SI.cr_account_id');
 					} )
 			
-				->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+				->where('SI.status', 1)->whereNull('deleted_at');
 	         if($job_id)
 			 
 			 {
@@ -1822,8 +1822,8 @@ class JobInvoiceController extends Controller
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry1->where('jobmaster.id', $job_id);
 				
@@ -1846,8 +1846,8 @@ class JobInvoiceController extends Controller
 								$join->on('AC.id','=','PIM.account_id');
 							} )
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+							->where('PIM.status', 1)->whereNull('deleted_at')
+							->where('PS.status', 1)->whereNull('deleted_at');
 				if($job_id)
 					$qry2->where('jobmaster.id', $job_id);
 				
@@ -1873,7 +1873,7 @@ class JobInvoiceController extends Controller
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 							->where('PVE.status', 1)
 							->where('PVE.entry_type','Dr')
-							->where('PVE.deleted_at', '0000-00-00 00:00:00');
+							->whereNull('deleted_at');
 				if($job_id)
 					$qry3->where('jobmaster.id', $job_id);
 				
@@ -1899,7 +1899,7 @@ class JobInvoiceController extends Controller
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 							->where('PVE.status', 1)
 							->where('PVE.entry_type','Dr')
-							->where('PVE.deleted_at', '0000-00-00 00:00:00');
+							->whereNull('deleted_at');
 				if($job_id)
 					$qry4->where('jobmaster.id', $job_id);
 				
@@ -1924,7 +1924,7 @@ class JobInvoiceController extends Controller
 								} )
 							->join('account_category', 'account_category.id', '=', 'AC.account_category_id')
 							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00')
+							->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at')
 							->where('account_category.parent_id',4);
 				if($job_id)
 					$qry5->where('jobmaster.id', $job_id);
@@ -1950,7 +1950,7 @@ class JobInvoiceController extends Controller
 									$join->on('AC.id','=','SI.cr_account_id');
 								} )
 						
-							->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+							->where('SI.status', 1)->whereNull('deleted_at');
 							
 						 if($job_id)
 						 
@@ -1992,7 +1992,7 @@ class JobInvoiceController extends Controller
 										$join->on('PS.job_id','=','jobmaster.id');
 									} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PS.status', 1)->whereNull('deleted_at');
 				//	if($job_id)
 						//$qry1->where('jobmaster.id', $job_id);
 						
@@ -2015,7 +2015,7 @@ class JobInvoiceController extends Controller
 										$join->on('PS.job_id','=','jobmaster.id');
 									} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -2042,8 +2042,8 @@ class JobInvoiceController extends Controller
 									$join->on('AC.id','=','PIM.account_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -2066,8 +2066,8 @@ class JobInvoiceController extends Controller
 									$join->on('AC.id','=','PIM.account_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+								->where('PIM.status', 1)->whereNull('deleted_at')
+								->where('PS.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -2093,7 +2093,7 @@ class JobInvoiceController extends Controller
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 								->where('PVE.status', 1)
 								->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -2119,7 +2119,7 @@ class JobInvoiceController extends Controller
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 								->where('PVE.status', 1)
 								->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 					
@@ -2144,7 +2144,7 @@ class JobInvoiceController extends Controller
 									} )
 								->join('account_category', 'account_category.id', '=', 'AC.account_category_id')
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00')
+								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at')
 								->where('account_category.parent_id',4);
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
@@ -2190,7 +2190,7 @@ class JobInvoiceController extends Controller
 									} )
 								->whereNotIn('AC.account_category_id',$excludearr)
 								->where('PI.status', 1)
-								->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -2206,7 +2206,7 @@ class JobInvoiceController extends Controller
 									} )
 								
 								->where('GI.status', 1)
-								->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -2221,7 +2221,7 @@ class JobInvoiceController extends Controller
 										$join->on('JE.job_id','=','jobmaster.id');
 									} )
 								->where('JE.status', 1)->where('JE.entry_type','Dr')
-								->where('JE.deleted_at', '0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereNotIn('JE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								});
@@ -2239,7 +2239,7 @@ class JobInvoiceController extends Controller
 										$join->on('PVE.job_id','=','jobmaster.id');
 									} )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereNotIn('PVE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								});
@@ -2254,7 +2254,7 @@ class JobInvoiceController extends Controller
 										$join->on('PCE.job_id','=','jobmaster.id');
 									} )
 								->where('PCE.status', 1)->where('PCE.entry_type','Dr')
-								->where('PCE.deleted_at', '0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereNotIn('PCE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								});
@@ -2277,7 +2277,7 @@ class JobInvoiceController extends Controller
 										$join->on('AC.id','=','SI.cr_account_id');
 									} )
 								->whereNotIn('AC.account_category_id',$excludearr)		
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -2295,7 +2295,7 @@ class JobInvoiceController extends Controller
 										$join->on('AC.id','=','GR.account_master_id');
 									} )
 								->whereNotIn('AC.account_category_id',$excludearr)
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -2309,7 +2309,7 @@ class JobInvoiceController extends Controller
 								->join('journal_entry AS JE', function($join) {
 										$join->on('JE.job_id','=','jobmaster.id');
 									} )
-								->where('JE.status', 1)->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00')
+								->where('JE.status', 1)->where('JE.entry_type','Cr')->whereNull('deleted_at')
 								->whereNotIn('JE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								});
@@ -2323,7 +2323,7 @@ class JobInvoiceController extends Controller
 								->join('receipt_voucher_entry AS RVE', function($join) {
 										$join->on('RVE.job_id','=','jobmaster.id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00')
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at')
 								->whereNotIn('RVE.account_id', function($qury) use($excludearr) {
 									$qury->select('id')->from('account_master')->whereIn('account_category_id', $excludearr); 
 								});
@@ -2337,7 +2337,7 @@ class JobInvoiceController extends Controller
 								->join('petty_cash_entry AS PCE', function($join) {
 										$join->on('PCE.job_id','=','jobmaster.id');
 									} )
-								->where('PCE.status', 1)->where('PCE.entry_type','Cr')->where('PCE.deleted_at', '0000-00-00 00:00:00');
+								->where('PCE.status', 1)->where('PCE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
 					
@@ -2374,7 +2374,7 @@ class JobInvoiceController extends Controller
 							//	->join('account_master AS AC', function($join) {
 									//	$join->on('AC.id','=','PB.ac_id');
 								//	} )
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->where('PI.status', 1)->whereNull('deleted_at');
 				
 					
 				
@@ -2396,7 +2396,7 @@ class JobInvoiceController extends Controller
 									} )
 									->leftJoin('account_master AS AB','AB.id', '=', 'PB.ac_id' )
 									->leftJoin('project_budget AS ABB','ABB.ac_id', '=', 'ABB.id' )
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->where('GI.status', 1)->whereNull('deleted_at');
 					
 					$query2->select('jobmaster.id','jobmaster.code AS jcode','jobmaster.name',DB::raw('SUM(GI.net_amount) AS amount'),'ABB.amount AS estimate','GI.net_amount AS amounttest',
 										 'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','GI.voucher_no',DB::raw('"GI" AS type'))
@@ -2419,7 +2419,7 @@ class JobInvoiceController extends Controller
 									} )
 									->leftJoin('account_master AS AB','AB.id', '=', 'PB.ac_id' )
 									->leftJoin('project_budget AS ABB','ABB.ac_id', '=', 'JE.account_id' )
-								->where('JE.status', 1)->where('JE.entry_type','Dr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('JE.entry_type','Dr')->whereNull('deleted_at');
 				
 				
 					$query3->select('jobmaster.id','jobmaster.code AS jcode','jobmaster.name',DB::raw('SUM(JE.amount) AS amount'),'ABB.amount AS estimate','JE.amount AS amounttest',
@@ -2443,7 +2443,7 @@ class JobInvoiceController extends Controller
 									} )
 									->leftJoin('account_master AS AB','AB.id', '=', 'PB.ac_id' )
 									->leftJoin('project_budget AS ABB','ABB.ac_id', '=', 'PVE.account_id' )
-								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at');
 					
 					
 					
@@ -2467,7 +2467,7 @@ class JobInvoiceController extends Controller
 									} )
 									->leftJoin('account_master AS AB','AB.id', '=', 'PB.ac_id' )
 									->leftJoin('project_budget AS ABB','ABB.ac_id', '=', 'SI.cr_account_id' )
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					
 					
 					$qry1->select('jobmaster.id','jobmaster.code AS jcode','jobmaster.name',DB::raw('SUM(SI.subtotal) AS income'),'ABB.amount AS estimate','SI.subtotal AS amounttest',
@@ -2488,7 +2488,7 @@ class JobInvoiceController extends Controller
 									} )
 									->leftJoin('account_master AS AB','AB.id', '=', 'PB.ac_id' )
 									->leftJoin('project_budget AS ABB','ABB.ac_id', '=', 'GR.account_master_id' )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 				
 					$qry2->select('jobmaster.id','jobmaster.code AS jcode','jobmaster.name',DB::raw('SUM(GR.net_amount) AS income'),'ABB.amount AS estimate','GR.net_amount AS amounttest',
 										 'jobmaster.incexp AS amount','AC.account_id','AC.master_name','AC.id AS acid','GR.voucher_no',DB::raw('"GR" AS type'))
@@ -2511,7 +2511,7 @@ class JobInvoiceController extends Controller
 									} )
 									->leftJoin('account_master AS AB','AB.id', '=', 'PB.ac_id' )
 									->leftJoin('project_budget AS ABB','ABB.ac_id', '=', 'JE.account_id' )
-								->where('JE.status', 1)->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('JE.entry_type','Cr')->whereNull('deleted_at');
 				
 					$qry3->select('jobmaster.id','jobmaster.code AS jcode','jobmaster.name',DB::raw('SUM(JE.amount) AS amount'),'ABB.amount AS estimate','JE.amount AS amounttest',
 										 'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"JVCredit" AS type'))
@@ -2535,7 +2535,7 @@ class JobInvoiceController extends Controller
 									->leftJoin('account_master AS AB','AB.id', '=', 'PB.ac_id' )
 									->leftJoin('project_budget AS ABB','ABB.ac_id', '=', 'PVE.account_id' )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					
 						$query5->select('jobmaster.id','jobmaster.code AS jcode','jobmaster.name',DB::raw('SUM(PVE.amount) AS amount'),'ABB.amount AS estimate','PVE.amount AS amounttest',
 										 'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"PC" AS type'))		->groupBy('jobmaster.id');
@@ -2561,7 +2561,7 @@ class JobInvoiceController extends Controller
 									} )
 									->leftJoin('account_master AS AB','AB.id', '=', 'PB.ac_id' )
 									->leftJoin('project_budget AS ABB','ABB.ac_id', '=', 'RVE.account_id' )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 				
 				
 					$qry4->select('jobmaster.id','jobmaster.code AS jcode','jobmaster.name',DB::raw('SUM(RVE.amount) AS amount'),'ABB.amount AS estimate','RVE.amount AS amounttest',
@@ -2597,7 +2597,7 @@ class JobInvoiceController extends Controller
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','PI.account_master_id');
 									} )
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->where('PI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -2615,7 +2615,7 @@ class JobInvoiceController extends Controller
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','GI.job_account_id');
 									} )
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->where('GI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -2636,7 +2636,7 @@ class JobInvoiceController extends Controller
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('JE.entry_type','Dr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('JE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query3->where('jobmaster.id', $job_id);
 					
@@ -2657,7 +2657,7 @@ class JobInvoiceController extends Controller
 								->join('account_master AS AC', function($join) {
 									$join->on('AC.id','=','PVE.account_id');
 									} )
-								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->where('PVE.status', 1)->where('PVE.entry_type','Dr')->whereNull('deleted_at');
 					if($job_id)
 						$query4->where('jobmaster.id', $job_id);
 					
@@ -2677,7 +2677,7 @@ class JobInvoiceController extends Controller
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','SI.cr_account_id');
 									} )
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -2695,7 +2695,7 @@ class JobInvoiceController extends Controller
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','GR.account_master_id');
 									} )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -2716,7 +2716,7 @@ class JobInvoiceController extends Controller
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','JE.account_id');
 									} )
-								->where('JE.status', 1)->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->where('JE.status', 1)->where('JE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -2737,7 +2737,7 @@ class JobInvoiceController extends Controller
 								->join('account_master AS AC', function($join) {
 										$join->on('AC.id','=','RVE.account_id');
 									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 					
@@ -2780,7 +2780,7 @@ class JobInvoiceController extends Controller
 									$join->on('IM.id','=','PIM.item_id');
 								} )
 								->whereNotIn('AC.account_category_id',$excludearr)
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00');
+								->where('PI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -2806,7 +2806,7 @@ class JobInvoiceController extends Controller
 									$join->on('IM.id','=','GIM.item_id');
 								} )
 								->whereNotIn('AC.account_category_id',$excludearr)
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->where('GI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -2829,7 +2829,7 @@ class JobInvoiceController extends Controller
 									$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query3->where('jobmaster.id', $job_id);
 					
@@ -2853,7 +2853,7 @@ class JobInvoiceController extends Controller
 									$join->on('AC.id','=','PVE.account_id');
 									} )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query4->where('jobmaster.id', $job_id);
 					
@@ -2877,7 +2877,7 @@ class JobInvoiceController extends Controller
 									$join->on('AC.id','=','PVE.account_id');
 									} )
 								->where('PVE.status', 1)->where('PVE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('PVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query5->where('jobmaster.id', $job_id);
 					
@@ -2902,7 +2902,7 @@ class JobInvoiceController extends Controller
 									$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','PIN')->where('JE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query6->where('jobmaster.id', $job_id);
 					
@@ -2928,7 +2928,7 @@ class JobInvoiceController extends Controller
 									$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','SIN')->where('JE.entry_type','Dr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$query7->where('jobmaster.id', $job_id);
 					
@@ -2963,7 +2963,7 @@ class JobInvoiceController extends Controller
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','SIM.item_id');
 								} )
-								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
+								->where('SI.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry1->where('jobmaster.id', $job_id);
 					
@@ -2990,7 +2990,7 @@ class JobInvoiceController extends Controller
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','GRM.item_id');
 								} )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->where('GR.status', 1)->whereNull('deleted_at');
 					if($job_id)
 						$qry2->where('jobmaster.id', $job_id);
 					
@@ -3014,7 +3014,7 @@ class JobInvoiceController extends Controller
 										$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry3->where('jobmaster.id', $job_id);
 					
@@ -3040,7 +3040,7 @@ class JobInvoiceController extends Controller
 										$join->on('AC.id','=','RVE.account_id');
 									} )
 								->where('RVE.status', 1)->where('RVE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry4->where('jobmaster.id', $job_id);
 					
@@ -3064,7 +3064,7 @@ class JobInvoiceController extends Controller
 										$join->on('AC.id','=','RVE.account_id');
 									} )
 								->where('RVE.status', 1)->where('RVE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('RVE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry5->where('jobmaster.id', $job_id);
 					
@@ -3092,7 +3092,7 @@ class JobInvoiceController extends Controller
 										$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','PIN')->where('JE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry6->where('jobmaster.id', $job_id);
 					
@@ -3117,7 +3117,7 @@ class JobInvoiceController extends Controller
 										$join->on('AC.id','=','JE.account_id');
 									} )
 								->where('JE.status', 1)->where('J.voucher_type','SIN')->where('JE.entry_type','Cr')
-								->whereNotIn('AC.account_category_id',$excludearr)->where('JE.deleted_at', '0000-00-00 00:00:00');
+								->whereNotIn('AC.account_category_id',$excludearr)->whereNull('deleted_at');
 					if($job_id)
 						$qry7->where('jobmaster.id', $job_id);
 					
@@ -3164,7 +3164,7 @@ class JobInvoiceController extends Controller
 													} )
 												->whereNotIn('AC.account_category_id',$excludearr)
 												->where('PI.status', 1)
-												->where('PI.deleted_at', '0000-00-00 00:00:00');
+												->whereNull('deleted_at');
 					if($job_id)
 						$query->where('jobmaster.id', $job_id);
 					
@@ -3189,7 +3189,7 @@ class JobInvoiceController extends Controller
 										$join->on('IM.id','=','GRM.item_id');
 									} )
 								->where('GR.status', 1)
-								->where('GR.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -3226,7 +3226,7 @@ class JobInvoiceController extends Controller
 													} )
 												->where('IM.class_id',1)
 												->where('SI.status', 1)
-												->where('SI.deleted_at', '0000-00-00 00:00:00');
+												->whereNull('deleted_at');
 					if($job_id)
 						$query1->where('jobmaster.id', $job_id);
 					
@@ -3252,7 +3252,7 @@ class JobInvoiceController extends Controller
 										$join->on('IM.id','=','GIM.item_id');
 									} )
 								->where('GI.status', 1)
-								->where('GI.deleted_at', '0000-00-00 00:00:00');
+								->whereNull('deleted_at');
 					if($job_id)
 						$query2->where('jobmaster.id', $job_id);
 					
@@ -3450,5 +3450,7 @@ class JobInvoiceController extends Controller
 					
 	}
 }
+
+
 
 

@@ -70,13 +70,13 @@
                             <i class="fa fa-fw fa-list-alt"></i> Journal Entry List
                         </h3>
                         <div class="pull-right">
-							@permission('jv-create')
+							@can('jv-create')
                              <a href="{{ url('journal/add') }}" class="btn btn-primary btn-sm">
 									<span class="btn-label">
 									<i class="glyphicon glyphicon-plus"></i>
 								</span> Add New
 							</a>
-							@endpermission
+							@endcan
                         </div>
                     </div>
                     <div class="panel-body">
@@ -124,13 +124,13 @@
 										<td>{{ number_format($journal->credit,2) }}</td>
                                        
 										<td>
-											@permission('jv-edit')<p><button class="btn btn-primary btn-xs" onClick="location.href='{{ url('journal/edit/'.$journal->id)}}'"><span class="glyphicon glyphicon-pencil"></span></button></p>@endpermission
+											@can('jv-edit')<p><button class="btn btn-primary btn-xs" onClick="location.href='{{ url('journal/edit/'.$journal->id)}}'"><span class="glyphicon glyphicon-pencil"></span></button></p>@endcan
 										</td>
 									 <!--	<td>
-											@permission('jv-delete')<p><button class="btn btn-danger btn-xs delete" onClick="funDelete('{{ $journal->id }}')"><span class="glyphicon glyphicon-trash"></span></button></p>@endpermission
+											@can('jv-delete')<p><button class="btn btn-danger btn-xs delete" onClick="funDelete('{{ $journal->id }}')"><span class="glyphicon glyphicon-trash"></span></button></p>@endcan
 										</td>-->
 										<td>
-											@permission('jv-print')<p><a href="{{url('journal/print/'.$journal->id.'/'.$prints[0]->id)}}" target='_blank'  role='menuitem' class="btn btn-primary btn-xs"><span class="fa fa-fw fa-print"></span></a></p>@endpermission
+											@can('jv-print')<p><a href="{{url('journal/print/'.$journal->id.'/'.$prints[0]->id)}}" target='_blank'  role='menuitem' class="btn btn-primary btn-xs"><span class="fa fa-fw fa-print"></span></a></p>@endcan
 										</td>
                                     </tr>
 									@endforeach
@@ -194,9 +194,9 @@ $(function() {
 			{ "data": "voucher_date" },
 			{ "data": "description" },
 			{ "data": "amount" },
-			@permission('jv-edit'){ "data": "edit","bSortable": false },@endpermission
-			@permission('jv-print'){ "data": "print","bSortable": false },@endpermission
-			@permission('jv-delete'){ "data": "delete","bSortable": false }@endpermission
+			@can('jv-edit'){ "data": "edit","bSortable": false },@endcan
+			@can('jv-print'){ "data": "print","bSortable": false },@endcan
+			@can('jv-delete'){ "data": "delete","bSortable": false }@endcan
 		]	
 		  
 		});

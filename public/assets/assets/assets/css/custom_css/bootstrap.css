@@ -199,7 +199,7 @@ input[type="search"]::-webkit-search-decoration {
 }
 
 button::-moz-focus-inner,
-input::-moz-focus-inner {
+$request->-moz-focus-inner {
   padding: 0;
   border: 0;
 }

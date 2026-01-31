@@ -32,7 +32,7 @@ class OtherAccountSettingController extends Controller
 					->get(); 
 					
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$deptaccounts = DB::table('department_accounts')
 								->leftJoin('account_master AS M1', 'M1.id', '=', 'department_accounts.stock_acid')
 								->leftJoin('account_master AS M2', 'M2.id', '=', 'department_accounts.cost_acid')
@@ -69,4 +69,6 @@ class OtherAccountSettingController extends Controller
 		return redirect('other_account_setting');
 	}
 }
+
+
 

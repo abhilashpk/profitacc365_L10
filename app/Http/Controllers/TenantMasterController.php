@@ -45,7 +45,7 @@ class TenantMasterController extends Controller
 	public function index() {
 		$data = array();
 		$tenantmaster = DB::table('account_master')
-						->select('account_master.*')->where('account_master.deleted_at','0000-00-00 00:00:00')
+						->select('account_master.*')->whereNull('deleted_at')
 						->where('account_master.nationality','IND')
 						->get();
 		return view('body.tenantmaster.index')
@@ -112,10 +112,10 @@ class TenantMasterController extends Controller
 
 	}
 	public function save(Request $request) {
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		try {
 		   
-			$tenant = $this->create_account(Input::all());
+			$tenant = $this->create_account($request->all());
 			//echo '<pre>';print_r($tenant);exit;
 			DB::table('account_transaction')
 						->insert([  'voucher_type' 		=> 'OB',
@@ -133,7 +133,7 @@ class TenantMasterController extends Controller
 								]);
 								DB::table('account_master')->where('id', $tenant)->update(['account_id' => 'ACM'.$tenant]);
 
-            $phot = Input::get('photo_name');
+            $phot = $request->get('photo_name');
            if($tenant  && isset($phot)) {
 				$photos = explode(',',$phot);
 				
@@ -153,7 +153,7 @@ class TenantMasterController extends Controller
 
 		$data = array();
 		$tenant = $tenantmaster = DB::table('account_master')
-		->select('account_master.*')->where('account_master.deleted_at','0000-00-00 00:00:00')
+		->select('account_master.*')->whereNull('deleted_at')
 		->where('account_master.id',$id)
 		->first();
 		$country = $this->country->activeCountryList();
@@ -176,7 +176,7 @@ class TenantMasterController extends Controller
 	
 	public function update(Request $request, $id)
 	{
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		$image = '';
 		
 		DB::table('account_master')->where('id',$id)
@@ -213,17 +213,17 @@ class TenantMasterController extends Controller
 									//'department_id'		=> isset($attributes['department_id'])?$attributes['department_id']:''
 								]);
 				$photos = [];
-		$phoo =Input::get('photo_name');
-		$old_pho = Input::get('old_photo_name');
-		$rem_phot = Input::get('rem_photo_name');
+		$phoo =$request->get('photo_name');
+		$old_pho = $request->get('old_photo_name');
+		$rem_phot = $request->get('rem_photo_name');
 				if(isset($phoo)) {
-					$photos = explode(',',Input::get('photo_name'));
+					$photos = explode(',',$request->get('photo_name'));
 				}
 				
-				//Update photos...Input::get('old_photo_name')
+				//Update photos...$request->get('old_photo_name')
 				if(isset($old_pho) && $old_pho!='') {
 					
-					$exi_photos = explode(',',Input::get('old_photo_name'));
+					$exi_photos = explode(',',$request->get('old_photo_name'));
 					
 					foreach($photos as $ky => $val) {
 						if(isset($exi_photos[$ky])) {
@@ -246,9 +246,9 @@ class TenantMasterController extends Controller
 				}
 				
 				
-				//Remove photos Input::get('rem_photo_name')
+				//Remove photos $request->get('rem_photo_name')
 				if(isset($rem_phot)) {
-					$rem_photos = explode(',',Input::get('rem_photo_name'));
+					$rem_photos = explode(',',$request->get('rem_photo_name'));
 					foreach($rem_photos as $photo) {
 						DB::table('tenant_docs')->where('tenant_id',$id)
 									->where('photo', $photo)
@@ -273,10 +273,10 @@ class TenantMasterController extends Controller
 	
 	public function checkcode() {
 
-		if(Input::get('id') != '')
-			$check = DB::table('flat_master')->where('flat_no',Input::get('flat_no'))->where('building_id',Input::get('bid'))->where('id', '!=', Input::get('id'))->count();
+		if($request->get('id') != '')
+			$check = DB::table('flat_master')->where('flat_no',$request->get('flat_no'))->where('building_id',$request->get('bid'))->where('id', '!=', $request->get('id'))->count();
 		else
-			$check = DB::table('flat_master')->where('flat_no',Input::get('flat_no'))->where('building_id',Input::get('bid'))->count();
+			$check = DB::table('flat_master')->where('flat_no',$request->get('flat_no'))->where('building_id',$request->get('bid'))->count();
 		
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
@@ -286,4 +286,6 @@ class TenantMasterController extends Controller
 	
 	
 }
+
+
 

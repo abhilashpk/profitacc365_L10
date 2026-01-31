@@ -254,6 +254,7 @@
 								<input type="hidden" name="subcategory_id" id="subcategory_id">
 								<?php } ?>
 								
+								<?php if(!isset($formdata['dimension']) || $formdata['dimension']==1) { ?>
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-2 control-label">Dimension Required</label>
                                     <div class="col-sm-10">
@@ -263,6 +264,9 @@
                                         </select>
                                     </div>
                                 </div>
+								<?php } else { ?>
+								<input type="hidden" name="dimension" id="dimension" value="0">
+								<?php } ?>
 
 								<hr/>
 								<?php if($formdata['simple_entry']==1) { ?>

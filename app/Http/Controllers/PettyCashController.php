@@ -163,9 +163,9 @@ class PettyCashController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -239,7 +239,7 @@ class PettyCashController extends Controller
 		$data_cr = DB::table('petty_cash_entry')
 					->join('account_master','account_master.id','=','petty_cash_entry.account_id')
 					->where('petty_cash_entry.petty_cash_id',$id)->where('petty_cash_entry.status',1)
-					->where('petty_cash_entry.deleted_at','0000-00-00 00:00:00')->where('petty_cash_entry.entry_type','Cr')
+					->whereNull('deleted_at')->where('petty_cash_entry.entry_type','Cr')
 					->select('account_master.master_name','petty_cash_entry.id','petty_cash_entry.account_id','petty_cash_entry.description',
 					'petty_cash_entry.reference','petty_cash_entry.amount')->first();
 		//echo '<pre>';print_r($data_cr);exit;
@@ -252,9 +252,9 @@ class PettyCashController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -264,8 +264,8 @@ class PettyCashController extends Controller
 			$deptid = '';
 		}
 
-		$cashac = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CASH')->select('id','master_name','category')->first();
-		$cash = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CASH')->select('id','account_id','master_name')->get();
+		$cashac = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CASH')->select('id','master_name','category')->first();
+		$cash = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CASH')->select('id','account_id','master_name')->get();
 		$banks = $this->bank->activeBankList();
 		
 		return view('body.pettycash.edit-pc')
@@ -392,7 +392,7 @@ class PettyCashController extends Controller
 			$data_cr = DB::table('petty_cash_entry')
 					->join('account_master','account_master.id','=','petty_cash_entry.account_id')
 					->where('petty_cash_entry.petty_cash_id',$id)->where('petty_cash_entry.status',1)
-					->where('petty_cash_entry.deleted_at','0000-00-00 00:00:00')->where('petty_cash_entry.entry_type','Cr')
+					->whereNull('deleted_at')->where('petty_cash_entry.entry_type','Cr')
 					->select('account_master.master_name','petty_cash_entry.id','petty_cash_entry.account_id','petty_cash_entry.description',
 					'petty_cash_entry.reference','petty_cash_entry.amount')->first();
 					//	echo '<pre>';print_r($data_cr);exit;
@@ -486,9 +486,9 @@ class PettyCashController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -642,9 +642,9 @@ class PettyCashController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -656,7 +656,15 @@ class PettyCashController extends Controller
 
 		
 		$cashac = null;
-		$cashac = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CASH')->select('id','master_name','category')->first();
+		$cashac = DB::table('account_master')
+						->where('status', 1)
+						->where('category', 'CASH')
+						->where(function ($q) {
+							$q->whereNull('account_master.deleted_at')
+							  ->orWhereNull('');
+						})
+						->select('id', 'master_name', 'category')
+						->first();
 		$banks = $this->bank->activeBankList();
 		return view('body.pettycash.quickadd')
 					->withCurrency($currency)
@@ -693,9 +701,9 @@ class PettyCashController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -706,8 +714,24 @@ class PettyCashController extends Controller
 		}
 
 		
-		$cashac = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CASH')->select('id','master_name','category')->first();
-		$cash = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CASH')->select('id','account_id','master_name')->get();
+		$cashac = DB::table('account_master')
+						->where('status', 1)
+						->where('category', 'CASH')
+						->where(function ($q) {
+							$q->whereNull('account_master.deleted_at')
+							  ->orWhereNull('account_master.status');
+						})
+						->select('id', 'master_name', 'category')
+						->first();
+		$cash = DB::table('account_master')
+						->where('status', 1)
+						->where('category', 'CASH')
+						->where(function ($q) {
+							$q->whereNull('account_master.deleted_at')
+							  ->orWhereNull('account_master.status');
+						})
+						->select('id', 'account_id', 'master_name')
+						->get();
 		$banks = $this->bank->activeBankList();
 		
 		$prints = DB::table('report_view_detail')
@@ -739,4 +763,7 @@ class PettyCashController extends Controller
 
 	
 	}
+
+
+
 

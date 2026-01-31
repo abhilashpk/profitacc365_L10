@@ -137,7 +137,7 @@ class CargoWayBillController extends Controller
 	}
 	
 	public function save(Request $request) {
-		//echo '<pre>';print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
 		DB::beginTransaction();
 		try {
 			$id = DB::table('cargo_waybill')
@@ -365,7 +365,7 @@ class CargoWayBillController extends Controller
 		$pktype = null;
 		
 		foreach($items as $item){
-						$pktypes = DB::table('units')->whereIn('id',unserialize($item->packing_type))->where('deleted_at','0000-00-00 00:00:00')->select('description')->get();
+						$pktypes = DB::table('units')->whereIn('id',unserialize($item->packing_type))->whereNull('deleted_at')->select('description')->get();
 						$ptypes=$this->sortUnit($pktypes);
 						
 						$itm[]=(object)[
@@ -394,5 +394,7 @@ class CargoWayBillController extends Controller
 		return $ptype;
 	}
 }
+
+
 
 

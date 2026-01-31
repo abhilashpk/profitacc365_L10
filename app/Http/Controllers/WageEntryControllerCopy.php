@@ -33,7 +33,7 @@ class WageEntryController extends Controller
 		$result = DB::table('wage_entry')
 						->join('employee', 'employee.id', '=', 'wage_entry.employee_id')
 						->where('wage_entry.status', 1)
-						->where('wage_entry.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('wage_entry.id','wage_entry.month','wage_entry.net_total','employee.name','employee.designation')
 						->get();
 						
@@ -79,7 +79,7 @@ class WageEntryController extends Controller
 	
 	public function update($id)
 	{
-		$this->wageentry->update($id,Input::all());//print_r(Input::all());exit;
+		$this->wageentry->update($id,$request->all());//print_r($request->all());exit;
 		Session::flash('message', 'Entry updated successfully');
 		return redirect('wage_entry');
 	}
@@ -95,7 +95,7 @@ class WageEntryController extends Controller
 	
 	public function checkcode() {
 
-		$check = $this->employee->check_employee_code(Input::get('code'), Input::get('id'));
+		$check = $this->employee->check_employee_code($request->get('code'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -104,11 +104,13 @@ class WageEntryController extends Controller
 	
 	public function checkname() {
 
-		$check = $this->employee->check_employee_name(Input::get('name'), Input::get('id'));
+		$check = $this->employee->check_employee_name($request->get('name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
 						));
 	}
 }
+
+
 

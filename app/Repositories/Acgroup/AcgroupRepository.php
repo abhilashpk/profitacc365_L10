@@ -37,26 +37,35 @@ class AcgroupRepository extends AbstractValidator implements AcgroupInterface {
 	public function create($attributes)
 	{
 		if($this->isValid($attributes)) { 
-			$this->acgroup->category_id = $attributes['category_id'];
-			$this->acgroup->name = $attributes['name'];
-			$this->category = $attributes['category'];
-			//$this->acgroup->code = $attributes['code'];
-			$this->acgroup->status = 1;
-			$this->acgroup->fill($attributes)->save();
+			if (!array_key_exists('category', $attributes)) {
+				$attributes['category'] = '';
+			}
+			$acgroup = new Acgroup();
+			$acgroup->category_id = $attributes['category_id'];
+			$acgroup->name = $attributes['name'];
+			$acgroup->category = $attributes['category'];
+			//$acgroup->code = $attributes['code'];
+			$acgroup->status = 1;
+			if (!$acgroup->fill($attributes)->save()) {
+				return false;
+			}
+			$this->acgroup = $acgroup;
 			
-			if($this->acgroup->id) {
-				DB::table('account_group')->where('id', $this->acgroup->id)->update(['code' => 'GRP'.$this->acgroup->id]);
+			if($acgroup->id) {
+				DB::table('account_group')->where('id', $acgroup->id)->update(['code' => 'GRP'.$acgroup->id]);
 			}
 			
 			return true;
 		}
-		
-		//throw new ValidationException('Acgroup validation error!', $this->getErrors());
+		return false;
 	}
 	
 	public function update($id, $attributes)
 	{
 		$this->acgroup = $this->find($id);
+		if (!array_key_exists('category', $attributes)) {
+			$attributes['category'] = $this->acgroup->category;
+		}
 		$this->acgroup->fill($attributes)->save();
 		DB::table('account_master')->where('account_group_id',$id)->update(['category' => $attributes['category']]);
 		return true;

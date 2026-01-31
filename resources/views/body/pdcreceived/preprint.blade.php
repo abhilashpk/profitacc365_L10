@@ -88,7 +88,15 @@
                                                 <td>{{ $row->voucher_no }}</td>
 												<td>{{ date('d-m-Y', strtotime($row->voucher_date)) }}</td>
 												<td>{{$row->customer}}</td>
-												<td class="text-right">{{number_format($row->amount,2)}}</td>
+												<td class="text-right">
+                                                    {{ number_format(
+                                                        is_array($row->amount)
+                                                            ? (float) ($row->amount['amount'] ?? 0)
+                                                            : (float) ($row->amount ?? 0),
+                                                        2
+                                                    ) }}
+                                                </td>
+
 											</tr>
 											<?php } } $date[$key] =  $mtotal; $yr = date('Y', strtotime($row->cheque_date)); ?>
                                             <tr>

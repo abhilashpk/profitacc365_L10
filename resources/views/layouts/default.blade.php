@@ -452,10 +452,11 @@
                   </li> 
               	@endif
 
-
-                  @if(auth()->user()->can('bd-list') || auth()->user()->can('bd-list') )
+                
+                  @if(auth()->user()->can('bd-list') || auth()->user()->can('bd-list') ) 
+                
 					
-                    <li {!! ( Request::is('manual_journal') || Request::is('manual_journal/*') || Request::is('contra_type') || Request::is('contra_type/*') ||  Request::is('buildingmaster') || Request::is('buildingmaster/*') || Request::is('manual_journal') || Request::is('manual_journal/*') ||  Request::is('flatmaster') || Request::is('flatmaster/*')||  Request::is('contractbuilding') || Request::is('contractbuilding/*')? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
+                    <li {!! ( Request::is('duration') || Request::is('duration/*') || Request::is('manual_journal') || Request::is('manual_journal/*') || Request::is('contra_type') || Request::is('contra_type/*') ||  Request::is('buildingmaster') || Request::is('buildingmaster/*') || Request::is('manual_journal') || Request::is('manual_journal/*') ||  Request::is('flatmaster') || Request::is('flatmaster/*')||  Request::is('contractbuilding') || Request::is('contractbuilding/*')? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
                         <a href="#">
                         <i class="fa fa-bookmark custom"></i> 
                             <span>&nbsp Real Estate</span>
@@ -463,7 +464,7 @@
                         </a>
                          
                         <ul class="sub-menu">
-                        @can('bd-list') 
+                        @can('bd-list')
                             <li {!! (Request::is('buildingmaster') || Request::is('buildingmaster/*') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('buildingmaster') }}">
                                     <i class="fa fa-fw fa-gift"></i> Building Master
@@ -501,7 +502,7 @@
                                     <i class="fa fa-fw fa-square"></i> Enquiry
                                 </a>
                             </li>
-                            <li {!! (Request::is('contractbuilding/expiry') ? 'class="active"' : '') !!}>
+                            {{-- <li {!! (Request::is('contractbuilding/expiry') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('contractbuilding/expiry') }}">
                                     <i class="fa fa-fw fa-square"></i> Contract Expiry
                                 </a>
@@ -511,7 +512,7 @@
                                 <a href="{{ URL::to('contractbuilding/history') }}">
                                     <i class="fa fa-fw fa-square"></i> History
                                 </a>
-                            </li>
+                            </li>--}}
 							
 							<li {!! (Request::is('contractbuilding/closed') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('contractbuilding/closed') }}">
@@ -519,18 +520,18 @@
                                 </a>
                             </li>
                           
-                            <li {!! (Request::is('manual_journal') || Request::is('manual_journal/*') ? 'class="active"' : '') !!}>
+                            {{--<li {!! (Request::is('manual_journal') || Request::is('manual_journal/*') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('manual_journal') }}">
                                 <i class="fa fa-fw fa-circle"></i> Manual Journal
                                 </a>
-                            </li>
+                            </li>--}}
                             @endcan
 
                         </ul>
                         </li>
                     	@endif
 
-                         @if(auth()->user()->can('cce-list') || auth()->user()->can('cce-list') )
+                         <!-- @if(auth()->user()->can('cce-list') || auth()->user()->can('cce-list') )
 					
                     <li {!! ( Request::is('tenantenquiry') || Request::is('tenantenquiry/*') ||  Request::is('contract-connection') || Request::is('contract-connection/*') || Request::is('buildingmaster') || Request::is('buildingmaster/*') ||   Request::is('flatmaster') || Request::is('flatmaster/*')||  Request::is('tenantmaster') || Request::is('tenantmaster/*')? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
                         <a href="#">
@@ -597,7 +598,7 @@
 
                         </ul>
                         </li>
-                    	@endif
+                    	@endif -->
 
                  @if(auth()->user()->can('cae-list') || auth()->user()->can('cae-dspch-list') )
 				<li {!! ( Request::is('consignee') || Request::is('consignee/*') || Request::is('shipper') || Request::is('shipper/*') ||  Request::is('collection_type') || Request::is('collection_type/*') || Request::is('delivery_type') || Request::is('delivery_type/*') ||  Request::is('destination_type') || Request::is('destination_type/*') || Request::is('cargounit') || Request::is('cargounit/*')||  Request::is('cargo_vehicle') || Request::is('cargo_status/*')|| Request::is('cargo_status') || Request::is('cargo_vehicle/*')||Request::is('cargo_salesman') || Request::is('cargo_salesman/*')||  Request::is('cargo_receipt') || Request::is('cargo_receipt/*')||  Request::is('cargo_waybill') || Request::is('cargo_waybill/*')||  Request::is('cargo_despatchbill') || Request::is('cargo_despatchbill/*')||  Request::is('cargo_despatchbill') || Request::is('cargo_despatchbill/*')? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
@@ -1396,7 +1397,7 @@
                                </li>
 							   @endcan
 
-                                    @can('mjv-list')
+                                   @can('mjv-list')
                                     <li {!! (Request::is('manual_journal') || Request::is('manual_journal/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('manual_journal') }}">
                                             <i class="fa fa-fw fa-folder-o"></i> Manual Journal

@@ -125,40 +125,13 @@
                                 </tr>
 								
 								<tr>
-								@if($masterrow->job_assign==0)
-									{{--*/ $chk = "No";
-											
-									/*--}}
-									@else
-									{{--*/ $chk = "Yes";
-											
-									/*--}}	
-								@endif
-                                    <td>Job Assignable?</td> <td>{{ $chk }} </td>
+                                    <td>Job Assignable?</td> <td>{{ $masterrow->job_assign==0 ? 'No' : 'Yes' }} </td>
                                 </tr>
                                 <tr>
-								@if($masterrow->job_compulsary==0)
-									{{--*/ $chk = "No";
-											
-									/*--}}
-									@else
-									{{--*/ $chk = "Yes";
-											
-									/*--}}	
-								@endif
-                                    <td>Job Compulsary?</td> <td> {{ $chk }} </td>
+                                    <td>Job Compulsary?</td> <td>{{ $masterrow->job_compulsary==0 ? 'No' : 'Yes' }} </td>
                                 </tr>
 								<tr>
-								@if($masterrow->is_hide==0)
-									{{--*/ $chk = "No";
-											
-									/*--}}
-									@else
-									{{--*/ $chk = "Yes";
-											
-									/*--}}	
-								@endif
-                                    <td>Hide</td> <td>{{ $chk }} </td>
+                                    <td>Hide</td> <td>{{ $masterrow->is_hide==0 ? 'No' : 'Yes' }} </td>
                                 </tr>
 								<!--- check permission code here --->
 									<!--<tr>
@@ -169,12 +142,7 @@
 									</tr>
 									
 									<tr>
-									@if($masterrow->modified_at!='0000-00-00 00:00:00')
-										{{--*/ $date = date('d-M-Y H:i a', strtotime($masterrow->modified_at)); /*--}}
-									@else
-									{{--*/ $date = '--'; /*--}}
-									@endif
-										<td>Modified At</td> <td> {{ $date }} </td>
+										<td>Modified At</td> <td>{{ $masterrow->modified_at!='0000-00-00 00:00:00' ? date('d-M-Y H:i a', strtotime($masterrow->modified_at)) : '--' }} </td>
 									</tr>
 									<tr>
 										<td>Modified By</td> <td>{{ $masterrow->modify_by }} </td>

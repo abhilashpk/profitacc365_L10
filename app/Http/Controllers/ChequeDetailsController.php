@@ -26,7 +26,7 @@ class ChequeDetailsController extends Controller
 		
 		$machine = DB::table('cheque_details')->join('account_master AS am', function($join) {
 			$join->on('am.id','=','cheque_details.customer_id');
-		} )->select('cheque_details.*','am.master_name AS customer')->where('cheque_details.deleted_at','0000-00-00 00:00:00')->get();
+		} )->select('cheque_details.*','am.master_name AS customer')->whereNull('deleted_at')->get();
 
         $prints = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
@@ -49,7 +49,7 @@ class ChequeDetailsController extends Controller
 	{
 		//CHECK DEPARTMENT.......
 	
-		$query =DB::table('cheque_details')->where('cheque_details.deleted_at','0000-00-00 00:00:00');
+		$query =DB::table('cheque_details')->whereNull('deleted_at');
 	
 		return $query->join('account_master AS am', function($join) {
 							$join->on('am.id','=','cheque_details.customer_id');
@@ -66,7 +66,7 @@ class ChequeDetailsController extends Controller
 		//CHECK DEPARTMENT.......
 	//	$deptid = (Session::get('department')==1)?Auth::user()->department_id:0;
 		
-		$query =DB::table('cheque_details')->where('cheque_details.deleted_at','0000-00-00 00:00:00')
+		$query =DB::table('cheque_details')->whereNull('deleted_at')
 		                     ->join('account_master AS am', function($join) {
 		                    	$join->on('am.id','=','cheque_details.customer_id');
 		               } )->join('bank AS bnk', function($join) {
@@ -221,7 +221,7 @@ class ChequeDetailsController extends Controller
 
 		$data = array();
 		$banks = DB::table('bank')->get();
-		$customers = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CUSTOMER')->orderBy('master_name','ASC')->get();
+		$customers = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CUSTOMER')->orderBy('master_name','ASC')->get();
 		
 		return view('body.chequedetails.add')
 		->withBanks($banks)
@@ -230,27 +230,27 @@ class ChequeDetailsController extends Controller
 	}
 	
 	public function save() {
-	//	echo '<pre>';print_r(Input::all());exit;
+	//	echo '<pre>';print_r($request->all());exit;
 		try {
-		    if (Input::get('is_payee') == '')
+		    if ($request->get('is_payee') == '')
 		    {
 		    $ac_payee = 0;
 		    }else
 		    {
-		        $ac_payee = Input::get('is_payee');
+		        $ac_payee = $request->get('is_payee');
 		    }
 		    
 		   
 			DB::table('cheque_details')
 				->insert([
-					'cheque_no' => Input::get('cheque_no'),
-                    'cheque_date' => date('Y-m-d', strtotime(Input::get('cheque_date'))),
+					'cheque_no' => $request->get('cheque_no'),
+                    'cheque_date' => date('Y-m-d', strtotime($request->get('cheque_date'))),
                     'created_date' => date('Y-m-d H:i:s'),
 					'ac_payee' =>$ac_payee,							
-					'bank_id' => Input::get('bank_id'),
-					'amount_words' => Input::get('amount_words'),
-					'amount_number' => Input::get('amount_number'),
-					'customer_id' => Input::get('customer_id')
+					'bank_id' => $request->get('bank_id'),
+					'amount_words' => $request->get('amount_words'),
+					'amount_number' => $request->get('amount_number'),
+					'customer_id' => $request->get('customer_id')
 				
 				]);
 			Session::flash('message', 'cheque details added successfully.');
@@ -288,25 +288,25 @@ class ChequeDetailsController extends Controller
 	
 	public function update($id)
 	{
-	     if (Input::get('is_payee') == '')
+	     if ($request->get('is_payee') == '')
 		    {
 		    $ac_payee = 0;
 		    }else
 		    {
-		        $ac_payee = Input::get('is_payee');
+		        $ac_payee = $request->get('is_payee');
 		    }
 		    
 		DB::table('cheque_details')->where('id',$id)
 				->update([
-					'cheque_no' => Input::get('cheque_no'),
-                    'cheque_date' => date('Y-m-d', strtotime(Input::get('cheque_date'))),
+					'cheque_no' => $request->get('cheque_no'),
+                    'cheque_date' => date('Y-m-d', strtotime($request->get('cheque_date'))),
                     'created_date' => date('Y-m-d H:i:s'),
-					'bank_id' => Input::get('bank_id'),	
+					'bank_id' => $request->get('bank_id'),	
 						'ac_payee' =>$ac_payee,
-				//	'cheque_date' => Input::get('cheque_date'),
-					'amount_words' => Input::get('amount_words'),
-					'amount_number' => Input::get('amount_number'),
-					'customer_id' => Input::get('customer_id')
+				//	'cheque_date' => $request->get('cheque_date'),
+					'amount_words' => $request->get('amount_words'),
+					'amount_number' => $request->get('amount_number'),
+					'customer_id' => $request->get('customer_id')
 				]);
 		Session::flash('message', 'Cheque updated successfully');
 		return redirect('cheque_details');
@@ -370,14 +370,14 @@ class ChequeDetailsController extends Controller
 	// }
 	public function checkregno() {
 
-		/* if(Input::get('id') != '')
-			$check = DB::table('machine')->where('reg_no',Input::get('reg_no'))->where('id', '!=', Input::get('id'))->count();
+		/* if($request->get('id') != '')
+			$check = DB::table('machine')->where('reg_no',$request->get('reg_no'))->where('id', '!=', $request->get('id'))->count();
 		else
-			$check = DB::table('machine')->where('reg_no',Input::get('reg_no'))->count(); */
-		if(Input::get('id') != '')
-			$check = DB::table('machine')->where('chasis_no',Input::get('chasis_no'))->where('id', '!=', Input::get('id'))->count();
+			$check = DB::table('machine')->where('reg_no',$request->get('reg_no'))->count(); */
+		if($request->get('id') != '')
+			$check = DB::table('machine')->where('chasis_no',$request->get('chasis_no'))->where('id', '!=', $request->get('id'))->count();
 		else
-			$check = DB::table('machine')->where('chasis_no',Input::get('chasis_no'))->count();
+			$check = DB::table('machine')->where('chasis_no',$request->get('chasis_no'))->count();
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -386,5 +386,7 @@ class ChequeDetailsController extends Controller
 	
 	
 }
+
+
 
 

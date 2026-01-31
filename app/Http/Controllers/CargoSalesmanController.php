@@ -24,7 +24,7 @@ class CargoSalesmanController extends Controller
 	public function index() {
 		$data = array();
 		$cstype = DB:: table('salesman')
-		                ->where('salesman.deleted_at','0000-00-00 00:00:00')->orderBy('salesman.name','ASC')->get();
+		                ->whereNull('deleted_at')->orderBy('salesman.name','ASC')->get();
 						//echo '<pre>';print_r($ctype);exit;
 		return view('body.cargosalesman.index')
 					->withCstype($cstype)
@@ -42,8 +42,8 @@ class CargoSalesmanController extends Controller
 		try {
 			DB::table('salesman')
 				->insert([
-					'salesman_id' => Input::get('saleid'),
-					'name' => Input::get('name'),
+					'salesman_id' => $request->get('saleid'),
+					'name' => $request->get('name'),
 					'status' => 1
 				]);
 				
@@ -71,8 +71,8 @@ class CargoSalesmanController extends Controller
 	{
 		DB::table('salesman')->where('id',$id)
 				->update([
-					'salesman_id' => Input::get('saleid'),
-					'name' => Input::get('name')
+					'salesman_id' => $request->get('saleid'),
+					'name' => $request->get('name')
 				]);
 		Session::flash('message', 'Salesman updated successfully');
 		return redirect('cargo_salesman');
@@ -80,7 +80,7 @@ class CargoSalesmanController extends Controller
 
 	public function checkid() {
 
-		$check = $this->check_salesman_id(Input::get('saleid'), Input::get('id'));
+		$check = $this->check_salesman_id($request->get('saleid'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -102,7 +102,7 @@ class CargoSalesmanController extends Controller
 
     public function checkname() {
 
-		$check = $this->check_salesman_name(Input::get('name'), Input::get('id'));
+		$check = $this->check_salesman_name($request->get('name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -112,12 +112,12 @@ class CargoSalesmanController extends Controller
 		
 		if($id){
 		$query=DB::table('salesman')
-		->where('name',$name)->where('id', '!=', $id)->where('salesman.deleted_at','0000-00-00 00:00:00')->count();
+		->where('name',$name)->where('id', '!=', $id)->whereNull('deleted_at')->count();
 		return $query;
 		}
 		else{
 		$query=DB::table('salesman')
-		->where('name',$name)->where('salesman.deleted_at','0000-00-00 00:00:00')->count();
+		->where('name',$name)->whereNull('deleted_at')->count();
 		return $query ;
 		}
 	}
@@ -131,7 +131,7 @@ class CargoSalesmanController extends Controller
 	
 	public function ajaxSave(Request $request) {
 		
-		$check1 = DB::table('salesman')->where('salesman_id', trim($request->get('sid')))->where('deleted_at','0000-00-00 00:00:00')->count();
+		$check1 = DB::table('salesman')->where('salesman_id', trim($request->get('sid')))->whereNull('deleted_at')->count();
 		if(($check1 > 0))
 			return 0;
 			
@@ -148,4 +148,6 @@ class CargoSalesmanController extends Controller
 	
 	
 }
+
+
 

@@ -40,12 +40,12 @@ class MachineController extends Controller
 		try {
 			DB::table('machine')
 				->insert([
-					'name' => Input::get('name'),
-					'model' => Input::get('model'),
-					'serialno' => Input::get('serialno'),
-					'brand' => Input::get('brand'),
-					'media' => Input::get('media'),
-					'type' => Input::get('type')
+					'name' => $request->get('name'),
+					'model' => $request->get('model'),
+					'serialno' => $request->get('serialno'),
+					'brand' => $request->get('brand'),
+					'media' => $request->get('media'),
+					'type' => $request->get('type')
 				]);
 			Session::flash('message', 'Machine added successfully.');
 			return redirect('machine/add');
@@ -68,12 +68,12 @@ class MachineController extends Controller
 	{
 		DB::table('machine')->where('id',$id)
 				->update([
-					'name' => Input::get('name'),
-					'model' => Input::get('model'),
-					'serialno' => Input::get('serialno'),
-					'brand' => Input::get('brand'),
-					'media' => Input::get('media'),
-					'type' => Input::get('type')
+					'name' => $request->get('name'),
+					'model' => $request->get('model'),
+					'serialno' => $request->get('serialno'),
+					'brand' => $request->get('brand'),
+					'media' => $request->get('media'),
+					'type' => $request->get('type')
 				]);
 		Session::flash('message', 'Machine updated successfully');
 		return redirect('machine');
@@ -88,14 +88,14 @@ class MachineController extends Controller
 	
 	public function checkregno() {
 
-		/* if(Input::get('id') != '')
-			$check = DB::table('machine')->where('reg_no',Input::get('reg_no'))->where('id', '!=', Input::get('id'))->count();
+		/* if($request->get('id') != '')
+			$check = DB::table('machine')->where('reg_no',$request->get('reg_no'))->where('id', '!=', $request->get('id'))->count();
 		else
-			$check = DB::table('machine')->where('reg_no',Input::get('reg_no'))->count(); */
-		if(Input::get('id') != '')
-			$check = DB::table('machine')->where('chasis_no',Input::get('chasis_no'))->where('id', '!=', Input::get('id'))->count();
+			$check = DB::table('machine')->where('reg_no',$request->get('reg_no'))->count(); */
+		if($request->get('id') != '')
+			$check = DB::table('machine')->where('chasis_no',$request->get('chasis_no'))->where('id', '!=', $request->get('id'))->count();
 		else
-			$check = DB::table('machine')->where('chasis_no',Input::get('chasis_no'))->count();
+			$check = DB::table('machine')->where('chasis_no',$request->get('chasis_no'))->count();
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,

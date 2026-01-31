@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
 class Controller extends BaseController
-{
+{ 
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
 
     protected $parameter1;
@@ -27,7 +27,7 @@ class Controller extends BaseController
     public function __construct(
     Parameter1Interface $parameter1,
     VatMasterInterface $vat_master
-){
+){ 
     // Skip initialization on login/logout/auth routes
     if (request()->routeIs('login') ||
         request()->routeIs('login.submit') ||

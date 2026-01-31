@@ -92,13 +92,13 @@
 							
 							<div class="pull-right">
 							<?php if($printid) { ?>
-								@permission('qs-print')
+								@can('qs-print')
 								 <a href="{{ url('quotation_sales/print/'.$printid) }}" target="_blank" class="btn btn-info btn-sm">
 										<span class="btn-label">
 										<i class="fa fa-fw fa-print"></i>
 									</span> Print
 								</a>
-								@endpermission
+								@endcan
 							<?php } ?>
 							</div>
 							
@@ -746,9 +746,9 @@
                                         <button type="submit" class="btn btn-primary">Submit</button>
 										<a href="{{ url('quotation_sales') }}" class="btn btn-danger">Cancel</a>
 										<a href="{{ url('quotation_sales/add') }}" class="btn btn-warning">Clear</a>
-										@permission('qs-history')
+										@can('qs-history')
 										<a href="" class="btn btn-info order-history" data-toggle="modal" data-target="#history_modal">View Order History</a>
-										@endpermission
+										@endcan
                                     </div>
                                 </div>
 								

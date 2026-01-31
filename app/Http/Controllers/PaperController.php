@@ -39,8 +39,8 @@ class PaperController extends Controller
 		try {
 			DB::table('paper')
 				->insert([
-					'name' => Input::get('name'),
-					'rate' => Input::get('rate')
+					'name' => $request->get('name'),
+					'rate' => $request->get('rate')
 				]);
 				
 			Session::flash('message', 'Paper added successfully.');
@@ -64,8 +64,8 @@ class PaperController extends Controller
 	{
 		DB::table('paper')->where('id',$id)
 				->update([
-					'name' => Input::get('name'),
-					'rate' => Input::get('rate')
+					'name' => $request->get('name'),
+					'rate' => $request->get('rate')
 				]);
 		Session::flash('message', 'Paper updated successfully');
 		return redirect('paper');

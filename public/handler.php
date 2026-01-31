@@ -44,7 +44,7 @@ $handler->onEndExportReport = function ($event) {
 	$data = $event->data; // Base64 export data
 	$fileName = $event->fileName; // Report file name
 	
-	file_put_contents('reports/'.$fileName.'.'.strtolower($format), base64_decode($data));
+	file_put_contents('stimulsoftV2/reports/'.$fileName.'.'.strtolower($format), base64_decode($data));
 	
 	//return StiResult::success();
 	return StiResult::success("Export OK. Message from server side.");
@@ -71,7 +71,7 @@ $handler->onSaveReport = function ($event) {
 	$reportJson = $event->reportJson; // Report JSON
 	$fileName = $event->fileName; // Report file name
 	
-	file_put_contents('reports/'.$fileName.".mrt", $reportJson);
+	file_put_contents('stimulsoftV2/reports/'.$fileName.".mrt", $reportJson);
 	
 	//return StiResult::success();
 	return StiResult::success("Save Report OK: ".$fileName);

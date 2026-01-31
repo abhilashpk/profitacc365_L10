@@ -425,7 +425,7 @@ class CargoDespatchBillController extends Controller
 										 ->select('job_code','destination','despatched_qty','packing_qty','packing_type','CT.code AS collType','DT.code AS deltype')->get();
 										 
 		 foreach($res as $rw){
-		$pktypes = DB::table('units')->whereIn('id',unserialize($rw->packing_type))->where('deleted_at','0000-00-00 00:00:00')->select('description')->get();
+		$pktypes = DB::table('units')->whereIn('id',unserialize($rw->packing_type))->whereNull('deleted_at')->select('description')->get();
 		}
 		$ptypes=$this->sortUnit($pktypes);                                
 		$jobs = $this->sortJobs($res);
@@ -528,7 +528,7 @@ $wbills = collect($wbill)->sortBy('destination');
 											  ->whereIn('cargo_receipt.id', unserialize($row->cargo_receipt_ids))
 			                                  ->select('job_code','destination','despatched_qty','packing_qty','packing_type','CT.code AS collType','DT.code AS deltype')->orderBy('cargo_receipt.destination','ASC')->get();
 			foreach($res as $rw){
-            $pktypes = DB::table('units')->whereIn('id',unserialize($rw->packing_type))->where('deleted_at','0000-00-00 00:00:00')->select('description')->get();
+            $pktypes = DB::table('units')->whereIn('id',unserialize($rw->packing_type))->whereNull('deleted_at')->select('description')->get();
 			}
 			$ptypes=$this->sortUnit($pktypes);
 			$jobs = $this->sortJobs($res);
@@ -721,7 +721,7 @@ $wbills = collect($wbill)->sortBy('destination');
 											  ->whereIn('cargo_receipt.id', unserialize($row->cargo_receipt_ids))
 			                                  ->select('job_code','destination','despatched_qty','packing_qty','packing_type','CT.code AS collType','DT.code AS deltype')->get();
 			foreach($res as $rw){
-				$pktypes = DB::table('units')->whereIn('id',unserialize($rw->packing_type))->where('deleted_at','0000-00-00 00:00:00')->select('description')->get();
+				$pktypes = DB::table('units')->whereIn('id',unserialize($rw->packing_type))->whereNull('deleted_at')->select('description')->get();
 				}
 			$ptypes=$this->sortUnit($pktypes);
 			$jobs = $this->sortJobs($res);
@@ -1188,5 +1188,7 @@ $wbills = collect($wbill)->sortBy('destination');
 				return $query->count();
 	}
 }
+
+
 
 

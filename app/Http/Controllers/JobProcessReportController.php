@@ -44,12 +44,12 @@ class JobProcessReportController extends Controller
 	
 	public function getSearch(Request $request)
 	{		
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			$voucher_head = 'Job Order Processing Report - Summary';
 			$reports = $this->sortbyType( $this->jobmaster->getJobProcessReport($request->all()) ); 
-		} else if(Input::get('search_type')=='detail') {
+		} else if($request->get('search_type')=='detail') {
 			$voucher_head = 'Job Order Processing Report - Detail';
-			$reports = $this->sortbyType( $this->jobmaster->getJobProcessReportDetail(Input::all()) );
+			$reports = $this->sortbyType( $this->jobmaster->getJobProcessReportDetail($request->all()) );
 		}	
 		//echo '<pre>';print_r($reports);exit;		
 		return view('body.jobprocessreport.report')

@@ -1041,7 +1041,7 @@ class CustomerEnquiryRepository extends AbstractValidator implements CustomerEnq
 					  })
 					  ->where('poi.status',1)
 					  ->whereIn('poi.is_transfer',[0,2])
-					  ->where('poi.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
 					  ->orderBY('poi.id')->groupBy('poi.id')
 					  ->get();
@@ -1138,7 +1138,7 @@ class CustomerEnquiryRepository extends AbstractValidator implements CustomerEnq
 									   $join->on('U.id','=','PI.unit_id');
 								   })
 								   ->where('PI.status',1)
-								   ->where('PI.deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->select('PI.*','IM.item_code','U.unit_name')
 								   ->orderBY('PI.id')
 								   ->get();
@@ -1192,7 +1192,7 @@ class CustomerEnquiryRepository extends AbstractValidator implements CustomerEnq
 						$query->where('im.class_id',$val);
 					  }
 					  
-		return $query->where('poi.deleted_at','0000-00-00 00:00:00')
+		return $query->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
 					  ->groupBy('poi.id')
 					  ->orderBY('poi.id')
@@ -1213,9 +1213,9 @@ class CustomerEnquiryRepository extends AbstractValidator implements CustomerEnq
 						->where('customer_enquiry.id', $id)
 						->where('D.invoice_type','QS')
 						->where('QSI.status',1)
-						->where('QSI.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('D.status',1)
-						->where('D.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('D.*')
 						->get();
 	}
@@ -1424,5 +1424,7 @@ class CustomerEnquiryRepository extends AbstractValidator implements CustomerEnq
 					return $query->count();
 	}
 }
+
+
 
 

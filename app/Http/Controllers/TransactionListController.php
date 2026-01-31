@@ -79,53 +79,53 @@ class TransactionListController extends Controller
 	
 	public function getSearch()
 	{
-		if(Input::get('search_type')=='Purchase') {
+		if($request->get('search_type')=='Purchase') {
 			$voucherhead = 'Purchase Transaction List';
-			$results = $this->groupInvoice( $this->purchase_invoice->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->purchase_invoice->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($results);exit;
 			
-		} elseif(Input::get('search_type')=='Sales') {
+		} elseif($request->get('search_type')=='Sales') {
 			$voucherhead = 'Sales Transaction List';
-			$results = $this->groupInvoice( $this->sales_invoice->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->sales_invoice->getTransactionList($request->all()) );
 			
-		} else if(Input::get('search_type')=='PurchaseReturn') {
+		} else if($request->get('search_type')=='PurchaseReturn') {
 			$voucherhead = 'Purchase Return Transaction List';
-			$results = $this->groupInvoice( $this->purchase_return->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->purchase_return->getTransactionList($request->all()) );
 			
 			//echo '<pre>';print_r($result);exit;
-		} elseif(Input::get('search_type')=='SalesReturn') {
+		} elseif($request->get('search_type')=='SalesReturn') {
 			$voucherhead = 'Sales Return Transaction List';
-			$results = $this->groupInvoice( $this->sales_return->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->sales_return->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
-		}elseif(Input::get('search_type')=='SupplierDO') {
+		}elseif($request->get('search_type')=='SupplierDO') {
 			$voucherhead = 'Supplier DO Transaction List';
-			$results = $this->groupInvoice( $this->supplierdo->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->supplierdo->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
 		}
-		elseif(Input::get('search_type')=='CustomerDO') {
+		elseif($request->get('search_type')=='CustomerDO') {
 			$voucherhead = 'Customer DO Transaction List';
-			$results = $this->groupInvoice( $this->customerdo->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->customerdo->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
 		}
-		elseif(Input::get('search_type')=='GoodsIssued') {
+		elseif($request->get('search_type')=='GoodsIssued') {
 			$voucherhead = 'Goods Issued Transaction List';
-			$results = $this->groupInvoice( $this->goods_issued->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->goods_issued->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
-		}	elseif(Input::get('search_type')=='GoodsReturn') {
+		}	elseif($request->get('search_type')=='GoodsReturn') {
 			$voucherhead = 'Goods Return Transaction List';
-			$results = $this->groupInvoice( $this->goods_return->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->goods_return->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
-		}   elseif(Input::get('search_type')=='TransferIn') {
+		}   elseif($request->get('search_type')=='TransferIn') {
 			$voucherhead = 'Stock Transfer In Transaction List';
-			$results = $this->groupInvoice( $this->stock_transferin->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->stock_transferin->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
-		}elseif(Input::get('search_type')=='TransferOut') {
+		}elseif($request->get('search_type')=='TransferOut') {
 			$voucherhead = 'Stock Transfer Out Transaction List';
-			$results = $this->groupInvoice( $this->stock_transferout->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->stock_transferout->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
-		}elseif(Input::get('search_type')=='Manufacture') {
+		}elseif($request->get('search_type')=='Manufacture') {
 			$voucherhead = 'Manufacture Transaction List';
-			$results = $this->groupInvoice( $this->manufacture->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->manufacture->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
 		}
 		
@@ -133,9 +133,9 @@ class TransactionListController extends Controller
 		return view('body.transactionlist.preprint')
 					->withReports($results)
 					->withVoucherhead($voucherhead)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'));
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'));
 	}
 	
 	public function dataExport()
@@ -143,48 +143,48 @@ class TransactionListController extends Controller
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		if(Input::get('search_type')=='Purchase') {
+		if($request->get('search_type')=='Purchase') {
 			$voucher_head = 'Purchase Transaction List';
-			$results = $this->groupInvoice( $this->purchase_invoice->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->purchase_invoice->getTransactionList($request->all()) );
 			
-		} elseif(Input::get('search_type')=='Sales') {
+		} elseif($request->get('search_type')=='Sales') {
 			$voucher_head = 'Sales Transaction List';
-			$results = $this->groupInvoice( $this->sales_invoice->getTransactionList(Input::all()) );
-		} else if(Input::get('search_type')=='PurchaseReturn') {
+			$results = $this->groupInvoice( $this->sales_invoice->getTransactionList($request->all()) );
+		} else if($request->get('search_type')=='PurchaseReturn') {
 			$voucher_head = 'Purchase Return Transaction List';
-			$results = $this->groupInvoice( $this->purchase_return->getTransactionList(Input::all()) );
-		} elseif(Input::get('search_type')=='SalesReturn') {
+			$results = $this->groupInvoice( $this->purchase_return->getTransactionList($request->all()) );
+		} elseif($request->get('search_type')=='SalesReturn') {
 			$voucher_head = 'Sales Return Transaction List';
-			$results = $this->groupInvoice( $this->sales_return->getTransactionList(Input::all()) );
-		}elseif(Input::get('search_type')=='SupplierDO') {
+			$results = $this->groupInvoice( $this->sales_return->getTransactionList($request->all()) );
+		}elseif($request->get('search_type')=='SupplierDO') {
 			$voucher_head = 'Supplier DO Transaction List';
-			$results = $this->groupInvoice( $this->supplierdo->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->supplierdo->getTransactionList($request->all()) );
 			
 		}
-		elseif(Input::get('search_type')=='CustomerDO') {
+		elseif($request->get('search_type')=='CustomerDO') {
 			$voucher_head = 'Customer DO Transaction List';
-			$results = $this->groupInvoice( $this->customerdo->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->customerdo->getTransactionList($request->all()) );
 			
 		}
-		elseif(Input::get('search_type')=='GoodsIssued') {
+		elseif($request->get('search_type')=='GoodsIssued') {
 			$voucher_head = 'Goods Issued Transaction List';
-			$results = $this->groupInvoice( $this->goods_issued->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->goods_issued->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
-		}	elseif(Input::get('search_type')=='GoodsReturn') {
+		}	elseif($request->get('search_type')=='GoodsReturn') {
 			$voucher_head = 'Goods Return Transaction List';
-			$results = $this->groupInvoice( $this->goods_return->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->goods_return->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
-		}   elseif(Input::get('search_type')=='TransferIn') {
+		}   elseif($request->get('search_type')=='TransferIn') {
 			$voucher_head = 'Stock Transfer In Transaction List';
-			$results = $this->groupInvoice( $this->stock_transferin->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->stock_transferin->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
-		}elseif(Input::get('search_type')=='TransferOut') {
+		}elseif($request->get('search_type')=='TransferOut') {
 			$voucher_head = 'Stock Transfer Out Transaction List';
-			$results = $this->groupInvoice( $this->stock_transferout->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->stock_transferout->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
-		}elseif(Input::get('search_type')=='Manufacture') {
+		}elseif($request->get('search_type')=='Manufacture') {
 			$voucher_head = 'Manufacture Transaction List';
-			$results = $this->groupInvoice( $this->manufacture->getTransactionList(Input::all()) );
+			$results = $this->groupInvoice( $this->manufacture->getTransactionList($request->all()) );
 			//echo '<pre>';print_r($result);exit;
 		}
 				

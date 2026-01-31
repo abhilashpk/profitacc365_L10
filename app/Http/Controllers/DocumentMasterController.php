@@ -28,18 +28,18 @@ class DocumentMasterController extends Controller
 					->leftJoin('division AS D', function($join) {
 							$join->on('D.id','=','document_master.division_id');
 						})
-					->where('document_master.deleted_at','0000-00-00 00:00:00')
+					->whereNull('deleted_at')
 					->select('document_master.*','D.div_name')
 					->get();
-		//$docdept = DB::table('doc_department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		//$docdept = DB::table('doc_department')->where('status',1)->whereNull('deleted_at')->get();
 
-		$divisions = DB::table('division')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','div_name')->get();
+		$divisions = DB::table('division')->where('status',1)->whereNull('deleted_at')->select('id','div_name')->get();
 			if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				//$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -63,15 +63,15 @@ class DocumentMasterController extends Controller
 		$data = array();
 
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
 		}
 
-		$divisions = DB::table('division')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','div_name')->get();
+		$divisions = DB::table('division')->where('status',1)->whereNull('deleted_at')->select('id','div_name')->get();
 
-		//$docdept = DB::table('doc_department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		//$docdept = DB::table('doc_department')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.documentmaster.add')
 					//->withDocdept($docdept)
 		            ->withDepartments($departments)
@@ -81,7 +81,7 @@ class DocumentMasterController extends Controller
 	
 	public function save(Request $request) {
 		try {
-			//echo '<pre>';print_r(Input::all());exit;
+			//echo '<pre>';print_r($request->all());exit;
 			$image = ''; $width = 730; $height = 290;
 			$file = ($request->hasFile('image'))?$request->file('image'):null; //echo '<pre>';print_r($file);exit;
 			if($file) {
@@ -106,17 +106,17 @@ class DocumentMasterController extends Controller
 		
 			DB::table('document_master')
 				->insert([
-					'department_id' => Input::get('department_id'),
-					'division_id' => Input::get('division_id'),
-					'name' => Input::get('name'),
-					'description' => Input::get('description'),
-					'issue_date' => (Input::get('issue_date')!='')?date('Y-m-d', strtotime(Input::get('issue_date'))):'',
-					'expiry_date' => (Input::get('expiry_date')!='')?date('Y-m-d', strtotime(Input::get('expiry_date'))):'',
+					'department_id' => $request->get('department_id'),
+					'division_id' => $request->get('division_id'),
+					'name' => $request->get('name'),
+					'description' => $request->get('description'),
+					'issue_date' => ($request->get('issue_date')!='')?date('Y-m-d', strtotime($request->get('issue_date'))):'',
+					'expiry_date' => ($request->get('expiry_date')!='')?date('Y-m-d', strtotime($request->get('expiry_date'))):'',
 					'image' => $image,
 					'status' => 1,
-					'code' => Input::get('code'),
-					'amount' => Input::get('amount'),
-					'department_id' => (Input::get('department_id')!='')?Input::get('department_id'):''
+					'code' => $request->get('code'),
+					'amount' => $request->get('amount'),
+					'department_id' => ($request->get('department_id')!='')?$request->get('department_id'):''
 				]);
 			Session::flash('message', 'Document added successfully.'); 
 			return redirect('document_master');
@@ -129,15 +129,15 @@ class DocumentMasterController extends Controller
 
 		$data = array();
 		$docrow = DB::table('document_master')->where('id',$id)->first();
-		//$docdept = DB::table('doc_department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		//$docdept = DB::table('doc_department')->where('status',1)->whereNull('deleted_at')->get();
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
 		}
 
-		$divisions = DB::table('division')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','div_name')->get();
+		$divisions = DB::table('division')->where('status',1)->whereNull('deleted_at')->select('id','div_name')->get();
 		return view('body.documentmaster.edit')
 					->withDocrow($docrow)
 					//->withDocdept($docdept)
@@ -149,8 +149,8 @@ class DocumentMasterController extends Controller
 	public function update(Request $request, $id)
 	{
 		try {
-			//echo '<pre>';print_r(Input::all());exit;
-			$image = Input::get('current_image'); $width = 730; $height = 290;
+			//echo '<pre>';print_r($request->all());exit;
+			$image = $request->get('current_image'); $width = 730; $height = 290;
 			$file = ($request->hasFile('image'))?$request->file('image'):null; //echo '<pre>';print_r($file);exit;
 			if($file) {
 				$ext = $file->getClientOriginalExtension();
@@ -174,15 +174,15 @@ class DocumentMasterController extends Controller
 		
 			DB::table('document_master')->where('id',$id)
 				->update([
-					'name' => Input::get('name'),
-					'description' => Input::get('description'),
-					'issue_date' => (Input::get('issue_date')!='')?date('Y-m-d', strtotime(Input::get('issue_date'))):'',
-					'expiry_date' => (Input::get('expiry_date')!='')?date('Y-m-d', strtotime(Input::get('expiry_date'))):'',
+					'name' => $request->get('name'),
+					'description' => $request->get('description'),
+					'issue_date' => ($request->get('issue_date')!='')?date('Y-m-d', strtotime($request->get('issue_date'))):'',
+					'expiry_date' => ($request->get('expiry_date')!='')?date('Y-m-d', strtotime($request->get('expiry_date'))):'',
 					'image' => $image,
-					'code' => Input::get('code'),
-					'amount' => Input::get('amount'),
-					'department_id' => Input::get('department_id'),
-					'division_id' => Input::get('division_id')
+					'code' => $request->get('code'),
+					'amount' => $request->get('amount'),
+					'department_id' => $request->get('department_id'),
+					'division_id' => $request->get('division_id')
 				]);
 			Session::flash('message', 'Document updated successfully.'); 
 			return redirect('document_master');
@@ -204,7 +204,7 @@ class DocumentMasterController extends Controller
 	
 	public function checkname() {
 
-		$check = DB::table('document_master')->where('name',Input::get('name'))->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+		$check = DB::table('document_master')->where('name',$request->get('name'))->where('status',1)->whereNull('deleted_at')->count();
 		$isAvailable = ($check==0) ? true : false;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -244,7 +244,7 @@ class DocumentMasterController extends Controller
 		
 		$result = $this->sortDocs( DB::table('document_master')
 								->where('status',1)
-								->where('deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereBetween('expiry_date', array($fromdate, $todate))
 								->get() );
 								
@@ -255,7 +255,7 @@ class DocumentMasterController extends Controller
 	
 	public function checkcode() {
 
-		$check = DB::table('document_master')->where('code',Input::get('code'))->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+		$check = DB::table('document_master')->where('code',$request->get('code'))->where('status',1)->whereNull('deleted_at')->count();
 		$isAvailable = ($check==0) ? true : false;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -299,26 +299,28 @@ class DocumentMasterController extends Controller
 	{
 		$data = array();
 		
-		$reports = $this->getReport(Input::all());
+		$reports = $this->getReport($request->all());
 		//echo '<pre>';print_r($reports);exit;
 		
-		if(Input::get('division_id')!='') {
+		if($request->get('division_id')!='') {
 			$voucher_head = 'Division Report - Division wise';
 		} else {
 			$voucher_head = 'Division Report';
 		}
-		if(Input::get('department_id')!='') {
+		if($request->get('department_id')!='') {
 			$voucher_head = 'Department Report - Department wise';
 		} 
 		
 		return view('body.documentmaster.report')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withDept(Input::get('division_id'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withDept($request->get('division_id'))
 					->withData($data);
 	}
 	
 }
+
+
 

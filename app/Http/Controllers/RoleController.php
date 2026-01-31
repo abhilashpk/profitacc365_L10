@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use App\Role;
+use App\Models\Role;
 use App\Permission;
 use DB;
 
@@ -76,8 +76,8 @@ class RoleController extends Controller
     public function show($id)
     {
         $role = Role::find($id);
-        $rolePermissions = Permission::join("permission_role","permission_role.permission_id","=","permissions.id")
-            ->where("permission_role.role_id",$id)
+        $rolePermissions = Permission::join("role_has_permissions","role_has_permissions.permission_id","=","permissions.id")
+            ->where("role_has_permissions.role_id",$id)
             ->get();
 
 
@@ -95,8 +95,8 @@ class RoleController extends Controller
     {
         $role = Role::find($id);
         $permission = Permission::get();
-        $rolePermissions = DB::table("permission_role")->where("permission_role.role_id",$id)
-            ->lists('permission_role.permission_id','permission_role.permission_id');
+        $rolePermissions = DB::table("role_has_permissions")->where("role_has_permissions.role_id",$id)
+            ->lists('role_has_permissions.permission_id','role_has_permissions.permission_id');
 
  
 

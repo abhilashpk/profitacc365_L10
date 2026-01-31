@@ -63,8 +63,8 @@ class MaterialRequisitionController extends Controller
 		$data = array();
 		$matrec = [];//$this->material_requisition->materialReqList();
 		//print_r($this->material_requisition->materialReqList());exit();
-		$salesman = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('name','ASC')->get();
-		//$jobname = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('name','ASC')->get();
+		$salesman = DB::table('salesman')->where('status',1)->whereNull('deleted_at')->orderBy('name','ASC')->get();
+		//$jobname = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->orderBy('name','ASC')->get();
 		$jobs = $this->jobmaster->activeJobmasterList();
 		$mod_purchase_enquiry= $this->mod_purchase_enquiry = DB::table('parameter2')->where('keyname', 'mod_purchase_enquiry')->where('status',1)->select('is_active')->first(); //
 		$items = $this->itemmaster->activeItemmasterList();
@@ -659,5 +659,7 @@ class MaterialRequisitionController extends Controller
 	}
 	
 }
+
+
 
 

@@ -90,7 +90,7 @@
                                     <tbody>
 									<form method="POST" name="frmPdcIssued" id="frmPdcIssued" action="{{ url('pdc_issued/save') }}">
 									<input type="hidden" name="_token" value="{{ csrf_token() }}">
-									{{--*/ $i = 0; /*--}}
+									@php $i = 0; @endphp
 									@foreach($undos as $pdc)
 									<?php  $i++; ?>
                                     <tr>

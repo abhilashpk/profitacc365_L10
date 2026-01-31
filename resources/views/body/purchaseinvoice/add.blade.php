@@ -351,11 +351,17 @@
 								<input type="hidden" name="terms_id" id="terms_id">
 								<?php } ?>
 								
+								 <?php if(!isset($formdata['due_days']) || $formdata['due_days']==1 || !isset($formdata['due_date']) || $formdata['due_date']==1) { ?>
 								 <div class="form-group">
+									<?php if(!isset($formdata['due_days']) || $formdata['due_days']==1) { ?>
                                     <label for="input-text" class="col-sm-2 control-label">Day</label>
                                     <div class="col-sm-4">
                                         	<input type="number" class="form-control" id="duedays" name="duedays" placeholder="Due Days">
                                     </div>
+									<?php } else { ?>
+										<input type="hidden" name="duedays" id="duedays" value="0">
+									<?php } ?>
+									<?php if(!isset($formdata['due_date']) || $formdata['due_date']==1) { ?>
                                     <label for="input-text" class="col-sm-2 control-label">Due Date</label>
                                     <div class="col-sm-4">
                                         <div class="col-sm-10">
@@ -363,7 +369,14 @@
 										
                                     </div>
                                     </div>
+									<?php } else { ?>
+										<input type="hidden" name="due_date" id="due_date" value="{{date('d-m-Y')}}">
+									<?php } ?>
                                 </div>
+								 <?php } else { ?>
+									<input type="hidden" name="duedays" id="duedays" value="0">
+									<input type="hidden" name="due_date" id="due_date" value="{{date('d-m-Y')}}">
+								 <?php } ?>
 								
 								<?php if($formdata['job']==1) { ?>
 								<div class="form-group">
@@ -427,6 +440,7 @@
 								<input type="hidden" name="currency_rate" id="currency_rate">
 								<?php } ?>
 								
+								<?php if(!isset($formdata['import']) || $formdata['import']==1) { ?>
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-2 control-label"> Import</label>
 									<div class="col-xs-10">
@@ -437,6 +451,9 @@
 										</div>
 									</div>
                                 </div>
+								<?php } else { ?>
+									<input type="hidden" name="is_import" id="import" value="0">
+								<?php } ?>
 								
 								<?php if($formdata['item_import']==1) { ?>
 								<div class="form-group">
@@ -447,6 +464,10 @@
 									 <div class="col-sm-1"><button type="button" class="btn btn-primary" id="importFile" >Load</button></div>
                                 </div>
 								<?php } ?>
+								
+								@php
+									$showBatch = (!isset($formdata['batch_req']) && !isset($formdata['batch'])) ? true : ((isset($formdata['batch_req']) && $formdata['batch_req']==1) || (isset($formdata['batch']) && $formdata['batch']==1));
+								@endphp
 								
 								<br/>
 								<fieldset>
@@ -726,13 +747,15 @@
 								<?php } ?>
 								
 								<!--MAY25-->
-								<div id="batchdiv_1" style="float:left; padding-right:5px;" class="addBatchBtn">
+								<?php if($showBatch) { ?>
+								<div id="batchdiv_1" style="float:left; padding-right:5px; display:none;" class="addBatchBtn">
 									<button type="button" id="btnBth_1" class="btn btn-primary btn-xs batch-add" data-toggle="modal" data-target="#batch_modal">Add Batch</button>
 									<div class="form-group"><input type="text" name="batchNos[]" id="batchNos_1" style="border:none;color:#FFF;"></div>
 									<input type="hidden" id="mfgDates_1" name="mfgDates[]">
                                     <input type="hidden" id="expDates_1" name="expDates[]">
                                     <input type="hidden" id="qtyBatchs_1" name="qtyBatchs[]">
 								</div>
+								<?php } ?>
 											
 								<?php if($formdata['supersede']==1) { ?>
 											<div id="ssede" style="float:left; padding-right:5px;">
@@ -1920,6 +1943,11 @@ $(function() {
 			newEntry.find($('input[name="expDates[]"]')).attr('id', 'expDates_' + rowNum);
 			newEntry.find($('input[name="qtyBatchs[]"]')).attr('id', 'qtyBatchs_' + rowNum);
 			newEntry.find($('.addBatchBtn')).attr('id', 'batchdiv_' + rowNum);
+			newEntry.find($('.addBatchBtn')).hide();
+			newEntry.find($('input[name="batchNos[]"]')).val('');
+			newEntry.find($('input[name="mfgDates[]"]')).val('');
+			newEntry.find($('input[name="expDates[]"]')).val('');
+			newEntry.find($('input[name="qtyBatchs[]"]')).val('');
 			$('#itmqty_'+rowNum).attr('readonly', false);
 			//...
 			
@@ -2186,6 +2214,12 @@ $(function() {
 		$('#supplier_id').val($(this).attr("data-id"));
 		$('#dr_account_id').val($(this).attr("data-id"));
 			$('#duedays').val($(this).attr("data-duedays"));
+
+		var bv = $('#frmPurchaseInvoice').data('bootstrapValidator');
+		if (bv) {
+			bv.revalidateField('supplier_name');
+			bv.disableSubmitButtons(false);
+		}
 		
 		if(	$('#duedays').val() >0){
 		    var days=$('#duedays').val();
@@ -2408,9 +2442,15 @@ $(function() {
 			} else {
 				if( $('#newsupplierInfo').is(":visible") )
 					$('#newsupplierInfo').toggle();
-				$('#supplier_name').val('');
-				$('#supplier_id').val('');
+				if(data[0].cr_account_id) {
+					$('#supplier_name').val(data[0].cr_account_name);
+					$('#supplier_id').val(data[0].cr_account_id);
+					$('#dr_account_id').val(data[0].cr_account_id);
+				} else {
+					$('#supplier_name').val('');
+					$('#supplier_id').val('');
 					$('#dr_account_id').val('');
+				}
 				$('#supplier_name').attr("data-toggle", "modal");
 			}
 			
@@ -2452,9 +2492,15 @@ $(function() {
 			} else {
 				if( $('#newsupplierInfo').is(":visible") )
 					$('#newsupplierInfo').toggle();
-				$('#supplier_name').val('');
-				$('#supplier_id').val('');
+				if(data.cr_account_id) {
+					$('#supplier_name').val(data.cr_account_name);
+					$('#supplier_id').val(data.cr_account_id);
+					$('#dr_account_id').val(data.cr_account_id);
+				} else {
+					$('#supplier_name').val('');
+					$('#supplier_id').val('');
 					$('#dr_account_id').val('');
+				}
 				$('#supplier_name').attr("data-toggle", "modal");
 			}
 			
@@ -2787,6 +2833,11 @@ $(function() {
 		select: function (event, ui) { 
 			$("#supplier_id").val(ui.item.id);
 			$("#dr_account_id").val(ui.item.id);
+			var bv = $('#frmPurchaseInvoice').data('bootstrapValidator');
+			if (bv) {
+				bv.revalidateField('supplier_name');
+				bv.disableSubmitButtons(false);
+			}
 		},
         minLength: 2,
     });
@@ -3369,6 +3420,13 @@ function loadFile1()
 }
 
 </script>
+<script>
+	window.invoiceFormSelector = '#frmPurchaseInvoice';
+	window.barcodeScannerEnabled = {!! json_encode($barcodeScanner ?? false) !!};
+</script>
+@if($barcodeScanner ?? false)
+	@include('includes.barcode_scanner_script')
+@endif
 @stop
 
 										

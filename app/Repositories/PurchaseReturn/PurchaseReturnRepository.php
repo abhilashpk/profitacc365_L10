@@ -175,7 +175,7 @@ class PurchaseReturnRepository extends AbstractValidator implements PurchaseRetu
 		if($amount!=0) {
 			
 			if($amount_type=='VAT' || $amount_type=='VATOC') {
-				$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+				$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 				
 				if(isset($attributes['is_import']) && $amount_type=='VAT') { //if vat import is checked....
 					if($vatrow) {
@@ -312,7 +312,7 @@ class PurchaseReturnRepository extends AbstractValidator implements PurchaseRetu
 		if($amount!=0) {
 			
 			if($amount_type=='VAT' || $amount_type=='VATOC') {
-				$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+				$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 				
 				if(isset($attributes['is_import']) && $amount_type=='VAT') { //if vat import is checked....
 					if($vatrow) {
@@ -781,7 +781,7 @@ class PurchaseReturnRepository extends AbstractValidator implements PurchaseRetu
 										$updated = true;
 										$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
 																	  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
-																	  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																	  ->whereNull('deleted_at')->select('id')->first();
 										if($qtys) {
 											DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity - '.$lq) ]);
 										} 
@@ -803,7 +803,7 @@ class PurchaseReturnRepository extends AbstractValidator implements PurchaseRetu
 									
 									$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['location_id'])
 																	  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
-																	  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																	  ->whereNull('deleted_at')->select('id')->first();
 									if($qtys) {
 										DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity - '.$attributes['quantity'][$key]) ]);
 									}
@@ -1019,7 +1019,7 @@ class PurchaseReturnRepository extends AbstractValidator implements PurchaseRetu
                             		
 									$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
 																  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																  ->whereNull('deleted_at')->select('id')->first();
 									if($qtys) {
 										DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity - '.$lcqty) ]);
 									} else {
@@ -1051,7 +1051,7 @@ class PurchaseReturnRepository extends AbstractValidator implements PurchaseRetu
 								
 								$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['location_id'])
 																  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																  ->whereNull('deleted_at')->select('id')->first();
 								
 								//$lcqty =  $attributes['quantity'][$key] * $attributes['packing'][$key];
 								$lcqty = $attributes['quantity'][$key];
@@ -1285,7 +1285,7 @@ class PurchaseReturnRepository extends AbstractValidator implements PurchaseRetu
 									->where('item_id', $value)
 									->where('unit_id', $attributes['unit_id'][$key])
 									->where('status', 1)
-									->where('deleted_at', '0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->select('id')->first();//echo $oldqty; print_r($idloc);exit;
 									
 							if($idloc) {
@@ -1328,7 +1328,7 @@ class PurchaseReturnRepository extends AbstractValidator implements PurchaseRetu
 						/* if($attributes['location_id']!='') {
 							$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['location_id'])
 															  ->where('item_id', $value)->where('unit_id', $attributes['unit_id'][$key])
-													          ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+													          ->whereNull('deleted_at')->select('id')->first();
 							if($qtys) {
 								DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity - '.$attributes['quantity'][$key]) ]);
 							} 
@@ -1468,7 +1468,7 @@ class PurchaseReturnRepository extends AbstractValidator implements PurchaseRetu
 			
 			DB::table('account_master')->where('id', $this->purchase_return->cr_account_id)->update(['cl_balance' => DB::raw('cl_balance + '.$this->purchase_return->total)]);
 			
-			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 			if($vatrow) {
 				DB::table('account_master')->where('id', $vatrow->collection_account)->update(['cl_balance' => DB::raw('cl_balance + '.$this->purchase_return->vat_amount)]);
 			}
@@ -1591,7 +1591,7 @@ class PurchaseReturnRepository extends AbstractValidator implements PurchaseRetu
 						$join->on('iu.itemmaster_id','=','im.id');
 						$join->on('iu.unit_id','=','poi.unit_id');
 					  })
-					  ->where('poi.status',1)->where('poi.deleted_at','0000-00-00 00:00:00')
+					  ->where('poi.status',1)->whereNull('poi.deleted_at')
 					  ->orderBY('poi.id')->groupBY('poi.id')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty','iu.packing','iu.pkno')->get();
 	}
@@ -1871,10 +1871,10 @@ public function getReport($attributes)
 						->join('account_transaction', 'account_transaction.account_master_id', '=', 'account_master.id')
 						->where('account_transaction.voucher_type','!=','OBD')
 						->where('account_transaction.status',1)
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('account_master.status',1)
-						->where('account_master.deleted_at','0000-00-00 00:00:00')
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
+						->whereNull('deleted_at')
 						->whereBetween('account_transaction.invoice_date',[$date->from_date, $date->to_date])
 						->select('account_master.id','account_master.master_name','account_master.cl_balance','account_master.category',
 								 'account_transaction.transaction_type','account_transaction.amount','account_master.op_balance','account_transaction.invoice_date')
@@ -2034,7 +2034,7 @@ public function getReport($attributes)
 									   $join->on('IM.id','=','PI.item_id');
 								   })
 								   ->where('PI.status',1)
-								   ->where('PI.deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->where('purchase_return.status',1);
 							
 							if($date_from !='' && $date_to != '')	   
@@ -2098,10 +2098,10 @@ public function getReport($attributes)
 		if(Session::get('department')==1 && $department_id!=null) {
 			$vatres = DB::table('vat_department')->where('department_id', $department_id)->first();
 			if(!$vatres)
-				$vatres = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+				$vatres = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 			return $vatres;
 		} else {
-			return DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			return DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 		}
 	}
 	
@@ -2218,3 +2218,4 @@ public function getReport($attributes)
 	}
 	
 }
+

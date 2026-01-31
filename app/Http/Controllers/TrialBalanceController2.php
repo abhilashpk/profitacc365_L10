@@ -45,9 +45,9 @@ class TrialBalanceController2 extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				//$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -118,7 +118,7 @@ class TrialBalanceController2 extends Controller
         $trimzero = $request->get('trim_zero');
         $this->memoryLimit();
         
-        $mindate = DB::table('account_transaction')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->min('invoice_date'); 
+        $mindate = DB::table('account_transaction')->where('status',1)->whereNull('deleted_at')->min('invoice_date'); 
 
         if ($request->get('search_type') == 'opening_summary') {
                 $parafrom = $mindate;//$settings->from_date;
@@ -355,7 +355,7 @@ class TrialBalanceController2 extends Controller
                                 $qry->where('status', 1)
                                     ->where('voucher_type', '!=', 'OBD')
                                     ->where(function ($q) {
-                                        $q->whereNull('deleted_at'); //->orWhere('deleted_at', '0000-00-00 00:00:00');
+                                        $q->whereNull('deleted_at'); //->orWhereNull('');
                                     })
                                     ->whereBetween('invoice_date', [$parafrom, date('Y-m-d',strtotime($from .' - 1 day')) ]); 
                             },
@@ -364,7 +364,7 @@ class TrialBalanceController2 extends Controller
                                 $qry->where('status', 1)
                                     ->where('voucher_type', '!=', 'OBD')
                                     ->where(function ($q) {
-                                        $q->whereNull('deleted_at'); //->orWhere('deleted_at', '0000-00-00 00:00:00');
+                                        $q->whereNull('deleted_at'); //->orWhereNull('');
                                     })
                                     ->whereBetween('invoice_date', [$from, $to]);
                             }
@@ -377,7 +377,7 @@ class TrialBalanceController2 extends Controller
                                 $qry->where('status', 1)
                                     ->where('voucher_type', '!=', 'OBD')
                                     ->where(function ($q) {
-                                        $q->whereNull('deleted_at');//->orWhere('deleted_at', '0000-00-00 00:00:00');
+                                        $q->whereNull('deleted_at');//->orWhereNull('');
                                     })
                                     ->whereBetween('invoice_date', [$from, $to]);
                             }
@@ -386,7 +386,7 @@ class TrialBalanceController2 extends Controller
 
             $query->where('account_master.status', 1)
                 ->where(function ($q) {
-                    $q->whereNull('account_master.deleted_at');//->orWhere('account_master.deleted_at', '0000-00-00 00:00:00');
+                    $q->whereNull('account_master.deleted_at');//->orWhereNull('');
                 });
 
                 $accounts = $query->get()
@@ -802,7 +802,7 @@ class TrialBalanceController2 extends Controller
                                 $qry->where('status', 1)
                                     ->where('voucher_type', '!=', 'OBD')
                                     ->where(function ($q) {
-                                        $q->whereNull('deleted_at'); //->orWhere('deleted_at', '0000-00-00 00:00:00');
+                                        $q->whereNull('deleted_at'); //->orWhereNull('');
                                     })
                                     ->whereBetween('invoice_date', [$parafrom, date('Y-m-d',strtotime($from .' - 1 day')) ]); 
                             },
@@ -811,7 +811,7 @@ class TrialBalanceController2 extends Controller
                                 $qry->where('status', 1)
                                     ->where('voucher_type', '!=', 'OBD')
                                     ->where(function ($q) {
-                                        $q->whereNull('deleted_at'); //->orWhere('deleted_at', '0000-00-00 00:00:00');
+                                        $q->whereNull('deleted_at'); //->orWhereNull('');
                                     })
                                     ->whereBetween('invoice_date', [$from, $to]);
                             }
@@ -824,7 +824,7 @@ class TrialBalanceController2 extends Controller
                                 $qry->where('status', 1)
                                     ->where('voucher_type', '!=', 'OBD')
                                     ->where(function ($q) {
-                                        $q->whereNull('deleted_at');//->orWhere('deleted_at', '0000-00-00 00:00:00');
+                                        $q->whereNull('deleted_at');//->orWhereNull('');
                                     })
                                     ->whereBetween('invoice_date', [$from, $to]);
                             }
@@ -833,7 +833,7 @@ class TrialBalanceController2 extends Controller
 
             $query->where('account_master.status', 1)
                 ->where(function ($q) {
-                    $q->whereNull('account_master.deleted_at');//->orWhere('account_master.deleted_at', '0000-00-00 00:00:00');
+                    $q->whereNull('account_master.deleted_at');//->orWhereNull('');
                 });
 
                 $accounts = $query->get()
@@ -1279,3 +1279,6 @@ class TrialBalanceController2 extends Controller
 
     
 }
+
+
+

@@ -21,7 +21,7 @@ class MsAreaController extends Controller
 	
 	public function index() {
 		$data = array();
-		$area = DB::table('ms_area')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$area = DB::table('ms_area')->whereNull('deleted_at')->orderBy('id','DESC')->get();
 		return view('body.msarea.index')
 					->withArea($area)
 					->withData($data);
@@ -36,7 +36,7 @@ class MsAreaController extends Controller
 		try {
 			 DB::table('ms_area')
 					->insert([
-						'name' => Input::get('name')
+						'name' => $request->get('name')
 					]);
 				
 			Session::flash('message', 'Area added successfully.');
@@ -60,7 +60,7 @@ class MsAreaController extends Controller
 	{
 		DB::table('ms_area')->where('id',$id)
 				->update([
-					'name' => Input::get('name')
+					'name' => $request->get('name')
 				]);
 		Session::flash('message', 'Area updated successfully');
 		return redirect('ms_area');
@@ -76,4 +76,6 @@ class MsAreaController extends Controller
 	
 	
 }
+
+
 

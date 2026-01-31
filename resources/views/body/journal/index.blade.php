@@ -70,13 +70,13 @@
                             <i class="fa fa-fw fa-list-alt"></i> Journal Entry List
                         </h3>
                         <div class="pull-right">
-							@permission('jv-create')
+							@can('jv-create')
                              <a href="{{ url('journal/add') }}" class="btn btn-primary btn-sm">
 									<span class="btn-label">
 									<i class="glyphicon glyphicon-plus"></i>
 								</span> Add New
 							</a>
-							@endpermission
+							@endcan
                         </div>
                     </div>
                     <div class="panel-body">
@@ -165,9 +165,9 @@ $(function() {
 			{ "data": "description" },
 			{ "data": "reference" },
 			{ "data": "amount" },
-			@permission('jv-edit'){ "data": "edit","bSortable": false },@endpermission
-			@permission('jv-print'){ "data": "print","bSortable": false },@endpermission
-			@permission('jv-delete'){ "data": "delete","bSortable": false }@endpermission
+			@can('jv-edit'){ "data": "edit","bSortable": false },@endcan
+			@can('jv-print'){ "data": "print","bSortable": false },@endcan
+			@can('jv-delete'){ "data": "delete","bSortable": false }@endcan
 		]	
 		  
 		});

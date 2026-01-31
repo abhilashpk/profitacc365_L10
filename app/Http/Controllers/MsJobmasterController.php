@@ -21,7 +21,7 @@ class MsJobmasterController extends Controller
 	
 	public function index() {
 		$data = array();
-		$jobs = DB::table('ms_jobmaster')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$jobs = DB::table('ms_jobmaster')->whereNull('deleted_at')->orderBy('id','DESC')->get();
 		return view('body.msjobmaster.index')
 					->withJobs($jobs)
 					->withData($data);
@@ -36,7 +36,7 @@ class MsJobmasterController extends Controller
 		try {
 			$id = DB::table('ms_jobmaster')
 					->insertGetId([
-						'name' => Input::get('name')
+						'name' => $request->get('name')
 					]);
 				
 			if($id) {
@@ -65,7 +65,7 @@ class MsJobmasterController extends Controller
 	{
 		DB::table('ms_jobmaster')->where('id',$id)
 				->update([
-					'name' => Input::get('name')
+					'name' => $request->get('name')
 				]);
 		Session::flash('message', 'Job Master updated successfully');
 		return redirect('ms_jobmaster');
@@ -80,11 +80,13 @@ class MsJobmasterController extends Controller
 	
 	public function getJobs() {
 		
-		$jobs = DB::table('ms_jobmaster')->where('deleted_at', '0000-00-00 00:00:00')->orderBy('code', 'ASC')->get();
+		$jobs = DB::table('ms_jobmaster')->whereNull('deleted_at')->orderBy('code', 'ASC')->get();
 		return view('body.msjobmaster.jobs')
 					->withJobs($jobs);
 		
 	}
 	
 }
+
+
 

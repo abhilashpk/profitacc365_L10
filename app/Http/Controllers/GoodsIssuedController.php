@@ -53,10 +53,10 @@ class GoodsIssuedController extends Controller
 		//Session::put('cost_accounting', 0);
 		$data = array();
 		$orders = [];//$this->goods_issued->goodsIssuedList();//echo '<pre>';print_r($orders);exit;
-		$job = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$job = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->get();
 		/*$job_id=DB::table('goods_issued_item')
 		                    ->leftjoin('goods_issued','goods_issued.id','=','goods_issued_item.goods_issued_id')
-		                     ->where('goods_issued.status',1)->where('goods_issued.deleted_at','0000-00-00 00:00:00')
+		                     ->where('goods_issued.status',1)->whereNull('deleted_at')
 		                     ->where('goods_issued.is_itemjob',0)->where('goods_issued_item.job_id',0)
 							  ->select('goods_issued_item.*','goods_issued.job_id AS job')->get();
 		foreach($job_id as $row){
@@ -64,7 +64,7 @@ class GoodsIssuedController extends Controller
 		}			*/		  
 		//echo '<pre>';print_r($job_id);exit;
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
@@ -171,14 +171,14 @@ class GoodsIssuedController extends Controller
 		//$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=13);
 		$vno = $res->no;
 		$settings = $this->accountsetting->getAccountPeriod();//echo '<pre>';print_r($vouchers);exit;
-		$footertxt = DB::table('header_footer')->where('doc','GI')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$footertxt = DB::table('header_footer')->where('doc','GI')->where('status',1)->whereNull('deleted_at')->first();
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -307,9 +307,9 @@ class GoodsIssuedController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -364,9 +364,9 @@ class GoodsIssuedController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -507,7 +507,7 @@ class GoodsIssuedController extends Controller
 		if($result['details']->is_itemjob==1) {
 		   $arrjob = DB::table('goods_issued_item')
 		                ->join('jobmaster','jobmaster.id','=','goods_issued_item.job_id')
-		                ->where('goods_issued_item.goods_issued_id',$result['details']->id)->where('goods_issued_item.status',1)->where('goods_issued_item.deleted_at','0000-00-00 00:00:00')
+		                ->where('goods_issued_item.goods_issued_id',$result['details']->id)->where('goods_issued_item.status',1)->whereNull('deleted_at')
 		                ->select('jobmaster.name')
 		                ->groupBy('jobmaster.id')->get();
 		                
@@ -697,7 +697,10 @@ class GoodsIssuedController extends Controller
 	
 }
 
-// SELECT goods_issued.voucher_no,goods_issued.voucher_date,goods_issued.description,goods_issued.total,goods_issued.discount,goods_issued.net_amount,jobmaster.code AS jcode,jobmaster.name AS jobname,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,goods_issued_item.item_name,goods_issued_item.quantity,goods_issued_item.unit_price,goods_issued_item.total_price,itemmaster.item_code,units.unit_name FROM goods_issued JOIN account_master ON(account_master.id=goods_issued.account_master_id) JOIN goods_issued_item ON(goods_issued_item.goods_issued_id=goods_issued.id) LEFT JOIN jobmaster ON(jobmaster.id=goods_issued.job_account_id) JOIN itemmaster ON(itemmaster.id=goods_issued_item.item_id) JOIN units ON(units.id=goods_issued_item.unit_id) WHERE goods_issued_item.status=1 AND goods_issued_item.deleted_at='0000-00-00 00:00:00' AND goods_issued.id={id} ORDER BY goods_issued_item.id ASC
+// SELECT goods_issued.voucher_no,goods_issued.voucher_date,goods_issued.description,goods_issued.total,goods_issued.discount,goods_issued.net_amount,jobmaster.code AS jcode,jobmaster.name AS jobname,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,goods_issued_item.item_name,goods_issued_item.quantity,goods_issued_item.unit_price,goods_issued_item.total_price,itemmaster.item_code,units.unit_name FROM goods_issued JOIN account_master ON(account_master.id=goods_issued.account_master_id) JOIN goods_issued_item ON(goods_issued_item.goods_issued_id=goods_issued.id) LEFT JOIN jobmaster ON(jobmaster.id=goods_issued.job_account_id) JOIN itemmaster ON(itemmaster.id=goods_issued_item.item_id) JOIN units ON(units.id=goods_issued_item.unit_id) WHERE goods_issued_item.status=1 AND deleted_at IS NULL AND goods_issued.id={id} ORDER BY goods_issued_item.id ASC
+
+
+
 
 
 

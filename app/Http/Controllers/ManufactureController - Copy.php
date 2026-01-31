@@ -48,7 +48,7 @@ class ManufactureController extends Controller
     public function index() {
 		
 		$data = array();
-		$stocktrans = DB::table('manufacture')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$stocktrans = DB::table('manufacture')->whereNull('deleted_at')->orderBy('id','DESC')->get();
 		return view('body.manufacture.index')
 					->withStocktrans($stocktrans)
 					->withType('')
@@ -62,16 +62,16 @@ class ManufactureController extends Controller
 
 		$data = array();
 		$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=15); //echo '<pre>';print_r($vouchers);exit;
-		$lastid = DB::table('manufacture')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$lastid = DB::table('manufacture')->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
 		
 		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -148,7 +148,7 @@ public function getReport($attributes)
 		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
 		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
 		
-		$res = DB::table('manufacture')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$res = DB::table('manufacture')->whereNull('deleted_at')->orderBy('id','DESC')->get();
 		
 			
 			$query = DB::table('manufacture')
@@ -178,7 +178,7 @@ public function getReport($attributes)
 							})
 						->where('STI.is_mfg', 1)
 							->where('STIT.status', 1)
-							->where('STIT.deleted_at', '0000-00-00 00:00:00');
+							->whereNull('deleted_at');
 					if( $date_from!='' && $date_to!='' ) { 
 						$query->whereBetween('manufacture.voucher_date', array($date_from, $date_to));
 					}
@@ -193,16 +193,16 @@ public function getReport($attributes)
 	public function getSearch()
 	{
 		$data = $report = $reports =$rawitem= array();
-		if(Input::get('search_type')=="summary") {
+		if($request->get('search_type')=="summary") {
 			$voucher_head = 'Manufacture summary (STOCK IN ITEM)';
-			$report =$this->getReport(Input::all());
+			$report =$this->getReport($request->all());
 			//echo '<pre>';print_r($report); exit();
 			$reports = $this->makeTree($report);
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-		}else if(Input::get('search_type')=="detail") {
+		}else if($request->get('search_type')=="detail") {
 			$voucher_head = 'Manufacture Detail ';
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-			$report =$this->getReport(Input::all());
+			$report =$this->getReport($request->all());
             $reports = $this->makeTree($report);
 		    foreach ($report as $row)
 			 	{
@@ -217,9 +217,9 @@ public function getReport($attributes)
 				   
 					->withRawitem($rawitem)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withI(0)
 					->withSettings($this->acsettings)
 					->withData($data);
@@ -229,12 +229,12 @@ public function getReport($attributes)
 	public function dataExport()
 	{
 		$data = array();
-		$reports = $this->getReport(Input::all());
+		$reports = $this->getReport($request->all());
 		
 		$datareport[] = ['','','',strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Manufacture  Summary';
 		
 		$datareport[] = ['','','',strtoupper($voucher_head), '','',''];
@@ -298,9 +298,9 @@ public function getReport($attributes)
 			}
 
 			if(Session::get('department')==1)
-				$inv = DB::table('manufacture')->where('id','!=',$attributes['rowid'])->where('voucher_no',$newattributes['voucher_no'])->where('department_id', $attributes['department_id'])->where('deleted_at','0000-00-00 00:00:00')->count();
+				$inv = DB::table('manufacture')->where('id','!=',$attributes['rowid'])->where('voucher_no',$newattributes['voucher_no'])->where('department_id', $attributes['department_id'])->whereNull('deleted_at')->count();
 			else
-				$inv = DB::table('manufacture')->where('id','!=',$attributes['rowid'])->where('voucher_no',$newattributes['voucher_no'])->where('deleted_at','0000-00-00 00:00:00')->count();
+				$inv = DB::table('manufacture')->where('id','!=',$attributes['rowid'])->where('voucher_no',$newattributes['voucher_no'])->whereNull('deleted_at')->count();
 			//echo $inv.' - ';
 			$cnt++;
 		} while ($inv!=0);
@@ -309,45 +309,45 @@ public function getReport($attributes)
 	}
 	
 	public function save() {
-		//echo '<pre>';print_r(Input::all());exit; 
+		//echo '<pre>';print_r($request->all());exit; 
 
 		DB::beginTransaction();
 			try {
 			//GET STOCK TRANSFER IN VOUCHER..
 			if(Session::get('department')==1)
-				$sti = DB::table('account_setting')->where('voucher_type_id', 21)->where('department_id', Input::get('department_id'))->select('id','voucher_no')->first();
+				$sti = DB::table('account_setting')->where('voucher_type_id', 21)->where('department_id', $request->get('department_id'))->select('id','voucher_no')->first();
 			else
 				$sti = DB::table('account_setting')->where('voucher_type_id', 21)->select('id','voucher_no')->first();
-			$voucher_no = Input::get('voucher_no');
-			$voucher_date = (Input::get('voucher_date')=='')?date('Y-m-d'):date('Y-m-d',strtotime(Input::get('voucher_date')));
-			$amount = Input::get('total_price');
-			$voucher_id = Input::get('voucher_id');
-			$itemsid = Input::get('item_id');
+			$voucher_no = $request->get('voucher_no');
+			$voucher_date = ($request->get('voucher_date')=='')?date('Y-m-d'):date('Y-m-d',strtotime($request->get('voucher_date')));
+			$amount = $request->get('total_price');
+			$voucher_id = $request->get('voucher_id');
+			$itemsid = $request->get('item_id');
 			if($sti) {
-				Input::merge(['voucher_id' => $sti->id]);
-				Input::merge(['curno' => $sti->voucher_no]);
-				Input::merge(['voucher_no' => $sti->voucher_no]);
-				Input::merge(['is_mfg' => 1]);
+				$request->merge(['voucher_id' => $sti->id]);
+				$request->merge(['curno' => $sti->voucher_no]);
+				$request->merge(['voucher_no' => $sti->voucher_no]);
+				$request->merge(['is_mfg' => 1]);
 			}
 			//DO STOCK TRANSFER IN AS NEW ITEM..
-			$trin = $this->stock_transferin->create(Input::all());
+			$trin = $this->stock_transferin->create($request->all());
 			if($trin) {
 				
 				//GET STOCK TRANSFER OUT VOUCHER..
 				if(Session::get('department')==1)
-					$sto = DB::table('account_setting')->where('voucher_type_id', 22)->where('department_id', Input::get('department_id'))->select('id','voucher_no')->first();
+					$sto = DB::table('account_setting')->where('voucher_type_id', 22)->where('department_id', $request->get('department_id'))->select('id','voucher_no')->first();
 				else
 					$sto = DB::table('account_setting')->where('voucher_type_id', 22)->select('id','voucher_no')->first();
 				
 				if($sto) {
-					Input::merge(['voucher_id' => $sto->id]);
-					Input::merge(['curno' => $sto->voucher_no]);
-					Input::merge(['voucher_no' => $sto->voucher_no]);
-					Input::merge(['is_mfg' => 1]);
+					$request->merge(['voucher_id' => $sto->id]);
+					$request->merge(['curno' => $sto->voucher_no]);
+					$request->merge(['voucher_no' => $sto->voucher_no]);
+					$request->merge(['is_mfg' => 1]);
 				}
 				
 				//DO STOCK TRANSFER OUT USED RAW MATERIALS... manufacture_item manufacture
-				$attributes = Input::all();
+				$attributes = $request->all();
 				$itemsarr = $attributes['item_id'];
 				$qtyarr = $attributes['quantity'];
 				$namearr = $attributes['item_name'];
@@ -362,7 +362,7 @@ public function getReport($attributes)
 					$rawitems = DB::table('mfg_items')->where('mfg_items.item_id', $item)
 									->join('itemmaster AS IM', 'IM.id', '=', 'mfg_items.subitem_id')
 									->join('item_unit AS IU', 'IU.itemmaster_id', '=', 'IM.id')
-									->where('mfg_items.deleted_at', '0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->select('mfg_items.*','IU.unit_id','IU.cost_avg','IM.description')
 									->get();
 									
@@ -382,8 +382,8 @@ public function getReport($attributes)
 						//echo '<pre>';print_r($attributes);exit;
 						
 						//DO ACCOUNT REVERSE ENTRY POSTING....
-						$attributes['account_dr'] = Input::get('account_dr_to');
-						$attributes['account_cr'] = Input::get('account_cr_to');
+						$attributes['account_dr'] = $request->get('account_dr_to');
+						$attributes['account_cr'] = $request->get('account_cr_to');
 						
 						$trout = $this->stock_transferout->create($attributes);
 						
@@ -399,11 +399,11 @@ public function getReport($attributes)
 												'voucher_date'  => $voucher_date,
 												'amount'	=> $amount,
 												'department_id'	=> isset($attributes['department_id'])?$attributes['department_id']:'',
-												'account_dr' => Input::get('account_dr'),
-												'account_cr' => Input::get('account_cr'),
-												'other_cost' => Input::get('other_cost'),
-												'account_dr_to' => Input::get('account_dr_to'),
-												'account_cr_to' => Input::get('account_cr_to'),
+												'account_dr' => $request->get('account_dr'),
+												'account_cr' => $request->get('account_cr'),
+												'other_cost' => $request->get('other_cost'),
+												'account_dr_to' => $request->get('account_dr_to'),
+												'account_cr_to' => $request->get('account_cr_to'),
 												]);
 						
 						$ocamount = array_sum($attributes['oc_amount']); $oc_perunit = $item_oc = 0;			
@@ -473,7 +473,7 @@ public function getReport($attributes)
 													'quantity' => $attributes['wqty'][$wk],
 													'unit_price'	=> $attributes['uprice'][$wk],
 													'total' => $attributes['weqtytot'][$wk],
-													'deleted_at' => '0000-00-00 00:00:00'
+													'deleted_at' => null
 												]);
 												
 								}
@@ -584,14 +584,14 @@ public function getReport($attributes)
 							->join('account_master AS DrAC', 'DrAC.id', '=', 'sti_other_cost.dr_account_id')
 							->join('account_master AS CrAC', 'CrAC.id', '=', 'sti_other_cost.cr_account_id')
 							->where('sti_other_cost.transfer_id', $res->stock_transferin_id)
-							->where('sti_other_cost.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('sti_other_cost.*','DrAC.master_name AS dr_name','CrAC.master_name AS cr_name')
 							->get();
 
 			$werow = DB::table('mfg_wastage')
 							->join('itemmaster AS IM', 'IM.id', '=', 'mfg_wastage.item_id')
 							->where('mfg_wastage.manufacture_id', $id)
-							->where('mfg_wastage.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('mfg_wastage.*','IM.item_code','IM.description')
 							->get();
 		}
@@ -600,9 +600,9 @@ public function getReport($attributes)
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -652,14 +652,14 @@ public function getReport($attributes)
 	{ 	
 		DB::beginTransaction();
 		try {
-			$res = DB::table('manufacture')->find(Input::get('mid')); //echo '<pre>';print_r($request->all());exit;
-			$voucher_date = (Input::get('voucher_date')=='')?date('Y-m-d'):date('Y-m-d',strtotime(Input::get('voucher_date')));
-			$amount = Input::get('total_price');
-			Input::merge(['transfer_id' => $res->stock_transferin_id]);
-			if($this->stock_transferin->update($res->stock_transferin_id, Input::all())) {
+			$res = DB::table('manufacture')->find($request->get('mid')); //echo '<pre>';print_r($request->all());exit;
+			$voucher_date = ($request->get('voucher_date')=='')?date('Y-m-d'):date('Y-m-d',strtotime($request->get('voucher_date')));
+			$amount = $request->get('total_price');
+			$request->merge(['transfer_id' => $res->stock_transferin_id]);
+			if($this->stock_transferin->update($res->stock_transferin_id, $request->all())) {
 				
-				Input::merge(['transfer_id' => $res->stock_transferout_id]);
-				$attributes = Input::all();
+				$request->merge(['transfer_id' => $res->stock_transferout_id]);
+				$attributes = $request->all();
 				$qtyarr = $attributes['quantity'];
 				$namearr = $attributes['item_name'];
 				$untarr = $attributes['unit_id'];
@@ -668,7 +668,7 @@ public function getReport($attributes)
 				
 				$stock_transferout_id = $res->stock_transferout_id;
 				
-				foreach(Input::get('item_id') as $key => $item) { 
+				foreach($request->get('item_id') as $key => $item) { 
 				
 					$attributes['item_id'] = $attributes['unit_id'] = $attributes['item_name'] = $attributes['quantity'] = $attributes['cost'] = $attributes['actcost'] = $attributes['transfer_item_id'] = [];
 					
@@ -680,7 +680,7 @@ public function getReport($attributes)
 											$join->on('STO.item_id','=','IM.id');
 											$join->where('STO.stock_transferout_id','=',$stock_transferout_id);
 										})
-										->where('mfg_items.deleted_at', '0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->select('mfg_items.*','IU.unit_id','IU.cost_avg','IM.description','STO.id AS transfer_item_id')
 										->get();
 										
@@ -698,8 +698,8 @@ public function getReport($attributes)
 						}
 						
 						//DO ACCOUNT REVERSE ENTRY POSTING....
-						$attributes['account_dr'] = Input::get('account_dr_to');
-						$attributes['account_cr'] = Input::get('account_cr_to');
+						$attributes['account_dr'] = $request->get('account_dr_to');
+						$attributes['account_cr'] = $request->get('account_cr_to');
 						
 						$this->stock_transferout->update($res->stock_transferout_id, $attributes);
 					}
@@ -708,10 +708,10 @@ public function getReport($attributes)
 				
 				//AUTO COST REFRESH CHECK ENABLE OR NOT
 				if($this->mod_autocost->is_active==1) {
-					$this->objUtility->reEvalItemCostQuantity(Input::get('item_id'),$this->acsettings);
+					$this->objUtility->reEvalItemCostQuantity($request->get('item_id'),$this->acsettings);
 				}
 				
-				DB::table('manufacture')->where('id', Input::get('mid'))->update(['voucher_date' => $voucher_date, 'amount' => $amount, 'other_cost' => Input::get('other_cost') ]);
+				DB::table('manufacture')->where('id', $request->get('mid'))->update(['voucher_date' => $voucher_date, 'amount' => $amount, 'other_cost' => $request->get('other_cost') ]);
 				$ocamount = array_sum($attributes['oc_amount']); $oc_perunit = $item_oc = 0;	
 				foreach($request->get('item_id') as $key => $value) { 
 					
@@ -740,7 +740,7 @@ public function getReport($attributes)
 						
 						DB::table('manufacture_item')
 								->insert([
-									'manufacture_id' => Input::get('mid'),
+									'manufacture_id' => $request->get('mid'),
 									'item_id'		=> $value,
 									'item_name'		=> $namearr[$key],
 									'unit_id'		=> $untarr[$key],
@@ -765,7 +765,7 @@ public function getReport($attributes)
 								DB::table('mfg_wastage')
 											->where('id', $attributes['weid'][$wk])
 											->update([
-												'manufacture_id' => Input::get('mid'),
+												'manufacture_id' => $request->get('mid'),
 												'item_id' => $attributes['weitem'][$wk],
 												'quantity' => $attributes['wqty'][$wk],
 												'unit_price'	=> $attributes['uprice'][$wk],
@@ -776,12 +776,12 @@ public function getReport($attributes)
 								$wetotal += $attributes['weqtytot'][$wk];
 								$weid = DB::table('mfg_wastage')
 											->insertGetId([
-												'manufacture_id' => Input::get('mid'),
+												'manufacture_id' => $request->get('mid'),
 												'item_id' => $attributes['weitem'][$wk],
 												'quantity' => $attributes['wqty'][$wk],
 												'unit_price'	=> $attributes['uprice'][$wk],
 												'total' => $attributes['weqtytot'][$wk],
-												'deleted_at' => '0000-00-00 00:00:00'
+												'deleted_at' => null
 											]);
 							}
 										
@@ -793,7 +793,7 @@ public function getReport($attributes)
 						$wedr = DB::table('other_account_setting')->where('account_setting_name','MF Wastage Dr Account')->select('account_id')->first();
 						DB::table('account_transaction')
 							->where('voucher_type', 'MV')
-							->where('voucher_type_id', Input::get('mid'))
+							->where('voucher_type_id', $request->get('mid'))
 							->where('account_master_id', $wedr->account_id)
 							->where('transaction_type', 'Dr')
 							->update([ 'amount' => $wetotal,]);
@@ -801,7 +801,7 @@ public function getReport($attributes)
 						$wecr = DB::table('other_account_setting')->where('account_setting_name','MF Wastage Cr Account')->select('account_id')->first();
 						DB::table('account_transaction')
 							->where('voucher_type', 'MV')
-							->where('voucher_type_id', Input::get('mid'))
+							->where('voucher_type_id', $request->get('mid'))
 							->where('account_master_id', $wecr->account_id)
 							->where('transaction_type', 'Cr')
 							->update([ 'amount' => $wetotal,]);
@@ -812,7 +812,7 @@ public function getReport($attributes)
 						$wedr = DB::table('other_account_setting')->where('account_setting_name','MF Wastage Dr Account')->select('account_id')->first();
 						DB::table('account_transaction')
 							->insert([  'voucher_type' 		=> 'MV',
-										'voucher_type_id'   => Input::get('mid'),
+										'voucher_type_id'   => $request->get('mid'),
 										'account_master_id' => $wedr->account_id,
 										'transaction_type'  => 'Dr',
 										'amount'   			=> $wetotal,
@@ -820,7 +820,7 @@ public function getReport($attributes)
 										'created_at' 		=> date('Y-m-d H:i:s'),
 										'created_by' 		=> Auth::User()->id,
 										'description' 		=> 'Wastage Entry',
-										'reference'			=> Input::get('voucher_no'),
+										'reference'			=> $request->get('voucher_no'),
 										'invoice_date'		=> $voucher_date,
 										'reference_from'	=> '',
 										'tr_for'			=> $weid,
@@ -831,7 +831,7 @@ public function getReport($attributes)
 						$wecr = DB::table('other_account_setting')->where('account_setting_name','MF Wastage Cr Account')->select('account_id')->first();
 						DB::table('account_transaction')
 							->insert([  'voucher_type' 		=> 'MV',
-										'voucher_type_id'   => Input::get('mid'),
+										'voucher_type_id'   => $request->get('mid'),
 										'account_master_id' => $wecr->account_id,
 										'transaction_type'  => 'Cr',
 										'amount'   			=> $wetotal,
@@ -839,7 +839,7 @@ public function getReport($attributes)
 										'created_at' 		=> date('Y-m-d H:i:s'),
 										'created_by' 		=> Auth::User()->id,
 										'description' 		=> 'Wastage Entry',
-										'reference'			=> Input::get('voucher_no'),
+										'reference'			=> $request->get('voucher_no'),
 										'invoice_date'		=> $voucher_date,
 										'reference_from'	=> '',
 										'tr_for'			=> $weid,
@@ -882,7 +882,7 @@ public function getReport($attributes)
 							->join('account_master AS DrAC', 'DrAC.id', '=', 'sti_other_cost.dr_account_id')
 							->join('account_master AS CrAC', 'CrAC.id', '=', 'sti_other_cost.cr_account_id')
 							->where('sti_other_cost.transfer_id', $res->stock_transferin_id)
-							->where('sti_other_cost.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('sti_other_cost.*','DrAC.master_name AS dr_name','CrAC.master_name AS cr_name')
 							->get();
 							
@@ -941,7 +941,7 @@ public function getReport($attributes)
 		//echo '<pre>';print_r($id);exit;
 		$result =  DB::table('mfg_items')->where('mfg_items.item_id', $id)
 						->join('itemmaster', 'itemmaster.id', '=', 'mfg_items.subitem_id')
-						->where('mfg_items.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('itemmaster.item_code','itemmaster.description','mfg_items.*')
 						->get();
 		//echo '<pre>';print_r($result);exit;
@@ -953,7 +953,7 @@ public function getReport($attributes)
 		
 		$result =  DB::table('mfg_items')->where('mfg_items.item_id', $id)
 						->join('itemmaster', 'itemmaster.id', '=', 'mfg_items.subitem_id')
-						->where('mfg_items.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('itemmaster.item_code','itemmaster.description','mfg_items.*')
 						->get();
 		return $result;
@@ -986,5 +986,7 @@ public function getReport($attributes)
 
    }
 }
+
+
 
 

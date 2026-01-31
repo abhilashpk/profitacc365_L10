@@ -46,7 +46,7 @@ class ItemTemplateController extends Controller
 	public function add() {
 
 		$items = DB::table('itemmaster')->where('status',1)
-						->where('deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('class_id',2)
 						//->whereNotIn('id', DB::table('item_template')->where('deleted_at',null)->pluck('item_id')->get())
 						->whereNotIn('id', function($query){
@@ -55,8 +55,8 @@ class ItemTemplateController extends Controller
 						->select('id','item_code','description')
 						->get();
 						
-		$group = DB::table('groupcat')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','description')->get();
-		$units = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','unit_name')->get();
+		$group = DB::table('groupcat')->where('status',1)->whereNull('deleted_at')->select('id','description')->get();
+		$units = DB::table('units')->where('status',1)->whereNull('deleted_at')->select('id','unit_name')->get();
 		//echo '<pre>';print_r($lastid);exit;
 		return view('body.itemtemplate.add')
 					->withGroup($group)
@@ -131,7 +131,7 @@ class ItemTemplateController extends Controller
 		
 		foreach($template as $k => $trow) {
 			if($trow->input_type=="item") {
-				$items[$k] = DB::table('itemmaster')->where('group_id',$trow->group_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','item_code AS text')->get();
+				$items[$k] = DB::table('itemmaster')->where('group_id',$trow->group_id)->where('status',1)->whereNull('deleted_at')->select('id','item_code AS text')->get();
 			}
 		}
 
@@ -146,20 +146,20 @@ class ItemTemplateController extends Controller
 					->withNo($no);
 	}
 	
-	public function getItemsbkp($gid) { //print_r(Input::all());
-		/* if(Input::get('searchTerm')!='')
-			$items = DB::table('itemmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('description','like','%'.Input::get('searchTerm').'%')->select('id','description AS text')->get();
+	public function getItemsbkp($gid) { //print_r($request->all());
+		/* if($request->get('searchTerm')!='')
+			$items = DB::table('itemmaster')->where('status',1)->whereNull('deleted_at')->where('description','like','%'.$request->get('searchTerm').'%')->select('id','description AS text')->get();
 		else */
-			$items = DB::table('itemmaster')->where('group_id',$gid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','description AS text')->get();
+			$items = DB::table('itemmaster')->where('group_id',$gid)->where('status',1)->whereNull('deleted_at')->select('id','description AS text')->get();
 		
 		return $items;
 	}
 
-	public function getItems($gid) { //print_r(Input::all());
-		if(Input::get('term')!='')
-		   $items = DB::table('itemmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('item_code','like','%'.Input::get('term').'%')->select('id','item_code AS text')->get();
+	public function getItems($gid) { //print_r($request->all());
+		if($request->get('term')!='')
+		   $items = DB::table('itemmaster')->where('status',1)->whereNull('deleted_at')->where('item_code','like','%'.$request->get('term').'%')->select('id','item_code AS text')->get();
 	   else
-		   $items = DB::table('itemmaster')->where('group_id',$gid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','item_code AS text')->get();
+		   $items = DB::table('itemmaster')->where('group_id',$gid)->where('status',1)->whereNull('deleted_at')->select('id','item_code AS text')->get();
 	   
 	   return $items;
    }
@@ -287,10 +287,10 @@ class ItemTemplateController extends Controller
 						->select('id','item_code','description')
 						->get();
 						
-		$group = DB::table('groupcat')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','description')->get();
+		$group = DB::table('groupcat')->where('status',1)->whereNull('deleted_at')->select('id','description')->get();
 		
 		$templates = DB::table('item_template')->where('item_id',$id)->where('deleted_at',null)->get();
-		$units = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','unit_name')->get();
+		$units = DB::table('units')->where('status',1)->whereNull('deleted_at')->select('id','unit_name')->get();
 		//echo '<pre>';print_r($templates);exit;
 		return view('body.itemtemplate.edit')
 					->withGroup($group)
@@ -365,3 +365,5 @@ class ItemTemplateController extends Controller
 	}
 	
 }
+
+

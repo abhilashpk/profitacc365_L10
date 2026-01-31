@@ -28,10 +28,16 @@ class DataRemoveController extends Controller
 					->withData($data);
 	}
 	
-	public function clearDBcustom()
+	public function clearDBcustom(Request $request)
 	{
-		//echo '<pre>';print_r(Input::all());exit;
-		foreach(Input::get('datacol') as $val) {
+		$deleted_orphan_tr = 0;
+		$deleted_orphan_ob = 0;
+		$deleted_soft_ac = 0;
+		$deleted_soft_ag = 0;
+		$deleted_soft_cat = 0;
+		$deleted_soft_set = 0;
+		//echo '<pre>';print_r($request->all());exit;
+		foreach($request->get('datacol') as $val) {
 			switch($val) {
 				
 				case 'Customers':
@@ -46,6 +52,8 @@ class DataRemoveController extends Controller
 				
 				case 'Item':
 					DB::statement("TRUNCATE TABLE `itemmaster`");
+					DB::statement("TRUNCATE TABLE `item_batch`");
+					DB::statement("TRUNCATE TABLE `batch_log`");
 					DB::statement("TRUNCATE TABLE `item_location`");
 					DB::statement("TRUNCATE TABLE `item_location_pi`");
 					DB::statement("TRUNCATE TABLE `item_location_pr`");
@@ -59,6 +67,7 @@ class DataRemoveController extends Controller
 					DB::statement("TRUNCATE TABLE `item_sale_log`");
 					DB::statement("TRUNCATE TABLE `item_stock`");
 					DB::statement("TRUNCATE TABLE `item_unit`");
+					DB::statement("TRUNCATE TABLE `bin_location`");
 				break;
 				
 				case 'PO':
@@ -256,6 +265,18 @@ class DataRemoveController extends Controller
 					DB::statement("UPDATE `account_master` set `cl_balance`=0,`op_balance`=0,`fcop_balance`=0,`pdc_amount`=0,`fy_balance`=0;");
 					DB::statement("UPDATE `account_transaction` set `amount`=0;");
 					DB::statement("TRUNCATE TABLE `opening_balance_tr`");
+					// Hard delete soft-deleted accounts
+					$deleted_soft_ac += DB::affectingStatement("DELETE FROM `account_master` WHERE `deleted_at` IS NOT NULL");
+					// Hard delete soft-deleted account groups
+					$deleted_soft_ag += DB::affectingStatement("DELETE FROM `account_group` WHERE `deleted_at` IS NOT NULL");
+					// Hard delete soft-deleted account categories
+					$deleted_soft_cat += DB::affectingStatement("DELETE FROM `account_category` WHERE `deleted_at` IS NOT NULL");
+					// Hard delete soft-deleted account settings
+					$deleted_soft_set += DB::affectingStatement("DELETE FROM `account_setting` WHERE `deleted_at` IS NOT NULL");
+					// Remove orphaned transactions (no matching account_master)
+					$deleted_orphan_tr += DB::affectingStatement("DELETE AT FROM `account_transaction` AT LEFT JOIN `account_master` AM ON AM.id = AT.account_master_id WHERE AM.id IS NULL");
+					// Remove opening balance transactions for missing accounts
+					$deleted_orphan_ob += DB::affectingStatement("DELETE AT FROM `account_transaction` AT LEFT JOIN `account_master` AM ON AM.id = AT.account_master_id WHERE AM.id IS NULL AND AT.voucher_type = 'OB'");
 				break;
 				
 				case 'OQ':
@@ -491,19 +512,41 @@ class DataRemoveController extends Controller
 		//DB::statement("UPDATE `account_transaction` set `amount`=0;");
 				
 		
-		Session::flash('message', 'Data removed successfully');
+		$report = '';
+		if ($deleted_orphan_tr || $deleted_orphan_ob || $deleted_soft_ac || $deleted_soft_ag || $deleted_soft_cat || $deleted_soft_set) {
+			$report = ' Orphans removed: transactions=' . $deleted_orphan_tr . ', ob_orphans=' . $deleted_orphan_ob . ', soft_accounts=' . $deleted_soft_ac . ', soft_groups=' . $deleted_soft_ag . ', soft_categories=' . $deleted_soft_cat . ', soft_settings=' . $deleted_soft_set . '.';
+		}
+		Session::flash('message', 'Data removed successfully' . $report);
 		return redirect('data_remove');
 		
 	}
 	
 	public function clearDB()
 	{
+		$deleted_orphan_tr = 0;
+		$deleted_orphan_ob = 0;
+		$deleted_soft_ac = 0;
+		$deleted_soft_ag = 0;
+		$deleted_soft_cat = 0;
+		$deleted_soft_set = 0;
 		DB::statement("DELETE FROM `account_transaction` WHERE `voucher_type`!='OB'");
 		DB::statement("UPDATE `account_setting` set `voucher_no`=100");
 		DB::statement("UPDATE `account_master` set `cl_balance`=0,`op_balance`=0,`fy_balance`=0");
 		DB::statement("UPDATE `account_transaction` set `amount`=0");
 		DB::statement("DELETE FROM `account_transaction` WHERE `account_master_id` IN(SELECT id FROM `account_master` WHERE `master_name`!='CASH CUSTOMERS' AND (`category` ='CUSTOMER' OR `category` ='SUPPLIER') )");
 		DB::statement("DELETE FROM `account_master` WHERE `master_name`!='CASH CUSTOMERS' AND (`category` ='CUSTOMER' OR `category` ='SUPPLIER')");
+		// Hard delete soft-deleted accounts
+$deleted_soft_ac += DB::affectingStatement("DELETE FROM `account_master` WHERE `deleted_at` IS NOT NULL");
+		// Hard delete soft-deleted account groups
+$deleted_soft_ag += DB::affectingStatement("DELETE FROM `account_group` WHERE `deleted_at` IS NOT NULL");
+		// Hard delete soft-deleted account categories
+$deleted_soft_cat += DB::affectingStatement("DELETE FROM `account_category` WHERE `deleted_at` IS NOT NULL");
+		// Hard delete soft-deleted account settings
+$deleted_soft_set += DB::affectingStatement("DELETE FROM `account_setting` WHERE `deleted_at` IS NOT NULL");
+		// Remove orphaned transactions (no matching account_master)
+		$deleted_orphan_tr += DB::affectingStatement("DELETE AT FROM `account_transaction` AT LEFT JOIN `account_master` AM ON AM.id = AT.account_master_id WHERE AM.id IS NULL");
+		// Remove opening balance transactions for missing accounts
+		$deleted_orphan_ob += DB::affectingStatement("DELETE AT FROM `account_transaction` AT LEFT JOIN `account_master` AM ON AM.id = AT.account_master_id WHERE AM.id IS NULL AND AT.voucher_type = 'OB'");
 		DB::statement("DELETE FROM `jobmaster` WHERE is_salary_job = 0");
 		DB::statement("UPDATE `voucher_no` set `no`=100, `autoincrement`=1");
 		DB::statement("TRUNCATE TABLE `assets_issued`");
@@ -530,6 +573,8 @@ class DataRemoveController extends Controller
 		DB::statement("TRUNCATE TABLE `groupcat`");
 		DB::statement("TRUNCATE TABLE `header_footer`");
 		DB::statement("TRUNCATE TABLE `itemmaster`");
+		DB::statement("TRUNCATE TABLE `item_batch`");
+		DB::statement("TRUNCATE TABLE `batch_log`");
 		DB::statement("TRUNCATE TABLE `item_description`");
 		DB::statement("TRUNCATE TABLE `item_location`");
 		DB::statement("TRUNCATE TABLE `item_location_pi`");
@@ -540,6 +585,7 @@ class DataRemoveController extends Controller
 		DB::statement("TRUNCATE TABLE `item_sale_log`");
 		DB::statement("TRUNCATE TABLE `item_stock`");
 		DB::statement("TRUNCATE TABLE `item_unit`");
+		DB::statement("TRUNCATE TABLE `bin_location`");
 		DB::statement("TRUNCATE TABLE `jobestimate_details`");
 		DB::statement("TRUNCATE TABLE `jobinvoice_details`");
 		DB::statement("TRUNCATE TABLE `joborder_details`");
@@ -695,9 +741,15 @@ class DataRemoveController extends Controller
 		//**********************TO DO
 		//MATERIAL REQUISITION & ITS ITEMS,ROW MATERIALS OR MFG ITEMS
 					
-		Session::flash('message', 'All data has been removed successfully');
+		$report = '';
+		if ($deleted_orphan_tr || $deleted_orphan_ob || $deleted_soft_ac || $deleted_soft_ag || $deleted_soft_cat || $deleted_soft_set) {
+			$report = ' Orphans removed: transactions=' . $deleted_orphan_tr . ', ob_orphans=' . $deleted_orphan_ob . ', soft_accounts=' . $deleted_soft_ac . ', soft_groups=' . $deleted_soft_ag . ', soft_categories=' . $deleted_soft_cat . ', soft_settings=' . $deleted_soft_set . '.';
+		}
+		Session::flash('message', 'All data has been removed successfully' . $report);
 		return redirect('data_remove');
 	}
 	
 } 
+
+
 

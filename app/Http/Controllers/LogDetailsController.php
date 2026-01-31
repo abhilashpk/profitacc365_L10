@@ -37,15 +37,15 @@ class LogDetailsController extends Controller
 	{
 		$data = array();
 		
-		$reports = $this->log_details->getLogDetails(Input::all()); 
+		$reports = $this->log_details->getLogDetails($request->all()); 
 		
 		//echo '<pre>';print_r($reports);exit;
 		return view('body.logdetails.index')
 					->withReports($reports)
-					->withLogtype(Input::get('log_module'))
-					->withTrtype(Input::get('tr_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withLogtype($request->get('log_module'))
+					->withTrtype($request->get('tr_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withData($data);
 	}
 }

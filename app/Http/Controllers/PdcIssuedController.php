@@ -36,7 +36,7 @@ class PdcIssuedController extends Controller
 		
 		$bacnts = DB::table('account_setting')->where('account_setting.voucher_type_id',19)
 						->join('account_master','account_master.id','=','account_setting.cr_account_master_id')
-						->where('account_setting.status',1)->where('account_setting.deleted_at','0000-00-00 00:00:00')
+						->where('account_setting.status',1)->whereNull('deleted_at')
 						->select('account_setting.cr_account_master_id','account_master.master_name')
 						->first();
 						
@@ -116,4 +116,6 @@ class PdcIssuedController extends Controller
 		}
 	}
 }
+
+
 

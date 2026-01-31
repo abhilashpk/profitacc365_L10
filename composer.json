@@ -40,9 +40,6 @@
     },
     "classmap": [
       "app/stimulsoft"
-    ],
-    "files": [
-      "app/stimulsoft/helper.php"
     ]
   },
   "autoload-dev": {

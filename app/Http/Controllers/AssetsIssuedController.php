@@ -26,7 +26,7 @@ class AssetsIssuedController extends Controller
 						->join('employee AS E', function($join) {
 							$join->on('E.id','=','assets_issued.employee_id');
 						})
-						->where('assets_issued.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('assets_issued.*','E.name AS employee')
 						->get();
 		return view('body.assetsissued.index')
@@ -39,7 +39,7 @@ class AssetsIssuedController extends Controller
 	public function add() {
 
 		$data = array();
-		$employee = DB::table('employee')->where('status',1)->where('duty_status','!=',-1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$employee = DB::table('employee')->where('status',1)->where('duty_status','!=',-1)->whereNull('deleted_at')->get();
 		return view('body.assetsissued.add')
 					->withEmployee($employee)
 					->withData($data);
@@ -49,10 +49,10 @@ class AssetsIssuedController extends Controller
 		try {
 			DB::table('assets_issued')
 				->insert([
-					'employee_id' => Input::get('employee_id'),
-					'name' => Input::get('name'),
-					'description' => Input::get('description'),
-					'issue_date' => (Input::get('issue_date')!='')?date('Y-m-d', strtotime(Input::get('issue_date'))):'',
+					'employee_id' => $request->get('employee_id'),
+					'name' => $request->get('name'),
+					'description' => $request->get('description'),
+					'issue_date' => ($request->get('issue_date')!='')?date('Y-m-d', strtotime($request->get('issue_date'))):'',
 					'asset_status' => 1,
 					'status' => 1
 				]);
@@ -67,7 +67,7 @@ class AssetsIssuedController extends Controller
 
 		$data = array();
 		$assetsissued = DB::table('assets_issued')->where('id',$id)->first();
-		$employee = DB::table('employee')->where('status',1)->where('duty_status','!=',-1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$employee = DB::table('employee')->where('status',1)->where('duty_status','!=',-1)->whereNull('deleted_at')->get();
 		
 		return view('body.assetsissued.edit')
 					->withDocrow($assetsissued)
@@ -79,13 +79,13 @@ class AssetsIssuedController extends Controller
 	{
 		DB::table('assets_issued')->where('id',$id)
 				->update([
-					'employee_id' => Input::get('employee_id'),
-					'name' => Input::get('name'),
-					'description' => Input::get('description'),
-					'issue_date' => (Input::get('issue_date')!='')?date('Y-m-d', strtotime(Input::get('issue_date'))):'',
-					'asset_status' => Input::get('asset_status'),
-					'received_date' => (Input::get('received_date')!='')?date('Y-m-d', strtotime(Input::get('received_date'))):'',
-					'othr_description' => Input::get('othr_description')
+					'employee_id' => $request->get('employee_id'),
+					'name' => $request->get('name'),
+					'description' => $request->get('description'),
+					'issue_date' => ($request->get('issue_date')!='')?date('Y-m-d', strtotime($request->get('issue_date'))):'',
+					'asset_status' => $request->get('asset_status'),
+					'received_date' => ($request->get('received_date')!='')?date('Y-m-d', strtotime($request->get('received_date'))):'',
+					'othr_description' => $request->get('othr_description')
 				]);
 		Session::flash('message', 'Asset issued updated successfully');
 		return redirect('assets_issued');
@@ -100,4 +100,6 @@ class AssetsIssuedController extends Controller
 	
 	
 }
+
+
 

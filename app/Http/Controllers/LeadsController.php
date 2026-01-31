@@ -47,7 +47,7 @@ class LeadsController extends Controller
 	
 	private function getLeadsCount()
 	{
-		return DB::table('leads')->where('leads.status',1)->where('leads.deleted_at','0000-00-00 00:00:00')
+		return DB::table('leads')->where('leads.status',1)->whereNull('deleted_at')
 							->join('account_master', 'account_master.id','=','leads.customer_id')
 							->count();
 	}
@@ -66,7 +66,7 @@ class LeadsController extends Controller
 					});
 				}
 				
-				$query->where('leads.status',1)->where('leads.deleted_at','0000-00-00 00:00:00');
+				$query->where('leads.status',1)->whereNull('deleted_at');
 				
 				$query->select('leads.id','leads.lead_no','leads.lead_date','leads.lead_status','account_master.master_name AS customer',
 								'salesman.name AS salesman')
@@ -173,8 +173,8 @@ class LeadsController extends Controller
 		$data = array();
 		$res = $this->voucherno->getVoucherNo('LD');
 		$vno = $res->no;
-		$employee = DB::table('employee')->where('status',1)->where('duty_status','!=',-1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$salesman = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$employee = DB::table('employee')->where('status',1)->where('duty_status','!=',-1)->whereNull('deleted_at')->get();
+		$salesman = DB::table('salesman')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.leads.add')
 					->withEmployee($employee)
 					->withSalesman($salesman)
@@ -186,11 +186,11 @@ class LeadsController extends Controller
 	{
 		$group = DB::table('account_group')->where('category','CUSTOMER')
 										->where('status',1)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->select('id','category_id','code')
 										->first();
 										
-		$rowac = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('account_id')->orderBy('id','DESC')->first();
+		$rowac = DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')->select('account_id')->orderBy('id','DESC')->first();
 		$no = intval(preg_replace('/[^0-9]+/', '', $rowac->account_id), 10);
 		$no++;
 		
@@ -231,44 +231,44 @@ class LeadsController extends Controller
 	}
 	
 	public function save() {
-		//echo date('Y-m-d',strtotime(Input::get('voucher_date')));exit;
+		//echo date('Y-m-d',strtotime($request->get('voucher_date')));exit;
 		DB::beginTransaction();
 		try { 
-			if(Input::get('customer_type')==0)
-				$custid = $this->create_account(Input::all());
+			if($request->get('customer_type')==0)
+				$custid = $this->create_account($request->all());
 			else 
-				$custid = Input::get('customer_id');
+				$custid = $request->get('customer_id');
 			
-			$lead_date = (Input::get('voucher_date')=='')?date('Y-m-d'):date('Y-m-d', strtotime(Input::get('voucher_date')));
+			$lead_date = ($request->get('voucher_date')=='')?date('Y-m-d'):date('Y-m-d', strtotime($request->get('voucher_date')));
 			$lead_id = DB::table('leads')->insertGetId([
-									'lead_no' => Input::get('lead_no'),
+									'lead_no' => $request->get('lead_no'),
 									'lead_date' => $lead_date,
 									'customer_id' => $custid,
-									'description' => Input::get('description'),
-									'lead_status' => Input::get('lead_status'),
+									'description' => $request->get('description'),
+									'lead_status' => $request->get('lead_status'),
 									'status' => 1,
 									'created_by' => Auth::User()->id,
-									'customer_type' => Input::get('customer_type'),
-									'salesman_id' => Input::get('salesman_id')
+									'customer_type' => $request->get('customer_type'),
+									'salesman_id' => $request->get('salesman_id')
 								]);
 								
 			DB::table('followups')->insert([
 									'lead_id' => $lead_id,
 									'date' => $lead_date,
-									'title' => Input::get('title'),
-									'description' => Input::get('remarks'),
+									'title' => $request->get('title'),
+									'description' => $request->get('remarks'),
 									'status' => 1,
 									'created_by' => Auth::User()->id
 								]);
 			
 			DB::table('voucher_no')
 						->where('voucher_type', 'LD')
-						->update(['no' => Input::get('lead_no') + 1]);
+						->update(['no' => $request->get('lead_no') + 1]);
 						
 			DB::commit();
 			
 			
-			if(Input::get('lead_status')=='Enquiry') 
+			if($request->get('lead_status')=='Enquiry') 
 				return redirect('customer_enquiry/add/'.$lead_id);
 			else {
 				Session::flash('message', 'Lead enquiry added successfully.');
@@ -292,7 +292,7 @@ class LeadsController extends Controller
 									'account_master.fax','account_master.email','account_master.contact_name')
 								  ->first();
 		$follow = DB::table('followups')->where('lead_id',$id)->select('id','title','description')->first();
-		$salesman = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$salesman = DB::table('salesman')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.leads.edit')
 					->withDocrow($lead)
 					->withRowfolo($follow)
@@ -316,35 +316,35 @@ class LeadsController extends Controller
 	
 	public function update($id)
 	{
-		if(Input::get('customer_type')==0) {
-			$this->update_account(Input::all());	
-			$custid = Input::get('customer_id');
+		if($request->get('customer_type')==0) {
+			$this->update_account($request->all());	
+			$custid = $request->get('customer_id');
 		} else 
-			$custid = Input::get('customer_id');
+			$custid = $request->get('customer_id');
 		
-		$lead_date = (Input::get('voucher_date')=='')?date('Y-m-d'):date('Y-m-d', strtotime(Input::get('voucher_date')));
+		$lead_date = ($request->get('voucher_date')=='')?date('Y-m-d'):date('Y-m-d', strtotime($request->get('voucher_date')));
 		$lead_id = DB::table('leads')->where('id', $id)
 							->update([
 								'lead_date' => $lead_date,
 								'customer_id' => $custid,
-								'description' => Input::get('description'),
-								'lead_status' => Input::get('lead_status'),
+								'description' => $request->get('description'),
+								'lead_status' => $request->get('lead_status'),
 								'modified_by' => Auth::User()->id,
 								'modified_at' => date('Y-m-d H:i:s'),
-								'customer_type' => Input::get('customer_type'),
-								'salesman_id' => Input::get('salesman_id')
+								'customer_type' => $request->get('customer_type'),
+								'salesman_id' => $request->get('salesman_id')
 							]);
 								
-		DB::table('followups')->where('id',Input::get('followup_id'))
+		DB::table('followups')->where('id',$request->get('followup_id'))
 							->update([
 								'date' => $lead_date,
-								'title' => Input::get('title'),
-								'description' => Input::get('remarks'),
+								'title' => $request->get('title'),
+								'description' => $request->get('remarks'),
 								'modified_by' => Auth::User()->id,
 								'modified_at' => date('Y-m-d H:i:s')
 							]);
 							
-		if(Input::get('lead_status')=='Enquiry') 
+		if($request->get('lead_status')=='Enquiry') 
 			return redirect('customer_enquiry/add/'.$id);
 		else {
 			Session::flash('message', 'Lead enquiry updated successfully');
@@ -367,7 +367,7 @@ class LeadsController extends Controller
 								  ->select('leads.*','account_master.master_name','account_master.address','account_master.phone',
 									'account_master.fax','account_master.email','account_master.contact_name')
 								  ->first();
-		$follow = DB::table('followups')->where('lead_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('date','DESC')->get();
+		$follow = DB::table('followups')->where('lead_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('date','DESC')->get();
 		return view('body.leads.followup')
 					->withDocrow($lead)
 					->withFollos($follow)
@@ -376,12 +376,12 @@ class LeadsController extends Controller
 	
 	public function ajaxSaveFollowup()
 	{
-		$date = (Input::get('date')=='')?date('Y-m-d'):date('Y-m-d', strtotime(Input::get('date')));
+		$date = ($request->get('date')=='')?date('Y-m-d'):date('Y-m-d', strtotime($request->get('date')));
 		DB::table('followups')->insert([
-									'lead_id' => Input::get('lead_id'),
+									'lead_id' => $request->get('lead_id'),
 									'date' => $date,
-									'title' => Input::get('title'),
-									'description' => Input::get('description'),
+									'title' => $request->get('title'),
+									'description' => $request->get('description'),
 									'status' => 1,
 									'created_by' => Auth::User()->id
 								]);
@@ -408,12 +408,12 @@ class LeadsController extends Controller
 	
 	public function ajaxUpdateFollowup()
 	{
-		$date = (Input::get('date')=='')?date('Y-m-d'):date('Y-m-d', strtotime(Input::get('date')));
-		DB::table('followups')->where('id',Input::get('id'))
+		$date = ($request->get('date')=='')?date('Y-m-d'):date('Y-m-d', strtotime($request->get('date')));
+		DB::table('followups')->where('id',$request->get('id'))
 							->update([
 									'date' => $date,
-									'title' => Input::get('title'),
-									'description' => Input::get('description'),
+									'title' => $request->get('title'),
+									'description' => $request->get('description'),
 									'modified_by' => Auth::User()->id,
 									'modified_at' => date('Y-m-d H:i:s')
 								]);
@@ -428,4 +428,6 @@ class LeadsController extends Controller
 	}
 	
 }
+
+
 

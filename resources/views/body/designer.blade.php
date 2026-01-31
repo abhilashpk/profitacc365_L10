@@ -55,9 +55,11 @@
 
 <script type="text/javascript">
 (function () {
-  var HANDLER_URL = "{{ url('stimulsoftV2/sti-handler.php') }}";
+  var HANDLER_URL = "{{ url('stimulsoftV2/handler') }}";
+  var SAVE_URL = "{{ url('designer/save') }}";
   var LICENSE_URL = "{{ url('/stimulsoftV2/license') }}";
   var DEFAULT_MRT = "{{ asset('stimulsoftV2/reports/'.$view) }}";
+  var DEFAULT_NAME = "{{ pathinfo($view, PATHINFO_FILENAME) }}";
 
   /* set global adapter URL early */
   if (window.Stimulsoft && Stimulsoft.StiOptions) {
@@ -80,7 +82,7 @@
   options.appearance.fullScreenMode = true;
   options.appearance.showTooltips = true;
   options.toolbar.showSaveButton = true;
-  options.toolbar.showSaveToServerButton = true;
+  options.toolbar.showSaveToServerButton = false;
 
   var designer = new Stimulsoft.Designer.StiDesigner(options, "StiDesigner", false);
   window.stiDesigner = designer;
@@ -110,12 +112,12 @@
   }
   modalOk.addEventListener('click', hideSavedModal);
 
-  /* perform save via custom endpoint your handler accepts */
+    /* perform save via app endpoint */
   function performSave(fileNameNoExt, callback) {
-    var payload = { action: 'SaveReport', fileName: fileNameNoExt, reportJson: designer.report.saveToJsonString() };
-    fetch(HANDLER_URL, {
+    var payload = { fileName: fileNameNoExt, report: designer.report.saveToJsonString() };
+    fetch(SAVE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': "{{ csrf_token() }}" },
       body: JSON.stringify(payload)
     }).then(function (resp) {
       return resp.text();
@@ -126,7 +128,6 @@
         showSavedModal(fileNameNoExt);
         document.title = 'Designer — ' + fileNameNoExt + '.mrt';
       } else {
-        // show modal anyway (clean minimal UI). server notice can be extended if desired.
         showSavedModal(fileNameNoExt);
       }
       if (typeof callback === 'function') callback(parsed);
@@ -135,17 +136,17 @@
       if (typeof callback === 'function') callback({ success: false, notice: err.message });
     });
   }
-
   /* designer Save: overwrite if a file is opened; otherwise prompt once */
   designer.onSaveReport = function(args, callback) {
     try {
       var rawFile = (designer.report && designer.report.reportFile) ? designer.report.reportFile : '';
       var baseName = rawFile ? rawFile.replace(/^.*[\\/]/,'').replace(/\.mrt$/i,'') : '';
+      if (DEFAULT_NAME) baseName = DEFAULT_NAME;
       if (baseName) {
         performSave(baseName, function(resp){ if (typeof callback === 'function') callback(resp); });
         return;
       }
-      var name = prompt('Enter filename to save (without extension):', 'SimpleList');
+      var name = prompt('Enter filename to save (without extension):', 'Report');
       if (!name) { if (typeof callback === 'function') callback({ success:false, notice:'Save cancelled' }); return; }
       name = name.replace(/[^a-zA-Z0-9_-]/g,'') || 'Report';
       performSave(name, function(resp){ if (typeof callback === 'function') callback(resp); });
@@ -158,7 +159,7 @@
   var btnSaveAs = document.getElementById('btnSaveAs');
   btnSaveAs.addEventListener('click', function(){
     var rawFile = (designer.report && designer.report.reportFile) ? designer.report.reportFile : '';
-    var defaultName = rawFile ? rawFile.replace(/^.*[\\/]/,'').replace(/\.mrt$/i,'') : 'SimpleList';
+    var defaultName = rawFile ? rawFile.replace(/^.*[\\/]/,'').replace(/\.mrt$/i,'') : (DEFAULT_NAME || 'SimpleList');
     var name = prompt('Save As - filename (no extension):', defaultName);
     if (!name) return;
     name = name.replace(/[^a-zA-Z0-9_-]/g,'') || 'Report';
@@ -170,3 +171,4 @@
 </script>
 </body>
 </html>
+

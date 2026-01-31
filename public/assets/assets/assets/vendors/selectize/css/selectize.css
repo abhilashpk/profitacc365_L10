@@ -210,13 +210,13 @@
   -webkit-box-shadow: none !important;
   box-shadow: none !important;
 }
-.selectize-input > input::-ms-clear {
+.selectize-input > $request->-ms-clear {
   display: none;
 }
 .selectize-input > input:focus {
   outline: none !important;
 }
-.selectize-input::after {
+.selectize-$request->after {
   content: ' ';
   display: block;
   clear: left;

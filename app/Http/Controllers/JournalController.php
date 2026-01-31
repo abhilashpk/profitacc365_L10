@@ -201,9 +201,9 @@ class JournalController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -304,7 +304,7 @@ class JournalController extends Controller
 			                   $join->on('users.id','=','journal.created_by');
 			                        })	
 			                    ->where('journal.status', 1)
-			                    ->where('journal.deleted_at', '0000-00-00 00:00:00')		 
+			                    ->whereNull('deleted_at')		 
 			                    ->select('journal.*','users.name')->first();
 				$id=$data['jvrow']->id;					
 			    $data['jerow'] = $this->journal->findJEdata($id);
@@ -528,9 +528,9 @@ class JournalController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -629,7 +629,7 @@ class JournalController extends Controller
 		  $join->on('users.id','=','journal.modify_by');
 			   })	
 		   ->where('journal.status', 1)
-		   ->where('journal.deleted_at', '0000-00-00 00:00:00')		 
+		   ->whereNull('deleted_at')		 
 		   ->select('journal.*','users.name')->first();
 		   
           $data['jerow'] = $this->journal->findJEdata($id);
@@ -1055,9 +1055,9 @@ class JournalController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -1191,9 +1191,9 @@ class JournalController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -1221,7 +1221,7 @@ class JournalController extends Controller
 	private function saveRecurringJV($attributes) { //echo '<pre>';print_r($attributes);exit;
 		
 		$jvset = DB::table('account_setting')->where('voucher_type_id', 16)->where('status',1)
-											 ->where('deleted_at','0000-00-00 00:00:00')
+											 ->whereNull('deleted_at')
 											 ->where('department_id',0)->select('id','voucher_no')->first();
 		
 		for ($key = 0; $key < $attributes['rcperiod']; $key++) {
@@ -1278,7 +1278,7 @@ class JournalController extends Controller
 					$attributes['vno'] = $jvset->voucher_no;
 				}
 			}
-			$inv = DB::table('journal')->where('voucher_no',$attributes['voucher_no'])->where('voucher_type','JV')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+			$inv = DB::table('journal')->where('voucher_no',$attributes['voucher_no'])->where('voucher_type','JV')->where('status',1)->whereNull('deleted_at')->count();
 		} while ($inv!=0);
 		
 		$jvid = DB::table('journal')->insertGetId([
@@ -1359,4 +1359,6 @@ class JournalController extends Controller
 		return true;
 	}
 }
+
+
 

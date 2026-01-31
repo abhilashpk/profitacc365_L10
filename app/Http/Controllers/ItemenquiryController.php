@@ -260,7 +260,7 @@ class ItemenquiryController extends Controller
 	public function getCustomerSupplier()
 	{
 		$custsupp = DB::table('account_master')->whereIn('category',['CUSTOMER','SUPPLIER'])
-					->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+					->where('status',1)->whereNull('deleted_at')
 					->select('id','master_name')
 					->orderBy('master_name','ASC')
 					->get();
@@ -323,12 +323,23 @@ class ItemenquiryController extends Controller
 	public function getForm($id) {
 		
 		//$item = $this->itemmaster->find($id);
-	$item=	DB::table('itemmaster')->join('item_unit AS IU', 'IU.itemmaster_id', '=', 'itemmaster.id')
-	                               ->where('itemmaster.id',$id)->select('itemmaster.*','IU.sell_price')
-	                               ->first();
+		if(!$id || !is_numeric($id)) {
+			return redirect()->back()->with('error', 'Please select an item.');
+		}
+
+		$item = DB::table('itemmaster')
+						->join('item_unit AS IU', 'IU.itemmaster_id', '=', 'itemmaster.id')
+						->where('itemmaster.id', $id)
+						->select('itemmaster.*', 'IU.sell_price')
+						->first();
+		if(!$item) {
+			return redirect()->back()->with('error', 'Please select an item.');
+		}
 		//echo '<pre>';print_r($item);exit;
 		return view('body.itemenquiry.getform')->withItem($item);
 	}
 	
 }
+
+
 

@@ -42,8 +42,8 @@ class DeliveryTypeController extends Controller
 		try {
 			DB::table('delivery_type')
 				->insert([
-					'code' => Input::get('code'),
-					'description' => Input::get('description')
+					'code' => $request->get('code'),
+					'description' => $request->get('description')
 				]);
 				
 			Session::flash('message', 'Delivery Type added successfully.');
@@ -70,8 +70,8 @@ class DeliveryTypeController extends Controller
 	{
 		DB::table('delivery_type')->where('id',$id)
 				->update([
-					'code' => Input::get('code'),
-					'description' => Input::get('description'),
+					'code' => $request->get('code'),
+					'description' => $request->get('description'),
 				]);
 		Session::flash('message', 'Delivery Type updated successfully');
 		return redirect('delivery_type');
@@ -79,7 +79,7 @@ class DeliveryTypeController extends Controller
 
     public function checkcode() {
 
-		$check = $this->check_delivery_code(Input::get('code'), Input::get('id'));
+		$check = $this->check_delivery_code($request->get('code'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,

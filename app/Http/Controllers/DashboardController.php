@@ -112,17 +112,17 @@ class DashboardController extends Controller
 									$join->on('E.id','=','expiry_docs.employee_id');
 								})
 								->where('E.status',1)
-								->where('E.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereBetween('expiry_docs.expiry_date', array($fromdate, $todate))
 								->count();
 								
 		$othrdoc_count = DB::table('document_master')
 								->where('status',1)
-								->where('deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->whereBetween('expiry_date', array($fromdate, $todate))
 								->count();
-		$pdcr_count=DB::table('pdc_received')->where('pdc_received.status',0)->where('pdc_received.deleted_at','0000-00-00 00:00:00')->count();	
-		$pdci_count=DB::table('pdc_issued')->where('pdc_issued.status',0)->where('pdc_issued.deleted_at','0000-00-00 00:00:00')->count();
+		$pdcr_count=DB::table('pdc_received')->where('pdc_received.status',0)->whereNull('deleted_at')->count();	
+		$pdci_count=DB::table('pdc_issued')->where('pdc_issued.status',0)->whereNull('deleted_at')->count();
 		$country = $this->country->activeCountryList();
 		$area = $this->area->activeAreaList();
 		$salesmanid = $this->salesman->activeSalesmanList();
@@ -130,8 +130,8 @@ class DashboardController extends Controller
 		##PENDING DOCS#########
 		$qtno = $sono = null;
 		if($parameter1->doc_approve==1 || $parameter1->adcd_dashboard==1) { //ADVANCED DASHBOARD....
-			$qtno = DB::table('quotation_sales')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('doc_status',0)->count();
-			$sono = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('doc_status',0)->count();
+			$qtno = DB::table('quotation_sales')->where('status',1)->whereNull('deleted_at')->where('doc_status',0)->count();
+			$sono = DB::table('sales_order')->where('status',1)->whereNull('deleted_at')->where('doc_status',0)->count();
 			
 			$details = $this->company->getCrmDashboardData();
 			$view = 'adcddashboardset'; //crmdashboard, dashboard1, newdashboard1
@@ -144,13 +144,13 @@ class DashboardController extends Controller
 			//-----GET SALE DATA--------
 			$result = $this->getSalesData();
 			
-			/* $acrows = DB::table('account_setting')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			/* $acrows = DB::table('account_setting')->where('status',1)->whereNull('deleted_at')
 											->where('voucher_type_id',3)->select('id','voucher_name','is_cash_voucher')->get();
 			$result = $this->get_sales_data($acrows); */	
 			
 			//-----GET PURCHASE DATA--------
 			$pur_result = $this->getPurchaseData();
-			/* $acrows = DB::table('account_setting')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			/* $acrows = DB::table('account_setting')->where('status',1)->whereNull('deleted_at')
 											->where('voucher_type_id',1)->select('id','voucher_name','is_cash_voucher')->get();
 			$pur_result = $this->get_purchase_data($acrows); */
 			
@@ -252,7 +252,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 					->join('account_master AS AM', function($join) {
 						$join->on('AM.id', '=', 'PE.account_id');
 					})
-					->where('payment_voucher.status',0)->where('payment_voucher.deleted_at','0000-00-00 00:00:00')
+					->where('payment_voucher.status',0)->whereNull('payment_voucher.deleted_at')
 					->select('payment_voucher.id','payment_voucher.voucher_no','payment_voucher.voucher_date',
 							'payment_voucher.debit AS amount',
 							DB::raw("(SELECT account_master.master_name FROM payment_voucher_entry 
@@ -270,7 +270,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 		//echo Session::get('salesman_id');
 	// 	if($this->cus_status->is_active==1) {
 						
-	// 	$events = DB::table('crm_followup')->where('crm_followup.status','<',4)->where('crm_followup.deleted_at','0000-00-00 00:00:00')->where('crm_followup.status','!=',1)
+	// 	$events = DB::table('crm_followup')->where('crm_followup.status','<',4)->whereNull('deleted_at')->where('crm_followup.status','!=',1)
 	// 								->join('account_master','account_master.id', '=', 'crm_followup.customer_id')
 	// 								->whereBetween('crm_followup.next_date',[ date('Y').'-'.date('m').'-01', date('Y-m-t', strtotime(date('Y-m-d'))) ])
 	// 								->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
@@ -281,7 +281,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	// 		$arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col[$i]];
 	// 	}
 	// 	}else{
-	// $events = DB::table('crm_followup')->where('crm_followup.status','<',4)->where('crm_followup.deleted_at','0000-00-00 00:00:00')
+	// $events = DB::table('crm_followup')->where('crm_followup.status','<',4)->whereNull('deleted_at')
 	// 								->join('account_master','account_master.id', '=', 'crm_followup.customer_id')
 	// 								->whereBetween('crm_followup.next_date',[ date('Y').'-'.date('m').'-01', date('Y-m-t', strtotime(date('Y-m-d'))) ])
 	// 								->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
@@ -468,7 +468,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	private function get_sales_data($results)
 	{
 		foreach($results as $row) {
-			$invdata[$row->voucher_name] = DB::table('sales_invoice')->where('voucher_id',$row->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			$invdata[$row->voucher_name] = DB::table('sales_invoice')->where('voucher_id',$row->id)->where('status',1)->whereNull('deleted_at')
 									->whereBetween('voucher_date', [$this->acsettings->from_date, $this->acsettings->to_date])
 									->select(DB::raw('SUM(net_total) AS amount'), DB::raw('MONTH(voucher_date) month'))
 									->groupBy('month')->get();
@@ -483,7 +483,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	private function get_purchase_data($results)
 	{
 		foreach($results as $row) {
-			$invdata[$row->voucher_name] = DB::table('purchase_invoice')->where('voucher_id',$row->id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			$invdata[$row->voucher_name] = DB::table('purchase_invoice')->where('voucher_id',$row->id)->where('status',1)->whereNull('deleted_at')
 									->whereBetween('voucher_date', [$this->acsettings->from_date, $this->acsettings->to_date])
 									->select(DB::raw('SUM(net_amount) AS amount'), DB::raw('MONTH(voucher_date) month'))
 									->groupBy('month')->get();
@@ -497,14 +497,14 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	private function get_customer_data() 
 	{
 		$custarr = DB::table('account_master')->where('status',1)->where('category','CUSTOMER')
-													->where('deleted_at','0000-00-00 00:00:00')
+													->whereNull('deleted_at')
 													->whereNotIn('master_name',['CASH CUSTOMER','CASH CUSTOMERS'])
 													->select('master_name','cl_balance')->orderBy('cl_balance','DESC')
 													//->skip(0)->take(7)
 													->get();
 													
 		/* $amt = DB::table('account_master')->where('status',1)->where('category','CUSTOMER')
-													->where('deleted_at','0000-00-00 00:00:00')
+													->whereNull('deleted_at')
 													->whereNotIn('master_name',['CASH CUSTOMER','CASH CUSTOMERS'])
 													->select(DB::raw('COUNT(id) AS nos'),DB::raw('SUM(cl_balance) AS amount'))
 													->orderBy('cl_balance','DESC')->first(); */
@@ -523,7 +523,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	private function get_supplier_data() 
 	{
 		$suparr = DB::table('account_master')->where('status',1)->where('category','SUPPLIER')
-													->where('deleted_at','0000-00-00 00:00:00')
+													->whereNull('deleted_at')
 													->select('master_name','cl_balance')->orderBy('cl_balance','DESC')
 													->get();
 													
@@ -533,15 +533,15 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	
 	private function get_top_product() {
 		
-		$total = DB::table('item_unit')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$total = DB::table('item_unit')->where('status',1)->whereNull('item_unit.deleted_at')
 									->where('is_baseqty',1)->select(DB::raw('SUM(issued_qty) AS quantity'))->first();
 									
 		$items = DB::table('itemmaster')->join('item_unit AS IU', function($join) {
 								$join->on('IU.itemmaster_id','=','itemmaster.id');
 							})
-							->where('itemmaster.status',1)->where('itemmaster.deleted_at','0000-00-00 00:00:00')
+							->where('itemmaster.status',1)->whereNull('itemmaster.deleted_at')
 							->where('IU.is_baseqty',1)
-							->where('IU.status',1)->where('IU.deleted_at','0000-00-00 00:00:00')
+							->where('IU.status',1)->whereNull('IU.deleted_at')
 							->select('itemmaster.description','IU.issued_qty AS quantity')
 							->orderBy('IU.issued_qty','DESC')->skip(0)->take(5)->get();
 		$itemarr = [];							
@@ -560,15 +560,15 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	
 	private function get_sales_outstanding() {
 		
-		$sales = DB::table('sales_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$sales = DB::table('sales_invoice')->where('status',1)->whereNull('deleted_at')
 								->whereBetween('voucher_date', [$this->acsettings->from_date, $this->acsettings->to_date])
 								->select(DB::raw('SUM(net_total) AS net_total'),
 									DB::raw("(SELECT SUM(net_total) FROM sales_invoice 
-											  WHERE amount_transfer=0 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS unpaid"),
+											  WHERE amount_transfer=0 AND status=1 AND deleted_at IS NULL) AS unpaid"),
 									DB::raw("(SELECT SUM(net_total) FROM sales_invoice 
-											  WHERE amount_transfer=2 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS half_paid"),
+											  WHERE amount_transfer=2 AND status=1 AND deleted_at IS NULL) AS half_paid"),
 									DB::raw("(SELECT SUM(balance_amount) FROM sales_invoice 
-											  WHERE amount_transfer=2 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS balance")
+											  WHERE amount_transfer=2 AND status=1 AND deleted_at IS NULL) AS balance")
 											  
 								)
 								->first();
@@ -578,15 +578,15 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	
 	private function get_purchase_outstanding() {
 		
-		$purchase = DB::table('purchase_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$purchase = DB::table('purchase_invoice')->where('status',1)->whereNull('deleted_at')
 								->whereBetween('voucher_date', [$this->acsettings->from_date, $this->acsettings->to_date])
 								->select(DB::raw('SUM(net_amount) AS net_amount'),
 									DB::raw("(SELECT SUM(net_amount) FROM purchase_invoice 
-											  WHERE amount_transfer=0 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS unpaid"),
+											  WHERE amount_transfer=0 AND status=1 AND deleted_at IS NULL) AS unpaid"),
 									DB::raw("(SELECT SUM(net_amount) FROM purchase_invoice 
-											  WHERE amount_transfer=2 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS half_paid"),
+											  WHERE amount_transfer=2 AND status=1 AND deleted_at IS NULL) AS half_paid"),
 									DB::raw("(SELECT SUM(balance_amount) FROM purchase_invoice 
-											  WHERE amount_transfer=2 AND status=1 AND deleted_at='0000-00-00 00:00:00') AS balance")
+											  WHERE amount_transfer=2 AND status=1 AND deleted_at IS NULL) AS balance")
 											  
 								)
 								->first();
@@ -600,12 +600,12 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	$salesman = DB::table('sales_invoice')->join('salesman AS S', function($join) {
 								$join->on('S.id','=','sales_invoice.salesman_id');
 							})
-							->where('sales_invoice.status',1)->where('sales_invoice.deleted_at','0000-00-00 00:00:00')
-							->where('S.status',1)->where('S.deleted_at','0000-00-00 00:00:00')
+							->where('sales_invoice.status',1)->whereNull('sales_invoice.deleted_at')
+							->where('S.status',1)->whereNull('S.deleted_at')
 							->whereBetween('sales_invoice.voucher_date', [$this->acsettings->from_date, $this->acsettings->to_date])
 							->select('S.name',DB::raw('COUNT(sales_invoice.id) AS sales_count'),
 								DB::raw("(SELECT COUNT(id) FROM sales_invoice 
-											  WHERE status=1 AND deleted_at='0000-00-00 00:00:00') AS count")
+											  WHERE status=1 AND sales_invoice.deleted_at IS NULL) AS count")
 							)
 							->groupBy('sales_invoice.salesman_id', 'S.name')->skip(0)->take(5)
 							->orderBy('sales_count','DESC')->get();
@@ -620,14 +620,14 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 		return $SMarr;
 	}
 	// public function getCrmInfo() {
-	// 	/* $date = date('Y-m', strtotime(Input::get('month')));
+	// 	/* $date = date('Y-m', strtotime($request->get('month')));
 	// 	$enddate = date('Y-m-t', strtotime($date)); */
 	// 	$arrEvnt = [];
 	// 	//Session::put('salesman_id',$srec->id);
 		
-	// 	 $events = DB::table('crm_followup')->where('crm_followup.status','<',4)->where('crm_followup.deleted_at','0000-00-00 00:00:00')
+	// 	 $events = DB::table('crm_followup')->where('crm_followup.status','<',4)->whereNull('deleted_at')
 	// 								->join('account_master','account_master.id', '=', 'crm_followup.customer_id')
-	// 								->whereBetween('crm_followup.next_date',[ Input::get('start'), Input::get('end') ])
+	// 								->whereBetween('crm_followup.next_date',[ $request->get('start'), $request->get('end') ])
 	// 								->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
 	// 								->where('crm_followup.is_open',0)
 	// 								->select('account_master.master_name','account_master.id','crm_followup.next_date')
@@ -655,19 +655,19 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	}
 	public function settingUpdate() {
 		
-		if(Input::get('id')!='') {
+		if($request->get('id')!='') {
 			
 			
-			DB::table('dashboard_details')->where('id', Input::get('id'))
-						->update([ 'code' => Input::get('file')
-						           //'position' => Input::get('pos')
+			DB::table('dashboard_details')->where('id', $request->get('id'))
+						->update([ 'code' => $request->get('file')
+						           //'position' => $request->get('pos')
 								 ]);
 		} else { 
 			DB::table('dashboard_details')
 						->insert([ 
 								   
-								   'code' => Input::get('file')
-								   //'position' => Input::get('pos')
+								   'code' => $request->get('file')
+								   //'position' => $request->get('pos')
 								 ]);
 			}
 		
@@ -691,18 +691,18 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	}
 	public function advsettingUpdate() {
 		
-		if(Input::get('id')!='') {
+		if($request->get('id')!='') {
 			
 			
-			DB::table('advdashboard_details')->where('id', Input::get('id'))
-						->update([ 'code' => Input::get('file')
+			DB::table('advdashboard_details')->where('id', $request->get('id'))
+						->update([ 'code' => $request->get('file')
 						           
 								 ]);
 		} else { 
 			DB::table('advdashboard_details')
 						->insert([ 
 								   
-								   'code' => Input::get('file')
+								   'code' => $request->get('file')
 								  
 								 ]);
 			}
@@ -777,7 +777,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 							$join->on('D.id','=','document_master.department_id');
 						})
 						->where('document_master.status',1)
-						->where('document_master.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->whereBetween('document_master.expiry_date', array($fromdate, $todate))
 						->select('document_master.name','document_master.code','D.department_name','document_master.expiry_date')
 						->get();
@@ -794,7 +794,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 						->where('account_master.cl_balance','!=',0)
 						->where('account_transaction.voucher_type','!=','OBD')
 						->where('account_transaction.status',1)
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('account_transaction.deleted_at')
 						->where( function ($query) use ($date_from, $date_to) {
 							$query->whereBetween('account_transaction.invoice_date', array($date_from, $date_to))
 								  ->orWhere('account_transaction.voucher_type','OB');
@@ -818,7 +818,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 						->where('account_master.cl_balance','!=',0)
 						->where('account_transaction.voucher_type','!=','OBD')
 						->where('account_transaction.status',1)
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('account_transaction.deleted_at')
 						->where( function ($query) use ($date_from, $date_to) {
 							$query->whereBetween('account_transaction.invoice_date', array($date_from, $date_to))
 								  ->orWhere('account_transaction.voucher_type','OB');
@@ -874,4 +874,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 	}
 
 }
+
+
+
 

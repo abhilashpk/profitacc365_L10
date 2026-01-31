@@ -393,18 +393,18 @@ thead
 												$subtotal = $quantity * $item['opn_cost'];
 												$total += $subtotal;
 												$qtytotal += $item['quantity'];
-												$mtotal += $item['mpqty'];
-												$p1total += $item['p1qty'];
-												$p2total += $item['p2qty'];
+												$mtotal += (float)($item['mpqty'] ?? 0);
+												$p1total += (float)($item['p1qty'] ?? 0);
+												$p2total += (float)($item['p2qty'] ?? 0);
 											} else {
 												$quantity = $item['quantity'];
 												$cost = $item['cost_avg'];
 												$subtotal = $item['quantity'] * $item['cost_avg'];
 												$total += $subtotal;
 												$qtytotal += $quantity;
-												$mtotal += $item['mpqty'];
-												$p1total += $item['p1qty'];
-												$p2total += $item['p2qty'];
+												$mtotal += (float)($item['mpqty'] ?? 0);
+												$p1total += (float)($item['p1qty'] ?? 0);
+												$p2total += (float)($item['p2qty'] ?? 0);
 											}
 										?>
 										<tr>

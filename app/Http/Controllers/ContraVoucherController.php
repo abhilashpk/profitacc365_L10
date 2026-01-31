@@ -25,7 +25,7 @@ class ContraVoucherController extends Controller
 	public function index() {
 		$datas = DB::table('contra_voucher')
 		         ->join('contra_voucher_details as CVD','CVD.contra_voucher_id','=','contra_voucher.id')
-		        ->where('contra_voucher.status',1)->where('contra_voucher.deleted_at','0000-00-00 00:00:00')->where('CVD.deleted_at','0000-00-00 00:00:00')
+		        ->where('contra_voucher.status',1)->whereNull('deleted_at')->whereNull('deleted_at')
 		        ->select('contra_voucher.voucher_no','contra_voucher.voucher_date','contra_voucher.voucher_type','contra_voucher.id','contra_voucher.amount','CVD.description','CVD.reference')
 		        ->groupBy('CVD.contra_voucher_id')->get();
 		        
@@ -45,14 +45,14 @@ class ContraVoucherController extends Controller
         $vchrdata = DB::table('account_setting')
                         ->join('account_master as AM','AM.id','=','account_setting.bank_account_id')
                         ->join('account_master as AM2','AM2.id','=','account_setting.cash_account_id')
-                        ->where('account_setting.status',1)->where('account_setting.deleted_at','0000-00-00 00:00:00')->where('account_setting.voucher_type_id',27)
+                        ->where('account_setting.status',1)->whereNull('deleted_at')->where('account_setting.voucher_type_id',27)
                         ->select('AM.master_name as bank','AM2.master_name as cash','account_setting.bank_account_id','account_setting.cash_account_id',
                         'account_setting.voucher_no')->first();
         //echo '<pre>';print_r($vchrdata);exit;
-        $bank = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','BANK')->select('id','account_id','master_name')->get();
+        $bank = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','BANK')->select('id','account_id','master_name')->get();
         
-        $cash = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CASH')->select('id','account_id','master_name')->get();
-        $lastid= DB::table('contra_voucher')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->first();
+        $cash = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CASH')->select('id','account_id','master_name')->get();
+        $lastid= DB::table('contra_voucher')->whereNull('deleted_at')->orderBy('id','DESC')->first();
         
         $prints = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
@@ -74,7 +74,7 @@ class ContraVoucherController extends Controller
 
 		$cnt = 0;
 		do {
-			$jvset = DB::table('account_setting')->where('voucher_type_id', 27)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('prefix','is_prefix','voucher_no')->first();//echo '<pre>';print_r($jvset);exit;
+			$jvset = DB::table('account_setting')->where('voucher_type_id', 27)->where('status',1)->whereNull('deleted_at')->select('prefix','is_prefix','voucher_no')->first();//echo '<pre>';print_r($jvset);exit;
 			if($jvset) {
 				if($jvset->is_prefix==0) {
 					$newattributes['voucher_no'] = $jvset->voucher_no + $cnt;
@@ -87,9 +87,9 @@ class ContraVoucherController extends Controller
 			}
             //JAN25
 			if(isset($attributes['department_id']) && Session::get('department')==1)
-				$inv = DB::table('contra_voucher')->where('voucher_no',$newattributes['voucher_no'])->where('department_id', $attributes['department_id'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+				$inv = DB::table('contra_voucher')->where('voucher_no',$newattributes['voucher_no'])->where('department_id', $attributes['department_id'])->where('status',1)->whereNull('deleted_at')->count();
 			else
-				$inv = DB::table('contra_voucher')->where('voucher_no',$newattributes['voucher_no'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+				$inv = DB::table('contra_voucher')->where('voucher_no',$newattributes['voucher_no'])->where('status',1)->whereNull('deleted_at')->count();
 
 			$cnt++;
 		} while ($inv!=0);
@@ -176,13 +176,13 @@ class ContraVoucherController extends Controller
         $items = DB::table('contra_voucher_details')
                     ->join('account_master as AM','AM.id','=','contra_voucher_details.account_id')
                     ->where('contra_voucher_details.contra_voucher_id',$id)
-                    ->where('contra_voucher_details.deleted_at','0000-00-00 00:00:00')
+                    ->whereNull('deleted_at')
                     ->select('contra_voucher_details.*','AM.master_name')
                     ->orderBy('contra_voucher_details.id','ASC')
                     ->get();
 
-        $bank = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','BANK')->select('id','account_id','master_name')->get();
-        $cash = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CASH')->select('id','account_id','master_name')->get();
+        $bank = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','BANK')->select('id','account_id','master_name')->get();
+        $cash = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CASH')->select('id','account_id','master_name')->get();
         $prints = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
 							->where('report_view.code','CV')
@@ -410,11 +410,13 @@ class ContraVoucherController extends Controller
 	
 	public function checkVchrNo() {
 
-		$check = DB::table('contra_voucher')->where('voucher_no', Input::get('voucher_no'))->where('deleted_at','0000-00-00 00:00:00')->count();
+		$check = DB::table('contra_voucher')->where('voucher_no', $request->get('voucher_no'))->whereNull('deleted_at')->count();
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array('valid' => $isAvailable));
 	}
 	
 	
 }
+
+
 

@@ -592,7 +592,7 @@ class ProductionRepository extends AbstractValidator implements ProductionInterf
 						  $join->on('iu.itemmaster_id','=','im.id');
 					  })
 					  ->where('poi.status',1)
-					  ->where('poi.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
 					  ->orderBY('poi.id')
 					  ->get();
@@ -617,7 +617,7 @@ class ProductionRepository extends AbstractValidator implements ProductionInterf
 					  })
 					  ->where('poi.status',1)
 					  ->whereIn('poi.is_transfer',[0,2])
-					  ->where('poi.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
 					  ->orderBY('poi.id')
 					  ->get();
@@ -726,7 +726,7 @@ class ProductionRepository extends AbstractValidator implements ProductionInterf
 									   $join->on('U.id','=','PI.unit_id');
 								   })
 								   ->where('PI.status',1)
-								   ->where('PI.deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->select('PI.*','production.id','IM.item_code','U.unit_name')
 								   ->get();
 								   
@@ -886,9 +886,9 @@ class ProductionRepository extends AbstractValidator implements ProductionInterf
 						->where('production.id', $id)
 						->where('D.invoice_type','DO')
 						->where('QSI.status',1)
-						->where('QSI.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('D.status',1)
-						->where('D.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('D.*')
 						->get();
 	}
@@ -919,7 +919,7 @@ class ProductionRepository extends AbstractValidator implements ProductionInterf
 					  })
 					  ->where('poi.status',1)
 					  ->whereIn('poi.is_transfer',[0,2])
-					  ->where('poi.deleted_at', '0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
 					  ->orderBY('poi.id')
 					  ->groupBy('poi.id')
@@ -927,4 +927,6 @@ class ProductionRepository extends AbstractValidator implements ProductionInterf
 					  
 	}
 }
+
+
 

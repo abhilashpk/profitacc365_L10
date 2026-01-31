@@ -20,14 +20,14 @@ class MsWorkorderController extends Controller
 	}
 	
 	public function index() {
-		$orders = [];//DB::table('ms_workorder')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$orders = [];//DB::table('ms_workorder')->whereNull('deleted_at')->orderBy('id','DESC')->get();
 		return view('body.msworkorder.index')
 					->withOrders($orders);
 	}
 	
 	private function getOrderCount()
 	{
-		return DB::table('ms_workorder')->where('ms_workorder.deleted_at','0000-00-00 00:00:00')
+		return DB::table('ms_workorder')->whereNull('deleted_at')
 								->join('ms_customer', 'ms_customer.id', '=', 'ms_workorder.customer_id')
 								//->leftJoin('ms_technician', 'ms_technician.id', '=', 'ms_workorder.technician_id')
 								->join('ms_worktype', 'ms_worktype.id', '=', 'ms_workorder.type_id')
@@ -50,7 +50,7 @@ class MsWorkorderController extends Controller
 			
 		}
 				
-		$qry->where('ms_workorder.deleted_at','0000-00-00 00:00:00');
+		$qry->whereNull('deleted_at');
 		$qry->select('ms_workorder.id','ms_workorder.wo_no','ms_workorder.creation_datetime',
 					'ms_workorder.status','ms_customer.name AS customer','ms_workorder.technician_id AS technician',
 					'ms_worktype.name AS wo_type')
@@ -136,9 +136,9 @@ class MsWorkorderController extends Controller
 	
 	public function add($id = null) {
 
-		$location = DB::table('ms_location')->where('deleted_at','0000-00-00 00:00:00')->get();
-		$wotype = DB::table('ms_worktype')->where('deleted_at','0000-00-00 00:00:00')->get();
-		$technician = DB::table('ms_technician')->where('deleted_at','0000-00-00 00:00:00')->get();
+		$location = DB::table('ms_location')->whereNull('deleted_at')->get();
+		$wotype = DB::table('ms_worktype')->whereNull('deleted_at')->get();
+		$technician = DB::table('ms_technician')->whereNull('deleted_at')->get();
 		$werow = '';
 		if($id) {
 			
@@ -168,27 +168,27 @@ class MsWorkorderController extends Controller
 		try {
 			$id = DB::table('ms_workorder')
 					->insertGetId([
-						'creation_datetime' => date('Y-m-d H:i', strtotime(Input::get('creation_datetime'))),
-						'job_id' => Input::get('job_id'),
-						'location' => Input::get('location'), //'location_id' => Input::get('location_id'),
-						'customer_id' => Input::get('customer_id'),
-						'description' => Input::get('description'),
-						'type_id' => Input::get('wo_type'),
-						'technician_id' => implode(',', Input::get('technician_id')),
-						'total_time' => Input::get('total_time'),
-						'status' => Input::get('status'),
-						'remarks' => Input::get('remarks'),
-						'closed_datetime' => (Input::get('closed_datetime')!='')?date('Y-m-d H:i', strtotime(Input::get('closed_datetime'))):'0000-00-00 00:00:00',
+						'creation_datetime' => date('Y-m-d H:i', strtotime($request->get('creation_datetime'))),
+						'job_id' => $request->get('job_id'),
+						'location' => $request->get('location'), //'location_id' => $request->get('location_id'),
+						'customer_id' => $request->get('customer_id'),
+						'description' => $request->get('description'),
+						'type_id' => $request->get('wo_type'),
+						'technician_id' => implode(',', $request->get('technician_id')),
+						'total_time' => $request->get('total_time'),
+						'status' => $request->get('status'),
+						'remarks' => $request->get('remarks'),
+						'closed_datetime' => ($request->get('closed_datetime')!='')?date('Y-m-d H:i', strtotime($request->get('closed_datetime'))):'0000-00-00 00:00:00',
 						'created_at' => date('Y-m-d h:i:s'),
-						'enquiry_id'	=> Input::get('enquiry_id'),
-						'reference_no'	=> Input::get('reference_no')
+						'enquiry_id'	=> $request->get('enquiry_id'),
+						'reference_no'	=> $request->get('reference_no')
 					]);
 				
 			if($id) {
 				$wono = 100+$id;
 				DB::table('ms_workorder')->where('id',$id)->update(['wo_no' => 'WO'.$wono]);
-				$timein = Input::get('time_in');
-				$timeout = Input::get('time_out');
+				$timein = $request->get('time_in');
+				$timeout = $request->get('time_out');
 				
 				foreach($timein as $key => $val) {
 					
@@ -199,8 +199,8 @@ class MsWorkorderController extends Controller
 							]);
 				}
 				
-				if(Input::get('enquiry_id')!='') {
-					DB::table('ms_workenquiry')->where('id', Input::get('enquiry_id'))->update(['status' => 1, 'is_transfer' => 1]);
+				if($request->get('enquiry_id')!='') {
+					DB::table('ms_workenquiry')->where('id', $request->get('enquiry_id'))->update(['status' => 1, 'is_transfer' => 1]);
 				}
 			}
 		
@@ -225,10 +225,10 @@ class MsWorkorderController extends Controller
 							'ms_jobmaster.name AS jobname','ms_workenquiry.enq_no','ms_workorder.location')
 						->first();
 		//echo '<pre>';print_r($worow);exit;	
-		$times = DB::table('ms_wo_time')->where('workorder_id', $id)->where('deleted_at','0000-00-00 00:00:00')->get();
-		//$location = DB::table('ms_location')->where('deleted_at','0000-00-00 00:00:00')->get();
-		$wotype = DB::table('ms_worktype')->where('deleted_at','0000-00-00 00:00:00')->get();
-		$technician = DB::table('ms_technician')->where('deleted_at','0000-00-00 00:00:00')->get();
+		$times = DB::table('ms_wo_time')->where('workorder_id', $id)->whereNull('deleted_at')->get();
+		//$location = DB::table('ms_location')->whereNull('deleted_at')->get();
+		$wotype = DB::table('ms_worktype')->whereNull('deleted_at')->get();
+		$technician = DB::table('ms_technician')->whereNull('deleted_at')->get();
 		
 		return view('body.msworkorder.edit')
 					->withWorow($worow)
@@ -240,28 +240,28 @@ class MsWorkorderController extends Controller
 	}
 	
 	public function update($id)
-	{	//echo '<pre>';print_r(Input::all());exit;
+	{	//echo '<pre>';print_r($request->all());exit;
 			DB::table('ms_workorder')
 					->where('id', $id)
 					->update([
-						'creation_datetime' => date('Y-m-d H:i', strtotime(Input::get('creation_datetime'))),
-						'job_id' => Input::get('job_id'),
-						'location' => Input::get('location'), //'location_id' => Input::get('location_id'),
-						'customer_id' => Input::get('customer_id'),
-						'description' => Input::get('description'),
-						'type_id' => Input::get('wo_type'),
-						'technician_id' => implode(',', Input::get('technician_id')),
-						'total_time' => Input::get('total_time'),
-						'status' => Input::get('status'),
-						'remarks' => Input::get('remarks'),
-						'closed_datetime' => (Input::get('closed_datetime')!='')?date('Y-m-d H:i', strtotime(Input::get('closed_datetime'))):'0000-00-00 00:00:00',
+						'creation_datetime' => date('Y-m-d H:i', strtotime($request->get('creation_datetime'))),
+						'job_id' => $request->get('job_id'),
+						'location' => $request->get('location'), //'location_id' => $request->get('location_id'),
+						'customer_id' => $request->get('customer_id'),
+						'description' => $request->get('description'),
+						'type_id' => $request->get('wo_type'),
+						'technician_id' => implode(',', $request->get('technician_id')),
+						'total_time' => $request->get('total_time'),
+						'status' => $request->get('status'),
+						'remarks' => $request->get('remarks'),
+						'closed_datetime' => ($request->get('closed_datetime')!='')?date('Y-m-d H:i', strtotime($request->get('closed_datetime'))):'0000-00-00 00:00:00',
 						'modified_at' => date('Y-m-d h:i:s'),
-						'reference_no'	=> Input::get('reference_no')
+						'reference_no'	=> $request->get('reference_no')
 					]);
 					
-			$timein = Input::get('time_in');
-			$timeout = Input::get('time_out');
-			$timeid = Input::get('timeid');
+			$timein = $request->get('time_in');
+			$timeout = $request->get('time_out');
+			$timeid = $request->get('timeid');
 			foreach($timeid as $key => $val) {
 				
 				if($val!='') {
@@ -280,9 +280,9 @@ class MsWorkorderController extends Controller
 				}
 			}
 		
-		if(Input::get('rem_time')!='')
+		if($request->get('rem_time')!='')
 		{
-			$arrids = explode(',', Input::get('rem_time'));
+			$arrids = explode(',', $request->get('rem_time'));
 			foreach($arrids as $val) {
 				DB::table('ms_wo_time')->where('id',$val)->update(['deleted_at' => date('Y-m-d H:i:s')]);
 			}
@@ -327,4 +327,6 @@ class MsWorkorderController extends Controller
 	}
 	
 }
+
+
 

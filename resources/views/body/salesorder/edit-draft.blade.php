@@ -90,13 +90,13 @@
 							
 							<div class="pull-right">
 							<?php if($isprint) { ?>
-							@permission('so-print')
+							@can('so-print')
 							 <a href="{{ url('sales_order/print/'.$orderrow->id.'/'.$print->id) }}" target="_blank" class="btn btn-info btn-sm">
 								<span class="btn-label">
 									<i class="fa fa-fw fa-print"></i>
 								</span>
 							 </a>
-							@endpermission
+							@endcan
 							<?php } ?>
 							</div>
                         </div>
@@ -969,7 +969,7 @@
 								<br/>
 								
 								
-								@permission('so-aprv')
+								@can('so-aprv')
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-2 control-label">Document Status</label>
                                     <div class="col-sm-10">
@@ -987,7 +987,7 @@
                                         <input type="text" class="form-control" id="comment" value="<?php echo (old('comment'))?old('comment'):$orderrow->comment; ?>" name="comment" placeholder="comment">
                                     </div>
                                 </div>
-								@endpermission
+								@endcan
 								<input type="hidden" value="<?php echo $orderrow->comment; ?>" name="comment_hd">
 								<?php if($settings->doc_approve==1) { ?>
 								<div class="form-group">

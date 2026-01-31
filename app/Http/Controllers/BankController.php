@@ -26,7 +26,7 @@ class BankController extends Controller
 
 				
 		$data = array();
-		$bank = DB::table('bank')->where('deleted_at','0000-00-00 00:00:00')->get();
+		$bank = DB::table('bank')->whereNull('deleted_at')->get();
 		//echo '<pre>';print_r($bank);exit;
 		//$banks = $this->bank->all();
 		
@@ -95,4 +95,6 @@ class BankController extends Controller
 						));
 	}
 }
+
+
 

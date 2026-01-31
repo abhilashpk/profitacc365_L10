@@ -38,7 +38,7 @@ class DivisionController extends Controller
 	}
 	
 	public function save() {
-		$this->division->create(Input::all());
+		$this->division->create($request->all());
 		Session::flash('message', 'division added successfully.');
 		return redirect('division/add');
 	}
@@ -54,7 +54,7 @@ class DivisionController extends Controller
 	
 	public function update($id)
 	{
-		$this->division->update($id, Input::all());//print_r(Input::all());exit;
+		$this->division->update($id, $request->all());//print_r($request->all());exit;
 		//Session::flash('message', 'Category updated successfully');
 		return redirect('division');
 	}
@@ -70,7 +70,7 @@ class DivisionController extends Controller
 	
 	public function checkcode() {
 
-		$check = $this->division->check_division_code(Input::get('div_code'), Input::get('id'));
+		$check = $this->division->check_division_code($request->get('div_code'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -79,7 +79,7 @@ class DivisionController extends Controller
 	
 	public function checkname() {
 
-		$check = $this->division->check_division_name(Input::get('div_name'), Input::get('id'));
+		$check = $this->division->check_division_name($request->get('div_name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,

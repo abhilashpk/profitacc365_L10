@@ -35,6 +35,7 @@
 .col-xs-1-qtr { width:5% !important; float: left; }
 .col-xs-1-half { width:10% !important; float: left; }
 .col-xs-2-half { width:20% !important; float: left; }
+ .toast-msg { position: fixed; top: 20px; right: 20px; z-index: 9999; background: #d9534f; color: #fff; padding: 10px 14px; border-radius: 4px; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 
 input[type=number]::-webkit-inner-spin-button, 
 input[type=number]::-webkit-outer-spin-button { 
@@ -182,9 +183,9 @@ input[type=number]::-webkit-outer-spin-button {
 												<option value="">Select Area...</option>
 												@foreach ($area as $ar)
 												@if($masterrow->area_id==$ar['id'])
-												{{--*/ $sel = "selected" /*--}}
+												@php $sel = "selected" @endphp
 												@else
-												{{--*/ $sel = "" /*--}}	
+												@php $sel = "" @endphp	
 												@endif
 												<option value="{{ $ar['id'] }}" {{$sel}}>{{ $ar['name'] }}</option>
 												@endforeach
@@ -233,9 +234,9 @@ input[type=number]::-webkit-outer-spin-button {
 													<option value="">Select Country...</option>
 													@foreach ($country as $con)
 													@if($masterrow->country_id==$con['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $con['id'] }}" {{$sel}}>{{ $con['name'] }}</option>
 													@endforeach
@@ -279,9 +280,9 @@ input[type=number]::-webkit-outer-spin-button {
 												<option value="">Select Salesman...</option>
 												@foreach ($salesman as $sal)
 												@if($masterrow->salesman_id==$sal['id'])
-												{{--*/ $sel = "selected" /*--}}
+												@php $sel = "selected" @endphp
 												@else
-												{{--*/ $sel = "" /*--}}	
+												@php $sel = "" @endphp	
 												@endif
 												<option value="{{ $sal['id'] }}" {{ $sel }}>{{ $sal['name'] }}</option>
 												@endforeach
@@ -308,9 +309,9 @@ input[type=number]::-webkit-outer-spin-button {
 												<option value="">Select Terms...</option>
 												@foreach ($terms as $tem)
 												@if($masterrow->terms_id==$tem['id'])
-												{{--*/ $sel = "selected" /*--}}
+												@php $sel = "selected" @endphp
 												@else
-												{{--*/ $sel = "" /*--}}	
+												@php $sel = "" @endphp	
 												@endif
 												<option value="{{ $tem['id'] }}" {{ $sel }}>{{ $tem['description'] }}</option>
 												@endforeach
@@ -327,9 +328,9 @@ input[type=number]::-webkit-outer-spin-button {
 											<option value="">Select Currency...</option>
 											@foreach ($bcurrency as $cur)
 											@if($masterrow->currency_id==$cur->id)
-											{{--*/ $sel = "selected" /*--}}
+											@php $sel = "selected" @endphp
 											@else
-											{{--*/ $sel = "" /*--}}	
+											@php $sel = "" @endphp	
 											@endif
 											<option value="{{ $cur->id }}" {{ $sel }}>{{ $cur->name }}</option>
 											@endforeach
@@ -340,7 +341,7 @@ input[type=number]::-webkit-outer-spin-button {
 								<?php if($masterrow->category == 'CUSTOMER' || $masterrow->category == 'SUPPLIER') { ?>
 								<fieldset>
 								<legend><h5>Opening Balance Details</h5></legend>
-								{{--*/ $i = 0; $num = count($opnbalance); /*--}}
+								@php $i = 0; $num = count($opnbalance); @endphp
 								<input type="hidden" id="rowNum" value="{{($num==0)?1:$num}}">
 								<input type="hidden" id="remitem" name="remove_item">
 								<div class="itemdivPrnt">
@@ -348,7 +349,7 @@ input[type=number]::-webkit-outer-spin-button {
 									<div class="itemdivChld">
 											<div>
 												<div class="col-xs-12">
-													<div class="form-group col-sm-1" style="width:5% !important;"> <span class="small">Tr. Type</span>
+													<div class="form-group col-sm-1" style="width:5% !important;"> <span class="small">Type</span>
 													<select id="trtype_1" class="form-control select2 line-tr" style="width:100%;padding:0px !important;" name="tr_type[]">
 													<option value="Dr">Dr</option>
 													<option value="Cr">Cr</option>
@@ -416,13 +417,13 @@ input[type=number]::-webkit-outer-spin-button {
 								<?php } else { ?>
 								
 								@foreach($opnbalance as $row)
-								{{--*/ $i++; /*--}}
+								@php $i++; @endphp
 									
 									<div class="itemdivChld">							
 										<div>
 											<div class="col-xs-12">
 												<div class="form-group col-sm-1" style="width:5% !important;"> 
-													<span class="small">Tr. Type</span>
+													<span class="small">Type</span>
 													<input type="hidden" name="tr_id[]" id="trid_{{$i}}" value="{{$row->id}}">
 													<select id="trtype_{{$i}}" class="form-control select2 line-tr" style="width:100%;padding:0px !important;" name="tr_type[]">
 													<option value="Dr" <?php if($row->tr_type=='Dr') echo 'selected';?>>Dr</option><option value="Cr" <?php if($row->tr_type=='Cr') echo 'selected';?>>Cr</option>
@@ -500,7 +501,7 @@ input[type=number]::-webkit-outer-spin-button {
 									<fieldset>
 									<legend><h5>Opening Balance Details</h5></legend>
 									<div class="itemdivPrntch">
-										{{--*/ $i = 0; $num = count($opnbalance); /*--}}
+										@php $i = 0; $num = count($opnbalance); @endphp
 										<input type="hidden" id="rowNum" value="{{($num==0)?1:$num}}">
 										<input type="hidden" id="remitem" name="remove_item">
 										<?php if($num==0) { ?>
@@ -527,7 +528,7 @@ input[type=number]::-webkit-outer-spin-button {
 													</div>
 													
 													<div class="form-group col-sm-1" style="width:7%"> 
-														<span class="small">Tr. Type</span>
+														<span class="small">Type</span>
 														<select id="trtypech_{{$i}}" class="form-control select2 linech-tr" style="width:100%" name="tr_type[]">
 															@if($masterrow->category == 'PDCR')
 														    <option value="Dr">Dr</option>
@@ -559,36 +560,43 @@ input[type=number]::-webkit-outer-spin-button {
 											</div>
 										<?php } else { ?>
 										@foreach($opnbalance as $row)
-										{{--*/ $i++; /*--}}
+										@php $i++; @endphp
 										<div class="itemdivChldch">							
 											<div class="col-xs-12">
 												<input type="hidden" name="tr_id[]" id="trid_{{$i}}" value="{{$row->id}}">
 												<div class="form-group col-sm-2" style="width:13%">
-													<span class="small">Amount</span> <input type="number" autocomplete="off" id="amountch_{{$i}}" step="any" name="amount[]" value="{{$row->amount}}" autocomplete="off" class="form-control chline-amount">
+													<span class="small">Amount</span> <input type="number" {{($row->pdc_status==1) ? 'readonly' :''}} autocomplete="off" id="amountch_{{$i}}" step="any" name="amount[]" value="{{$row->amount}}" autocomplete="off" class="form-control chline-amount">
 												</div>
 												<div class="form-group col-sm-1" style="width:10%">
 													<span class="small">Bank</span> 
-													<select id="bank_{{$i}}" class="form-control select2 line-bank" style="width:100%" name="bank[]">
+													<select id="bank_{{$i}}" class="form-control select2 line-bank" style="width:100%" name="bank[]" {{ $row->pdc_status == 1 ? 'disabled' : '' }}>
 														@foreach($banks as $bank)
 														<option value="{{$bank['id']}}" <?php if($row->bank_id==$bank['id']) echo 'selected';?>>{{$bank['code']}}</option>
 														@endforeach
 													</select>
+													@if($row->pdc_status == 1)
+														<input type="hidden" name="bank[]" value="{{$row->bank_id}}">
+													@endif
 												</div>
 												<div class="form-group col-sm-2" style="width:10%">
-													<span class="small">Cheque No.</span><input type="text" id="chqno_{{$i}}"  name="cheque_no[]" class="form-control"  autocomplete="off" value="{{$row->cheque_no}}">
+													<span class="small">Cheque No.</span><input type="text" id="chqno_{{$i}}" {{($row->pdc_status==1) ? 'readonly' :''}} name="cheque_no[]" class="form-control"  autocomplete="off" value="{{$row->cheque_no}}">
+													<input type="hidden" id="chqnoOld_{{$i}}" value="{{$row->cheque_no}}" class="oldchq">
 												</div>
 												<div class="form-group col-sm-2" style="width:13%">
-													<span class="small">Cheque Date</span> <input type="text" id="chqdate_{{$i}}" autocomplete="off" value="{{($row->cheque_date!='0000-00-00')?date('d-m-Y',strtotime($row->cheque_date)):''}}" name="cheque_date[]" class="form-control chkdate" data-language='en'>
+													<span class="small">Cheque Date</span> <input type="text" id="chqdate_{{$i}}" autocomplete="off" value="{{($row->cheque_date!='0000-00-00')?date('d-m-Y',strtotime($row->cheque_date)):''}}" name="cheque_date[]" {{ $row->pdc_status == 1 ? 'disabled' : '' }} class="form-control chkdate">
+													@if($row->pdc_status == 1)
+														<input type="hidden" name="cheque_date[]" value="{{($row->cheque_date!='0000-00-00')?date('d-m-Y',strtotime($row->cheque_date)):''}}">
+													@endif
 												</div>
 												
 												<div class="form-group col-sm-1" style="width:7%"> 
-													<span class="small">Tr. Type</span>
+													<span class="small">Type</span>
 													<select id="trtypech_{{$i}}" class="form-control select2 linech-tr" style="width:100%" name="tr_type[]">
 													<option value="{{$row->tr_type}}">{{$row->tr_type}}</option>
 													</select>
 												</div>
 												<div class="form-group col-sm-2" style="width:13%">
-													<span class="small">Account Name</span> <input type="text" id="frmaccount_{{$i}}" name="frmaccount_name[]" value="{{$row->from_account}}" class="form-control" autocomplete="off" data-toggle="modal" data-target="#account_modal">
+													<span class="small">Account Name</span> <input type="text" id="frmaccount_{{$i}}" name="frmaccount_name[]" value="{{$row->from_account}}" class="form-control" autocomplete="off" {{ $row->pdc_status == 1 ? 'readonly' : 'data-toggle=modal data-target=#account_modal' }}>
 													<input type="hidden" id="frmaccountid_{{$i}}" name="frmaccount_id[]" class="form-control" value="{{$row->frmaccount_id}}">
 													<input type="hidden" id="refnoc_{{$i}}" name="reference_no[]" class="form-control">
 												</div>
@@ -596,10 +604,10 @@ input[type=number]::-webkit-outer-spin-button {
 													<span class="small">Tr. Date</span> <input type="hidden" name="tr_date[]" value="{{($row->tr_date!='0000-00-00')?date('d-m-Y',strtotime($row->tr_date)):''}}">
 												</div>
 												<div class="form-group col-sm-2" style="width:15%">
-													<span class="small">Description</span> <input type="text" id="description_{{$i}}" name="description[]" autocomplete="off" value ="{{$row->description}}"class="form-control"> 
+													<span class="small">Description</span> <input type="text" id="description_{{$i}}" {{($row->pdc_status==1) ? 'readonly' :''}} name="description[]" autocomplete="off" value ="{{$row->description}}"class="form-control"> 
 												</div>
 												<div class="col-sm-1" style="width:3%"><br/>
-													<button type="button" class="btn-success btn-danger btn-remove-itemch" data-id="rem_{{$i}}">
+													<button type="button" class="btn-success btn-danger btn-remove-itemch" data-id="rem_{{$i}}" data-status="{{$row->pdc_status}}">
 														<i class="fa fa-fw fa-minus-square"></i>
 													</button>
 													 <button type="button" class="btn-success btn-add-itemch" >
@@ -657,9 +665,9 @@ input[type=number]::-webkit-outer-spin-button {
 											<option value="">Select Department...</option>
 											@foreach ($department as $dep)
 											@if($masterrow->department_id==$dep['id'])
-											{{--*/ $sel = "selected" /*--}}
+											@php $sel = "selected" @endphp
 											@else
-											{{--*/ $sel = "" /*--}}	
+											@php $sel = "" @endphp	
 											@endif
 											<option value="{{ $dep['id'] }}" {{ $sel }}>{{ $dep['name'] }}</option>
 											@endforeach
@@ -787,6 +795,8 @@ input[type=number]::-webkit-outer-spin-button {
 @stop
 
 {{-- page level scripts --}}
+<div id="toast_msg" class="toast-msg"></div>
+
 @section('footer_scripts')
     <!-- begining of page level js -->
 <script type="text/javascript" src="{{asset('assets/vendors/bootstrapvalidator/js/bootstrapValidator.min.js')}}"></script>
@@ -813,11 +823,86 @@ input[type=number]::-webkit-outer-spin-button {
 <script type="text/javascript" src="{{asset('assets/vendors/datatables/js/dataTables.scroller.js')}}"></script>
 
 <script>
+function showToast(message) {
+    var $toast = $('#toast_msg');
+    if (!$toast.length) return;
+    $toast.text(message).stop(true, true).fadeIn(150);
+    setTimeout(function(){ $toast.fadeOut(300); }, 2000);
+}
+
+var chqValidatorsEnabled = false;
+
+function hasObChqValue() {
+    var $container = $('#ob_chqdetail');
+    if (!$container.is(':visible')) return false;
+    var hasAmount = false;
+    $container.find('input[name="amount[]"]').each(function() {
+        if ($(this).is(':disabled')) return;
+        var val = $.trim($(this).val());
+        if (val !== '' && parseFloat(val) !== 0) {
+            hasAmount = true;
+            return false;
+        }
+    });
+    return hasAmount;
+}
+
+function toggleChequeValidators() {
+    var shouldEnable = hasObChqValue();
+    if (shouldEnable === chqValidatorsEnabled) return;
+    chqValidatorsEnabled = shouldEnable;
+
+    var bv = $('#frmMaster').data('bootstrapValidator');
+    if (!bv) return;
+
+    var fields = [
+        { name: 'bank[]', message: 'Bank is required!' },
+        { name: 'cheque_no[]', message: 'Cheque no is required!' },
+        { name: 'cheque_date[]', message: 'Cheque date is required!' },
+        { name: 'frmaccount_name[]', message: 'Account name is required!' }
+    ];
+
+    if (shouldEnable) {
+        fields.forEach(function(field) {
+            bv.addField(field.name, {
+                validators: {
+                    notEmpty: { message: field.message }
+                }
+            });
+        });
+    } else {
+        fields.forEach(function(field) {
+            var $els = bv.getFieldElements(field.name);
+            if ($els && $els.length) {
+                bv.removeField(field.name, true);
+            }
+        });
+    }
+}
+
+$(document).on('submit', '#frmMaster', function(e) {
+    toggleChequeValidators();
+    if (hasObChqValue()) {
+        var invalid = false;
+        $('input[name="cheque_date[]"]:visible:not(:disabled)').each(function() {
+            if ($.trim($(this).val()) === '') {
+                invalid = true;
+                return false;
+            }
+        });
+        if (invalid) {
+            showToast('Cheque date is empty');
+            e.preventDefault();
+            return false;
+        }
+    }
+});
 "use strict";
 $('#viewDetails').hide();
 
 $(document).ready(function () {
 	initializeValidator();
+	toggleChequeValidators();
 	<?php if($masterrow->vat_assign==1) { ?>
 	
 		if( $("#vatPntg").is(":hidden") )
@@ -905,6 +990,10 @@ function initializeValidator() {
 
 $(document).on('click', '.DLS2', function(e) { e.preventDefault();
 	$('#viewDetails').toggle();
+});
+
+$(document).on('input change', '#ob_chqdetail input, #ob_chqdetail select, #ob_chqdetail textarea', function() {
+	toggleChequeValidators();
 });
 
 $('#actype_id').on('change', function(e){
@@ -1123,18 +1212,21 @@ function checkChequeNo(curNum) {
 	var bank = $('#bank_'+curNum+' option:selected').val();
 	var ac = $('#frmaccountid_'+curNum).val();
 	var chqno = $('#chqno_'+curNum).val();
+	var oldchqno = $('#chqnoOld_'+curNum).val();
 
-	$.ajax({
-		url: "{{ url('account_master/check_chequeno/') }}",
-		type: 'get',
-		data: 'chqno='+chqno+'&bank_id='+bank+'&ac_id='+ac,
-		success: function(data) {  
-			if(data=='') {
-				alert('Cheque no is duplicate!');
-				$('#chqno_'+curNum).val('');
+	if(chqno!=oldchqno) {
+		$.ajax({
+			url: "{{ url('account_master/check_chequeno/') }}",
+			type: 'get',
+			data: 'chqno='+chqno+'&bank_id='+bank+'&ac_id='+ac,
+			success: function(data) {  
+				if(data=='') {
+					alert('Cheque no is duplicate!');
+					$('#chqno_'+curNum).val('');
+				}
 			}
-		}
-	})
+		})
+	}
 	
 	$('#frmMaster').bootstrapValidator('addField', "cheque_no[]"); 
 }
@@ -1336,10 +1428,7 @@ $(function() {
     		dateFormat: 'dd-mm-yyyy'
     	});
     	
-    	$('#frmMaster').bootstrapValidator('addField', "bank[]");
-	    $('#frmMaster').bootstrapValidator('addField', "cheque_no[]"); 
-	    $('#frmMaster').bootstrapValidator('addField', "cheque_date[]");
-	    $('#frmMaster').bootstrapValidator('addField', "frmaccount_name[]");
+    	toggleChequeValidators();
 			
 			//newEntry.find($('.btn-remove-itemch')).attr('data-id','rem_'+rowNum);
 
@@ -1351,6 +1440,12 @@ $(function() {
 			
     }).on('click', '.btn-remove-itemch', function(e)
     { 
+		
+		if($(this).attr('data-status')==1) {
+			alert('PDC already transfered you can\'t delete this entry!');
+			return false;
+		}
+
 		//NEW CHNG...
 		var res = $(this).attr('data-id').split('_');
 		var curNum = res[1]; var ids;
@@ -1364,14 +1459,15 @@ $(function() {
 		var clbal= parseFloat($('#cl_balance').val());
 		var res = getLineTotalChq();
 		$('#op_balance').val(res.toFixed(2));
-	if(clbal==0){		
-		$('#cl_balance').val(res.toFixed(2));
-	}
-	else{
-	    var resc=clbal-amt;
-	    
-	    $('#cl_balance').val(resc.toFixed(2));
-	}
+
+		if(clbal==0){		
+			$('#cl_balance').val(res.toFixed(2));
+		}
+		else{
+			var resc=clbal-amt;
+			
+			$('#cl_balance').val(resc.toFixed(2));
+		}
 	
 		
 		e.preventDefault();
@@ -1410,6 +1506,7 @@ $(function() {
 	});
 	
 	
+	
 	$(document).on('blur', '.chline-amount', function(e) {
 	    	var res = this.id.split('_');
 		     var no = res[1]; 
@@ -1428,47 +1525,7 @@ $(function() {
 	}
 		
 		
-		$('#frmMaster').bootstrapValidator('addField', 'bank[]');
-		$('#frmMaster').bootstrapValidator('addField', 'cheque_no[]');
-		$('#frmMaster').bootstrapValidator('addField', 'cheque_date[]');
-		$('#frmMaster').bootstrapValidator('addField', 'frmaccount_name[]');
-		
-		// Dynamically add a validation rule
-        $('#frmMaster').data('bootstrapValidator')
-            .addField('bank[]', {
-                validators: {
-                    notEmpty: {
-                        message: 'Reference no is required!'
-                    }
-                }
-        });
-        
-        $('#frmMaster').data('bootstrapValidator')
-            .addField('cheque_no[]', {
-                validators: {
-                    notEmpty: {
-                        message: 'Cheque no is required!'
-                    }
-                }
-        });
-        
-        $('#frmMaster').data('bootstrapValidator')
-            .addField('cheque_date[]', {
-                validators: {
-                    notEmpty: {
-                        message: 'Cheque no is required!'
-                    }
-                }
-        });
-        
-        $('#frmMaster').data('bootstrapValidator')
-            .addField('frmaccount_name[]', {
-                validators: {
-                    notEmpty: {
-                        message: 'Cheque no is required!'
-                    }
-                }
-        });
+		toggleChequeValidators();
 		
 	});
 	

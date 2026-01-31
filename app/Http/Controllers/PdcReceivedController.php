@@ -36,11 +36,11 @@ class PdcReceivedController extends Controller
 		$banks = $this->account_master->getAccountByGroup('BANK'); //echo '<pre>';print_r($pdcs);exit;
 		$bacnts = DB::table('account_setting')->where('account_setting.voucher_type_id',18)
 						->join('account_master','account_master.id','=','account_setting.dr_account_master_id')
-						->where('account_setting.status',1)->where('account_setting.deleted_at','0000-00-00 00:00:00')
+						->where('account_setting.status',1)->whereNull('deleted_at')
 						->select('account_setting.dr_account_master_id','account_master.master_name')
 						->first();
-		//$banks = DB::table('bank')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get(); //echo '<pre>';print_r($pdcs);exit;
-		$pdcsacs = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','PDCR')->select('id','master_name')->get();
+		//$banks = DB::table('bank')->where('status',1)->whereNull('deleted_at')->get(); //echo '<pre>';print_r($pdcs);exit;
+		$pdcsacs = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','PDCR')->select('id','master_name')->get();
 		//echo '<pre>';print_r($pdcsacs);exit;
 		return view('body.pdcreceived.index')
 					->withPdcs($pdcs)
@@ -132,4 +132,6 @@ class PdcReceivedController extends Controller
 	}
 	
 }
+
+
 

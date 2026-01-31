@@ -42,9 +42,9 @@ class CargoStatusController extends Controller
 		try {
 			DB::table('cargo_status')
 				->insert([	
-					'name' => Input::get('name'),
-					'type' =>Input::get('status_type'),
-					'is_reached'=>(Input::get('name')=='REACHED DESTINATION')?1:0,
+					'name' => $request->get('name'),
+					'type' =>$request->get('status_type'),
+					'is_reached'=>($request->get('name')=='REACHED DESTINATION')?1:0,
 				]);
 				
 			Session::flash('message', 'Status added successfully.');
@@ -72,13 +72,13 @@ class CargoStatusController extends Controller
 		DB::table('cargo_status')->where('id',$id)
 				->update([
 					
-					'name' => Input::get('name'),
-					'is_reached'=>(Input::get('name')=='REACHED DESTINATION')?1:0,
+					'name' => $request->get('name'),
+					'is_reached'=>($request->get('name')=='REACHED DESTINATION')?1:0,
 				]);
-				if(Input::get('is_reached')==0){
+				if($request->get('is_reached')==0){
 					DB::table('cargo_status')->where('id',$id)
 					->update([
-						'type' =>Input::get('status_type'),
+						'type' =>$request->get('status_type'),
 					]);	
 				}
 		Session::flash('message', 'Status updated successfully');

@@ -87,7 +87,7 @@
                             </h3>
                            
 						   <div class="pull-right">
-							<?php if($printid) { ?>
+							<?php if($printid && isset($prints[0])) { ?>
 								@can('pv-print')
 								 <a href="{{ url('supplier_payment/print/'.$printid->id.'/'.$prints[0]->id) }}" target="_blank" class="btn btn-info btn-sm">
 									<span class="btn-label">

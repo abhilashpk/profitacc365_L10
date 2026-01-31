@@ -109,14 +109,14 @@ class EmployeeController extends Controller
 
 		//DEPT CHECK...
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
 		}
 
-		$divisions = DB::table('division')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','div_name')->get();
-		 $category = DB::table('employee_category')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','category_name')->get();
+		$divisions = DB::table('division')->where('status',1)->whereNull('deleted_at')->select('id','div_name')->get();
+		 $category = DB::table('employee_category')->where('status',1)->whereNull('deleted_at')->select('id','category_name')->get();
 			
 		//echo '<pre>';print_r($divisions);exit;
 		return view('body.employee.add')
@@ -128,9 +128,9 @@ class EmployeeController extends Controller
 	}
 	
 	public function save() {
-	//echo '<pre>';print_r(Input::all());exit;
-		//try { //echo '<pre>';print_r(Input::all());//exit;
-			$this->employee->create(Input::all());
+	//echo '<pre>';print_r($request->all());exit;
+		//try { //echo '<pre>';print_r($request->all());//exit;
+			$this->employee->create($request->all());
 			Session::flash('message', 'Employee added successfully.');
 			return redirect('employee');
 		/* } catch(ValidationException $e) { 
@@ -150,10 +150,10 @@ class EmployeeController extends Controller
 				$arrPtotos[$key] = $val;
 			}
 		}
-		$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
-         $category = DB::table('employee_category')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','category_name')->get();
+		$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
+         $category = DB::table('employee_category')->where('status',1)->whereNull('deleted_at')->select('id','category_name')->get();
 
-		$divisions = DB::table('division')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','div_name')->get();
+		$divisions = DB::table('division')->where('status',1)->whereNull('deleted_at')->select('id','div_name')->get();
 		//echo '<pre>';print_r($arrPtotos);exit;
 		return view('body.employee.edit')
 					->withRow($employeerow)
@@ -167,15 +167,15 @@ class EmployeeController extends Controller
 	
 	public function update($id)
 	{
-		//echo '<pre>';print_r(Input::all());exit;
-		$this->employee->update($id, Input::all());//print_r(Input::all());exit;
+		//echo '<pre>';print_r($request->all());exit;
+		$this->employee->update($id, $request->all());//print_r($request->all());exit;
 		Session::flash('message', 'Employee updated successfully');
 		return redirect('employee');
 	}
 	
 	public function destroy($id)
 	{
-	    	$check = DB::table('wage_entry')->where('employee_id',$id)->where('deleted_at','0000-00-00 00:00:00')->count();
+	    	$check = DB::table('wage_entry')->where('employee_id',$id)->whereNull('deleted_at')->count();
 	    	//echo '<pre>';print_r($check);exit;
 	    	if($check==0){
 		$this->employee->delete($id);
@@ -191,7 +191,7 @@ class EmployeeController extends Controller
 	
 	public function checkcode() {
 
-		$check = $this->employee->check_employee_code(Input::get('code'), Input::get('id'));
+		$check = $this->employee->check_employee_code($request->get('code'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -200,7 +200,7 @@ class EmployeeController extends Controller
 	
 	public function checkname() {
 
-		$check = $this->employee->check_employee_name(Input::get('name'), Input::get('id'));
+		$check = $this->employee->check_employee_name($request->get('name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -269,7 +269,7 @@ class EmployeeController extends Controller
 		$data = array();
 		$employee = $this->employee->find($id);
 		$parameter4 = $this->parameter4->getParameter4();//echo '<pre>';print_r($employee);exit;
-		$job = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',1)->first();
+		$job = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',1)->first();
 		$count = DB::table('wage_entry')->where('month', $month)->where('year',$year)->where('employee_id',$id)->count();
 		$timesheet=DB::table('timesheet_entry AS TSE')->leftjoin('jobmaster AS JM','JM.id','=','TSE.job_id')
 		                                  ->where('TSE.month', $month)->where('TSE.employee_id',$id)->where('TSE.is_approved',1)
@@ -439,13 +439,13 @@ class EmployeeController extends Controller
 		$data = array();
 		$employeerow = $this->employee->find($id);
 		$photos = $this->makeOrder(DB::table('emp_photos')->where('employee_id',$id)->get()); //echo '<pre>';print_r($photos);exit;
-		//$is_rejoin = DB::table('onleave')->where('employee_id',$id)->where('leave_status',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
-		//$is_undo = DB::table('onleave')->where('employee_id',$id)->where('leave_status',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+		//$is_rejoin = DB::table('onleave')->where('employee_id',$id)->where('leave_status',1)->where('status',1)->whereNull('deleted_at')->count();
+		//$is_undo = DB::table('onleave')->where('employee_id',$id)->where('leave_status',0)->where('status',1)->whereNull('deleted_at')->count();
 		//echo '<pre>';print_r($employeerow);exit;
 
-	$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+	$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 
-		$divisions = DB::table('division')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','div_name')->get();
+		$divisions = DB::table('division')->where('status',1)->whereNull('deleted_at')->select('id','div_name')->get();
 
 		return view('body.employee.view')
 					->withMasterrow($employeerow)
@@ -469,12 +469,12 @@ class EmployeeController extends Controller
 	
 	public function saveLeave() { 
 
-		if( $this->employee->saveLeave(Input::all()) )
+		if( $this->employee->saveLeave($request->all()) )
 			Session::flash('message', 'Leave process submitted successfully.');
 		else
 			Session::flash('error', 'Something went wrong, Account failed to submit!');
 		
-		return redirect('employee/leave/'.Input::get('id'));
+		return redirect('employee/leave/'.$request->get('id'));
 	}
 	
 	public function rejoin($id) { 
@@ -497,10 +497,10 @@ class EmployeeController extends Controller
 	
 	public function saveRejoin() { 
 
-		$this->employee->saveRejoin(Input::all());
+		$this->employee->saveRejoin($request->all());
 		Session::flash('message', 'Rejoin details submitted successfully.');
 		
-		return redirect('employee/view/'.Input::get('employee_id'));
+		return redirect('employee/view/'.$request->get('employee_id'));
 	}
 	
 	public function resign($id) { 
@@ -515,10 +515,10 @@ class EmployeeController extends Controller
 	
 	public function saveResign() { 
 
-		$this->employee->saveResign(Input::all());
+		$this->employee->saveResign($request->all());
 		Session::flash('message', 'Termination/Resignation details submitted successfully.');
 		
-		return redirect('employee/view/'.Input::get('id'));
+		return redirect('employee/view/'.$request->get('id'));
 	}
 	
 	public function rejoinUndo($id) { 
@@ -529,4 +529,6 @@ class EmployeeController extends Controller
 		return redirect('employee/view/'.$id);
 	}
 }
+
+
 

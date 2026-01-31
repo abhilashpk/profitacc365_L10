@@ -159,7 +159,7 @@ class OtherAccountSettingRepository extends AbstractValidator implements OtherAc
 						->leftJoin('account_master AS am', function($join) {
 							$join->on('am.id','=','other_account_setting.account_id');
 							$join->where('am.status','=',1);
-							$join->where('am.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						} )
 						->select('other_account_setting.*','am.master_name','am.account_id as code')
 						->orderBy('other_account_setting.id','ASC')->get();
@@ -202,4 +202,6 @@ class OtherAccountSettingRepository extends AbstractValidator implements OtherAc
 										->update(['account_master_id' => $accountid]);
 	}
 }
+
+
 

@@ -30,7 +30,7 @@ class SettingsController extends Controller
 	public function SubmitLogin()
 	{
 		$loggedin = false;
-		if(Input::get('password')=='profit2020') {
+		if($request->get('password')=='profit2020') {
 			$loggedin = true;
 		} else {
 			Session::flash('error', 'Invalid password!');
@@ -43,7 +43,7 @@ class SettingsController extends Controller
 	
 	public function SubmitDbswitch()
 	{
-		$year = Input::get('year'); //profitacc365yr2019
+		$year = $request->get('year'); //profitacc365yr2019
 		$arr = explode('yr',$this->dbcon['mysql']['database']);
 		
 		if($year==date('Y')){

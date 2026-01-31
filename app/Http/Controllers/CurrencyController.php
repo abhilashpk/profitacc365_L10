@@ -68,7 +68,7 @@ class CurrencyController extends Controller
 		return redirect('currency');
 	}
 	public function getCurrency($id){
-	$bcurrency=DB::table('currency')->where('id','=',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name','code')->get();
+	$bcurrency=DB::table('currency')->where('id','=',$id)->where('status',1)->whereNull('deleted_at')->select('id','name','code')->get();
 	return $bcurrency;
 	}
 	public function checkcode(Request $request) {
@@ -100,4 +100,6 @@ class CurrencyController extends Controller
 
 	}
 }
+
+
 

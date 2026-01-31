@@ -5,10 +5,10 @@ use Illuminate\Http\Request;
 
 use App\Http\Requests;
 use Notification;
-use Input;
 use Session;
 use DB;
 use App;
+use Spatie\Permission\PermissionRegistrar;
 
 class PermissionController extends Controller
 {
@@ -63,7 +63,7 @@ class PermissionController extends Controller
 		$permissions = $this->makeTreeArr( DB::table('permissions')
 											->select('permissions.id','permissions.name','permissions.description','permissions.section')
 											->get() );
-		$permission_role = $this->makeArr( DB::table('permission_role')->where('role_id',$id)->select('permission_id')->get() ); 								
+		$permission_role = $this->makeArr( DB::table('role_has_permissions')->where('role_id',$id)->select('permission_id')->get() ); 								
 		
 		//echo '<pre>'; print_r($permissions);exit;
 					
@@ -74,24 +74,29 @@ class PermissionController extends Controller
 					->withData($data);
 	}
 	
-	public function update()
+	public function update(Request $request)
 	{
-		$role_id = Input::get('role_id');
-		$permission_role = $this->makeArr( DB::table('permission_role')->where('role_id',$role_id)->select('permission_id')->get() );
+		$role_id = $request->input('role_id');
+		$permission_ids = $request->input('permission_id', []);
+		if (!is_array($permission_ids)) {
+			$permission_ids = [];
+		}
+		$permission_role = $this->makeArr( DB::table('role_has_permissions')->where('role_id',$role_id)->select('permission_id')->get() );
 		//echo '<pre>';print_r($permission_role);exit;
-		foreach(Input::get('permission_id') as $id) {
+		foreach($permission_ids as $id) {
 			if(!in_array($id, $permission_role)) {
-				DB::table('permission_role')->insert(['permission_id' => $id, 'role_id' => $role_id]);
+				DB::table('role_has_permissions')->insert(['permission_id' => $id, 'role_id' => $role_id]);
 				
 			}
 		}
 		
 		//DELETE PERMISSION....
 		foreach($permission_role as $id) {
-			if(!in_array($id, Input::get('permission_id'))) {
-				DB::table('permission_role')->where('permission_id',$id)->where('role_id',$role_id)->delete();
+			if(!in_array($id, $permission_ids)) {
+				DB::table('role_has_permissions')->where('permission_id',$id)->where('role_id',$role_id)->delete();
 			}
 		}
+		app(PermissionRegistrar::class)->forgetCachedPermissions();
 		Session::flash('message', 'Permission updated successfully');
 		return redirect('permission/edit/'.$role_id);
 	}

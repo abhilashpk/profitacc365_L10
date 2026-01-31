@@ -1,5 +1,5 @@
 <?php
-require_once 'stimulsoftV2/helper.php';
+require_once 'stimulsoft/helper.php';
 $reportName = isset($_GET['report']) ? basename($_GET['report']) : 'SimpleList.mrt';
 $reportNameWithoutExt = preg_replace('/\.mrt$/', '', $reportName);
 ?>

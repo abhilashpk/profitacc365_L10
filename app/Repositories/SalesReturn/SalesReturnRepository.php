@@ -45,6 +45,11 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 		return $this->sales_return->where('id', $id)->first();
 	}
 	
+	private function isExport($attributes)
+	{
+		return isset($attributes['is_export']) && (string)$attributes['is_export'] === '1';
+	}
+	
 	//set input fields values
 	private function setInputValue($attributes)
 	{
@@ -84,9 +89,9 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 			
 			$line_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]);
 			
-			$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['tax_code'][$key];
+			$tax_code = ($this->isExport($attributes))?"ZR":$attributes['tax_code'][$key];
 						
-			if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+			if($this->isExport($attributes) || $tax_code=="EX" || $tax_code=="ZR") {
 				
 				$tax        = 0;
 				$item_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key];
@@ -161,7 +166,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 	{
 		$cr_acnt_id = $dr_acnt_id = '';
 		if($amount_type=='VAT') {
-			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();//VAT OUTPUT
+			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();//VAT OUTPUT
 			if($vatrow) {
 				$dr_acnt_id = $account_id = $vatrow->payment_account;
 			}
@@ -226,15 +231,15 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 			$tax_total  = round($tax * $attributes['quantity'][$key],2);
 			$line_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]) * $attributes['currency_rate'];
 			
-			$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['tax_code'][$key];
+			$tax_code = ($this->isExport($attributes))?"ZR":$attributes['tax_code'][$key];
 			$rate = $attributes['cost'][$key]*$attributes['currency_rate']; //14JN24
 		} else {
 			
 			$line_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]);
 			
-			$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['tax_code'][$key];
+			$tax_code = ($this->isExport($attributes))?"ZR":$attributes['tax_code'][$key];
 						
-			if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+			if($this->isExport($attributes) || $tax_code=="EX" || $tax_code=="ZR") {
 				$idiscount = ($attributes['line_discount'][$key]!='')?$attributes['line_discount'][$key]:0;
 				$tax        = 0;
 				$item_total = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $idiscount;
@@ -304,6 +309,8 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 				 
 			}
 		}
+		
+		$row_total = $vat_exc + $tax_total;
 		
 		
 		$salesReturnItem->sales_return_id = $this->sales_return->id;
@@ -389,7 +396,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 		
 		$cr_acnt_id = $dr_acnt_id = '';
 		if($amount_type=='VAT') {
-			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();//VAT OUTPUT
+			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();//VAT OUTPUT
 			if($vatrow) {
 				$dr_acnt_id = $vatrow->payment_account;
 			}
@@ -726,7 +733,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
                                 		}
 										$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
 																	  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																	  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																	  ->whereNull('deleted_at')->select('id')->first();
 										if($qtys) {
 											DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$lcqty) ]);
 										} else {
@@ -758,7 +765,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 									
 									$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
 																	  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																	  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																	  ->whereNull('deleted_at')->select('id')->first();
 																	  
 									//$lcqty = $attributes['quantity'][$key] * $attributes['packing'][$key];
 									$lcqty = $attributes['quantity'][$key];
@@ -926,7 +933,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 					
 					if($attributes['order_item_id'][$key]!='') {
 						
-						$tax_code = (isset($attributes['is_export']))?"ZR":$attributes['tax_code'][$key];//CHG
+						$tax_code = ($this->isExport($attributes))?"ZR":$attributes['tax_code'][$key];//CHG
 						if( isset($attributes['is_fc']) ) {
 							$tax        = ( ($attributes['cost'][$key] * $attributes['line_vat'][$key]) / 100) * $attributes['currency_rate'];
 							$itemtotal = ( ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $attributes['line_discount'][$key] ) * $attributes['currency_rate'];
@@ -937,7 +944,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 							
 							$linetotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]);
 							
-							if(isset($attributes['is_export']) || $tax_code=="EX" || $tax_code=="ZR") {
+							if($this->isExport($attributes) || $tax_code=="EX" || $tax_code=="ZR") {
 								$idiscount = ($attributes['line_discount'][$key]!='')?$attributes['line_discount'][$key]:0;
 								$tax        = 0;
 								$itemtotal = ($attributes['cost'][$key] * $attributes['quantity'][$key]) - $idiscount;
@@ -1049,7 +1056,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 									$edit = DB::table('item_location_sr')->where('id', $attributes['editid'][$key][$lk])->first();
 									$idloc = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
 																  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																  ->whereNull('deleted_at')->select('id')->first();
 																  //echo '<pre>';print_r($edit);exit;
 									if($edit) {
 										
@@ -1085,7 +1092,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 								
 								$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
 																  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('*')->first();
+																  ->whereNull('deleted_at')->select('*')->first();
 																  
 								//$lcqty = $attributes['quantity'][$key] * $attributes['packing'][$key];
 								$lcqty = $attributes['quantity'][$key];
@@ -1136,7 +1143,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 									foreach($curidarr as $ky => $rw) {					 
 										DB::table('con_location_sr')->where('invoice_id', $attributes['order_item_id'][$key])
 														 ->where('location_id', $rw)
-														 ->update(['quantity' => $curqty[$ky],'status' => 1, 'deleted_at' => '0000-00-00 00:00:00']);
+														 ->update(['quantity' => $curqty[$ky],'status' => 1, 'deleted_at' => null]);
 									
 									}
 								}
@@ -1202,7 +1209,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
                                 		}
 										$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['locid'][$key][$lk])
 																	  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																	  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																	  ->whereNull('deleted_at')->select('id')->first();
 										if($qtys) {
 											DB::table('item_location')->where('id', $qtys->id)->update(['quantity' => DB::raw('quantity + '.$lcqty) ]);
 										} else {
@@ -1234,7 +1241,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 									
 								$qtys = DB::table('item_location')->where('status',1)->where('location_id', $attributes['default_location'])
 																  ->where('item_id', $value)//->where('unit_id', $attributes['unit_id'][$key])
-																  ->where('deleted_at', '0000-00-00 00:00:00')->select('id')->first();
+																  ->whereNull('deleted_at')->select('id')->first();
 																  
 								//$lcqty = $attributes['quantity'][$key] * $attributes['packing'][$key];
 								$lcqty = $attributes['quantity'][$key];
@@ -1855,7 +1862,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 			//DB::table('account_master')->where('id', $this->sales_return->cr_account_id)->update(['cl_balance' => DB::raw('cl_balance + '.$this->sales_return->total)]);
 			$this->objUtility->tallyClosingBalance($this->sales_return->cr_account_id);
 			
-			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			$vatrow = $this->getVatAccounts((isset($attributes['department_id']))?$attributes['department_id']:null); //DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 			if($vatrow) {
 				//DB::table('account_master')->where('id', $vatrow->payment_account)->update(['cl_balance' => DB::raw('cl_balance + '.$this->sales_return->vat_amount)]);
 				$this->objUtility->tallyClosingBalance($vatrow->payment_account);
@@ -1894,10 +1901,10 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 						->join('account_transaction', 'account_transaction.account_master_id', '=', 'account_master.id')
 						->where('account_transaction.voucher_type','!=','OBD')
 						->where('account_transaction.status',1)
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('account_master.status',1)
-						->where('account_master.deleted_at','0000-00-00 00:00:00')
-						->where('account_transaction.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
+						->whereNull('deleted_at')
 						->whereBetween('account_transaction.invoice_date',[$date->from_date, $date->to_date])
 						->select('account_master.id','account_master.master_name','account_master.cl_balance','account_master.category',
 								 'account_transaction.transaction_type','account_transaction.amount','account_master.op_balance','account_transaction.invoice_date')
@@ -1959,7 +1966,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 							 ->where('item_id', $attributes['item_id'][$key])
 							 ->where('unit_id', $attributes['unit_id'][$key])
 							 ->where('status', 1)
-							 ->where('deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('pur_cost','sale_reference')
 							 ->first();
 		
@@ -1967,7 +1974,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 										->where('status', 1)
 										->where('trtype', 1)
 										->where('cur_quantity', '>', 0)
-										->where('deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->select('cur_quantity','pur_cost')
 										->get();
 										
@@ -2006,7 +2013,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 							 ->where('item_id', $attributes['item_id'][$key])
 							 ->where('unit_id', $attributes['unit_id'][$key])
 							 ->where('status', 1)
-							 ->where('deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('pur_cost')
 							 ->first();
 		
@@ -2158,7 +2165,7 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 									   $join->on('IM.id','=','SI.item_id');
 								   })
 								   ->where('SI.status',1)
-								   ->where('SI.deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->where('sales_return.status',1);
 							
 							if($date_from !='' && $date_to != '')	   
@@ -2189,10 +2196,10 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 		if(Session::get('department')==1 && $department_id!=null) {
 			$vatres = DB::table('vat_department')->where('department_id', $department_id)->first();
 			if(!$vatres)
-				$vatres = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+				$vatres = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 			return $vatres;
 		} else {
-			return DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			return DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->first();
 		}
 	}
 	
@@ -2209,3 +2216,6 @@ class SalesReturnRepository extends AbstractValidator implements SalesReturnInte
 		
 	}
 }
+
+
+

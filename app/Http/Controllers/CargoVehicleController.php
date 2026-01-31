@@ -42,16 +42,16 @@ class CargoVehicleController extends Controller
 		try {
 			DB::table('cargo_vehicle')
 				->insert([
-					'vehicle_no' => Input::get('vnumber'),
-					'vehicle_name' => Input::get('vname'),
-					'driver_name' => Input::get('dname'),
-					'company'     => Input::get('company'),
-					'driver_id'     => Input::get('idno'),
-					'passport_no'     => Input::get('passport'),
-					'mobile_uae' =>Input::get('mbuae'),
-					'mobile_ksa' =>Input::get('mbksa'),
-					'watsapp' =>Input::get('watsapp'),
-					'expiry_date'=>date('Y-m-d', strtotime(Input::get('expiry_date'))),
+					'vehicle_no' => $request->get('vnumber'),
+					'vehicle_name' => $request->get('vname'),
+					'driver_name' => $request->get('dname'),
+					'company'     => $request->get('company'),
+					'driver_id'     => $request->get('idno'),
+					'passport_no'     => $request->get('passport'),
+					'mobile_uae' =>$request->get('mbuae'),
+					'mobile_ksa' =>$request->get('mbksa'),
+					'watsapp' =>$request->get('watsapp'),
+					'expiry_date'=>date('Y-m-d', strtotime($request->get('expiry_date'))),
 				]);
 				
 			Session::flash('message', 'Vehicle added successfully.');
@@ -78,16 +78,16 @@ class CargoVehicleController extends Controller
 	{
 		DB::table('cargo_vehicle')->where('id',$id)
 				->update([
-					'vehicle_no' => Input::get('vnumber'),
-					'vehicle_name' => Input::get('vname'),
-					'driver_name' => Input::get('dname'),
-					'company'     => Input::get('company'),
-					'driver_id'     => Input::get('idno'),
-					'passport_no'     => Input::get('passport'),
-					'mobile_uae' =>Input::get('mbuae'),
-					'mobile_ksa' =>Input::get('mbksa'),
-					'watsapp' =>Input::get('watsapp'),
-					'expiry_date'=>date('Y-m-d', strtotime(Input::get('expiry_date'))),
+					'vehicle_no' => $request->get('vnumber'),
+					'vehicle_name' => $request->get('vname'),
+					'driver_name' => $request->get('dname'),
+					'company'     => $request->get('company'),
+					'driver_id'     => $request->get('idno'),
+					'passport_no'     => $request->get('passport'),
+					'mobile_uae' =>$request->get('mbuae'),
+					'mobile_ksa' =>$request->get('mbksa'),
+					'watsapp' =>$request->get('watsapp'),
+					'expiry_date'=>date('Y-m-d', strtotime($request->get('expiry_date'))),
 				]);
 		Session::flash('message', 'vehicle updated successfully');
 		return redirect('cargo_vehicle');
@@ -104,7 +104,7 @@ class CargoVehicleController extends Controller
 	
 	public function checknumber() {
 
-		$check = $this->check_vehicle_number(Input::get('vnumber'), Input::get('id'));
+		$check = $this->check_vehicle_number($request->get('vnumber'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,

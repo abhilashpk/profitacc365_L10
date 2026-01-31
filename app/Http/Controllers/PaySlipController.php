@@ -75,7 +75,7 @@ class PaySlipController extends Controller
 	
 	public function update($id)
 	{
-		$this->wageentry->update($id,Input::all());//print_r(Input::all());exit;
+		$this->wageentry->update($id,$request->all());//print_r($request->all());exit;
 		Session::flash('message', 'Entry updated successfully');
 		return redirect('wage_entry');
 	}
@@ -91,7 +91,7 @@ class PaySlipController extends Controller
 	
 	public function checkcode() {
 
-		$check = $this->employee->check_employee_code(Input::get('code'), Input::get('id'));
+		$check = $this->employee->check_employee_code($request->get('code'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -100,7 +100,7 @@ class PaySlipController extends Controller
 	
 	public function checkname() {
 
-		$check = $this->employee->check_employee_name(Input::get('name'), Input::get('id'));
+		$check = $this->employee->check_employee_name($request->get('name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -113,8 +113,8 @@ class PaySlipController extends Controller
 		$employees = $this->employee->getEmployees();
 		return view('body.payslip.index')
 					->withEmployees($employees)
-					->withMonth(Input::get('month'))
-					->withYear(Input::get('year'))
+					->withMonth($request->get('month'))
+					->withYear($request->get('year'))
 					->withData($data);
 	}
 	
@@ -137,7 +137,7 @@ class PaySlipController extends Controller
 		//echo '<pre>';print_r($emprise);exit;
 		return view('body.payslip.print')
 					->withEmployee($employee)
-					->withMonth($month) //Input::get('month')
+					->withMonth($month) //$request->get('month')
 					->withType('pay_slip')
 					->withBasicpay($basic_salary)
 					->withResult($results)

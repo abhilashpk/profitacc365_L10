@@ -81,13 +81,13 @@
 							
 							<div class="pull-right">
 							<?php if($isprint) { ?>
-							@permission('qs-print')
+							@can('qs-print')
 							 <a href="{{ url('quotation_sales/print/'.$orderrow->id.'/'.$print->id) }}" target="_blank" class="btn btn-info btn-sm">
 								<span class="btn-label">
 									<i class="fa fa-fw fa-print"></i>
 								</span>
 							 </a>
-							@endpermission
+							@endcan
 							<?php } ?>
 							</div>
                         </div>
@@ -527,7 +527,7 @@
 								<?php } ?>
 								<br/>
 								
-								@permission('qs-aprv')
+								@can('qs-aprv')
 								<?php if($settings->doc_approve==1) { ?>
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-2 control-label">Document Status</label>
@@ -548,7 +548,7 @@
                                     </div>
                                 </div>
 								<?php } ?>
-								@endpermission
+								@endcan
 								<input type="hidden" value="<?php echo $orderrow->comment; ?>" name="comment_hd">
 								<?php if($settings->doc_approve==1) { ?>
 								<div class="form-group">

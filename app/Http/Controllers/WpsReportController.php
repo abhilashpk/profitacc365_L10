@@ -33,7 +33,7 @@ class WpsReportController extends Controller
 		$reports = null;
 		$employees = $this->employee->activeEmployeeList();
 	//	echo '<pre>';print_r($employees);exit;
-		$jobs = DB::table('jobmaster')->where('is_salary_job',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$jobs = DB::table('jobmaster')->where('is_salary_job',0)->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.empreport.index')
 					->withReports($reports)
 					->withType('')
@@ -48,13 +48,13 @@ class WpsReportController extends Controller
 	
 	public function getSearch()
 	{
-	//	echo '<pre>';print_r(Input::all());exit;
-		$month = Input::get('month');
+	//	echo '<pre>';print_r($request->all());exit;
+		$month = $request->get('month');
 		$firstday = date('01-' . $month . '-Y');
         $lastday = date(date('t', strtotime($firstday)) .'-' . $month . '-Y');
         $data = '';
 		$voucher_head = 'WPS REPORT';
-		$reports = $this->employee->getwpsReport(Input::all());
+		$reports = $this->employee->getwpsReport($request->all());
 			
 		
 		//echo '<pre>';print_r($reports);exit;
@@ -71,11 +71,11 @@ class WpsReportController extends Controller
 		$data = array();
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
-			$month = Input::get('month');
+			$month = $request->get('month');
 		$firstday = date('01-' . $month . '-Y');
         $lastday = date(date('t', strtotime($firstday)) .'-' . $month . '-Y');
-		Input::merge(['type' => 'export']);
-		$reports = $this->employee->getwpsReport(Input::all());
+		$request->merge(['type' => 'export']);
+		$reports = $this->employee->getwpsReport($request->all());
 		
 		
 			$voucher_head = 'WPS Report';
@@ -131,3 +131,5 @@ class WpsReportController extends Controller
 
 
 }
+
+

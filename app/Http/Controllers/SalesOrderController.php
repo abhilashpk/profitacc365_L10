@@ -80,10 +80,10 @@ class SalesOrderController extends Controller
 		$data = array();
 		$quotations = [];//$this->sales_order->quotationSalesList();
 		$salesmans = $this->salesman->getSalesmanList();
-		//$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->select('id','code')->get();
-		$custs = [];//DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CUSTOMER')->select('id','master_name')->get();
+		//$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',0)->select('id','code')->get();
+		$custs = [];//DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CUSTOMER')->select('id','master_name')->get();
 		$jobs = $this->jobmaster->activeJobmasterList();
-		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')
 		->select('id','master_name')->get(); 
 		return view('body.salesorder.index')
 					->withQuotations($quotations)
@@ -266,11 +266,11 @@ class SalesOrderController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$res = $this->voucherno->getVoucherNo('SO'); //echo '<pre>';print_r($res);exit;
 		//$vno = $res->no;
-		$row = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$row = DB::table('sales_order')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		$location = $this->location->locationList();
 		
-		$footertxt = DB::table('header_footer')->where('doc','SO')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$footertxt = DB::table('header_footer')->where('doc','SO')->where('status',1)->whereNull('deleted_at')->first();
 		if($row && in_array($row->doc_status, $apr))
 			$lastid = $row->id;
 		else
@@ -283,7 +283,7 @@ class SalesOrderController extends Controller
 							->select('report_view_detail.id')
 							->first();
 							
-		$prntjobs = [];/* DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$prntjobs = [];/* DB::table('sales_order')->where('status',1)->whereNull('deleted_at')
 						->select('id','voucher_no')
 						->offset(0)->limit(10)
 						->orderBy('id','DESC')
@@ -492,7 +492,7 @@ class SalesOrderController extends Controller
 							->select('report_view_detail.id')
 							->first();
 							
-		$infodata = DB::table('sales_order_info')->where('sales_order_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();					
+		$infodata = DB::table('sales_order_info')->where('sales_order_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();					
 		//echo '<pre>';print_r($orderrow);exit;
 		return view('body.salesorder.edit') //editsp  edit
 					->withItems($itemmaster)
@@ -611,7 +611,7 @@ class SalesOrderController extends Controller
 							->select('report_view_detail.id')
 							->first();
 							
-		$infodata = DB::table('sales_order_info')->where('sales_order_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();					
+		$infodata = DB::table('sales_order_info')->where('sales_order_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();					
 	//	echo '<pre>';print_r($orderrow);exit;
 		return view('body.salesorder.edit-draft') //editsp  edit
 					->withItems($itemmaster)
@@ -694,7 +694,7 @@ class SalesOrderController extends Controller
 							->select('report_view_detail.id')
 							->first();
 							
-		$infodata = DB::table('sales_order_info')->where('sales_order_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();					
+		$infodata = DB::table('sales_order_info')->where('sales_order_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();					
 		//echo '<pre>';print_r($orderrow);exit;
 		return view('body.salesorder.viewonly') //editsp  edit
 					->withItems($itemmaster)
@@ -813,7 +813,7 @@ class SalesOrderController extends Controller
 	
 			$data = DB::table('sales_order')->where('sales_order.is_rental',0)->where('sales_order.job_type',0)->where('sales_order.customer_id',$id)
 			                    ->join('jobmaster', 'jobmaster.id', '=', 'sales_order.job_id')
-			                   ->where('sales_order.status',1)->where('sales_order.deleted_at','0000-00-00 00:00:00')
+			                   ->where('sales_order.status',1)->whereNull('deleted_at')
 			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
 			return $data;
 		}
@@ -824,7 +824,7 @@ class SalesOrderController extends Controller
 	
 			$data = DB::table('sales_order')->where('sales_order.is_rental',0)->where('sales_order.job_type',1)->where('sales_order.customer_id',$id)
 			                    ->join('jobmaster', 'jobmaster.id', '=', 'sales_order.job_id')
-			                   ->where('sales_order.status',1)->where('sales_order.deleted_at','0000-00-00 00:00:00')
+			                   ->where('sales_order.status',1)->whereNull('deleted_at')
 			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
 			return $data;
 	    
@@ -1149,7 +1149,7 @@ class SalesOrderController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$res = $this->voucherno->getVoucherNo('SO'); //echo '<pre>';print_r($res);exit;
 		//$vno = $res->no;
-		$row = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$row = DB::table('sales_order')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		$location = $this->location->locationList();
 		if($row && in_array($row->doc_status, $apr))
@@ -1209,7 +1209,7 @@ class SalesOrderController extends Controller
 	public function getOrderNo(Request $request) {
 		
 		if($request->get('search')=='') {
-			$result = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			$result = DB::table('sales_order')->where('status',1)->whereNull('deleted_at')
 						->where('customer_id',$request->get('cid'))
 						->where('job_type',0)
 						->select('id','voucher_no as text')
@@ -1217,7 +1217,7 @@ class SalesOrderController extends Controller
 						->orderBy('id','DESC')
 						->get();
 		} else {
-			$result = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+			$result = DB::table('sales_order')->where('status',1)->whereNull('deleted_at')
 						->where('customer_id',$request->get('cid'))
 						->where('job_type',0)
 						->where('voucher_no', 'like', '%' . $request->get('search') . '%')
@@ -1274,8 +1274,8 @@ class SalesOrderController extends Controller
 							->select('report_view_detail.id')
 							->first();
 							
-		$infodata = DB::table('sales_order_info')->where('sales_order_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();
-		$row = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$infodata = DB::table('sales_order_info')->where('sales_order_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();
+		$row = DB::table('sales_order')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		$location = $this->location->locationList();
 		if($row && in_array($row->doc_status, $apr))
@@ -1310,10 +1310,10 @@ class SalesOrderController extends Controller
 		$data = array();
 		$quotations = [];//$this->sales_order->quotationSalesList();
 		$salesmans = $this->salesman->getSalesmanList();
-		//$jobs = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('is_salary_job',0)->select('id','code')->get();
-		$custs = [];//DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CUSTOMER')->select('id','master_name')->get();
+		//$jobs = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('is_salary_job',0)->select('id','code')->get();
+		$custs = [];//DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CUSTOMER')->select('id','master_name')->get();
 		$jobs = $this->jobmaster->activeJobmasterList();
-		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')
 		->select('id','master_name')->get(); 
 		return view('body.salesorder.windex')
 					->withQuotations($quotations)
@@ -1536,8 +1536,8 @@ class SalesOrderController extends Controller
 					->join('sales_order_item','sales_order_item.sales_order_id','=','sales_order.id')
 					->where('sales_order.quotation_id', '>', 0)
 					->where('sales_order_item.status', 1)
-					->where('sales_order_item.deleted_at', '0000-00-00 00:00:00')
-					->where('sales_order.deleted_at', '0000-00-00 00:00:00')
+					->whereNull('deleted_at')
+					->whereNull('deleted_at')
 					->select(DB::raw('SUM(sales_order_item.quantity) AS si_quantity'))
 					->get();
 					
@@ -1583,5 +1583,7 @@ class SalesOrderController extends Controller
 	//return true;
 	}
 }
+
+
 
 

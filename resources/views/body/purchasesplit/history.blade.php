@@ -137,13 +137,13 @@ private function SetItemAccountTransaction($objItem, $arrResult, $key, $attribut
 							
 							<div class="pull-right">
 							<?php if($printid) { ?>
-								@permission('pi-print')
+								@can('pi-print')
 								 <a href="{{ url('purchase_split/print/'.$printid->id.'/'.$print->id) }}" target="_blank" class="btn btn-info btn-sm">
 										<span class="btn-label">
 										<i class="fa fa-fw fa-print"></i>
 									</span> 
 								</a>
-								@endpermission
+								@endcan
 							<?php } ?>
 							</div>
 							

@@ -24,7 +24,7 @@ class EmployeeCategoryController extends Controller
 	public function index() {
 		$data = array();
 		$empcategory =DB:: table('employee_category')
-		->where('employee_category.deleted_at','0000-00-00 00:00:00')->orderBy('employee_category.id','ASC')->get();
+		->whereNull('deleted_at')->orderBy('employee_category.id','ASC')->get();
 		return view('body.empcategory.index')
 					->withEmpcategory($empcategory)
 					->withData($data);
@@ -38,11 +38,11 @@ class EmployeeCategoryController extends Controller
 	}
 	
 	public function save() {
-		//print_r(Input::all());
+		//print_r($request->all());
 		DB::table('employee_category')
 				->insert([
-					'category_name' => Input::get('category_name'),
-					'description' => Input::get('description'),
+					'category_name' => $request->get('category_name'),
+					'description' => $request->get('description'),
 					'status'=>1,
 				
 				]);
@@ -63,10 +63,10 @@ class EmployeeCategoryController extends Controller
 	{
 		DB::table('employee_category')->where('id',$id)
 				->update([
-					'category_name' => Input::get('category_name'),
-					'description' => Input::get('description'),
+					'category_name' => $request->get('category_name'),
+					'description' => $request->get('description'),
 					'status'=>1,
-				]);//print_r(Input::all());exit;
+				]);//print_r($request->all());exit;
 		Session::flash('message', 'Employee Category updated successfully');
 		return redirect('emp_category');
 	}
@@ -81,7 +81,7 @@ class EmployeeCategoryController extends Controller
 	
 	public function checkname() {
 
-		$check = $this->check_category_name(Input::get('category_name'), Input::get('id'));
+		$check = $this->check_category_name($request->get('category_name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		//echo '<pre>';print_r($isAvailable);exit;
 		echo json_encode(array(
@@ -92,19 +92,19 @@ class EmployeeCategoryController extends Controller
 		
 		if($id){
 		$query=DB::table('employee_category')
-		->where('category_name',$name)->where('id', '!=', $id)->where('employee_category.deleted_at','0000-00-00 00:00:00')->count();
+		->where('category_name',$name)->where('id', '!=', $id)->whereNull('deleted_at')->count();
 		return $query;
 		}
 		else{
 		$query=DB::table('employee_category')
-		->where('category_name',$name)->where('employee_category.deleted_at','0000-00-00 00:00:00')->count();
+		->where('category_name',$name)->whereNull('deleted_at')->count();
 		return $query ;
 		}
 	}
 	
 	public function destroyGroup()
 	{
-		$ids = Input::get('ids');
+		$ids = $request->get('ids');
 		if($ids) {
 			$idarr = explode(',', $ids);
 			DB::table('employee_category')->whereIn('id',$idarr)->update(['deleted_at' => date('Y-m-d H:i:s')]);
@@ -113,3 +113,5 @@ class EmployeeCategoryController extends Controller
 		return redirect('empcategory');
 	}
 }
+
+

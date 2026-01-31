@@ -74,9 +74,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type', $attributes['voucher_type'])
 										->where('AT.amount','>',0)
 										->where('J.status',1)
-										->where('J.deleted_at','0000-00-00 00:00:00')
-										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
-										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
 										->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -117,9 +117,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type', $attributes['voucher_type'])
 										->where('AT.amount','>',0)
 										->where('J.status',1)
-										->where('J.deleted_at','0000-00-00 00:00:00')
-										->where('manual_journal_entry.deleted_at','0000-00-00 00:00:00')
-										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
 										->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -156,8 +156,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','SI')
 								->where('AT.amount','>',0)
 								->where('sales_invoice.status',1)
-								->where('sales_invoice.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -198,8 +198,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 								//->where('purchase_invoice.amount_transfer', '!=', 1)
 								->where('AT.amount','>',0)
 								->where('purchase_invoice.status',1)
-								->where('purchase_invoice.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -237,10 +237,10 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 								});
 				$query->where('AT.voucher_type','=','RV')
 								->where('AT.amount','>',0)
-								->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('RV.status',1)
-								->where('RV.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -281,10 +281,10 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 								});
 				$query->where('AT.voucher_type','=','PV')
 								->where('AT.amount','>',0)
-								->where('payment_voucher_entry.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('PV.status',1)
-								->where('PV.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -323,8 +323,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','PR')
 								->where('AT.amount','>',0)
 								->where('purchase_return.status',1)
-								->where('purchase_return.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 								//->where('purchase_return.amount_transfer', '!=', 1);
@@ -363,8 +363,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','SR')
 								->where('sales_return.status', 1)
 								->where('AT.amount','>',0)
-								->where('sales_return.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -400,8 +400,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','DB')
 								->where('pdc_received.status', 1)
 								->where('AT.amount','>',0)
-								->where('pdc_received.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -439,8 +439,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','CB')
 								->where('pdc_issued.status', 1)
 								->where('AT.amount','>',0)
-								->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -477,8 +477,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','GI')
 								->where('goods_issued.status', 1)
 								->where('AT.amount','>',0)
-								->where('goods_issued.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -515,8 +515,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','GR')
 								->where('goods_return.status', 1)
 								->where('AT.amount','>',0)
-								->where('goods_return.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -556,10 +556,10 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 										
 				$query->where('AT.voucher_type', $attributes['voucher_type'])
 										->where('AT.amount','>',0)
-										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
-										->where('J.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
 										->where('J.status',1)
-										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -597,10 +597,10 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 										
 				$query->where('AT.voucher_type', $attributes['voucher_type'])
 										->where('AT.amount','>',0)
-										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
-										->where('J.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
 										->where('J.status',1)
-										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -638,10 +638,10 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 										
 				$query->where('AT.voucher_type', $attributes['voucher_type'])
 										->where('AT.amount','>',0)
-										->where('petty_cash_entry.deleted_at','0000-00-00 00:00:00')
-										->where('J.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
 										->where('J.status',1)
-										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -676,8 +676,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','STI')
 								->where('stock_transferin.status', 1)
 								->where('AT.amount','>',0)
-								->where('stock_transferin.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -714,8 +714,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','STO')
 								->where('stock_transferout.status', 1)
 								->where('AT.amount','>',0)
-								->where('stock_transferout.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -753,7 +753,7 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 							
 				$query->where('AT.voucher_type','=','MV')
 							->where('AT.amount','>',0)
-							->where('AT.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->where('AT.status',1);
 							
 				if($date_from!='' && $date_to!='') {		
@@ -786,8 +786,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','STO')
 								->where('STO.status', 1)
 								->where('AT.amount','>',0)
-								->where('STO.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -826,8 +826,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query2->where('AT2.voucher_type','=','STI')
 								->where('STI.status', 1)
 								->where('AT2.amount','>',0)
-								->where('STI.deleted_at','0000-00-00 00:00:00')
-								->where('AT2.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT2.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -862,8 +862,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','SS')
 								->where('AT.amount','>',0)
 								->where('sales_split.status',1)
-								->where('sales_split.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -900,8 +900,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','SSR')
 								->where('AT.amount','>',0)
 								->where('salessplit_return.status',1)
-								->where('salessplit_return.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -939,8 +939,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','PS')
 								->where('AT.amount','>',0)
 								->where('purchase_split.status',1)
-								->where('purchase_split.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -977,8 +977,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query->where('AT.voucher_type','=','PSR')
 								->where('AT.amount','>',0)
 								->where('purchasesplit_return.status',1)
-								->where('purchasesplit_return.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1019,7 +1019,7 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 								->where('AT.amount','>',0)
 								->where('purchase_rental.status',1)
 								->where('purchase_rental.deleted_at',null)
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -1057,7 +1057,7 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 								->where('AT.amount','>',0)
 								->where('rental_sales.status',1)
 								->where('rental_sales.deleted_at',null)
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -1094,8 +1094,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query1->where('AT.voucher_type','=','SI')
 								->where('sales_invoice.status', 1)
 								->where('AT.amount','>',0)
-								->where('sales_invoice.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1126,8 +1126,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 								->where('purchase_invoice.status', 1)
 								//->where('purchase_invoice.amount_transfer', '!=', 1)
 								->where('AT.amount','>',0)
-								->where('purchase_invoice.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -1155,8 +1155,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query3->where('AT.voucher_type','=','PR')
 								->where('purchase_return.status', 1)
 								->where('AT.amount','>',0)
-								->where('purchase_return.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								//->where('purchase_return.amount_transfer', '!=', 1);
 				
@@ -1183,8 +1183,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query4->where('AT.voucher_type','=','SR')
 								->where('sales_return.status', 1)
 								->where('AT.amount','>',0)
-								->where('sales_return.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1213,9 +1213,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query5->where('AT.voucher_type','=','RV')
 								->where('RV.status', 1)
 								->where('AT.amount','>',0)
-								->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00')
-								->where('RV.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1245,9 +1245,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query6->where('AT.voucher_type','=','PV')
 								->where('PV.status', 1)
 								->where('AT.amount','>',0)
-								->where('payment_voucher_entry.deleted_at','0000-00-00 00:00:00')
-								->where('PV.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1277,9 +1277,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query7->where('AT.voucher_type','JV')
 										->where('AT.amount','>',0)
 										->where('J.status',1)
-										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
-										->where('J.deleted_at','0000-00-00 00:00:00')
-										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
 										->where('AT.status',1);	
 				
 				if($date_from!='' && $date_to!='') {		
@@ -1305,8 +1305,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query8->where('AT.voucher_type','=','DB')
 								->where('pdc_received.status', 1)
 								->where('AT.amount','>',0)
-								->where('pdc_received.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);	
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1332,8 +1332,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query9->where('AT.voucher_type','=','CB')
 								->where('pdc_issued.status', 1)
 								->where('AT.amount','>',0)
-								->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);	
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1360,8 +1360,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query10->where('AT.voucher_type','=','GI')
 								->where('goods_issued.status', 1)
 								->where('AT.amount','>',0)
-								->where('goods_issued.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);	
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1388,8 +1388,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query11->where('AT.voucher_type','=','GR')
 								->where('goods_return.status', 1)
 								->where('AT.amount','>',0)
-								->where('goods_return.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);	
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1419,10 +1419,10 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 										
 				$query12->where('AT.voucher_type','=','PIN')
 										->where('AT.amount','>',0)
-										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
-										->where('J.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
 										->where('J.status',1)
-										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->where('AT.status',1);	
 				
 				if($date_from!='' && $date_to!='') {		
@@ -1450,10 +1450,10 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 										
 				$query13->where('AT.voucher_type','SIN')
 										->where('AT.amount','>',0)
-										->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
 										->where('J.status',1)
-										->where('J.deleted_at','0000-00-00 00:00:00')
-										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
 										->where('AT.status',1);	
 				
 				if($date_from!='' && $date_to!='') {		
@@ -1479,8 +1479,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query14->where('AT.voucher_type','=','STI')
 								->where('stock_transferin.status', 1)
 								->where('AT.amount','>',0)
-								->where('stock_transferin.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1507,8 +1507,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query15->where('AT.voucher_type','=','STO')
 								->where('stock_transferout.status', 1)
 								->where('AT.amount','>',0)
-								->where('stock_transferout.deleted_at','0000-00-00 00:00:00')
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				if($date_from!='' && $date_to!='') {		
@@ -1538,9 +1538,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query16->where('AT.voucher_type','PC')
 										->where('AT.amount','>',0)
 										->where('J.status',1)
-										->where('petty_cash_entry.deleted_at','0000-00-00 00:00:00')
-										->where('J.deleted_at','0000-00-00 00:00:00')
-										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
 										->where('AT.status',1);	
 				
 				if($date_from!='' && $date_to!='') {		
@@ -1569,8 +1569,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query18->where('AT.voucher_type','=','PS')
 				 				->where('purchase_split.status', 1)
 				 				->where('AT.amount','>',0)
-				 				->where('purchase_split.deleted_at','0000-00-00 00:00:00')
-				 				->where('AT.deleted_at','0000-00-00 00:00:00')
+				 				->whereNull('deleted_at')
+				 				->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				 if($date_from!='' && $date_to!='') {		
@@ -1596,8 +1596,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query22->where('AT.voucher_type','=','PSR')
 				 				->where('purchasesplit_return.status', 1)
 				 				->where('AT.amount','>',0)
-				 				->where('purchasesplit_return.deleted_at','0000-00-00 00:00:00')
-				 				->where('AT.deleted_at','0000-00-00 00:00:00')
+				 				->whereNull('deleted_at')
+				 				->whereNull('deleted_at')
 								->where('AT.status',1);
 								
 				 if($date_from!='' && $date_to!='') {		
@@ -1624,8 +1624,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				 $query17->where('AT.voucher_type','=','SS')
 								->where('sales_split.status', 1)
 				 				->where('AT.amount','>',0)
-				 				->where('sales_split.deleted_at','0000-00-00 00:00:00')
-				 				->where('AT.deleted_at','0000-00-00 00:00:00')
+				 				->whereNull('deleted_at')
+				 				->whereNull('deleted_at')
 				 				->where('AT.status',1);
 								
 				 if($date_from!='' && $date_to!='') {		
@@ -1652,8 +1652,8 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				 $query23->where('AT.voucher_type','=','SSR')
 								->where('salessplit_return.status', 1)
 				 				->where('AT.amount','>',0)
-				 				->where('salessplit_return.deleted_at','0000-00-00 00:00:00')
-				 				->where('AT.deleted_at','0000-00-00 00:00:00')
+				 				->whereNull('deleted_at')
+				 				->whereNull('deleted_at')
 				 				->where('AT.status',1);
 								
 				 if($date_from!='' && $date_to!='') {		
@@ -1684,9 +1684,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 				$query19->where('AT.voucher_type','MJV')
 										->where('AT.amount','>',0)
 										->where('J.status',1)
-										->where('manual_journal_entry.deleted_at','0000-00-00 00:00:00')
-										->where('J.deleted_at','0000-00-00 00:00:00')
-										->where('AT.deleted_at','0000-00-00 00:00:00')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
+										->whereNull('deleted_at')
 										->where('AT.status',1);	
 				
 				if($date_from!='' && $date_to!='') {		
@@ -1714,7 +1714,7 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 								->where('purchase_rental.status', 1)
 								->where('AT.amount','>',0)
 								->where('purchase_rental.deleted_at',null)
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -1743,7 +1743,7 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 								->where('rental_sales.status', 1)
 								->where('AT.amount','>',0)
 								->where('rental_sales.deleted_at',null)
-								->where('AT.deleted_at','0000-00-00 00:00:00')
+								->whereNull('deleted_at')
 								->where('AT.status',1);
 				
 				if($date_from!='' && $date_to!='') {		
@@ -1977,7 +1977,7 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 						->leftJoin('jobmaster AS J', function($join) {
 							$join->on('J.id','=','sales_order.job_id');
 						})
-						->where('sales_order.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 						
 				if($date_from!='' && $date_to!='') {		
 					$qry1->whereBetween('sales_order.voucher_date', array($date_from, $date_to));
@@ -1999,7 +1999,7 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 						->leftJoin('jobmaster AS J', function($join) {
 							$join->on('J.id','=','sales_invoice.job_id');
 						})
-						->where('sales_invoice.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 						
 				if($date_from!='' && $date_to!='') {		
 					$qry2->whereBetween('sales_invoice.voucher_date', array($date_from, $date_to));
@@ -2033,7 +2033,7 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 						->leftJoin('jobmaster AS J', function($join) {
 							$join->on('J.id','=','RE.job_id');
 						})
-						->where('receipt_voucher.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 						
 				if($date_from!='' && $date_to!='') {		
 					$qry->whereBetween('receipt_voucher.voucher_date', array($date_from, $date_to));
@@ -2065,7 +2065,7 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 						->leftJoin('jobmaster AS J', function($join) {
 							$join->on('J.id','=','sales_order.job_id');
 						})
-						->where('sales_order.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 						
 				if($date_from!='' && $date_to!='') {		
 					$qry1->whereBetween('sales_order.voucher_date', array($date_from, $date_to));
@@ -2087,7 +2087,7 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 						->leftJoin('jobmaster AS J', function($join) {
 							$join->on('J.id','=','sales_invoice.job_id');
 						})
-						->where('sales_invoice.deleted_at','0000-00-00 00:00:00');
+						->whereNull('deleted_at');
 						
 				if($date_from!='' && $date_to!='') {		
 					$qry2->whereBetween('sales_invoice.voucher_date', array($date_from, $date_to));
@@ -2123,10 +2123,10 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 											
 					$query->where('AT.voucher_type', 'SIN')
 											->where('AT.amount','>',0)
-											->where('journal_entry.deleted_at','0000-00-00 00:00:00')
-											->where('J.deleted_at','0000-00-00 00:00:00')
+											->whereNull('deleted_at')
+											->whereNull('deleted_at')
 											->where('J.status',1)
-											->where('AT.deleted_at','0000-00-00 00:00:00')
+											->whereNull('deleted_at')
 											->where('AT.status',1)
 											->where('J.id',$attributes['jid']);
 					
@@ -2154,10 +2154,10 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 			
 			$query13->where('AT.voucher_type','SIN')
 									->where('AT.amount','>',0)
-									->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->where('J.status',1)
-									->where('J.deleted_at','0000-00-00 00:00:00')
-									->where('AT.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
+									->whereNull('deleted_at')
 									->where('AT.status',1)
 									->where('J.id',$attributes['jid']); //rvids
 									
@@ -2179,9 +2179,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 			$query5->where('AT.voucher_type','=','RV')
 							->where('RV.status', 1)
 							->where('AT.amount','>',0)
-							->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00')
-							->where('RV.deleted_at','0000-00-00 00:00:00')
-							->where('AT.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
+							->whereNull('deleted_at')
+							->whereNull('deleted_at')
 							->where('AT.status',1)
 							->whereIn('RV.id', $attributes['jvids']);;
 							
@@ -2204,9 +2204,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 			$query6->where('AT.voucher_type','=','PV')
 							->where('PV.status', 1)
 							->where('AT.amount','>',0)
-							->where('payment_voucher_entry.deleted_at','0000-00-00 00:00:00')
-							->where('PV.deleted_at','0000-00-00 00:00:00')
-							->where('AT.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
+							->whereNull('deleted_at')
+							->whereNull('deleted_at')
 							->where('AT.status',1)
 							->whereIn('PV.id', $attributes['jvids']);;
 							
@@ -2230,9 +2230,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 			$query7->where('AT.voucher_type','JV')
 									->where('AT.amount','>',0)
 									->where('J.status',1)
-									->where('journal_entry.deleted_at','0000-00-00 00:00:00')
-									->where('J.deleted_at','0000-00-00 00:00:00')
-									->where('AT.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
+									->whereNull('deleted_at')
+									->whereNull('deleted_at')
 									->where('AT.status',1)
 									->whereIn('J.id', $attributes['jvids']);
 			
@@ -2261,10 +2261,10 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 			
 			$query13->where('AT.voucher_type','SIN')
 									->where('AT.amount','>',0)
-									->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->where('J.status',1)
-									->where('J.deleted_at','0000-00-00 00:00:00')
-									->where('AT.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
+									->whereNull('deleted_at')
 									->where('AT.status',1)
 									->where('J.id',$attributes['jid']); //rvids
 									
@@ -2286,9 +2286,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 			$query5->where('AT.voucher_type','=','RV')
 							->where('RV.status', 1)
 							->where('AT.amount','>',0)
-							->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00')
-							->where('RV.deleted_at','0000-00-00 00:00:00')
-							->where('AT.deleted_at','0000-00-00 00:00:00')
+							->whereNull('deleted_at')
+							->whereNull('deleted_at')
+							->whereNull('deleted_at')
 							->where('AT.status',1)
 							->whereIn('RV.id', $attributes['rvids']);;
 							
@@ -2314,9 +2314,9 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 			$query7->where('AT.voucher_type','JV')
 									->where('AT.amount','>',0)
 									->where('J.status',1)
-									->where('journal_entry.deleted_at','0000-00-00 00:00:00')
-									->where('J.deleted_at','0000-00-00 00:00:00')
-									->where('AT.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
+									->whereNull('deleted_at')
+									->whereNull('deleted_at')
 									->where('AT.status',1)
 									->whereIn('J.id', $attributes['jvids']);
 			
@@ -2331,4 +2331,6 @@ class VoucherwiseReportRepository extends AbstractValidator implements Voucherwi
 	}
 	
 }
+
+
 

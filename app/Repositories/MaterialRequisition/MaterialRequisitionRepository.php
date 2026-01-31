@@ -333,7 +333,7 @@ class MaterialRequisitionRepository extends AbstractValidator implements Materia
 						  $join->on('im.id','=','GI.item_id');
 					  })
 					  ->where('GI.status',1)
-					  ->where('GI.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('GI.*','u.unit_name','im.item_code')->get();
 	}
 	
@@ -405,7 +405,7 @@ class MaterialRequisitionRepository extends AbstractValidator implements Materia
 					  })
 					  ->where('poi.status',1)
 					  ->whereIn('poi.is_transfer',[0,2])
-					  ->where('poi.deleted_at','0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
 					  ->orderBY('poi.id')->groupBy('poi.id')
 					  ->get();
@@ -477,7 +477,7 @@ class MaterialRequisitionRepository extends AbstractValidator implements Materia
 					  })
 					  ->where('poi.status',1)
 					  ->whereIn('poi.is_transfer',[0,2])
-					  ->where('poi.deleted_at', '0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty') //AP16
 					  ->orderBY('poi.id')
 					  ->get();
@@ -703,4 +703,6 @@ class MaterialRequisitionRepository extends AbstractValidator implements Materia
 	}
 	
 }
+
+
 

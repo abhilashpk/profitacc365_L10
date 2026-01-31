@@ -77,9 +77,9 @@ class DebitNoteController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -117,7 +117,7 @@ class DebitNoteController extends Controller
                         ->withInput();
         }
 			
-		if( $this->debit_note->create(Input::all() ))
+		if( $this->debit_note->create($request->all() ))
 			Session::flash('message', 'Debit note voucher added successfully.');
 		else 
 			Session::flash('error', 'Something went wrong, debit_note voucher failed to add!');
@@ -142,9 +142,9 @@ class DebitNoteController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $cnrow->department_id;
 			}
 			$is_dept = true;
@@ -184,7 +184,7 @@ class DebitNoteController extends Controller
         }
 		
 					
-		$this->debit_note->update($id, Input::all());
+		$this->debit_note->update($id, $request->all());
 		Session::flash('message', 'Debit note updated successfully');
 		return redirect('debit_note');
 	}
@@ -227,7 +227,7 @@ class DebitNoteController extends Controller
 	
 	public function checkVchrNo() {
 
-		$check = $this->debit_note->check_voucher_no(Input::get('voucher_no'), Input::get('vtype'), Input::get('id'));
+		$check = $this->debit_note->check_voucher_no($request->get('voucher_no'), $request->get('vtype'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -284,4 +284,6 @@ class DebitNoteController extends Controller
 		return $result;
 	}
 }
+
+
 

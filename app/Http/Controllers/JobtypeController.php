@@ -23,7 +23,7 @@ class JobtypeController extends Controller
 	
 	public function index() {
 		$data = array();
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$jobtype = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.jobtype.index')
 					->withJobtype($jobtype)
 					->withData($data);
@@ -40,8 +40,8 @@ class JobtypeController extends Controller
 		try {
 			DB::table('jobtype')
 				->insert([
-					'name' => Input::get('name'),
-					'job_no' => Input::get('job_no'),
+					'name' => $request->get('name'),
+					'job_no' => $request->get('job_no'),
 					'status' => 1
 				]);
 			Session::flash('message', 'Job type added successfully.');
@@ -65,8 +65,8 @@ class JobtypeController extends Controller
 	{
 		DB::table('jobtype')->where('id',$id)
 				->update([
-					'name' => Input::get('name'),
-					'job_no' => Input::get('job_no')
+					'name' => $request->get('name'),
+					'job_no' => $request->get('job_no')
 				]);
 		Session::flash('message', 'Job type updated successfully');
 		return redirect('jobtype');
@@ -81,9 +81,11 @@ class JobtypeController extends Controller
 	
 	public function getJobNo($id) {
 		
-		$result = DB::table('jobtype')->where('id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('name','job_no')->first();
+		$result = DB::table('jobtype')->where('id',$id)->where('status',1)->whereNull('deleted_at')->select('name','job_no')->first();
 		echo json_encode($result);
 	}
 	
 }
+
+
 

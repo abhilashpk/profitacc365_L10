@@ -444,7 +444,7 @@ class PettyCashRepository extends AbstractValidator implements PettyCashInterfac
 							 })
 							 ->where('voucher_type','PC')
 							 ->where('PE.status',1)
-							 ->where('PE.deleted_at','0000-00-00 00:00:00')
+							 ->whereNull('deleted_at')
 							 ->select('petty_cash.*','PE.description')
 							 ->orderBy('petty_cash.id', 'DESC')
 							 ->groupBy('petty_cash.id')
@@ -479,4 +479,6 @@ class PettyCashRepository extends AbstractValidator implements PettyCashInterfac
 
 	}
 }
+
+
 

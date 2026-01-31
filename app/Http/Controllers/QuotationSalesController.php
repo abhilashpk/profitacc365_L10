@@ -76,7 +76,7 @@ class QuotationSalesController extends Controller
 		$quotations = [];//$this->quotation_sales->quotationSalesList();//echo '<pre>';print_r($quotations);exit;
 		$salesmans = $this->salesman->getSalesmanList();
 		$jobs = $this->jobmaster->activeJobmasterList();
-		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')
 		->select('id','master_name')->get(); 
 		return view('body.quotationsales.index')
 					->withQuotations($quotations)
@@ -270,14 +270,14 @@ class QuotationSalesController extends Controller
 		$res = $this->voucherno->getVoucherNo('QS'); //echo '<pre>';print_r($res);exit;
 		//$vno = $res->no;//echo '<pre>';print_r($currency);exit;
 		$location = $this->location->locationList();
-		$row = DB::table('quotation_sales')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id','doc_status')->first();
+		$row = DB::table('quotation_sales')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id','doc_status')->first();
 		$apr = ($this->acsettings->doc_approve==1)?[1]:[0,1,2];
 		if($row && in_array($row->doc_status, $apr))
 			$lastid = $row->id;
 		else
 			$lastid = null;
 		
-		$hdr = DB::table('header_footer')->where('doc','QS')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('description')->first();
+		$hdr = DB::table('header_footer')->where('doc','QS')->where('status',1)->whereNull('deleted_at')->select('description')->first();
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
 							->where('report_view.code','QS')
@@ -531,7 +531,7 @@ private function createItem($row) {
 		if($request->hasFile('import_file')){
 			
 			
-				$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+				$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->whereNull('deleted_at')->select('id')->first();
 
 			$path = $request->file('import_file')->getRealPath();
 			$data = Excel::load($path, function($reader) { })->get();
@@ -663,7 +663,7 @@ private function createItem($row) {
 							->first();
 		
 		//DEC22
-		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();
+		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();
 		//echo '<pre>';print_r($infoedit);exit;	
 		return view('body.quotationsales.edit') //edit-eqwep
 					->withItems($itemmaster)
@@ -786,7 +786,7 @@ private function createItem($row) {
 							->first();
 		
 		//DEC22
-		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();
+		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();
 		//echo '<pre>';print_r($infoedit);exit;	
 		return view('body.quotationsales.viewonly') //edit-eqwep
 					->withItems($itemmaster)
@@ -838,7 +838,7 @@ private function createItem($row) {
 							->first();
 		
 		//DEC22
-		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();
+		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();
 		//echo '<pre>';print_r($infoedit);exit;	
 		return view('body.quotationsales.viewapproval') //edit-eqwep
 					->withItems($itemmaster)
@@ -927,7 +927,7 @@ private function createItem($row) {
 	
 			$data = DB::table('quotation_sales')->where('quotation_sales.customer_id',$id)
 			                    ->join('jobmaster', 'jobmaster.id', '=', 'quotation_sales.job_id')
-			                   ->where('quotation_sales.status',1)->where('quotation_sales.deleted_at','0000-00-00 00:00:00')
+			                   ->where('quotation_sales.status',1)->whereNull('deleted_at')
 			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
 			return $data;
 		}
@@ -1296,7 +1296,7 @@ private function createItem($row) {
 							->first();
 		
 		//DEC22
-		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','ASC')->get();
+		$infodata = DB::table('quotation_sales_info')->where('quotation_sales_id',$id)->where('status',1)->whereNull('deleted_at')->orderBy('id','ASC')->get();
 		//echo '<pre>';print_r($infoedit);exit;	
 		return view('body.quotationsales.revice')
 					->withItems($itemmaster)
@@ -1444,8 +1444,8 @@ private function createItem($row) {
 					->join('sales_order_item','sales_order_item.sales_order_id','=','sales_order.id')
 					->where('sales_order.quotation_id', '>', 0)
 					->where('sales_order_item.status', 1)
-					->where('sales_order_item.deleted_at', '0000-00-00 00:00:00')
-					->where('sales_order.deleted_at', '0000-00-00 00:00:00')
+					->whereNull('deleted_at')
+					->whereNull('deleted_at')
 					->select(DB::raw('SUM(sales_order_item.quantity) AS si_quantity'))
 					->get();
 					
@@ -1492,5 +1492,7 @@ private function createItem($row) {
 	}
 	
 }
+
+
 
 

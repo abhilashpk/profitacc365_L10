@@ -1321,7 +1321,7 @@ class ProformaInvoiceRepository extends AbstractValidator implements ProformaInv
 									   $join->on('U.id','=','PI.unit_id');
 								   })
 								   ->where('PI.status',1)
-								   ->where('PI.deleted_at','0000-00-00 00:00:00')
+								   ->whereNull('deleted_at')
 								   ->select('PI.*','proforma_invoice.id','IM.item_code','U.unit_name')
 								   ->orderBY('PI.orderno')
 								   ->get();
@@ -1394,7 +1394,7 @@ class ProformaInvoiceRepository extends AbstractValidator implements ProformaInv
 						$query->where('im.class_id',$val);
 					  }
 					  
-		return $query->where('poi.deleted_at','0000-00-00 00:00:00')
+		return $query->whereNull('deleted_at')
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
 					  ->groupBy('poi.id')
 					  ->orderBY('poi.id')
@@ -1421,7 +1421,7 @@ class ProformaInvoiceRepository extends AbstractValidator implements ProformaInv
 					  ->where('poi.status',1)
 					  ->select('poi.*','u.unit_name','im.item_code','iu.is_baseqty')
 					  ->whereIn('poi.is_transfer',[0,2])
-					  ->where('poi.deleted_at', '0000-00-00 00:00:00')
+					  ->whereNull('deleted_at')
 					  ->orderBY('poi.id')
 					  ->get();
 		
@@ -1918,9 +1918,9 @@ class ProformaInvoiceRepository extends AbstractValidator implements ProformaInv
 						->where('proforma_invoice.id', $id)
 						->where('D.invoice_type','SO')
 						->where('QSI.status',1)
-						->where('QSI.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('D.status',1)
-						->where('D.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('D.*')
 						->get();
 	}
@@ -2508,4 +2508,6 @@ class ProformaInvoiceRepository extends AbstractValidator implements ProformaInv
 	}
 	
 }
+
+
 

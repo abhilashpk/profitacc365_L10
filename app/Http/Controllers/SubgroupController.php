@@ -36,7 +36,7 @@ class SubgroupController extends Controller
 	}
 	
 	public function save(Request $request) {
-		//print_r(Input::all());
+		//print_r($request->all());
 		$this->group->create($request->all());
 		Session::flash('message', 'Sub Group added successfully.');
 		return redirect('subgroup/add');
@@ -53,7 +53,7 @@ class SubgroupController extends Controller
 	
 	public function update($id, Request $request)
 	{
-		$this->group->update($id, $request->all());//print_r(Input::all());exit;
+		$this->group->update($id, $request->all());//print_r($request->all());exit;
 		//Session::flash('message', 'Category updated successfully');
 		return redirect('subgroup');
 	}
@@ -77,7 +77,7 @@ class SubgroupController extends Controller
 	}
 	public function destroyGroup()
 	{
-		$ids = Input::get('ids');
+		$ids = $request->get('ids');
 		if($ids) {
 			$idarr = explode(',', $ids);
 			DB::table('groupcat')->whereIn('id',$idarr)->update(['deleted_at' => date('Y-m-d H:i:s')]);

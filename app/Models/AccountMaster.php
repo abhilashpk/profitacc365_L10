@@ -14,6 +14,11 @@ class AccountMaster extends Model
 							'job_assign','job_compulsary','is_hide','contact_name' ]; //'op_balance','fcop_balance',
 	public $timestamps = false;
 	protected $dates = ['deleted_at'];
+	protected $attributes = [
+		'op_balance' => 0,
+		'cl_balance' => 0,
+		'fcop_balance' => 0,
+	];
 
 	public function group()
 	{

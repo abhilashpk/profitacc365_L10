@@ -22,7 +22,7 @@ class ApicallController extends Controller
 	public function status_chk() {
 		
 		$response =   Curl::to('http://amazonapi.numaktech.com/order-status') //Curl::to('http://hom4me.co.com/order-status')
-						->withData( array('reference_no' => [Input::get('refno')])) //JCT0204799137WS,JCT2280831906WS  ['JCT0513032995IN'])) JCT0518008339IN
+						->withData( array('reference_no' => [$request->get('refno')])) //JCT0204799137WS,JCT2280831906WS  ['JCT0513032995IN'])) JCT0518008339IN
 						->asJson()
 						->post();
 						

@@ -14,6 +14,33 @@
     <link rel="stylesheet" type="text/css" href="{{asset('assets/css/formelements.css')}}">
         <!--end of page level css-->
 	<link rel="stylesheet" type="text/css" href="{{asset('assets/css/custom_css/radio_checkbox.css')}}">	
+    <style>
+        #accordion .panel-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        #accordion .panel-title {
+            margin: 0;
+        }
+        .permission-bulk {
+            margin-top: -2px;
+        }
+        .permission-bulk .btn {
+            margin-left: 6px;
+        }
+        @media (max-width: 768px) {
+            #accordion .panel-heading {
+                display: block;
+            }
+            .permission-bulk {
+                float: none !important;
+                display: block;
+                margin-top: 8px;
+            }
+        }
+    </style>
 @stop
 
 {{-- Page content --}}
@@ -6709,7 +6736,45 @@
 <script type="text/javascript" src="{{asset('assets/vendors/bootstrapvalidator/js/bootstrapValidator.min.js')}}"></script>
 <!-- end of page level js -->
 <script>
+    $(function () {
+        $('#accordion .panel').each(function () {
+            var $panel = $(this);
+            var $heading = $panel.find('.panel-heading').first();
+            if ($heading.find('.permission-bulk').length) {
+                return;
+            }
 
+            var $controls = $('<div class="permission-bulk"></div>');
+            var $selectAll = $('<button type="button" class="btn btn-xs btn-success" data-action="select">Select All</button>');
+            var $unselectAll = $('<button type="button" class="btn btn-xs btn-default" data-action="unselect">Unselect All</button>');
+
+            $controls.append($selectAll).append($unselectAll);
+            $heading.append($controls);
+
+            var getCheckboxes = function () {
+                return $panel.find('input[type="checkbox"][name="permission_id[]"]');
+            };
+            var showPanel = function () {
+                var $collapse = $panel.find('.panel-collapse').first();
+                if ($collapse.length) {
+                    $('#accordion .panel-collapse.in').not($collapse).collapse('hide');
+                    $collapse.collapse('show');
+                }
+            };
+
+            $controls.on('click', 'button[data-action]', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                showPanel();
+                var action = $(this).data('action');
+                if (action === 'select') {
+                    getCheckboxes().prop('checked', true).trigger('change');
+                } else if (action === 'unselect') {
+                    getCheckboxes().prop('checked', false).trigger('change');
+                }
+            });
+        });
+    });
 </script>
 
 @stop

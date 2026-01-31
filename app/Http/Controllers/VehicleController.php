@@ -22,7 +22,7 @@ class VehicleController extends Controller
 	
 	public function index($n=null) {
 		$data = array();
-		$vehicles = DB::table('vehicle')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$vehicles = DB::table('vehicle')->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.vehicle.index')
 					->withVehicles($vehicles)
 					->withData($data);
@@ -154,4 +154,6 @@ class VehicleController extends Controller
 	
 	
 }
+
+
 

@@ -101,7 +101,7 @@ class ContractConnectionController extends Controller
 		try {
 			$ctid = 2;
 			$controw = DB::table('contract_type_re')->where('id',$ctid)->select('increment_no')->first();
-			$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+			$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 			
 			$conid = DB::table('contract_connection')
 						->insertGetId([
@@ -166,7 +166,7 @@ class ContractConnectionController extends Controller
 			
 			//TAX EXTRY....
 			if($actax) {
-				$vatrow = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->select('payment_account')->first();
+				$vatrow = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->select('payment_account')->first();
 				foreach($request->get('acid') as $key => $val) {
 					if($actax[$key] > 0) {
 						$acname[] = $arracname[$key];
@@ -181,30 +181,30 @@ class ContractConnectionController extends Controller
 			}
 			
 			//INSERT SALES NONSTOCK.... 
-			Input::merge(['from_jv' => 1]);
-			Input::merge(['voucher' => 18]);
-			Input::merge(['voucher_type' => 6]);
-			Input::merge(['voucher_date' => date('Y-m-d', strtotime($request->get('date'))) ]);
-			Input::merge(['voucher_no' => $sirow->voucher_no]);
-			Input::merge(['account_name' => $acname]);
-			Input::merge(['account_id' => $acid]);
-			Input::merge(['group_id' => $grparr]);
-			Input::merge(['sales_invoice_id' => $siarr]);
-			Input::merge(['bill_type' => $btarr]);
-			Input::merge(['description' => $desarr]);
-			Input::merge(['reference' => $refarr]);
-			Input::merge(['inv_id' => $invarr]);
-			Input::merge(['actual_amount' => $actarr]);
-			Input::merge(['account_type' => $actypearr]);
-			Input::merge(['line_amount' => $lnarr]);
-			Input::merge(['job_id' => $jbarr]);
-			Input::merge(['difference' => 0]);
-			Input::merge(['curno' => '']);
-			Input::merge(['is_prefix' => 0]);
-			Input::merge(['debit' => $request->get('grand_total')]);
-			Input::merge(['credit' => $request->get('grand_total')]);
+			$request->merge(['from_jv' => 1]);
+			$request->merge(['voucher' => 18]);
+			$request->merge(['voucher_type' => 6]);
+			$request->merge(['voucher_date' => date('Y-m-d', strtotime($request->get('date'))) ]);
+			$request->merge(['voucher_no' => $sirow->voucher_no]);
+			$request->merge(['account_name' => $acname]);
+			$request->merge(['account_id' => $acid]);
+			$request->merge(['group_id' => $grparr]);
+			$request->merge(['sales_invoice_id' => $siarr]);
+			$request->merge(['bill_type' => $btarr]);
+			$request->merge(['description' => $desarr]);
+			$request->merge(['reference' => $refarr]);
+			$request->merge(['inv_id' => $invarr]);
+			$request->merge(['actual_amount' => $actarr]);
+			$request->merge(['account_type' => $actypearr]);
+			$request->merge(['line_amount' => $lnarr]);
+			$request->merge(['job_id' => $jbarr]);
+			$request->merge(['difference' => 0]);
+			$request->merge(['curno' => '']);
+			$request->merge(['is_prefix' => 0]);
+			$request->merge(['debit' => $request->get('grand_total')]);
+			$request->merge(['credit' => $request->get('grand_total')]);
 			
-			$this->journal->createSIN(Input::all());
+			$this->journal->createSIN($request->all());
 			//.......END SALESINVOICE NON STOCK ENTRY
 			
 			
@@ -212,7 +212,7 @@ class ContractConnectionController extends Controller
 			if( isset($input['is_rv']) && $input['is_rv']==1 ) { 
 				$input['voucher_no'] = $sirow->voucher_no;
 				$this->RVformSet($input, $conid);
-				$this->receipt_voucher->create(Input::all());
+				$this->receipt_voucher->create($request->all());
 			}
 			
 			DB::commit();
@@ -275,41 +275,41 @@ class ContractConnectionController extends Controller
 			}
 		}
 		
-		Input::merge(['from_jv' => 1]);
-		Input::merge(['chktype' => ($ispdc)?'PDCR':'']);
-		Input::merge(['is_onaccount' => 1]);
-		Input::merge(['voucher' => $attributes['rv_voucher'][0] ]);
-		Input::merge(['voucher_type' => $vtype]);
-		Input::merge(['voucher_date' => ($attributes['date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['date'])) ]);
-		Input::merge(['voucher_no' => $attributes['rv_voucher_no'][0] ]); 
-		Input::merge(['account_name' => $acname]);
-		Input::merge(['account_id' => $acid]);
-		Input::merge(['group_id' => $grparr]);
-		Input::merge(['vatamt' => $vatamt]);
-		Input::merge(['sales_invoice_id' => $siarr]);
-		Input::merge(['bill_type' => $btarr]);
-		Input::merge(['description' => $desarr]);
-		Input::merge(['reference' => $refarr]);
-		Input::merge(['je_id' => $jearr]);
-		Input::merge(['inv_id' => $invarr]);
-		Input::merge(['actual_amount' => $actarr]);
-		Input::merge(['account_type' => $actypearr]);
-		Input::merge(['line_amount' => $lnarr]);
-		Input::merge(['job_id' => $jbarr]);
-		Input::merge(['bank_id' => $bnkarr]);
-		Input::merge(['cheque_no' => $chqarr]);
-		Input::merge(['cheque_date' => $chqdtarr]);
-		Input::merge(['department' => $dptarr]);
-		Input::merge(['partyac_id' => $pryarr]);
-		Input::merge(['party_name' => $prtnarr]);
-		Input::merge(['tr_id' => $trarr]);
-		Input::merge(['difference' => 0]);
-		Input::merge(['remove_item' => $remrv]);
-		Input::merge(['trn_no' => '']);
-		Input::merge(['curno' => '']);
-		Input::merge(['debit' => $rv_amount]);
-		Input::merge(['credit' => $rv_amount]);
-		Input::merge(['currency_id' => $pmode]);
+		$request->merge(['from_jv' => 1]);
+		$request->merge(['chktype' => ($ispdc)?'PDCR':'']);
+		$request->merge(['is_onaccount' => 1]);
+		$request->merge(['voucher' => $attributes['rv_voucher'][0] ]);
+		$request->merge(['voucher_type' => $vtype]);
+		$request->merge(['voucher_date' => ($attributes['date']=='')?date('Y-m-d'):date('Y-m-d', strtotime($attributes['date'])) ]);
+		$request->merge(['voucher_no' => $attributes['rv_voucher_no'][0] ]); 
+		$request->merge(['account_name' => $acname]);
+		$request->merge(['account_id' => $acid]);
+		$request->merge(['group_id' => $grparr]);
+		$request->merge(['vatamt' => $vatamt]);
+		$request->merge(['sales_invoice_id' => $siarr]);
+		$request->merge(['bill_type' => $btarr]);
+		$request->merge(['description' => $desarr]);
+		$request->merge(['reference' => $refarr]);
+		$request->merge(['je_id' => $jearr]);
+		$request->merge(['inv_id' => $invarr]);
+		$request->merge(['actual_amount' => $actarr]);
+		$request->merge(['account_type' => $actypearr]);
+		$request->merge(['line_amount' => $lnarr]);
+		$request->merge(['job_id' => $jbarr]);
+		$request->merge(['bank_id' => $bnkarr]);
+		$request->merge(['cheque_no' => $chqarr]);
+		$request->merge(['cheque_date' => $chqdtarr]);
+		$request->merge(['department' => $dptarr]);
+		$request->merge(['partyac_id' => $pryarr]);
+		$request->merge(['party_name' => $prtnarr]);
+		$request->merge(['tr_id' => $trarr]);
+		$request->merge(['difference' => 0]);
+		$request->merge(['remove_item' => $remrv]);
+		$request->merge(['trn_no' => '']);
+		$request->merge(['curno' => '']);
+		$request->merge(['debit' => $rv_amount]);
+		$request->merge(['credit' => $rv_amount]);
+		$request->merge(['currency_id' => $pmode]);
 		
 	
 		return true;
@@ -339,7 +339,7 @@ class ContractConnectionController extends Controller
 						->join('journal_entry','journal_entry.journal_id','=','journal.id')
 						->where('journal.voucher_no',$crow->sin_no)
 						->where('journal.voucher_type','SIN')
-						->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('journal_entry.status',1)
 						->select('journal_entry.id','journal_entry.account_id','journal_entry.entry_type')
 						->orderBy('journal_entry.id')->get();
@@ -353,7 +353,7 @@ class ContractConnectionController extends Controller
 		
 		$rvs = DB::table('receipt_voucher')->where('sales_invoice_id', $id)
 						->join('receipt_voucher_entry','receipt_voucher_entry.receipt_voucher_id','=','receipt_voucher.id')
-						->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('receipt_voucher_entry.status',1)
 						->select('receipt_voucher_entry.id','receipt_voucher_entry.account_id','receipt_voucher_entry.entry_type')
 						->orderBy('receipt_voucher_entry.id')->get();
@@ -468,32 +468,32 @@ class ContractConnectionController extends Controller
 			}
 				
 			//UPDATE SALES NONSTOCK
-			Input::merge(['voucher' => 18]);
-			Input::merge(['voucher_type' => 6]);
-			Input::merge(['voucher_date' => date('Y-m-d', strtotime($request->get('date'))) ]); 
-			Input::merge(['voucher_no' => $request->get('sin_no')]);
-			Input::merge(['remove_item' => '']);
-			Input::merge(['account_name' => $acname]);
-			Input::merge(['account_id' => $acid]);
-			Input::merge(['group_id' => $grparr]);
-			Input::merge(['description' => $desarr]);
-			Input::merge(['reference' => $refarr]);
-			Input::merge(['je_id' => $jearr]);
-			Input::merge(['department' => $dptarr]);
-			Input::merge(['bank_id' => $bkarr]);
-			Input::merge(['cheque_no' => $cqarr]);
-			Input::merge(['oldcheque_no' => $cqoarr]);
-			Input::merge(['cheque_date' => $cqdarr]);
-			Input::merge(['inv_id' => '']);
-			Input::merge(['actual_amount' => $actarr]);
-			Input::merge(['account_type' => $actypearr]);
-			Input::merge(['line_amount' => $lnarr]);
-			Input::merge(['job_id' => $jbarr]);
-			Input::merge(['difference' => 0]);
-			Input::merge(['debit' => $request->get('grand_total')]);
-			Input::merge(['credit' => $request->get('grand_total')]);
-			//echo '<pre>';print_r(Input::all());exit;
-			$this->journal->updateSIN($sinRow->id, Input::all());
+			$request->merge(['voucher' => 18]);
+			$request->merge(['voucher_type' => 6]);
+			$request->merge(['voucher_date' => date('Y-m-d', strtotime($request->get('date'))) ]); 
+			$request->merge(['voucher_no' => $request->get('sin_no')]);
+			$request->merge(['remove_item' => '']);
+			$request->merge(['account_name' => $acname]);
+			$request->merge(['account_id' => $acid]);
+			$request->merge(['group_id' => $grparr]);
+			$request->merge(['description' => $desarr]);
+			$request->merge(['reference' => $refarr]);
+			$request->merge(['je_id' => $jearr]);
+			$request->merge(['department' => $dptarr]);
+			$request->merge(['bank_id' => $bkarr]);
+			$request->merge(['cheque_no' => $cqarr]);
+			$request->merge(['oldcheque_no' => $cqoarr]);
+			$request->merge(['cheque_date' => $cqdarr]);
+			$request->merge(['inv_id' => '']);
+			$request->merge(['actual_amount' => $actarr]);
+			$request->merge(['account_type' => $actypearr]);
+			$request->merge(['line_amount' => $lnarr]);
+			$request->merge(['job_id' => $jbarr]);
+			$request->merge(['difference' => 0]);
+			$request->merge(['debit' => $request->get('grand_total')]);
+			$request->merge(['credit' => $request->get('grand_total')]);
+			//echo '<pre>';print_r($request->all());exit;
+			$this->journal->updateSIN($sinRow->id, $request->all());
 			
 			//exit;
 			if( isset($input['is_rv']) && $input['is_rv']==1 ) { 
@@ -501,11 +501,11 @@ class ContractConnectionController extends Controller
 				if($rvsi) {
 					$input['voucher_no'] = $input['connection_no'];
 					$this->RVformSet($input, $id);
-					$this->receipt_voucher->update($rvsi->id, Input::all());
+					$this->receipt_voucher->update($rvsi->id, $request->all());
 				} else {
 					$input['voucher_no'] = $input['connection_no'];
 					$this->RVformSet($input, $id);
-					$this->receipt_voucher->create(Input::all());
+					$this->receipt_voucher->create($request->all());
 				}
 			}
 			
@@ -547,7 +547,7 @@ class ContractConnectionController extends Controller
 						->join('journal_entry','journal_entry.journal_id','=','journal.id')
 						->where('journal.voucher_no',$crow->sin_no)
 						->where('journal.voucher_type','SIN')
-						->where('journal_entry.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('journal_entry.status',1)
 						->select('journal_entry.id','journal_entry.account_id','journal_entry.entry_type')
 						->orderBy('journal_entry.id')->get();
@@ -561,7 +561,7 @@ class ContractConnectionController extends Controller
 		
 		$rvs = DB::table('receipt_voucher')->where('sales_invoice_id', $id)
 						->join('receipt_voucher_entry','receipt_voucher_entry.receipt_voucher_id','=','receipt_voucher.id')
-						->where('receipt_voucher_entry.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->where('receipt_voucher_entry.status',1)
 						->select('receipt_voucher_entry.id','receipt_voucher_entry.account_id','receipt_voucher_entry.entry_type')
 						->orderBy('receipt_voucher_entry.id')->get();
@@ -596,7 +596,7 @@ class ContractConnectionController extends Controller
 		try {
 			$ctid = 1;
 			$controw = DB::table('contract_type_re')->where('id',$ctid)->select('increment_no')->first();
-			$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+			$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 			
 			$data = DB::table('contract_connection')
 					->where('contract_connection.flat_id',$request->get('flat_id'))
@@ -659,7 +659,7 @@ class ContractConnectionController extends Controller
 			
 			//TAX EXTRY....
 			if($actax) {
-				$vatrow = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->select('payment_account')->first();
+				$vatrow = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->select('payment_account')->first();
 				foreach($request->get('acid') as $key => $val) {
 					if($actax[$key] > 0) {
 						$acname[] = 'VAT ACCOUNT';//$arracname[$key];
@@ -674,30 +674,30 @@ class ContractConnectionController extends Controller
 			}
 			
 			//INSERT SALES NONSTOCK.... 
-			Input::merge(['from_jv' => 1]);
-			Input::merge(['voucher' => 18]);
-			Input::merge(['voucher_type' => 6]);
-			Input::merge(['voucher_date' => date('Y-m-d', strtotime($request->get('date'))) ]);
-			Input::merge(['voucher_no' => $sirow->voucher_no]);
-			Input::merge(['account_name' => $acname]);
-			Input::merge(['account_id' => $acid]);
-			Input::merge(['group_id' => $grparr]);
-			Input::merge(['sales_invoice_id' => $siarr]);
-			Input::merge(['bill_type' => $btarr]);
-			Input::merge(['description' => $desarr]);
-			Input::merge(['reference' => $refarr]);
-			Input::merge(['inv_id' => $invarr]);
-			Input::merge(['actual_amount' => $actarr]);
-			Input::merge(['account_type' => $actypearr]);
-			Input::merge(['line_amount' => $lnarr]);
-			Input::merge(['job_id' => $jbarr]);
-			Input::merge(['difference' => 0]);
-			Input::merge(['curno' => '']);
-			Input::merge(['is_prefix' => 0]);
-			Input::merge(['debit' => $request->get('grand_total')]);
-			Input::merge(['credit' => $request->get('grand_total')]);
+			$request->merge(['from_jv' => 1]);
+			$request->merge(['voucher' => 18]);
+			$request->merge(['voucher_type' => 6]);
+			$request->merge(['voucher_date' => date('Y-m-d', strtotime($request->get('date'))) ]);
+			$request->merge(['voucher_no' => $sirow->voucher_no]);
+			$request->merge(['account_name' => $acname]);
+			$request->merge(['account_id' => $acid]);
+			$request->merge(['group_id' => $grparr]);
+			$request->merge(['sales_invoice_id' => $siarr]);
+			$request->merge(['bill_type' => $btarr]);
+			$request->merge(['description' => $desarr]);
+			$request->merge(['reference' => $refarr]);
+			$request->merge(['inv_id' => $invarr]);
+			$request->merge(['actual_amount' => $actarr]);
+			$request->merge(['account_type' => $actypearr]);
+			$request->merge(['line_amount' => $lnarr]);
+			$request->merge(['job_id' => $jbarr]);
+			$request->merge(['difference' => 0]);
+			$request->merge(['curno' => '']);
+			$request->merge(['is_prefix' => 0]);
+			$request->merge(['debit' => $request->get('grand_total')]);
+			$request->merge(['credit' => $request->get('grand_total')]);
 			
-			$this->journal->createSIN(Input::all());
+			$this->journal->createSIN($request->all());
 			//.......END SALESINVOICE NON STOCK ENTRY
 			
 			
@@ -705,7 +705,7 @@ class ContractConnectionController extends Controller
 			if( isset($input['is_rv']) && $input['is_rv']==1 ) { 
 				$input['voucher_no'] = $sirow->voucher_no;
 				$this->RVformSet($input, $readid);
-				$this->receipt_voucher->create(Input::all());
+				$this->receipt_voucher->create($request->all());
 			}
 			
 			DB::commit();
@@ -844,7 +844,7 @@ class ContractConnectionController extends Controller
 		try {
 			$ctid = 3;
 			$controw = DB::table('contract_type_re')->where('id',$ctid)->select('increment_no')->first();
-			$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('department_id',0)->select('voucher_no')->first();
+			$sirow = DB::table('account_setting')->where('voucher_type_id',6)->where('status',1)->whereNull('deleted_at')->where('department_id',0)->select('voucher_no')->first();
 			
 			$data = DB::table('contract_connection')
 					->where('contract_connection.flat_id',$request->get('flat_id'))
@@ -907,7 +907,7 @@ class ContractConnectionController extends Controller
 			
 			//TAX EXTRY....
 			if($actax) {
-				$vatrow = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->select('payment_account')->first();
+				$vatrow = DB::table('vat_master')->where('status', 1)->whereNull('deleted_at')->select('payment_account')->first();
 				foreach($request->get('acid') as $key => $val) {
 					if($actax[$key] > 0) {
 						$acname[] = 'VAT ACCOUNT';//$arracname[$key];
@@ -922,30 +922,30 @@ class ContractConnectionController extends Controller
 			}
 			
 			//INSERT SALES NONSTOCK.... 
-			Input::merge(['from_jv' => 1]);
-			Input::merge(['voucher' => 18]);
-			Input::merge(['voucher_type' => 6]);
-			Input::merge(['voucher_date' => date('Y-m-d', strtotime($request->get('date'))) ]);
-			Input::merge(['voucher_no' => $sirow->voucher_no]);
-			Input::merge(['account_name' => $acname]);
-			Input::merge(['account_id' => $acid]);
-			Input::merge(['group_id' => $grparr]);
-			Input::merge(['sales_invoice_id' => $siarr]);
-			Input::merge(['bill_type' => $btarr]);
-			Input::merge(['description' => $desarr]);
-			Input::merge(['reference' => $refarr]);
-			Input::merge(['inv_id' => $invarr]);
-			Input::merge(['actual_amount' => $actarr]);
-			Input::merge(['account_type' => $actypearr]);
-			Input::merge(['line_amount' => $lnarr]);
-			Input::merge(['job_id' => $jbarr]);
-			Input::merge(['difference' => 0]);
-			Input::merge(['curno' => '']);
-			Input::merge(['is_prefix' => 0]);
-			Input::merge(['debit' => $request->get('grand_total')]);
-			Input::merge(['credit' => $request->get('grand_total')]);
+			$request->merge(['from_jv' => 1]);
+			$request->merge(['voucher' => 18]);
+			$request->merge(['voucher_type' => 6]);
+			$request->merge(['voucher_date' => date('Y-m-d', strtotime($request->get('date'))) ]);
+			$request->merge(['voucher_no' => $sirow->voucher_no]);
+			$request->merge(['account_name' => $acname]);
+			$request->merge(['account_id' => $acid]);
+			$request->merge(['group_id' => $grparr]);
+			$request->merge(['sales_invoice_id' => $siarr]);
+			$request->merge(['bill_type' => $btarr]);
+			$request->merge(['description' => $desarr]);
+			$request->merge(['reference' => $refarr]);
+			$request->merge(['inv_id' => $invarr]);
+			$request->merge(['actual_amount' => $actarr]);
+			$request->merge(['account_type' => $actypearr]);
+			$request->merge(['line_amount' => $lnarr]);
+			$request->merge(['job_id' => $jbarr]);
+			$request->merge(['difference' => 0]);
+			$request->merge(['curno' => '']);
+			$request->merge(['is_prefix' => 0]);
+			$request->merge(['debit' => $request->get('grand_total')]);
+			$request->merge(['credit' => $request->get('grand_total')]);
 			
-			$this->journal->createSIN(Input::all());
+			$this->journal->createSIN($request->all());
 			//.......END SALESINVOICE NON STOCK ENTRY
 			
 			
@@ -953,7 +953,7 @@ class ContractConnectionController extends Controller
 			if( isset($input['is_rv']) && $input['is_rv']==1 ) { 
 				$input['voucher_no'] = $sirow->voucher_no;
 				$this->RVformSet($input, $readid);
-				$this->receipt_voucher->create(Input::all());
+				$this->receipt_voucher->create($request->all());
 			}
 			
 			DB::commit();
@@ -1090,3 +1090,5 @@ class ContractConnectionController extends Controller
 	}
 	
 }
+
+

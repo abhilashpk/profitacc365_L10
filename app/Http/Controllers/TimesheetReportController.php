@@ -32,7 +32,7 @@ class TimesheetReportController extends Controller
 		$data = array(); $reports = null;
 		$reports = null;
 		$employees = $this->employee->activeEmployeeList();
-		$jobs = DB::table('jobmaster')->where('is_salary_job',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$jobs = DB::table('jobmaster')->where('is_salary_job',0)->where('status',1)->whereNull('deleted_at')->get();
 		return view('body.timesheetreport.index')
 					->withReports($reports)
 					->withType('')
@@ -59,22 +59,22 @@ class TimesheetReportController extends Controller
 	public function getSearch()
 	{
         $data = array();
-		//echo '<pre>';print_r(Input::all());exit;
-		if(Input::get('search_type')=='daily') {
+		//echo '<pre>';print_r($request->all());exit;
+		if($request->get('search_type')=='daily') {
 			$voucher_head = 'Timesheet Employee Wise Daily Report';
 			$titles = ['main_head' => 'Timesheet Employee Wise Report','subhead' => 'Timesheet Employee Wise Daily Report'];
-			$id=Input::get('employee_id');
+			$id=$request->get('employee_id');
 		   $employee = $this->employee->find($id);
 		   $parameter4 = $this->parameter4->getParameter4();
-			$results = $this->wageentry->timesheetdailySearch(Input::all()); // echo '<pre>';print_r($results);exit;
+			$results = $this->wageentry->timesheetdailySearch($request->all()); // echo '<pre>';print_r($results);exit;
 			
-		} else if(Input::get('search_type')=='monthly') {
+		} else if($request->get('search_type')=='monthly') {
 			$voucher_head = 'Timesheet Employee Wise Report'; 
 			$titles = ['main_head' => 'Timesheet Employee Wise Report','subhead' => 'Timesheet Employee Wise Report'];
-			$id=Input::get('employee_id');
+			$id=$request->get('employee_id');
 		   $employee = $this->employee->find($id);
 		   $parameter4 = $this->parameter4->getParameter4();
-			$results = $this->wageentry->timesheetmonthlySearch(Input::all()); 
+			$results = $this->wageentry->timesheetmonthlySearch($request->all()); 
 			//echo '<pre>';print_r($resul);exit;
 		 
 			//echo '<pre>';print_r($results);exit;
@@ -85,18 +85,18 @@ class TimesheetReportController extends Controller
 					->withResult($results)
 					->withEmployee($employee)
 					->withParameter($parameter4)
-					->withType(Input::get('search_type'))
+					->withType($request->get('search_type'))
 				    ->withVoucherhead($voucher_head)
 					->withTitles($titles)
-					->withMonth(Input::get('month'));
+					->withMonth($request->get('month'));
 					
     }			
 			
     public function getpayrollSearch(){
         $voucher_head = 'PAYROLL SHEET';
         $titles = ['main_head' => 'PAYROLL SHEET','subhead' => 'PAYROLL SHEET'];
-        $id=Input::get('employee_id');
-        $month=Input::get('month');
+        $id=$request->get('employee_id');
+        $month=$request->get('month');
        $employee = $this->employee->find($id);
        $parameter4 = $this->parameter4->getParameter4();
 		$wage_entry = $this->wageentry->get_wage_entryts($id,$month);	
@@ -109,7 +109,7 @@ class TimesheetReportController extends Controller
        ->withParameter($parameter4)
        ->withWageentry($wage_entry)
        ->withWitems($wage_entry_items)
-       ->withType(Input::get('search_type'))
+       ->withType($request->get('search_type'))
        ->withVoucherhead($voucher_head)
        ->withTitles($titles)
        ->withMonth($month);
@@ -124,28 +124,30 @@ class TimesheetReportController extends Controller
 	{
 		$data = $wages = $employee = array();
 		
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			
-			$results = $this->calculate_job_wages( $this->wageentry->get_jobwise(Input::all()) );
+			$results = $this->calculate_job_wages( $this->wageentry->get_jobwise($request->all()) );
 			$titles = ['main_head' => 'Job Report ','subhead' => 'Job Report - Summary' ];
 			
-		} else if(Input::get('search_type')=='detail') {
+		} else if($request->get('search_type')=='detail') {
 			
 			$voucher_head = 'Jobwise Detail';
 			$titles = ['main_head' => 'Jobwise Detail','subhead' => 'Jobwise Detail'];
-			$results = $this->wageentry->get_jobwise(Input::all());
+			$results = $this->wageentry->get_jobwise($request->all());
 			$titles = ['main_head' => 'Job Report ','subhead' => 'Job Report - Detail' ];
 		}
 		
 		//echo '<pre>';print_r($results);exit;
 		return view('body.payrollreport.jobprint')
 					->withReports($results)
-					->withType(Input::get('search_type'))
+					->withType($request->get('search_type'))
 					->withTitles($titles)
 					->withUrl('')
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
-					->withJobid(Input::get('job_id'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
+					->withJobid($request->get('job_id'))
 					->withData($data);
 	}
 }
+
+

@@ -73,13 +73,13 @@
                             </h3>
 							
 							<div class="pull-right">
-							@permission('pi-print')
+							@can('pi-print')
 							 <a href="{{ url('purchase_invoice/print/'.$orderrow->id.'/'.$print->id) }}" target="_blank"  class="btn btn-info btn-sm">
 								<span class="btn-label">
 									<i class="fa fa-fw fa-print"></i>
 								</span>
 							 </a>
-							@endpermission
+							@endcan
 							</div>
                         </div>
                         <div class="panel-body">

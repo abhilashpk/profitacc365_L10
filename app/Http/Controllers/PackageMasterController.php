@@ -19,7 +19,7 @@ class PackageMasterController extends Controller
 	
 	public function index() {
 		$data = array();
-		$packages = DB::table('package_master')->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->get();
+		$packages = DB::table('package_master')->whereNull('deleted_at')->orderBy('id','DESC')->get();
 		return view('body.packagemaster.index')
 					->withPackages($packages)
 					->withData($data);
@@ -34,9 +34,9 @@ class PackageMasterController extends Controller
 		try {
 			DB::table('package_master')
 					->insert([
-						'name' => Input::get('name'),
-						'description' => Input::get('description'),
-						'amount' => Input::get('amount'),
+						'name' => $request->get('name'),
+						'description' => $request->get('description'),
+						'amount' => $request->get('amount'),
 						'status'	=> 1
 					]);
 				
@@ -61,9 +61,9 @@ class PackageMasterController extends Controller
 	{
 		DB::table('package_master')->where('id',$id)
 				->update([
-					'name' => Input::get('name'),
-					'description' => Input::get('description'),
-					'amount' => Input::get('amount')
+					'name' => $request->get('name'),
+					'description' => $request->get('description'),
+					'amount' => $request->get('amount')
 				]);
 				
 		Session::flash('message', 'Package Master updated successfully');
@@ -80,4 +80,6 @@ class PackageMasterController extends Controller
 	
 	
 }
+
+
 

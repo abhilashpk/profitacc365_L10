@@ -43,9 +43,9 @@ class BalanceSheetController2 extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				//$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -111,7 +111,7 @@ class BalanceSheetController2 extends Controller
 
             $transactions = AccountTransaction::where(function ($q) {
                                 $q->whereNull('deleted_at')
-                                ->orWhere('deleted_at', '0000-00-00 00:00:00');
+                                ->orWhereNull('');
                             })
                             ->where('account_master_id', $accountId)
                             ->where('status', 1)
@@ -140,7 +140,7 @@ class BalanceSheetController2 extends Controller
             ->where('status', 1)
             ->where(function ($q) {
                 $q->whereNull('deleted_at')
-                ->orWhere('deleted_at', '0000-00-00 00:00:00');
+                ->orWhereNull('');
             })
             ->pluck('id')
             ->toArray();
@@ -151,7 +151,7 @@ class BalanceSheetController2 extends Controller
             ->where('status', 1)
             ->where(function ($q) {
                 $q->whereNull('deleted_at')
-                ->orWhere('deleted_at', '0000-00-00 00:00:00');
+                ->orWhereNull('');
             })
             ->pluck('id')
             ->toArray();
@@ -165,7 +165,7 @@ class BalanceSheetController2 extends Controller
                 ->where('status', 1)
                 ->where(function ($q) {
                     $q->whereNull('deleted_at')
-                    ->orWhere('deleted_at', '0000-00-00 00:00:00');
+                    ->orWhereNull('');
                 })
                 ->get();
 
@@ -186,7 +186,7 @@ class BalanceSheetController2 extends Controller
                 ->where('status', 1)
                 ->where(function ($q) {
                     $q->whereNull('deleted_at')
-                    ->orWhere('deleted_at', '0000-00-00 00:00:00');
+                    ->orWhereNull('');
                 })
                 ->get();
 
@@ -215,7 +215,7 @@ class BalanceSheetController2 extends Controller
 
         $categories = DB::table('account_category')
             ->where('status', 1)
-            ->where('deleted_at', '0000-00-00 00:00:00')
+            ->whereNull('deleted_at')
             ->get();
 
         foreach ($categories as $category) {
@@ -232,14 +232,14 @@ class BalanceSheetController2 extends Controller
             // Get groups under this category
             $groups = DB::table('account_group')
                 ->where('category_id', $category->id)
-                ->where('deleted_at', '0000-00-00 00:00:00')
+                ->whereNull('deleted_at')
                 ->get();
 
             foreach ($groups as $group) {
                 // Get accounts under this group
                 $accounts = DB::table('account_master')
                     ->where('account_group_id', $group->id)
-                    ->where('deleted_at', '0000-00-00 00:00:00')
+                    ->whereNull('deleted_at')
                     ->get();
 
                 foreach ($accounts as $account) {
@@ -247,7 +247,7 @@ class BalanceSheetController2 extends Controller
                     $transactions = DB::table('account_transaction')
                         ->where('account_master_id', $account->id)
                         ->whereBetween('invoice_date', [$startDate, $endDate])
-                        ->where('deleted_at', '0000-00-00 00:00:00')
+                        ->whereNull('deleted_at')
                         ->select('transaction_type', DB::raw('SUM(amount) as total'))
                         ->groupBy('transaction_type')
                         ->get();
@@ -278,7 +278,7 @@ class BalanceSheetController2 extends Controller
 
     public function report(Request $request)
     {
-        //$mindate = DB::table('account_transaction')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->min('invoice_date'); 
+        //$mindate = DB::table('account_transaction')->where('status',1)->whereNull('deleted_at')->min('invoice_date'); 
         $fromDate = ($request->get('date_from')=='')?$this->acsettings->from_date:Carbon::parse($request->get('date_from'))->format('Y-m-d'); //$this->acsettings->from_date
         $toDate = ($request->get('date_to')=='')?$this->acsettings->to_date:Carbon::parse($request->get('date_to'))->format('Y-m-d'); //$request->get('date_to');
         $searchtype = $request->get('search_type');
@@ -300,7 +300,7 @@ class BalanceSheetController2 extends Controller
                     ->where('status', 1)
                     ->where(function ($q) {
                         $q->whereNull('deleted_at')
-                        ->orWhere('deleted_at', '0000-00-00 00:00:00');
+                        ->orWhereNull('');
                     })
                     ->get();
 
@@ -385,7 +385,7 @@ class BalanceSheetController2 extends Controller
                     ->where('status', 1)
                     ->where(function ($q) {
                         $q->whereNull('deleted_at')
-                        ->orWhere('deleted_at', '0000-00-00 00:00:00');
+                        ->orWhereNull('');
                     })
                     ->get();
 
@@ -625,4 +625,7 @@ class BalanceSheetController2 extends Controller
     
 
 }
+
+
+
 

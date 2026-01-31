@@ -115,18 +115,18 @@ class AccountsReportController extends Controller
 		
 	public function getSearch()
 	{ 	
-		$arr = explode('-',Input::get('account'));
+		$arr = explode('-',$request->get('account'));
 		$id = $arr[0]; $type = $arr[1];
 		
 		$data = array();
 		
 		if($type=='CUSTOMER') {
 			$voucher_head = 'Customer Itemwise Report';
-			$reports = $this->makeTreeVchr( $this->sales_invoice->getCustomerIitems($id,Input::all()) );
+			$reports = $this->makeTreeVchr( $this->sales_invoice->getCustomerIitems($id,$request->all()) );
 			//echo '<pre>';print_r($reports);exit;
 		} else {
 			$voucher_head = 'Supplier Itemwise Report';
-			$reports = $this->makeTreeVchr( $this->purchase_invoice->getPurchaseIitems($id,Input::all()) );
+			$reports = $this->makeTreeVchr( $this->purchase_invoice->getPurchaseIitems($id,$request->all()) );
 			//echo '<pre>';print_r($reports);exit;
 		}
 		
@@ -135,8 +135,8 @@ class AccountsReportController extends Controller
 					->withVoucherhead($voucher_head)
 					->withType($type)
 					->withId($id)
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withData($data);
 	}
 	
@@ -146,15 +146,15 @@ class AccountsReportController extends Controller
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		$id = Input::get('id');
-		$type = Input::get('type');
+		$id = $request->get('id');
+		$type = $request->get('type');
 		
 		if($type=='CUSTOMER') {
 			$voucher_head = 'Customer Itemwise Report';
-			$reports = $this->makeTreeVchr( $this->sales_invoice->getCustomerIitems($id,Input::all()) );
+			$reports = $this->makeTreeVchr( $this->sales_invoice->getCustomerIitems($id,$request->all()) );
 		} else {
 			$voucher_head = 'Supplier Itemwise Report';
-			$reports = $this->makeTreeVchr( $this->purchase_invoice->getPurchaseIitems($id,Input::all()) );
+			$reports = $this->makeTreeVchr( $this->purchase_invoice->getPurchaseIitems($id,$request->all()) );
 			//echo '<pre>';print_r($reports);exit;
 		}
 		

@@ -175,7 +175,7 @@ class CargoReceiptController extends Controller
 		$cVoucher = DB::table('voucher_no')->where('status',1)->where('voucher_type','CJ')->select('id','no')->first();
 		$dtype = DB::table('delivery_type')->where('deleted_at',null)->select('id','description','code')->get();
 		$ctype = DB::table('collection_type')->where('deleted_at',null)->select('id','description','code')->get();
-		$ptype = DB::table('units')->where('deleted_at','0000-00-00 00:00:00')->where('status',1)->select('id','description')->get();
+		$ptype = DB::table('units')->whereNull('deleted_at')->where('status',1)->select('id','description')->get();
 		$lastid = DB::table('cargo_receipt')->where('deleted_at',null)->select('id')->orderBy('id','DESC')->first();
 		$consignee = DB::table('consignee')->where('deleted_at',null)->get();
 		$shipper = DB::table('shipper')->where('deleted_at',null)->get();
@@ -305,7 +305,7 @@ class CargoReceiptController extends Controller
 	public function getFileform() {
 		
 		return view('body.cargoreceipt.fileform')
-					->withNo(Input::get('no'));
+					->withNo($request->get('no'));
 				
 	}
 	
@@ -322,7 +322,7 @@ class CargoReceiptController extends Controller
 		
 		$dtype = DB::table('delivery_type')->where('deleted_at',null)->select('id','description','code')->get();
 		$ctype = DB::table('collection_type')->where('deleted_at',null)->select('id','description','code')->get();
-		$ptype = DB::table('units')->where('deleted_at','0000-00-00 00:00:00')->where('status',1)->select('id','description')->get();
+		$ptype = DB::table('units')->whereNull('deleted_at')->where('status',1)->select('id','description')->get();
 		$attachments = DB::table('cargo_attachment')->where('cargo_receipt_id', $id)->get();
         $lastid=DB::table('cargo_receipt')->where('status',1)->select('id')->orderBy('id','DESC')->first();
 		$consignee = DB::table('consignee')->where('deleted_at',null)->select('id','consignee_name')->get();
@@ -449,13 +449,13 @@ class CargoReceiptController extends Controller
 						->select('cargo_receipt.*','CON.consignee_name','CON.phone As consignee_mobile','CON.alter_phone As consignee_tele','CON.address As consignee_city','SHP.shipper_name','SHP.phone As shipper_mobile','SHP.address As shipper_city','CT.code AS collection_type','DT.code AS delivery_type')
 						->first();			
 		$pktype=unserialize($row->packing_type)	;
-		$ptypes = DB::table('units')->whereIn('id',$pktype)->where('deleted_at','0000-00-00 00:00:00')->select('description')->get();
+		$ptypes = DB::table('units')->whereIn('id',$pktype)->whereNull('deleted_at')->select('description')->get();
 		$ptype = '';
 		foreach($ptypes as $pt) {
 			$ptype .= ($ptype=='')?$pt->description:','.$pt->description;
 		}
         $scode =$row->salesman_id;
-		$salescode = DB::table('salesman')->where('deleted_at','0000-00-00 00:00:00')->where('id',$scode)->select('salesman_id','name')->first();
+		$salescode = DB::table('salesman')->whereNull('deleted_at')->where('id',$scode)->select('salesman_id','name')->first();
 		
 						//echo '<pre>';print_r($ret);exit;
 		return view('body.cargoreceipt.print')
@@ -528,8 +528,8 @@ class CargoReceiptController extends Controller
 	     $pktype = null;
 		
 		foreach($rate as $rt){
-        //$pktypes = DB::table('units')->whereIn('id',unserialize($rt->packing_type))->where('deleted_at','0000-00-00 00:00:00')->select('description')->get();
-         $pktypes = DB::table('units')->where('id',$rt->rate_unit)->where('deleted_at','0000-00-00 00:00:00')->select('description')->get();
+        //$pktypes = DB::table('units')->whereIn('id',unserialize($rt->packing_type))->whereNull('deleted_at')->select('description')->get();
+         $pktypes = DB::table('units')->where('id',$rt->rate_unit)->whereNull('deleted_at')->select('description')->get();
 		$ptypes=$this->sortUnit($pktypes);
 		
 		$pktype[]=(object)[
@@ -682,5 +682,7 @@ class CargoReceiptController extends Controller
 								})->download('xlsx');					
 	}
 }
+
+
 
 

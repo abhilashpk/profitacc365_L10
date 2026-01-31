@@ -77,7 +77,7 @@ class PurchaseOrderController extends Controller
 		$orders = [];//$this->purchase_order->purchaseOrderList1();
 		$jobs = $this->jobmaster->activeJobmasterList();
 		//$sup = $this->accountmaster->supplierList();
-		$sup =DB::table('account_master')->where('category','SUPPLIER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$sup =DB::table('account_master')->where('category','SUPPLIER')->where('status',1)->whereNull('deleted_at')
 		->select('id','master_name')->get(); 
 		//echo '<pre>';print_r($sup);exit;
 		return view('body.purchaseorder.index')
@@ -242,11 +242,11 @@ class PurchaseOrderController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$res = $this->voucherno->getVoucherNo('PO');
 		$vno = $res->no;
-		$lastid = DB::table('purchase_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$lastid = DB::table('purchase_order')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
 	    //echo '<pre>';print_r($res);exit;
 		$location = $this->location->locationList();
 		
-		$footertxt = DB::table('header_footer')->where('doc','PO')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$footertxt = DB::table('header_footer')->where('doc','PO')->where('status',1)->whereNull('deleted_at')->first();
 		$bcurrency = DB::table('parameter1')
 							 ->join('currency', 'currency.id', '=', 'parameter1.bcurrency_id')
 							  ->select('currency.code')
@@ -863,7 +863,7 @@ class PurchaseOrderController extends Controller
 		if($id) {
 			$row = DB::table('itemmaster')->where('id',$id)->select('class_id')->first();
 			if($row->class_id==2) {
-			   $data = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','unit_name')->get();
+			   $data = DB::table('units')->where('status',1)->whereNull('deleted_at')->select('id','unit_name')->get();
 			   return $data;
 			} else {
 				$data = $this->itemmaster->getUnits($id); 
@@ -871,7 +871,7 @@ class PurchaseOrderController extends Controller
 				
 			}
 		} else {
-			$data = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','unit_name')->get();
+			$data = DB::table('units')->where('status',1)->whereNull('deleted_at')->select('id','unit_name')->get();
 			return $data;
 		}
 		
@@ -1365,7 +1365,7 @@ class PurchaseOrderController extends Controller
 	
 			$data = DB::table('purchase_order')->where('purchase_order.supplier_id',$id)
 			                    ->join('jobmaster', 'jobmaster.id', '=', 'purchase_order.job_id')
-			                   ->where('purchase_order.status',1)->where('purchase_order.deleted_at','0000-00-00 00:00:00')
+			                   ->where('purchase_order.status',1)->whereNull('deleted_at')
 			                   ->select('jobmaster.id','jobmaster.code')->orderBy('jobmaster.id', 'DESC')->get();
 			return $data;
 		}
@@ -1380,11 +1380,11 @@ class PurchaseOrderController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$res = $this->voucherno->getVoucherNo('PO');
 		$vno = $res->no;
-		$lastid = DB::table('purchase_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$lastid = DB::table('purchase_order')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
 	    //echo '<pre>';print_r($res);exit;
 		$location = $this->location->locationList();
 		
-		$footertxt = DB::table('header_footer')->where('doc','PO')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$footertxt = DB::table('header_footer')->where('doc','PO')->where('status',1)->whereNull('deleted_at')->first();
 		$bcurrency = DB::table('parameter1')
 							 ->join('currency', 'currency.id', '=', 'parameter1.bcurrency_id')
 							  ->select('currency.code')
@@ -1463,8 +1463,8 @@ class PurchaseOrderController extends Controller
 					->where('supplier_do.document_type','PO')
 					->where('supplier_do_item.doc_row_id', $row->id)
 					->where('supplier_do_item.status', 1)
-					->where('supplier_do_item.deleted_at', '0000-00-00 00:00:00')
-					->where('supplier_do.deleted_at', '0000-00-00 00:00:00')
+					->whereNull('deleted_at')
+					->whereNull('deleted_at')
 					->select(DB::raw('SUM(supplier_do_item.quantity) AS si_quantity'))
 					->get();
 					
@@ -1511,5 +1511,7 @@ class PurchaseOrderController extends Controller
 	}
 	
 }
+
+
 
 

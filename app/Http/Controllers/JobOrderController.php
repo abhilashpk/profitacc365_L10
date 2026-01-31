@@ -78,7 +78,7 @@ class JobOrderController extends Controller
 		$quotations = [];//$this->sales_order->quotationSalesList();//echo '<pre>';print_r($quotations);exit;
 		$salesmans = $this->salesman->getSalesmanList();
 		$jobmasters = $this->jobmaster->activeJobmasterList();
-		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->whereNull('deleted_at')
 		->select('id','master_name')->get(); 
 		return view('body.joborder.index')
 					->withQuotations($quotations)
@@ -122,7 +122,7 @@ class JobOrderController extends Controller
 							->select('report_view_detail.name','report_view_detail.id')
 							->get();
 							
-		$technicians = DB::table('salesman')->where('status',1)->where('deleted_at', '0000-00-00 00:00:00')->select('id','name')->orderBy('name','ASC')->get();
+		$technicians = DB::table('salesman')->where('status',1)->whereNull('deleted_at')->select('id','name')->orderBy('name','ASC')->get();
 		
         $data = array();
         if(!empty($invoices))
@@ -210,10 +210,10 @@ class JobOrderController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$res = $this->voucherno->getVoucherNo('JO');
 		//$vno = $res->no;
-		$lastid = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$lastid = DB::table('sales_order')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
+		$jobtype = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->get();
 		//echo '<pre>';print_r($res);exit;
-		$footertxt = DB::table('header_footer')->where('doc','JO')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+		$footertxt = DB::table('header_footer')->where('doc','JO')->where('status',1)->whereNull('deleted_at')->first();
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
 							->where('report_view.code','JO')
@@ -221,7 +221,7 @@ class JobOrderController extends Controller
 							->select('report_view_detail.id')
 							->first();
 							
-		$pkgs = DB::table('package_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$pkgs = DB::table('package_master')->where('status',1)->whereNull('deleted_at')->get();
 		//echo '<pre>';print_r($this->formData);exit;
 		if($id) {
 			$ids = explode(',', $id);
@@ -344,7 +344,7 @@ class JobOrderController extends Controller
 			########## email script #############
 			if($request->get('email')!==null) {
 	 
-				$result = DB::select("SELECT sales_order.voucher_no,sales_order.reference_no,sales_order.voucher_date,sales_order.total,sales_order.vat_amount,sales_order.discount,sales_order.net_total,sales_order.subtotal,sales_order.kilometer,sales_order.fuel_level,sales_order.is_warning,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.id AS termsid,terms.file,terms.description AS terms,salesman.name AS salesman,sales_order_item.item_name,sales_order_item.quantity,sales_order_item.unit_price,sales_order_item.vat,sales_order_item.vat_amount,sales_order_item.line_total,sales_order_item.discount,sales_order_item.tax_include,sales_order_item.item_total,sales_order.items_inside,sales_order.remarks,sales_order.signature,itemmaster.item_code,units.unit_name,footer.description AS footer,vehicle.name AS vehicle_name,vehicle.reg_no,vehicle.make,vehicle.color,vehicle.engine_no,vehicle.chasis_no,vehicle.model,vehicle.year,vehicle.plate_type,vehicle.issue_plate,vehicle.code_plate,vehicle.color_code FROM sales_order LEFT JOIN account_master ON(account_master.id=sales_order.customer_id) LEFT JOIN terms ON(terms.id=sales_order.terms_id) LEFT JOIN salesman ON(salesman.id=sales_order.salesman_id) LEFT JOIN sales_order_item ON(sales_order_item.sales_order_id=sales_order.id) LEFT JOIN itemmaster ON(itemmaster.id=sales_order_item.item_id) LEFT JOIN units ON(units.id=sales_order_item.unit_id) LEFT JOIN header_footer footer ON(footer.id=sales_order.footer_id) LEFT JOIN vehicle ON(vehicle.id=sales_order.vehicle_id) WHERE sales_order.status=1 AND sales_order.deleted_at='0000-00-00 00:00:00' AND sales_order.id=".$id);//$this->sales_order->getOrder($attributes);
+				$result = DB::select("SELECT sales_order.voucher_no,sales_order.reference_no,sales_order.voucher_date,sales_order.total,sales_order.vat_amount,sales_order.discount,sales_order.net_total,sales_order.subtotal,sales_order.kilometer,sales_order.fuel_level,sales_order.is_warning,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.id AS termsid,terms.file,terms.description AS terms,salesman.name AS salesman,sales_order_item.item_name,sales_order_item.quantity,sales_order_item.unit_price,sales_order_item.vat,sales_order_item.vat_amount,sales_order_item.line_total,sales_order_item.discount,sales_order_item.tax_include,sales_order_item.item_total,sales_order.items_inside,sales_order.remarks,sales_order.signature,itemmaster.item_code,units.unit_name,footer.description AS footer,vehicle.name AS vehicle_name,vehicle.reg_no,vehicle.make,vehicle.color,vehicle.engine_no,vehicle.chasis_no,vehicle.model,vehicle.year,vehicle.plate_type,vehicle.issue_plate,vehicle.code_plate,vehicle.color_code FROM sales_order LEFT JOIN account_master ON(account_master.id=sales_order.customer_id) LEFT JOIN terms ON(terms.id=sales_order.terms_id) LEFT JOIN salesman ON(salesman.id=sales_order.salesman_id) LEFT JOIN sales_order_item ON(sales_order_item.sales_order_id=sales_order.id) LEFT JOIN itemmaster ON(itemmaster.id=sales_order_item.item_id) LEFT JOIN units ON(units.id=sales_order_item.unit_id) LEFT JOIN header_footer footer ON(footer.id=sales_order.footer_id) LEFT JOIN vehicle ON(vehicle.id=sales_order.vehicle_id) WHERE sales_order.status=1 AND deleted_at IS NULL AND sales_order.id=".$id);//$this->sales_order->getOrder($attributes);
 				$photos = DB::select("SELECT * FROM job_photos WHERE job_order_id=".$id);
 				$company = DB::select("SELECT * FROM company WHERE id=1");
 				$titles = ['main_head' => 'Job Order','subhead' => 'Job Order'];
@@ -424,7 +424,7 @@ class JobOrderController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$orderrow = $this->sales_order->findPOdata($id);
 		$jobdesc = $this->sales_order->getjobDescription($id);
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$jobtype = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->get();
 		
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
@@ -509,7 +509,7 @@ class JobOrderController extends Controller
 		$currency = $this->currency->activeCurrencyList();
 		$orderrow = $this->sales_order->findPOdata($id);
 		$jobdesc = $this->sales_order->getjobDescription($id);
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$jobtype = DB::table('jobtype')->where('status',1)->whereNull('deleted_at')->get();
 		
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
@@ -595,7 +595,7 @@ class JobOrderController extends Controller
 	public function getVehicle($id)
 	{
 		$data = array();
-		$vehicles = DB::table('vehicle')->where('customer_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('*')->get();
+		$vehicles = DB::table('vehicle')->where('customer_id',$id)->where('status',1)->whereNull('deleted_at')->select('*')->get();
 		return view('body.joborder.vehicle')
 					->withVehicles($vehicles)
 					->withData($data);
@@ -606,8 +606,8 @@ class JobOrderController extends Controller
 		$data = array();
 		$vehicles = DB::table('vehicle')
 		            ->leftJoin('account_master','account_master.id','=','vehicle.customer_id')
-		            ->where('vehicle.status',1)->where('vehicle.deleted_at','0000-00-00 00:00:00')
-		            //->where('account_master.status',1)->where('account_master.deleted_at','0000-00-00 00:00:00')
+		            ->where('vehicle.status',1)->whereNull('deleted_at')
+		            //->where('account_master.status',1)->whereNull('deleted_at')
 		            ->select('vehicle.*','account_master.id AS cust_id','account_master.master_name')->get();
 		return view('body.joborder.vehicle')
 					->withVehicles($vehicles)
@@ -677,7 +677,7 @@ class JobOrderController extends Controller
 			$titles = ['main_head' => 'Job Order','subhead' => 'Job Order'];
 			
 			$jobdesc = DB::table('joborder_details')->where('joborder_id',$id)
-							->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+							->where('status',1)->whereNull('deleted_at')
 							->select('description','comment')->orderBy('id','ASC')->get();
 			//split item and service
 			$items = null;
@@ -994,9 +994,9 @@ class JobOrderController extends Controller
 			$attributes = $request->all();
 			
 			//check vehicle no unique....
-			//$check = DB::table('vehicle')->where('reg_no', $attributes['reg_no'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+			//$check = DB::table('vehicle')->where('reg_no', $attributes['reg_no'])->where('status',1)->whereNull('deleted_at')->count();
 			if($attributes['chasis_no']!='') {
-				$check = DB::table('vehicle')->where('chasis_no', $attributes['chasis_no'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
+				$check = DB::table('vehicle')->where('chasis_no', $attributes['chasis_no'])->where('status',1)->whereNull('deleted_at')->count();
 				if($check > 0)
 					return ['status' => 'VCLERR'];
 			}
@@ -1088,7 +1088,7 @@ class JobOrderController extends Controller
 		$orderItems = $this->FilterById( $this->sales_order->TechnicianOrderListItems($type) );
 		$vehicles = $this->FilterById( $this->sales_order->VehicleDetails($type) );
 		$images = $this->FilterById( $this->sales_order->getJobImages($type) );
-		$technician = DB::table('salesman')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+		$technician = DB::table('salesman')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 		$prints = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
 							->where('report_view.code','JO')
@@ -1172,13 +1172,13 @@ class JobOrderController extends Controller
 		
 	public function getVehicleData($id) {
 		
-		$result = DB::table('vehicle')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('customer_id',$id)->select('id','reg_no','issue_plate','code_plate')->get();
+		$result = DB::table('vehicle')->where('status',1)->whereNull('deleted_at')->where('customer_id',$id)->select('id','reg_no','issue_plate','code_plate')->get();
 		return $result;
 	}	
 	
 	public function getVehicleJob($id) {
 		
-		$result = DB::table('jobmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('vehicle_id',$id)->select('id','code','name')->get();
+		$result = DB::table('jobmaster')->where('status',1)->whereNull('deleted_at')->where('vehicle_id',$id)->select('id','code','name')->get();
 		return $result;
 	}
 	
@@ -1243,5 +1243,8 @@ class JobOrderController extends Controller
 	}
 	
 }
+
+
+
 
 

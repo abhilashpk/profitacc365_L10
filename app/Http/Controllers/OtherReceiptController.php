@@ -68,8 +68,8 @@ class OtherReceiptController extends Controller
 	}
 	
 	public function save() {
-		try { //echo '<pre>';print_r(Input::all());exit;
-			$this->other_receipt->create(Input::all());
+		try { //echo '<pre>';print_r($request->all());exit;
+			$this->other_receipt->create($request->all());
 			Session::flash('message', 'Other receipt added successfully.');
 			return redirect('other_receipt');
 		} catch(ValidationException $e) { 
@@ -88,7 +88,7 @@ class OtherReceiptController extends Controller
 	
 	public function update($id)
 	{
-		$this->bank->update($id, Input::all());//print_r(Input::all());exit;
+		$this->bank->update($id, $request->all());//print_r($request->all());exit;
 		Session::flash('message', 'Bank updated successfully');
 		return redirect('bank');
 	}

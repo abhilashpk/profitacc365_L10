@@ -42,9 +42,9 @@ class ShipperController extends Controller
 		try {
 			DB::table('shipper')
 				->insert([
-					'shipper_name' => Input::get('name'),
-					'phone' => Input::get('phone'),
-					'address' => Input::get('address')
+					'shipper_name' => $request->get('name'),
+					'phone' => $request->get('phone'),
+					'address' => $request->get('address')
 				]);
 				
 			Session::flash('message', 'Shipper added successfully.');
@@ -71,9 +71,9 @@ class ShipperController extends Controller
 	{
 		DB::table('shipper')->where('id',$id)
 				->update([
-					'shipper_name' => Input::get('name'),
-					'phone' => Input::get('phone'),
-					'address' => Input::get('address'),
+					'shipper_name' => $request->get('name'),
+					'phone' => $request->get('phone'),
+					'address' => $request->get('address'),
 				]);
 		Session::flash('message', 'Shipper updated successfully');
 		return redirect('shipper');
@@ -81,7 +81,7 @@ class ShipperController extends Controller
 
 	public function checkphone() {
 
-		$check = $this->check_shipper_phone(Input::get('phone'), Input::get('id'));
+		$check = $this->check_shipper_phone($request->get('phone'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -101,7 +101,7 @@ class ShipperController extends Controller
 	
 	public function checkname() {
 
-		$check = $this->check_shipper_name(Input::get('name'), Input::get('id'));
+		$check = $this->check_shipper_name($request->get('name'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,

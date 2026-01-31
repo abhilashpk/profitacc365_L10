@@ -62,13 +62,13 @@ class YearendingquickController extends Controller
 	public function backup()
 	{ 
 	    
-	    //echo '<pre>';print_r(Input::all());exit;
+	    //echo '<pre>';print_r($request->all());exit;
 		DB::table('parameter1')->where('id',1)
-							   ->update(['from_date' => date('Y-m-d',strtotime(Input::get('nw_from_date'))),
-										 'to_date' => date('Y-m-d',strtotime(Input::get('nw_to_date'))),
-										 'py_from_date' => date('Y-m-d',strtotime(Input::get('from_date'))),
-										 'py_to_date' => date('Y-m-d',strtotime(Input::get('to_date'))),
-										 ]);//echo '<pre>';print_r(Input::all());exit;
+							   ->update(['from_date' => date('Y-m-d',strtotime($request->get('nw_from_date'))),
+										 'to_date' => date('Y-m-d',strtotime($request->get('nw_to_date'))),
+										 'py_from_date' => date('Y-m-d',strtotime($request->get('from_date'))),
+										 'py_to_date' => date('Y-m-d',strtotime($request->get('to_date'))),
+										 ]);//echo '<pre>';print_r($request->all());exit;
 		//$this->backupDatabase();
 		return redirect('year_endingquick/step2');  //step1
 	}
@@ -78,12 +78,12 @@ public function step2()
 		$data = array(); 
 		
 		################ ITEMS QUANTITY OPENING ENTRY ####################
-		$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$items = DB::table('item_unit')->where('is_baseqty',1)->where('status',1)->whereNull('deleted_at')->get();
 		foreach($items as $item) {
 			$itemlog = DB::table('item_log')
 									  ->where('item_id', $item->itemmaster_id)
 									  ->where('status',1)
-									  ->where('deleted_at','0000-00-00 00:00:00')
+									  ->whereNull('deleted_at')
 									  ->whereBetween('voucher_date', [$this->acsettings->py_from_date, $this->acsettings->py_to_date])
 									  ->select('item_log.*')
 									  ->orderBy('id','DESC')
@@ -134,7 +134,7 @@ public function step2()
 		$result = $this->accountmaster->getIncomeExpense($attributes); 
 		
 		echo '<pre>';print_r($result);exit;
-	//	echo '<pre>';print_r(Input::all());exit;
+	//	echo '<pre>';print_r($request->all());exit;
 		$directexp_tot=$indirectexp_tot=$indirectinc_tot=$directinc_tot=0;
 		if(count($result['expense'][0]) > 0 ) {
 		    $directexp_tot=$result['expense'][0]['total'];
@@ -154,8 +154,8 @@ public function step2()
 		$retailed_profit=$total_income-$total_expense;
 		$credit=$total_expense+$retailed_profit;
 		$ref=date('Y', strtotime($attributes['date_from']));
-		$acname=[$result['expense'][0]['name'],$result['income'][0]['name'],Input::get('account_name')];
-		$acid=[5634,15,Input::get('account_id')];
+		$acname=[$result['expense'][0]['name'],$result['income'][0]['name'],$request->get('account_name')];
+		$acid=[5634,15,$request->get('account_id')];
 		$grpid=['','',''];
 		 $vat=['','',''];  
 		 $sid=['','',''];  
@@ -174,47 +174,47 @@ public function step2()
 		$actype=['Cr','Dr','Cr'];
 		$lineamt=[$total_expense,$total_income,$retailed_profit];
 		//echo '<pre>';print_r($lineamt);exit;
-		$vt = DB::table('account_setting')->where('voucher_type_id',16)->where('deleted_at','0000-00-00 00:00:00')->select('id','voucher_name','voucher_no')->first();
-		Input::merge(['from_jv' => 1]);
-		Input::merge(['status' => 1]);
-		Input::merge(['voucher_type' => 16]);
-		Input::merge(['voucher' => $vt->id]);
-		Input::merge(['vno' => $vt->voucher_no]);
-		Input::merge(['voucher_no' => $vt->voucher_no]);
-		Input::merge(['voucher_date' => date('Y-m-d')]);
-		Input::merge(['curno' => '']);
-		Input::merge(['prefix' => '']);
-		Input::merge(['is_prefix' => 0]);
-		Input::merge(['chktype' =>'']);
-		Input::merge(['is_onaccount' => 1]);
-		Input::merge(['account_name' => $acname]);
-		Input::merge(['account_id' => $acid]);
-		Input::merge(['group_id' => $grpid]);
-		Input::merge(['vatamt' => $vat]);
-		Input::merge(['sales_invoice_id' => $sid]);
-		Input::merge(['bill_type' => $btype]);
-		Input::merge(['description' => $description]);
-		Input::merge(['reference' => $reference]);
-		Input::merge(['inv_id' => $invid]);
-		Input::merge(['actual_amount' => $actualamt]);
-		Input::merge(['account_type' => $actype]);
-		Input::merge(['line_amount' => $lineamt]);
-		Input::merge(['job_id' => $jobid]);
-		Input::merge(['jobcod' => $jobcod]);
-		Input::merge(['bank_id' => $bankid]);
-		Input::merge(['cheque_no' => $chequeno]);
-		Input::merge(['cheque_date' => $chequedate]);
-		Input::merge(['partyac_id' => $partyid]);
-		Input::merge(['party_name' => $partyname]);
-		Input::merge(['supplier_name' => '']);
-		Input::merge(['trn_no' => '']);
-		Input::merge(['jvtype' => '']);
-		Input::merge(['rcperiod' => '']);
-		Input::merge(['debit' => $debit]);
-		Input::merge(['credit' => $credit]);
-		Input::merge(['difference' => 0]);
-		//echo '<pre>';print_r(Input::all());exit;
-		$id=$this->journal->create(Input::all());
+		$vt = DB::table('account_setting')->where('voucher_type_id',16)->whereNull('deleted_at')->select('id','voucher_name','voucher_no')->first();
+		$request->merge(['from_jv' => 1]);
+		$request->merge(['status' => 1]);
+		$request->merge(['voucher_type' => 16]);
+		$request->merge(['voucher' => $vt->id]);
+		$request->merge(['vno' => $vt->voucher_no]);
+		$request->merge(['voucher_no' => $vt->voucher_no]);
+		$request->merge(['voucher_date' => date('Y-m-d')]);
+		$request->merge(['curno' => '']);
+		$request->merge(['prefix' => '']);
+		$request->merge(['is_prefix' => 0]);
+		$request->merge(['chktype' =>'']);
+		$request->merge(['is_onaccount' => 1]);
+		$request->merge(['account_name' => $acname]);
+		$request->merge(['account_id' => $acid]);
+		$request->merge(['group_id' => $grpid]);
+		$request->merge(['vatamt' => $vat]);
+		$request->merge(['sales_invoice_id' => $sid]);
+		$request->merge(['bill_type' => $btype]);
+		$request->merge(['description' => $description]);
+		$request->merge(['reference' => $reference]);
+		$request->merge(['inv_id' => $invid]);
+		$request->merge(['actual_amount' => $actualamt]);
+		$request->merge(['account_type' => $actype]);
+		$request->merge(['line_amount' => $lineamt]);
+		$request->merge(['job_id' => $jobid]);
+		$request->merge(['jobcod' => $jobcod]);
+		$request->merge(['bank_id' => $bankid]);
+		$request->merge(['cheque_no' => $chequeno]);
+		$request->merge(['cheque_date' => $chequedate]);
+		$request->merge(['partyac_id' => $partyid]);
+		$request->merge(['party_name' => $partyname]);
+		$request->merge(['supplier_name' => '']);
+		$request->merge(['trn_no' => '']);
+		$request->merge(['jvtype' => '']);
+		$request->merge(['rcperiod' => '']);
+		$request->merge(['debit' => $debit]);
+		$request->merge(['credit' => $credit]);
+		$request->merge(['difference' => 0]);
+		//echo '<pre>';print_r($request->all());exit;
+		$id=$this->journal->create($request->all());
 		if($id){
 		    Session::flash('message', 'Journal voucher added successfully.');
 		    return redirect('journal/edit/'.$id);
@@ -267,13 +267,15 @@ public function step2()
 
 		private function getItemQtyFromLog($item_id)
 	{
-		$qtyin = DB::table('item_log')->where('item_id', $item_id)->where('trtype',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->whereBetween('voucher_date', [$this->acsettings->py_from_date, $this->acsettings->py_to_date])->sum('quantity');
+		$qtyin = DB::table('item_log')->where('item_id', $item_id)->where('trtype',1)->where('status',1)->whereNull('deleted_at')->whereBetween('voucher_date', [$this->acsettings->py_from_date, $this->acsettings->py_to_date])->sum('quantity');
 		
-		$qtyout = DB::table('item_log')->where('item_id', $item_id)->where('trtype',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->whereBetween('voucher_date', [$this->acsettings->py_from_date, $this->acsettings->py_to_date])->sum('quantity');
+		$qtyout = DB::table('item_log')->where('item_id', $item_id)->where('trtype',0)->where('status',1)->whereNull('deleted_at')->whereBetween('voucher_date', [$this->acsettings->py_from_date, $this->acsettings->py_to_date])->sum('quantity');
 		
 		return ['in' => $qtyin, 'out' => $qtyout];
 	}
 	
 	
 }
+
+
 

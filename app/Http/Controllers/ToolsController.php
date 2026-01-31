@@ -37,7 +37,7 @@ class ToolsController extends Controller
 	
 	public function search($type, Request $request) { //print_r($request->all());echo $request['date_from'];exit;
 		
-		/*$ss = DB::table('sales_split')->where('deleted_at','!=','0000-00-00 00:00:00')->get();
+		/*$ss = DB::table('sales_split')->whereNotNull('')->get();
 		foreach($ss as $rw) {
 		    DB::table('account_transaction')->where('voucher_type','SS')->where('voucher_type_id',$rw->id)->update(['status'=>0,'deleted_at'=>'2021-08-01 05:05:05']);
 		}
@@ -52,34 +52,34 @@ class ToolsController extends Controller
 									->where('account_category.parent_id',2)
 									->where('account_category.status',1)
 									->where('account_master.status',1)
-									->where('account_master.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->select('account_master.master_name','account_master.id')->get();
 		
 		foreach($AcntsLB as $row) {
 			
-			$pi = DB::table('purchase_invoice')->where('supplier_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(net_amount) AS amount'))->groupBy('supplier_id')->first();
-			$pitr = DB::table('account_transaction')->where('voucher_type','PI')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$pi = DB::table('purchase_invoice')->where('supplier_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->whereNull('deleted_at')->select(DB::raw('SUM(net_amount) AS amount'))->groupBy('supplier_id')->first();
+			$pitr = DB::table('account_transaction')->where('voucher_type','PI')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			//echo '<pre>';print_r($psi);exit;
 			$pi = ($pi)?$pi->amount:0; $pitr = ($pitr)?$pitr->amount:0;
 			
-			$si = DB::table('sales_invoice')->where('customer_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(net_total) AS amount'))->groupBy('customer_id')->first();
-			$sitr = DB::table('account_transaction')->where('voucher_type','SI')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$si = DB::table('sales_invoice')->where('customer_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->whereNull('deleted_at')->select(DB::raw('SUM(net_total) AS amount'))->groupBy('customer_id')->first();
+			$sitr = DB::table('account_transaction')->where('voucher_type','SI')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			$si = ($si)?$si->amount:0; $sitr = ($sitr)?$sitr->amount:0;
 			
-			$rv = DB::table('receipt_voucher_entry AS RVE')->join('receipt_voucher AS RE','RE.id','=','RVE.receipt_voucher_id')->whereBetween('RE.voucher_date',[$date_from, $date_to])->where('RVE.account_id',$row->id)->where('RVE.status',1)->where('RVE.deleted_at','0000-00-00 00:00:00')->where('RE.status',1)->where('RE.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(RVE.amount) AS amount'))->groupBy('RVE.account_id')->first();
-			$rvtr = DB::table('account_transaction')->where('voucher_type','RV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$rv = DB::table('receipt_voucher_entry AS RVE')->join('receipt_voucher AS RE','RE.id','=','RVE.receipt_voucher_id')->whereBetween('RE.voucher_date',[$date_from, $date_to])->where('RVE.account_id',$row->id)->where('RVE.status',1)->whereNull('deleted_at')->where('RE.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(RVE.amount) AS amount'))->groupBy('RVE.account_id')->first();
+			$rvtr = DB::table('account_transaction')->where('voucher_type','RV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			$rv = ($rv)?$rv->amount:0; $rvtr = ($rvtr)?$rvtr->amount:0;
 			
-			$pv = DB::table('payment_voucher_entry AS PVE')->join('payment_voucher AS PE','PE.id','=','PVE.payment_voucher_id')->whereBetween('PE.voucher_date',[$date_from, $date_to])->where('PVE.account_id',$row->id)->where('PVE.status',1)->where('PVE.deleted_at','0000-00-00 00:00:00')->where('PE.status',1)->where('PE.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(PVE.amount) AS amount'))->groupBy('PVE.account_id')->first();
-			$pvtr = DB::table('account_transaction')->where('voucher_type','PV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$pv = DB::table('payment_voucher_entry AS PVE')->join('payment_voucher AS PE','PE.id','=','PVE.payment_voucher_id')->whereBetween('PE.voucher_date',[$date_from, $date_to])->where('PVE.account_id',$row->id)->where('PVE.status',1)->whereNull('deleted_at')->where('PE.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(PVE.amount) AS amount'))->groupBy('PVE.account_id')->first();
+			$pvtr = DB::table('account_transaction')->where('voucher_type','PV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			$pv = ($pv)?$pv->amount:0;	$pvtr = ($pvtr)?$pvtr->amount:0;
 			
-			$jv = DB::table('journal_entry AS JE')->join('journal AS J','J.id','=','JE.journal_id')->whereBetween('J.voucher_date',[$date_from, $date_to])->where('JE.account_id',$row->id)->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')->where('J.status',1)->where('J.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(JE.amount) AS amount'))->groupBy('JE.account_id')->first();
-			$jvtr = DB::table('account_transaction')->where('voucher_type','JV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$jv = DB::table('journal_entry AS JE')->join('journal AS J','J.id','=','JE.journal_id')->whereBetween('J.voucher_date',[$date_from, $date_to])->where('JE.account_id',$row->id)->where('JE.status',1)->whereNull('deleted_at')->where('J.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(JE.amount) AS amount'))->groupBy('JE.account_id')->first();
+			$jvtr = DB::table('account_transaction')->where('voucher_type','JV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			$jv = ($jv)?$jv->amount:0; $jvtr = ($jvtr)?$jvtr->amount:0;
 			
-			$pc = DB::table('petty_cash_entry AS PCE')->join('petty_cash AS PC','PC.id','=','PCE.petty_cash_id')->whereBetween('PC.voucher_date',[$date_from, $date_to])->where('PCE.account_id',$row->id)->where('PCE.status',1)->where('PCE.deleted_at','0000-00-00 00:00:00')->where('PC.status',1)->where('PC.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(PCE.amount) AS amount'))->groupBy('PCE.account_id')->first();
-			$pctr = DB::table('account_transaction')->where('voucher_type','PC')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$pc = DB::table('petty_cash_entry AS PCE')->join('petty_cash AS PC','PC.id','=','PCE.petty_cash_id')->whereBetween('PC.voucher_date',[$date_from, $date_to])->where('PCE.account_id',$row->id)->where('PCE.status',1)->whereNull('deleted_at')->where('PC.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(PCE.amount) AS amount'))->groupBy('PCE.account_id')->first();
+			$pctr = DB::table('account_transaction')->where('voucher_type','PC')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			$pc = ($pc)?$pc->amount:0; $pctr = ($pctr)?$pctr->amount:0;
 			
 			if($pi==0 && $si==0 && $rv==0 && $pv==0 && $jv==0 && $pc)
@@ -96,31 +96,31 @@ class ToolsController extends Controller
 									->where('account_category.parent_id',6)//direct expense
 									->where('account_category.status',1)
 									->where('account_master.status',1)
-									->where('account_master.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->select('account_master.master_name','account_master.id')->get();
 									
 		foreach($AcntsDE as $row) {
 			
-			$ps = DB::table('purchase_split')->where('supplier_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(net_amount) AS amount'))->groupBy('supplier_id')->first();
-			$psi = DB::table('purchase_split_item AS PSI')->join('purchase_split AS PS','PS.id','=','PSI.purchase_split_id')->whereBetween('PS.voucher_date',[$date_from, $date_to])->where('PSI.account_id',$row->id)->where('PSI.status',1)->where('PSI.deleted_at','0000-00-00 00:00:00')->where('PS.status',1)->where('PS.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(PSI.line_total) AS amount'))->groupBy('PSI.account_id')->first();
-			$pstr = DB::table('account_transaction')->where('voucher_type','PS')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$ps = DB::table('purchase_split')->where('supplier_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->whereNull('deleted_at')->select(DB::raw('SUM(net_amount) AS amount'))->groupBy('supplier_id')->first();
+			$psi = DB::table('purchase_split_item AS PSI')->join('purchase_split AS PS','PS.id','=','PSI.purchase_split_id')->whereBetween('PS.voucher_date',[$date_from, $date_to])->where('PSI.account_id',$row->id)->where('PSI.status',1)->whereNull('deleted_at')->where('PS.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(PSI.line_total) AS amount'))->groupBy('PSI.account_id')->first();
+			$pstr = DB::table('account_transaction')->where('voucher_type','PS')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			//echo '<pre>';print_r($psi);exit;
 
-			$ss = DB::table('sales_split')->where('customer_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(net_amount) AS amount'))->groupBy('customer_id')->first();
-			$ssi = DB::table('sales_split_item AS SSI')->join('sales_split AS SS','SS.id','=','SSI.sales_split_id')->whereBetween('SS.voucher_date',[$date_from, $date_to])->where('SSI.account_id',$row->id)->where('SSI.status',1)->where('SSI.deleted_at','0000-00-00 00:00:00')->where('SS.status',1)->where('SS.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(SSI.line_total) AS amount'))->groupBy('SSI.account_id')->first();
-			$sstr = DB::table('account_transaction')->where('voucher_type','SS')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$ss = DB::table('sales_split')->where('customer_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->whereNull('deleted_at')->select(DB::raw('SUM(net_amount) AS amount'))->groupBy('customer_id')->first();
+			$ssi = DB::table('sales_split_item AS SSI')->join('sales_split AS SS','SS.id','=','SSI.sales_split_id')->whereBetween('SS.voucher_date',[$date_from, $date_to])->where('SSI.account_id',$row->id)->where('SSI.status',1)->whereNull('deleted_at')->where('SS.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(SSI.line_total) AS amount'))->groupBy('SSI.account_id')->first();
+			$sstr = DB::table('account_transaction')->where('voucher_type','SS')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
-			$rv = DB::table('receipt_voucher_entry AS RVE')->join('receipt_voucher AS RE','RE.id','=','RVE.receipt_voucher_id')->whereBetween('RE.voucher_date',[$date_from, $date_to])->where('RVE.account_id',$row->id)->where('RVE.status',1)->where('RVE.deleted_at','0000-00-00 00:00:00')->where('RE.status',1)->where('RE.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(RVE.amount) AS amount'))->groupBy('RVE.account_id')->first();
-			$rvtr = DB::table('account_transaction')->where('voucher_type','RV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$rv = DB::table('receipt_voucher_entry AS RVE')->join('receipt_voucher AS RE','RE.id','=','RVE.receipt_voucher_id')->whereBetween('RE.voucher_date',[$date_from, $date_to])->where('RVE.account_id',$row->id)->where('RVE.status',1)->whereNull('deleted_at')->where('RE.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(RVE.amount) AS amount'))->groupBy('RVE.account_id')->first();
+			$rvtr = DB::table('account_transaction')->where('voucher_type','RV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
-			$pv = DB::table('payment_voucher_entry AS PVE')->join('payment_voucher AS PE','PE.id','=','PVE.payment_voucher_id')->whereBetween('PE.voucher_date',[$date_from, $date_to])->where('PVE.account_id',$row->id)->where('PVE.status',1)->where('PVE.deleted_at','0000-00-00 00:00:00')->where('PE.status',1)->where('PE.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(PVE.amount) AS amount'))->groupBy('PVE.account_id')->first();
-			$pvtr = DB::table('account_transaction')->where('voucher_type','PV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$pv = DB::table('payment_voucher_entry AS PVE')->join('payment_voucher AS PE','PE.id','=','PVE.payment_voucher_id')->whereBetween('PE.voucher_date',[$date_from, $date_to])->where('PVE.account_id',$row->id)->where('PVE.status',1)->whereNull('deleted_at')->where('PE.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(PVE.amount) AS amount'))->groupBy('PVE.account_id')->first();
+			$pvtr = DB::table('account_transaction')->where('voucher_type','PV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
-			$jv = DB::table('journal_entry AS JE')->join('journal AS J','J.id','=','JE.journal_id')->whereBetween('J.voucher_date',[$date_from, $date_to])->where('JE.account_id',$row->id)->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')->where('J.status',1)->where('J.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(JE.amount) AS amount'))->groupBy('JE.account_id')->first();
-			$jvtr = DB::table('account_transaction')->where('voucher_type','JV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$jv = DB::table('journal_entry AS JE')->join('journal AS J','J.id','=','JE.journal_id')->whereBetween('J.voucher_date',[$date_from, $date_to])->where('JE.account_id',$row->id)->where('JE.status',1)->whereNull('deleted_at')->where('J.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(JE.amount) AS amount'))->groupBy('JE.account_id')->first();
+			$jvtr = DB::table('account_transaction')->where('voucher_type','JV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
-			$pc = DB::table('petty_cash_entry AS PCE')->join('petty_cash AS PC','PC.id','=','PCE.petty_cash_id')->whereBetween('PC.voucher_date',[$date_from, $date_to])->where('PCE.account_id',$row->id)->where('PCE.status',1)->where('PCE.deleted_at','0000-00-00 00:00:00')->where('PC.status',1)->where('PC.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(PCE.amount) AS amount'))->groupBy('PCE.account_id')->first();
-			$pctr = DB::table('account_transaction')->where('voucher_type','PC')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$pc = DB::table('petty_cash_entry AS PCE')->join('petty_cash AS PC','PC.id','=','PCE.petty_cash_id')->whereBetween('PC.voucher_date',[$date_from, $date_to])->where('PCE.account_id',$row->id)->where('PCE.status',1)->whereNull('deleted_at')->where('PC.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(PCE.amount) AS amount'))->groupBy('PCE.account_id')->first();
+			$pctr = DB::table('account_transaction')->where('voucher_type','PC')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
 			
 			$ps = ($ps)?$ps->amount:0; $psi = ($psi)?$psi->amount:0; $pstr = ($pstr)?$pstr->amount:0;
@@ -142,36 +142,36 @@ class ToolsController extends Controller
 									->where('account_category.parent_id',4)//direct income
 									->where('account_category.status',1)
 									->where('account_master.status',1)
-									->where('account_master.deleted_at','0000-00-00 00:00:00')
+									->whereNull('deleted_at')
 									->select('account_master.master_name','account_master.id')->get();
 		//echo '<pre>';print_r($AcntsDI);exit;	
 		
 		
-		//$ss = DB::table('sales_split')->where('customer_id',1971)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->get();
-	//	$ssi = DB::table('sales_split_item AS SSI')->join('sales_split AS SS','SS.id','=','SSI.sales_split_id')->whereBetween('SS.voucher_date',[$date_from, $date_to])->where('SSI.account_id',1971)->where('SSI.status',1)->where('SSI.deleted_at','0000-00-00 00:00:00')->where('SS.status',1)->where('SS.deleted_at','0000-00-00 00:00:00')->get();
+		//$ss = DB::table('sales_split')->where('customer_id',1971)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->whereNull('deleted_at')->get();
+	//	$ssi = DB::table('sales_split_item AS SSI')->join('sales_split AS SS','SS.id','=','SSI.sales_split_id')->whereBetween('SS.voucher_date',[$date_from, $date_to])->where('SSI.account_id',1971)->where('SSI.status',1)->whereNull('deleted_at')->where('SS.status',1)->whereNull('deleted_at')->get();
 		//echo '<pre>';print_r($ssi);exit;
 		
 		foreach($AcntsDI as $row) {
 			
-			$ps = DB::table('purchase_split')->where('supplier_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(net_amount) AS amount'))->groupBy('supplier_id')->first();
-			$psi = DB::table('purchase_split_item AS PSI')->join('purchase_split AS PS','PS.id','=','PSI.purchase_split_id')->whereBetween('PS.voucher_date',[$date_from, $date_to])->where('PSI.account_id',$row->id)->where('PSI.status',1)->where('PSI.deleted_at','0000-00-00 00:00:00')->where('PS.status',1)->where('PS.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(PSI.line_total) AS amount'))->groupBy('PSI.account_id')->first();
-			$pstr = DB::table('account_transaction')->where('voucher_type','PS')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$ps = DB::table('purchase_split')->where('supplier_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->whereNull('deleted_at')->select(DB::raw('SUM(net_amount) AS amount'))->groupBy('supplier_id')->first();
+			$psi = DB::table('purchase_split_item AS PSI')->join('purchase_split AS PS','PS.id','=','PSI.purchase_split_id')->whereBetween('PS.voucher_date',[$date_from, $date_to])->where('PSI.account_id',$row->id)->where('PSI.status',1)->whereNull('deleted_at')->where('PS.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(PSI.line_total) AS amount'))->groupBy('PSI.account_id')->first();
+			$pstr = DB::table('account_transaction')->where('voucher_type','PS')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
-			$ss = DB::table('sales_split')->where('customer_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(net_amount) AS amount'))->groupBy('customer_id')->first();
-			$ssi = DB::table('sales_split_item AS SSI')->join('sales_split AS SS','SS.id','=','SSI.sales_split_id')->whereBetween('SS.voucher_date',[$date_from, $date_to])->where('SSI.account_id',$row->id)->where('SSI.status',1)->where('SSI.deleted_at','0000-00-00 00:00:00')->where('SS.status',1)->where('SS.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(SSI.line_total) AS amount'))->groupBy('SSI.account_id')->first();
-			$sstr = DB::table('account_transaction')->where('voucher_type','SS')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$ss = DB::table('sales_split')->where('customer_id',$row->id)->where('status',1)->whereBetween('voucher_date',[$date_from, $date_to])->whereNull('deleted_at')->select(DB::raw('SUM(net_amount) AS amount'))->groupBy('customer_id')->first();
+			$ssi = DB::table('sales_split_item AS SSI')->join('sales_split AS SS','SS.id','=','SSI.sales_split_id')->whereBetween('SS.voucher_date',[$date_from, $date_to])->where('SSI.account_id',$row->id)->where('SSI.status',1)->whereNull('deleted_at')->where('SS.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(SSI.line_total) AS amount'))->groupBy('SSI.account_id')->first();
+			$sstr = DB::table('account_transaction')->where('voucher_type','SS')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
-			$rv = DB::table('receipt_voucher_entry AS RVE')->join('receipt_voucher AS RE','RE.id','=','RVE.receipt_voucher_id')->whereBetween('RE.voucher_date',[$date_from, $date_to])->where('RVE.account_id',$row->id)->where('RVE.status',1)->where('RVE.deleted_at','0000-00-00 00:00:00')->where('RE.status',1)->where('RE.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(RVE.amount) AS amount'))->groupBy('RVE.account_id')->first();
-			$rvtr = DB::table('account_transaction')->where('voucher_type','RV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$rv = DB::table('receipt_voucher_entry AS RVE')->join('receipt_voucher AS RE','RE.id','=','RVE.receipt_voucher_id')->whereBetween('RE.voucher_date',[$date_from, $date_to])->where('RVE.account_id',$row->id)->where('RVE.status',1)->whereNull('deleted_at')->where('RE.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(RVE.amount) AS amount'))->groupBy('RVE.account_id')->first();
+			$rvtr = DB::table('account_transaction')->where('voucher_type','RV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
-			$pv = DB::table('payment_voucher_entry AS PVE')->join('payment_voucher AS PE','PE.id','=','PVE.payment_voucher_id')->whereBetween('PE.voucher_date',[$date_from, $date_to])->where('PVE.account_id',$row->id)->where('PVE.status',1)->where('PVE.deleted_at','0000-00-00 00:00:00')->where('PE.status',1)->where('PE.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(PVE.amount) AS amount'))->groupBy('PVE.account_id')->first();
-			$pvtr = DB::table('account_transaction')->where('voucher_type','PV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$pv = DB::table('payment_voucher_entry AS PVE')->join('payment_voucher AS PE','PE.id','=','PVE.payment_voucher_id')->whereBetween('PE.voucher_date',[$date_from, $date_to])->where('PVE.account_id',$row->id)->where('PVE.status',1)->whereNull('deleted_at')->where('PE.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(PVE.amount) AS amount'))->groupBy('PVE.account_id')->first();
+			$pvtr = DB::table('account_transaction')->where('voucher_type','PV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
-			$jv = DB::table('journal_entry AS JE')->join('journal AS J','J.id','=','JE.journal_id')->whereBetween('J.voucher_date',[$date_from, $date_to])->where('JE.account_id',$row->id)->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')->where('J.status',1)->where('J.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(JE.amount) AS amount'))->groupBy('JE.account_id')->first();
-			$jvtr = DB::table('account_transaction')->where('voucher_type','JV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$jv = DB::table('journal_entry AS JE')->join('journal AS J','J.id','=','JE.journal_id')->whereBetween('J.voucher_date',[$date_from, $date_to])->where('JE.account_id',$row->id)->where('JE.status',1)->whereNull('deleted_at')->where('J.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(JE.amount) AS amount'))->groupBy('JE.account_id')->first();
+			$jvtr = DB::table('account_transaction')->where('voucher_type','JV')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
-			$pc = DB::table('petty_cash_entry AS PCE')->join('petty_cash AS PC','PC.id','=','PCE.petty_cash_id')->whereBetween('PC.voucher_date',[$date_from, $date_to])->where('PCE.account_id',$row->id)->where('PCE.status',1)->where('PC.deleted_at','0000-00-00 00:00:00')->where('PC.status',1)->where('PCE.deleted_at','0000-00-00 00:00:00')->select(DB::raw('SUM(PCE.amount) AS amount'))->groupBy('PCE.account_id')->first();
-			$pctr = DB::table('account_transaction')->where('voucher_type','PC')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->where('deleted_at','0000-00-00 00:00:00')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
+			$pc = DB::table('petty_cash_entry AS PCE')->join('petty_cash AS PC','PC.id','=','PCE.petty_cash_id')->whereBetween('PC.voucher_date',[$date_from, $date_to])->where('PCE.account_id',$row->id)->where('PCE.status',1)->whereNull('deleted_at')->where('PC.status',1)->whereNull('deleted_at')->select(DB::raw('SUM(PCE.amount) AS amount'))->groupBy('PCE.account_id')->first();
+			$pctr = DB::table('account_transaction')->where('voucher_type','PC')->where('status',1)->whereBetween('invoice_date',[$date_from, $date_to])->whereNull('deleted_at')->where('account_master_id',$row->id)->select(DB::raw('SUM(amount) AS amount'))->groupBy('account_master_id')->first();
 			
 			$ps = ($ps)?$ps->amount:0; $psi = ($psi)?$psi->amount:0; $pstr = ($pstr)?$pstr->amount:0;
 			$ss = ($ss)?$ss->amount:0; $ssi = ($ssi)?$ssi->amount:0; $sstr = ($sstr)?$sstr->amount:0;
@@ -219,3 +219,6 @@ class ToolsController extends Controller
 		return $childs;
 	}
 }
+
+
+

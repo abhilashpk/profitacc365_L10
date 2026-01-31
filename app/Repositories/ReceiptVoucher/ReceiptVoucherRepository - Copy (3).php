@@ -1515,7 +1515,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 																'voucher_no' => $attributes['voucher_no'],
 																'description' => $attributes['description'][$key],
 																'bank_id' => (isset($attributes['bank_id'][$key]) && $attributes['bank_id'][$key]!='')?$attributes['bank_id'][$key]:1,
-																'deleted_at' => '0000-00-00 00:00:00'
+																'deleted_at' => null
 															]);
 								} else {
 									//INSERT NEW PDC....
@@ -1751,7 +1751,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 			//clear opening balanace transaction details table.....
 			if($this->receipt_voucher->opening_balance_id > 0) {
 				
-				DB::table('opening_balance_tr')->where('id', $this->receipt_voucher->opening_balance_id)->update(['status' => 0, 'deleted_at' => '0000-00-00 00:00:00']);
+				DB::table('opening_balance_tr')->where('id', $this->receipt_voucher->opening_balance_id)->update(['status' => 0, 'deleted_at' => null]);
 				DB::table('account_transaction')->where('voucher_type', 'OBD')->where('voucher_type_id', $this->receipt_voucher->opening_balance_id)->update(['status' => 0,'deleted_at' => now(),'deleted_by' => Auth::User()->id ]);
 				
 				DB::table('account_master')->where('id', $account_id)->update(['cl_balance' => DB::raw('op_balance - '.$amount), 'op_balance' => DB::raw('op_balance - '.$amount)]);
@@ -1806,13 +1806,13 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 							$join->on('CE.id','=','receipt_voucher_tr.sales_invoice_id');
 							$join->where('receipt_voucher_tr.bill_type','=','SI');
 							$join->where('receipt_voucher_tr.status','=',1);
-							$join->where('receipt_voucher_tr.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->leftJoin('opening_balance_tr AS OBT', function($join) {
 							$join->on('OBT.id','=','receipt_voucher_tr.sales_invoice_id');
 							$join->where('receipt_voucher_tr.bill_type','=','OBD');
 							$join->where('receipt_voucher_tr.status','=',1);
-							$join->where('receipt_voucher_tr.deleted_at','=','0000-00-00 00:00:00');
+							$join->whereNull('deleted_at');
 						})
 						->where('receipt_voucher_entry.status', 1)
 						->orderBy('receipt_voucher_entry.entry_type', 'DESC')
@@ -1820,7 +1820,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 						->select('receipt_voucher_entry.*','account_master.master_name','bank.name','CE.voucher_date','receipt_voucher_tr.bill_type','OBT.tr_date')->get();
 	}
 	
-//SELECT RVE.*,AM.master_name,B.name,CE.voucher_date FROM receipt_voucher_entry AS RVE JOIN account_master AS AM ON(AM.ID=RVE.account_id) LEFT JOIN BANK AS B ON(B.ID=RVE.bank_id) LEFT JOIN receipt_voucher_tr AS RVT ON(RVT.receipt_voucher_entry_id=RVE.id) LEFT JOIN sales_invoice AS SI ON(SI.id=RVT.sales_invoice_id) LEFT JOIN sales_invoice AS SI2 ON(SI2.id=RVT.sales_invoice_id AND RVT.bill_type='SI' AND RVT.status=1 AND RVT.deleted_at='0000-00-00 00:00:00') WHERE RVE.status=1 AND RVE.receipt_voucher_id=1 ORDER BY RVE.id ASC 
+//SELECT RVE.*,AM.master_name,B.name,CE.voucher_date FROM receipt_voucher_entry AS RVE JOIN account_master AS AM ON(AM.ID=RVE.account_id) LEFT JOIN BANK AS B ON(B.ID=RVE.bank_id) LEFT JOIN receipt_voucher_tr AS RVT ON(RVT.receipt_voucher_entry_id=RVE.id) LEFT JOIN sales_invoice AS SI ON(SI.id=RVT.sales_invoice_id) LEFT JOIN sales_invoice AS SI2 ON(SI2.id=RVT.sales_invoice_id AND RVT.bill_type='SI' AND RVT.status=1 AND deleted_at IS NULL) WHERE RVE.status=1 AND RVE.receipt_voucher_id=1 ORDER BY RVE.id ASC 
 	
 	public function findRVTrdata($id)
 	{
@@ -1839,7 +1839,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 						->join('account_master', 'account_master.id', '=', 'pdc_received.cr_account_id')
 						->join('account_master AS AM', 'AM.id', '=', 'pdc_received.customer_id')
 						->join('bank AS B', 'B.id', '=', 'pdc_received.bank_id')
-						->where('pdc_received.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('pdc_received.*','account_master.master_name AS debitor','AM.master_name AS customer',
 								'B.code',DB::raw('EXTRACT(MONTH FROM pdc_received.cheque_date) AS month'),
 								'pdc_received.cr_account_id AS pdcr_id','pdc_received.bank_id');
@@ -2217,7 +2217,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 													'status'			=> 1,
 													'modify_at' 		=> now(),
 													'modify_by' 		=> Auth::User()->id,
-													'deleted_at'		=> '0000-00-00 00:00:00',
+													'deleted_at' => null,
 													'description'		=> $description,
 													'reference'			=> $trnarr['id'][$key],
 													'invoice_date'		=> date('Y-m-d', strtotime($trnarr['vdate'])),
@@ -2425,7 +2425,7 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 						->join('account_master AS AM', 'AM.id', '=', 'pdc_received.customer_id')
 						->leftJoin('account_master AS AM2', 'AM2.id', '=', 'pdc_received.dr_bank_id')
 						->join('bank AS B', 'B.id', '=', 'pdc_received.bank_id')
-						->where('pdc_received.deleted_at','0000-00-00 00:00:00')
+						->whereNull('deleted_at')
 						->select('pdc_received.*','account_master.master_name','AM.master_name AS customer',
 								'B.code','AM2.master_name AS bname',DB::raw('"PDCR" AS vtype'))
 						->get();
@@ -2626,7 +2626,10 @@ class ReceiptVoucherRepository extends AbstractValidator implements ReceiptVouch
 	}
 	}
 	
-//SELECT vehicle.name AS vehicle,vehicle.chasis_no,vehicle.reg_no AS vehicle_no,quotation_sales.voucher_no,quotation_sales.reference_no,quotation_sales.voucher_date,quotation_sales.total,quotation_sales.vat_amount,quotation_sales.discount,quotation_sales.net_total,quotation_sales.subtotal,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.description AS terms,salesman.name AS salesman,quotation_sales_item.item_name,quotation_sales_item.quantity,quotation_sales_item.unit_price,quotation_sales_item.vat,quotation_sales_item.vat_amount,quotation_sales_item.line_total,quotation_sales_item.tax_include,quotation_sales_item.item_total,itemmaster.item_code,units.unit_name,header.description AS header,footer.description AS footer FROM quotation_sales JOIN account_master ON(account_master.id=quotation_sales.customer_id) LEFT JOIN terms ON(terms.id=quotation_sales.terms_id) LEFT JOIN salesman ON(salesman.id=quotation_sales.salesman_id) JOIN quotation_sales_item ON(quotation_sales_item.quotation_sales_id=quotation_sales.id) JOIN itemmaster ON(itemmaster.id=quotation_sales_item.item_id) JOIN units ON(units.id=quotation_sales_item.unit_id) LEFT JOIN header_footer header ON(header.id=quotation_sales.header_id) LEFT JOIN header_footer footer ON(footer.id=quotation_sales.footer_id) JOIN vehicle ON(vehicle.id=quotation_sales.vehicle_id) WHERE quotation_sales_item.status=1 AND quotation_sales_item.deleted_at='0000-00-00 00:00:00' AND quotation_sales.id={id}
+//SELECT vehicle.name AS vehicle,vehicle.chasis_no,vehicle.reg_no AS vehicle_no,quotation_sales.voucher_no,quotation_sales.reference_no,quotation_sales.voucher_date,quotation_sales.total,quotation_sales.vat_amount,quotation_sales.discount,quotation_sales.net_total,quotation_sales.subtotal,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.description AS terms,salesman.name AS salesman,quotation_sales_item.item_name,quotation_sales_item.quantity,quotation_sales_item.unit_price,quotation_sales_item.vat,quotation_sales_item.vat_amount,quotation_sales_item.line_total,quotation_sales_item.tax_include,quotation_sales_item.item_total,itemmaster.item_code,units.unit_name,header.description AS header,footer.description AS footer FROM quotation_sales JOIN account_master ON(account_master.id=quotation_sales.customer_id) LEFT JOIN terms ON(terms.id=quotation_sales.terms_id) LEFT JOIN salesman ON(salesman.id=quotation_sales.salesman_id) JOIN quotation_sales_item ON(quotation_sales_item.quotation_sales_id=quotation_sales.id) JOIN itemmaster ON(itemmaster.id=quotation_sales_item.item_id) JOIN units ON(units.id=quotation_sales_item.unit_id) LEFT JOIN header_footer header ON(header.id=quotation_sales.header_id) LEFT JOIN header_footer footer ON(footer.id=quotation_sales.footer_id) JOIN vehicle ON(vehicle.id=quotation_sales.vehicle_id) WHERE quotation_sales_item.status=1 AND deleted_at IS NULL AND quotation_sales.id={id}
 
-//SELECT account_master.master_namear,account_master.address_ar,account_master.city_ar,account_master.state_ar,itemmaster.description_ar,purchase_invoice.voucher_no,purchase_invoice.reference_no,purchase_invoice.voucher_date,purchase_invoice.total,purchase_invoice.vat_amount AS total_vatt,purchase_invoice.discount,purchase_invoice.net_amount,purchase_invoice.subtotal,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.description AS terms,purchase_invoice_item.item_name,purchase_invoice_item.quantity,purchase_invoice_item.unit_price,purchase_invoice_item.vat,purchase_invoice_item.vat_amount,purchase_invoice_item.total_price,purchase_invoice_item.tax_include,purchase_invoice_item.item_total,itemmaster.item_code,units.unit_name,department.name AS department FROM purchase_invoice JOIN account_master ON(account_master.id=purchase_invoice.supplier_id) LEFT JOIN terms ON(terms.id=purchase_invoice.terms_id) JOIN purchase_invoice_item ON(purchase_invoice_item.purchase_invoice_id=purchase_invoice.id) JOIN itemmaster ON(itemmaster.id=purchase_invoice_item.item_id) JOIN units ON(units.id=purchase_invoice_item.unit_id) LEFT JOIN department ON(department.id=purchase_invoice.department_id) WHERE purchase_invoice_item.status=1 AND purchase_invoice_item.deleted_at='0000-00-00 00:00:00' AND purchase_invoice.id={id}
+//SELECT account_master.master_namear,account_master.address_ar,account_master.city_ar,account_master.state_ar,itemmaster.description_ar,purchase_invoice.voucher_no,purchase_invoice.reference_no,purchase_invoice.voucher_date,purchase_invoice.total,purchase_invoice.vat_amount AS total_vatt,purchase_invoice.discount,purchase_invoice.net_amount,purchase_invoice.subtotal,account_master.account_id,account_master.master_name,account_master.address,account_master.phone,account_master.vat_no,terms.description AS terms,purchase_invoice_item.item_name,purchase_invoice_item.quantity,purchase_invoice_item.unit_price,purchase_invoice_item.vat,purchase_invoice_item.vat_amount,purchase_invoice_item.total_price,purchase_invoice_item.tax_include,purchase_invoice_item.item_total,itemmaster.item_code,units.unit_name,department.name AS department FROM purchase_invoice JOIN account_master ON(account_master.id=purchase_invoice.supplier_id) LEFT JOIN terms ON(terms.id=purchase_invoice.terms_id) JOIN purchase_invoice_item ON(purchase_invoice_item.purchase_invoice_id=purchase_invoice.id) JOIN itemmaster ON(itemmaster.id=purchase_invoice_item.item_id) JOIN units ON(units.id=purchase_invoice_item.unit_id) LEFT JOIN department ON(department.id=purchase_invoice.department_id) WHERE purchase_invoice_item.status=1 AND deleted_at IS NULL AND purchase_invoice.id={id}
+
+
+
 

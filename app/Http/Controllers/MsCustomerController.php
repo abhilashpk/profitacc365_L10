@@ -21,7 +21,7 @@ class MsCustomerController extends Controller
 	
 	public function index() {
 		$data = array();
-		$customers = DB::table('ms_customer')->where('deleted_at','0000-00-00 00:00:00')->get();
+		$customers = DB::table('ms_customer')->whereNull('deleted_at')->get();
 		return view('body.mscustomer.index')
 					->withCustomers($customers)
 					->withData($data);
@@ -29,7 +29,7 @@ class MsCustomerController extends Controller
 	
 	public function add() {
 
-		$area = DB::table('ms_area')->where('deleted_at', '0000-00-00 00:00:00')->get();
+		$area = DB::table('ms_area')->whereNull('deleted_at')->get();
 		return view('body.mscustomer.add')->withArea($area);
 	}
 	
@@ -37,12 +37,12 @@ class MsCustomerController extends Controller
 		try {
 			$id = DB::table('ms_customer')
 					->insertGetId([
-						'name' => Input::get('name'),
-						'phone' => Input::get('phone'),
-						'address' => Input::get('address'),
-						'city' => Input::get('city'),
-						'area' => Input::get('area'),
-						'fax' => Input::get('fax')
+						'name' => $request->get('name'),
+						'phone' => $request->get('phone'),
+						'address' => $request->get('address'),
+						'city' => $request->get('city'),
+						'area' => $request->get('area'),
+						'fax' => $request->get('fax')
 					]);
 				
 			if($id) {
@@ -59,7 +59,7 @@ class MsCustomerController extends Controller
 	
 	public function edit($id) { 
 
-		$area = DB::table('ms_area')->where('deleted_at', '0000-00-00 00:00:00')->get();
+		$area = DB::table('ms_area')->whereNull('deleted_at')->get();
 		$cstrow = DB::table('ms_customer')->find($id);
 						/* ->join('account_master AS AM', function($join) {
 							$join->on('AM.id', '=', 'vehicle.customer_id');
@@ -72,15 +72,15 @@ class MsCustomerController extends Controller
 	}
 	
 	public function update($id)
-	{	//echo '<pre>';print_r(Input::all());exit;
+	{	//echo '<pre>';print_r($request->all());exit;
 		DB::table('ms_customer')->where('id',$id)
 				->update([
-					'name' => Input::get('name'),
-					'phone' => Input::get('phone'),
-					'address' => Input::get('address'),
-					'city' => Input::get('city'),
-					'area' => Input::get('area'),
-					'fax' => Input::get('fax')
+					'name' => $request->get('name'),
+					'phone' => $request->get('phone'),
+					'address' => $request->get('address'),
+					'city' => $request->get('city'),
+					'area' => $request->get('area'),
+					'fax' => $request->get('fax')
 				]);
 		Session::flash('message', 'Customer updated successfully');
 		return redirect('ms_customer');
@@ -97,7 +97,7 @@ class MsCustomerController extends Controller
 		
 		$customers = DB::table('ms_customer')
 							->leftJoin('ms_area', 'ms_area.id', '=', 'ms_customer.area')
-							->where('ms_customer.deleted_at', '0000-00-00 00:00:00')
+							->whereNull('deleted_at')
 							->select('ms_customer.name','ms_customer.phone','ms_customer.id','ms_customer.address',
 									'ms_customer.city','ms_customer.customer_no','ms_area.name AS area')
 							->orderBy('ms_customer.name', 'ASC')->get();
@@ -107,4 +107,6 @@ class MsCustomerController extends Controller
 	}
 	
 }
+
+
 

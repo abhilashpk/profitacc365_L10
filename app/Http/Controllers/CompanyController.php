@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use App\Repositories\Company\CompanyInterface; 
 
 use App\Http\Requests;
-use Input;
 use Session;
 use Redirect;
 use App;
@@ -32,10 +31,10 @@ class CompanyController extends Controller
 					->withData($data);
 	}
 
-	public function update($id)
+	public function update(Request $request, $id)
 	{ 
-	    //echo '<pre>';print_r(Input::all());exit;
-		$this->company->update($id, Input::all());
+	    //echo '<pre>';print_r($request->all());exit;
+		$this->company->update($id, $request->all());
 		//echo '<pre>';print_r($id);exit;
 		Session::flash('message', 'Company details updated successfully');
 		return redirect('company');

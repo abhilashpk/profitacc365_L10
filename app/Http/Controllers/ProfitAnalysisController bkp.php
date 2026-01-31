@@ -54,12 +54,12 @@ class ProfitAnalysisController extends Controller
 		$customer = $this->accountmaster->getCustomerList();
 		
 	
-        $item = DB::table('itemmaster')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+        $item = DB::table('itemmaster')->where('status',1)->whereNull('deleted_at')->get();
 		
-		$category = DB::table('category')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$category = DB::table('category')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subcategory = DB::table('category')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
+		$group = DB::table('groupcat')->where('parent_id',0)->where('status',1)->whereNull('deleted_at')->get();
+		$subgroup = DB::table('groupcat')->where('parent_id',1)->where('status',1)->whereNull('deleted_at')->get();
 		
 		// $customers = [];//$this->accountmaster->getAccountByGroup('CUSTOMER');
 		// $items = [];//	$this->itemmaster->activeItemmasterList();
@@ -70,9 +70,9 @@ class ProfitAnalysisController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				//$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -138,113 +138,113 @@ class ProfitAnalysisController extends Controller
 	{
 		$data = array();
 		$custid = $itemid =$smanid= '';
-      // echo '<pre>';print_r(Input::all());exit;
-		if(Input::get('search_type')=='summary') {
+      // echo '<pre>';print_r($request->all());exit;
+		if($request->get('search_type')=='summary') {
 			$voucher_head = 'Invoicewise - Profit Analysis Summary';
-			$repor=  $this->sales_invoice->getProfitSummary(Input::all());
+			$repor=  $this->sales_invoice->getProfitSummary($request->all());
 			//echo '<pre>';print_r($repor); exit();
-			$reports =  $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary(Input::all()) ));
+			$reports =  $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary($request->all()) ));
 		     	$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-		     	if(Input::get('customer_id')!==null)
-				$custid = implode(',', Input::get('customer_id'));
+		     	if($request->get('customer_id')!==null)
+				$custid = implode(',', $request->get('customer_id'));
 			else
 				$custid = '';
 				
-				if(Input::get('salesman_id')!==null)
-				$smanid = implode(',', Input::get('salesman_id'));
+				if($request->get('salesman_id')!==null)
+				$smanid = implode(',', $request->get('salesman_id'));
 			else
 				$smanid = '';
 				
-		} else if(Input::get('search_type')=='detail') {
+		} else if($request->get('search_type')=='detail') {
 			$voucher_head = 'Invoicewise - Profit Analysis Details';
-			$reports = $this->makeTree( $this->sales_invoice->getProfitSummary(Input::all()) ); 
+			$reports = $this->makeTree( $this->sales_invoice->getProfitSummary($request->all()) ); 
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-				if(Input::get('customer_id')!==null)
-				$custid = implode(',', Input::get('customer_id'));
+				if($request->get('customer_id')!==null)
+				$custid = implode(',', $request->get('customer_id'));
 			else
 				$custid = '';
 				
-				if(Input::get('salesman_id')!==null)
-				$smanid = implode(',', Input::get('salesman_id'));
+				if($request->get('salesman_id')!==null)
+				$smanid = implode(',', $request->get('salesman_id'));
 			else
 				$smanid = '';
-		} else if(Input::get('search_type')=='customer') {
+		} else if($request->get('search_type')=='customer') {
 			$voucher_head = 'Profit Analysis by Customerwise';
-			$reports =  $this->makeTreeCus( $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary(Input::all()))));
+			$reports =  $this->makeTreeCus( $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary($request->all()))));
 			//echo '<pre>';print_r($reports); exit();
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-			if(Input::get('customer_id')!==null)
-				$custid = implode(',', Input::get('customer_id'));
+			if($request->get('customer_id')!==null)
+				$custid = implode(',', $request->get('customer_id'));
 			else
 				$custid = '';
-		} else if(Input::get('search_type')=='item') {
+		} else if($request->get('search_type')=='item') {
 			$voucher_head = 'Profit Analysis by Itemwise';
-			$reports = $this->makeTreeItm($this->sales_invoice->getProfitSummary(Input::all()));
+			$reports = $this->makeTreeItm($this->sales_invoice->getProfitSummary($request->all()));
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];		
 
-			if(Input::get('item_id')!==null)
-				$itemid = implode(',', Input::get('item_id'));
+			if($request->get('item_id')!==null)
+				$itemid = implode(',', $request->get('item_id'));
 			else
 				$itemid = '';
-		/* } else if(Input::get('search_type')=='salesman') {
+		/* } else if($request->get('search_type')=='salesman') {
 			$voucher_head = 'Profit Analysis by salesmanwise';
-			$reports =  $this->makeTreeCus( $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary(Input::all()))));
-			$itemid = implode(',', Input::get('item_id'));
+			$reports =  $this->makeTreeCus( $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary($request->all()))));
+			$itemid = implode(',', $request->get('item_id'));
 			 */
-		} else if(Input::get('search_type')=='summarysalesman') {
+		} else if($request->get('search_type')=='summarysalesman') {
 			$voucher_head = 'Profit Analysis by Salesmanwise - Summary';
-			$reports =$this->makeTreeSal($this->profitCalc($this->makeTree($this->sales_invoice->getProfitSummary(Input::all()))));
+			$reports =$this->makeTreeSal($this->profitCalc($this->makeTree($this->sales_invoice->getProfitSummary($request->all()))));
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
-			if(Input::get('salesman_id')!==null)
-				$smanid = implode(',', Input::get('salesman_id'));
+			if($request->get('salesman_id')!==null)
+				$smanid = implode(',', $request->get('salesman_id'));
 			else
 				$smanid = '';
 			
-		} else if(Input::get('search_type')=='salesman') {
+		} else if($request->get('search_type')=='salesman') {
 			$voucher_head = 'Profit Analysis by Salesmanwise - Detail';
-			$reports = $this->makeTree($this->sales_invoice->getProfitSummary(Input::all()));
+			$reports = $this->makeTree($this->sales_invoice->getProfitSummary($request->all()));
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-			if(Input::get('salesman_id')!==null)
-				$smanid = implode(',', Input::get('salesman_id'));
+			if($request->get('salesman_id')!==null)
+				$smanid = implode(',', $request->get('salesman_id'));
 			else
 				$smanid = '';
 			
-		} else if(Input::get('search_type')=='area') {
+		} else if($request->get('search_type')=='area') {
 			$voucher_head = 'Profit Analysis by areawise';
-			//$reports =  $this->makeTreeCus( $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary(Input::all()))));
-			$reports =$this->makeTreeSal($this->profitCalc($this->makeTree($this->sales_invoice->getProfitSummary(Input::all()))));
+			//$reports =  $this->makeTreeCus( $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary($request->all()))));
+			$reports =$this->makeTreeSal($this->profitCalc($this->makeTree($this->sales_invoice->getProfitSummary($request->all()))));
 
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
-			//$custid = implode(',', Input::get('salesman_id'));
-		}  else if(Input::get('search_type')=='group') {
+			//$custid = implode(',', $request->get('salesman_id'));
+		}  else if($request->get('search_type')=='group') {
 			$voucher_head = 'Profit Analysis by Groupwises';
-			$reports =$this->makeTreeSal($this->profitCalc($this->makeTree($this->sales_invoice->getProfitSummary(Input::all()))));
+			$reports =$this->makeTreeSal($this->profitCalc($this->makeTree($this->sales_invoice->getProfitSummary($request->all()))));
 			
            // echo '<pre>';print_r($reports); exit();
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
-			if(Input::get('group_id')!==null)
-				$smanid = implode(',', Input::get('group_id'));
+			if($request->get('group_id')!==null)
+				$smanid = implode(',', $request->get('group_id'));
 			else
 				$smanid = '';
-		} else if(Input::get('search_type')=='levelwise') {
+		} else if($request->get('search_type')=='levelwise') {
 			$voucher_head = 'POS Levelwise Report';
-			$reports = $this->sales_invoice->getLevelwiseReport(Input::all()); 
+			$reports = $this->sales_invoice->getLevelwiseReport($request->all()); 
 			//echo '<pre>';print_r($reports);exit;
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
-		} else if(Input::get('search_type')=='pos_itemwise') {
+		} else if($request->get('search_type')=='pos_itemwise') {
 			$voucher_head = 'POS Itemwise Report';
-			$reports = $this->sortByGroupId( $this->sales_invoice->getItemwiseReport(Input::all()) ); 
+			$reports = $this->sortByGroupId( $this->sales_invoice->getItemwiseReport($request->all()) ); 
 			//echo '<pre>';print_r($reports);exit;
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 		}
 		
-		if(Input::get('search_type')=='invoice') {
+		if($request->get('search_type')=='invoice') {
 			$voucher_head = 'Invoice Number wise - Profit Analysis Summary';
 			//echo '<pre>';print_r($data); exit();
-			$reports = $this->makeTree( $this->sales_invoice->getProfitSummary(Input::all()) ); 
+			$reports = $this->makeTree( $this->sales_invoice->getProfitSummary($request->all()) ); 
 			//echo '<pre>';print_r($reports); exit();
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 		}
@@ -256,14 +256,14 @@ class ProfitAnalysisController extends Controller
 		return view('body.profitanalysis.print')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withCustomer($custid)
 					->withSalesman($smanid)
 					->withItem($itemid)
 					->withTitles($titles)
-					->withSearchval(json_encode(Input::all()))
+					->withSearchval(json_encode($request->all()))
 					->withData($data);
 	}
 	
@@ -280,14 +280,14 @@ class ProfitAnalysisController extends Controller
 	{
 		$data = array();
 		
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			$voucher_head = 'Profit Analysis Summary - Invoicewise';
-			$results = $this->sales_invoice->getInvoiceReport(Input::all()); 
+			$results = $this->sales_invoice->getInvoiceReport($request->all()); 
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
-		} else if(Input::get('search_type')=='customer') {
+		} else if($request->get('search_type')=='customer') {
 			$voucher_head = 'Profit Analysis - Customerwise';
-			$results = $this->itemmaster->getQuantityReport(Input::all()); 
+			$results = $this->itemmaster->getQuantityReport($request->all()); 
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
 		} 
@@ -295,7 +295,7 @@ class ProfitAnalysisController extends Controller
 		//echo '<pre>';print_r($results);exit;
 		return view('body.profitanalysis.print')
 					->withResults($results)
-					->withType(Input::get('search_type'))
+					->withType($request->get('search_type'))
 					->withVoucherhead($voucher_head)
 					->withTitles($titles)
 					->withData($data);
@@ -306,25 +306,25 @@ class ProfitAnalysisController extends Controller
 	{
 	    
 	    
-	    $data = json_decode(Input::get('search_val')); //echo '<pre>';print_r($data);exit;
-		Input::merge(['date_from' => $data->date_from]);
-		Input::merge(['date_to' => $data->date_to]);
-		Input::merge(['item_id' => (isset($data->item_id))?$data->item_id:'']);
-		Input::merge(['search_type' => $data->search_type]);
-		Input::merge(['customer_id' =>(isset($data->customer_id))?$data->customer_id:'']);
-	    Input::merge(['salesman_id' =>(isset($data->salesman_id))?$data->salesman_id:'']);
-	    Input::merge(['group_id' =>(isset($data->group_id))?$data->group_id:'']);
-	    Input::merge(['subgroup_id' =>(isset($data->subgroup_id))?$data->subgroup_id:'']);
-	    Input::merge(['category_id' =>(isset($data->category_id))?$data->category_id:'']);
-	    Input::merge(['subcategory_id' =>(isset($data->subcategory_id))?$data->subcategory_id:'']);
-			//echo '<pre>';print_r(Input::all());exit;	
+	    $data = json_decode($request->get('search_val')); //echo '<pre>';print_r($data);exit;
+		$request->merge(['date_from' => $data->date_from]);
+		$request->merge(['date_to' => $data->date_to]);
+		$request->merge(['item_id' => (isset($data->item_id))?$data->item_id:'']);
+		$request->merge(['search_type' => $data->search_type]);
+		$request->merge(['customer_id' =>(isset($data->customer_id))?$data->customer_id:'']);
+	    $request->merge(['salesman_id' =>(isset($data->salesman_id))?$data->salesman_id:'']);
+	    $request->merge(['group_id' =>(isset($data->group_id))?$data->group_id:'']);
+	    $request->merge(['subgroup_id' =>(isset($data->subgroup_id))?$data->subgroup_id:'']);
+	    $request->merge(['category_id' =>(isset($data->category_id))?$data->category_id:'']);
+	    $request->merge(['subcategory_id' =>(isset($data->subcategory_id))?$data->subcategory_id:'']);
+			//echo '<pre>';print_r($request->all());exit;	
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			
 			$voucher_head = 'Invoicewise - Profit Analysis Summary';
-			$reports =  $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary(Input::all()) ));
+			$reports =  $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary($request->all()) ));
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
 			$datareport[] = ['','','',strtoupper($voucher_head),'','',''];
@@ -355,9 +355,9 @@ class ProfitAnalysisController extends Controller
 			
 			$datareport[] = ['','','','Total',number_format($tot_sprice,2),number_format($tot_discount,2),number_format($tot_sprice,2),number_format($tot_cost,2),number_format($tot_profit,2)];
 			
-		} else if(Input::get('search_type')=='detail') {
+		} else if($request->get('search_type')=='detail') {
 			$voucher_head = 'Invoicewise - Profit Analysis Details';
-			$reports = $this->makeTree( $this->sales_invoice->getProfitSummary(Input::all()) ); 
+			$reports = $this->makeTree( $this->sales_invoice->getProfitSummary($request->all()) ); 
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
 			$datareport[] = ['','','',strtoupper($voucher_head),'','',''];
@@ -415,9 +415,9 @@ class ProfitAnalysisController extends Controller
 			$datareport[] = ['','','','','Net Total:',number_format($nsptotal,2),number_format($nctotal,2),number_format($nptotal,2)];
 			
 			
-		} else if(Input::get('search_type')=='customer') {
+		} else if($request->get('search_type')=='customer') {
 			$voucher_head = 'Profit Analysis by Customerwise';
-			$attributes = Input::all();
+			$attributes = $request->all();
 			$attributes['customer_id'] = explode(',',$attributes['customer_id']); 
 			$reports =  $this->makeTreeCus( $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary($attributes))));
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
@@ -460,10 +460,10 @@ class ProfitAnalysisController extends Controller
 			
 			$datareport[] = ['','','','Net Total:',number_format($nsptotal,2),number_format($ndtotal,2),number_format($nctotal,2),number_format($nptotal,2)];
 			
-		} 	else if(Input::get('search_type')=='levelwise') {
+		} 	else if($request->get('search_type')=='levelwise') {
 			
 				$voucher_head = 'POS Levelwise Report';
-			$reports = $this->sales_invoice->getLevelwiseReport(Input::all()); 
+			$reports = $this->sales_invoice->getLevelwiseReport($request->all()); 
 			//echo '<pre>';print_r($reports);exit;
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
@@ -489,10 +489,10 @@ class ProfitAnalysisController extends Controller
 			
 		}
 		
-		else if(Input::get('search_type')=='pos_itemwise') {
+		else if($request->get('search_type')=='pos_itemwise') {
 			
 					$voucher_head = 'POS Itemwise Report';
-			$reports = $this->sortByGroupId( $this->sales_invoice->getItemwiseReport(Input::all()) ); 
+			$reports = $this->sortByGroupId( $this->sales_invoice->getItemwiseReport($request->all()) ); 
 			//echo '<pre>';print_r($reports);exit;
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 			
@@ -523,9 +523,9 @@ class ProfitAnalysisController extends Controller
 		}
 				$datareport[] = ['','Grand Total',number_format($grtotal,2)];
 		}
-		else if(Input::get('search_type')=='item') {
+		else if($request->get('search_type')=='item') {
 			$voucher_head = 'Profit Analysis by Itemwise';
-			$attributes = Input::all();
+			$attributes = $request->all();
 			$attributes['item_id'] = explode(',',$attributes['item_id']); //echo '<pre>';print_r($attributes);exit;
 			$reports = $this->makeTreeItm($this->sales_invoice->getProfitSummary($attributes));
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];		
@@ -578,9 +578,9 @@ class ProfitAnalysisController extends Controller
 			}
 			
 			$datareport[] = ['','','','Net Total:',number_format($nsptotal,2),number_format($ndtotal,2),number_format($nctotal,2),number_format($nptotal,2)];
-		}else if(Input::get('search_type')=='group') {
+		}else if($request->get('search_type')=='group') {
 			$voucher_head = 'Profit Analysis by Itemwise';
-			$attributes = Input::all();
+			$attributes = $request->all();
 			$attributes['item_id'] = explode(',',$attributes['item_id']); //echo '<pre>';print_r($attributes);exit;
 			$reports = $this->makeTreeItm($this->sales_invoice->getProfitSummary($attributes));
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];		
@@ -633,9 +633,9 @@ class ProfitAnalysisController extends Controller
 			}
 			
 			$datareport[] = ['','','','Net Total:',number_format($nsptotal,2),number_format($ndtotal,2),number_format($nctotal,2),number_format($nptotal,2)];
-		}else if(Input::get('search_type')=='salesman') {
+		}else if($request->get('search_type')=='salesman') {
 			$voucher_head = 'Profit Analysis by Salesmanwise';
-			$attributes = Input::all();
+			$attributes = $request->all();
 			$attributes['salesman_id'] = explode(',',$attributes['salesman_id']); 
 			$reports =  $this->makeTreeSal( $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary($attributes))));
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
@@ -678,9 +678,9 @@ class ProfitAnalysisController extends Controller
 			
 			$datareport[] = ['','','','Net Total:',number_format($nsptotal,2),number_format($ndtotal,2),number_format($nctotal,2),number_format($nptotal,2)];
 			
-		}else if(Input::get('search_type')=='summarysalesman') {
+		}else if($request->get('search_type')=='summarysalesman') {
 			$voucher_head = 'Profit Analysis by Salesmanwise - summary';
-			$attributes = Input::all();
+			$attributes = $request->all();
 			$attributes['salesman_id'] = explode(',',$attributes['salesman_id']); 
 			$reports =  $this->makeTreeSal( $this->profitCalc( $this->makeTree( $this->sales_invoice->getProfitSummary($attributes))));
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
@@ -871,3 +871,5 @@ class ProfitAnalysisController extends Controller
 
 	}
 }
+
+

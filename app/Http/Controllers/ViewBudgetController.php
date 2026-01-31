@@ -91,7 +91,7 @@ class ViewBudgetController extends Controller
 		//echo '<pre>';print_r($customer);exit;
 		//DEPT CHECK...
 		if(Session::get('department')==1) {
-			$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+			$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			$is_dept = true;
 		} else {
 			$departments = []; $is_dept = false;
@@ -216,21 +216,21 @@ class ViewBudgetController extends Controller
 			
 		$data = array();
 		$itemmaster = $this->itemmaster->activeItemmasterList();
-		$units = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$units = DB::table('units')->where('status',1)->whereNull('deleted_at')->get();
 		
 		$terms = $this->terms->activeTermsList();
 		$jobs = $this->jobmaster->activeJobmasterList();
 		$currency = $this->currency->activeCurrencyList();
 		$location = $this->location->locationList();
 		//$vouchers = $this->accountsetting->getAccountSettingsDefault2($vid=1);//'Purchase Stock' voucher from account settings...
-		$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id')->first();
+		$locdefault = DB::table('location')->where('is_default',1)->where('status',1)->whereNull('deleted_at')->select('id')->first();
 		$pur_location = DB::table('parameter3')
 							 ->join('location', 'location.id', '=', 'parameter3.location_id')
 							 ->join('account_master', 'account_master.id', '=', 'parameter3.account_id')
 							 ->select('location.name','location.id','account_master.master_name','account_master.id AS account_id')
 							 ->get();
 					 
-		$lastid = DB::table('purchase_split')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
+		$lastid = DB::table('purchase_split')->where('status',1)->whereNull('deleted_at')->orderBy('id','DESC')->select('id')->first();
 		
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
@@ -244,9 +244,9 @@ class ViewBudgetController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0)
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -257,7 +257,7 @@ class ViewBudgetController extends Controller
 		}
 		
 		$did = ($deptid=='')?0:$deptid;
-		$vouchers = DB::table('account_setting')->where('voucher_type_id',23)->where('status',1)->where('department_id',$did)->where('deleted_at','0000-00-00 00:00:00')->get(); //'Purchase Stock' voucher from account settings...
+		$vouchers = DB::table('account_setting')->where('voucher_type_id',23)->where('status',1)->where('department_id',$did)->whereNull('deleted_at')->get(); //'Purchase Stock' voucher from account settings...
 		//echo '<pre>';print_r($vouchers);exit;
 		if($id!=null) {
 		    $jobmaster = DB::table('jobmaster')
@@ -379,7 +379,7 @@ class ViewBudgetController extends Controller
 		if(Session::has('acnt_master'))
 			Session::forget('acnt_master');
 		
-		if($this->purchase_split->create(Input::all())) {
+		if($this->purchase_split->create($request->all())) {
 			Session::flash('message', 'Purchase Split added successfully.');
 		} else {
 			Session::flash('error', 'Something went wrong, Invoice failed to add!');
@@ -400,7 +400,7 @@ class ViewBudgetController extends Controller
 	
 	public function checkRefNo() {
 
-		$check = $this->purchase_split->check_reference_no(Input::get('reference_no'), Input::get('id'));
+		$check = $this->purchase_split->check_reference_no($request->get('reference_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -409,7 +409,7 @@ class ViewBudgetController extends Controller
 	
 	public function checkInvoice() {
 
-		$check = $this->purchase_split->check_invoice_id( Input::get('purchase_split_id') );
+		$check = $this->purchase_split->check_invoice_id( $request->get('purchase_split_id') );
 		$isAvailable = ($check) ? false : true;
 		echo $isAvailable;
 	}
@@ -425,7 +425,7 @@ class ViewBudgetController extends Controller
 
 		//echo '<pre>';print_r($orditems);exit;
 		$voucher = $this->accountsetting->find($orderrow->voucher_id); 
-		$units = DB::table('units')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$units = DB::table('units')->where('status',1)->whereNull('deleted_at')->get();
 		
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
@@ -438,9 +438,9 @@ class ViewBudgetController extends Controller
 		if(Session::get('department')==1) { //if active...
 			$deptid = Auth::user()->department_id;
 			if($deptid!=0) {
-				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('id',$deptid)->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 			} else {
-				$departments = DB::table('department')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','name')->get();
+				$departments = DB::table('department')->where('status',1)->whereNull('deleted_at')->select('id','name')->get();
 				$deptid = $departments[0]->id;
 			}
 			$is_dept = true;
@@ -451,7 +451,7 @@ class ViewBudgetController extends Controller
 		}
 		
 		$did = ($deptid=='')?0:$deptid;
-		$vouchers = DB::table('account_setting')->where('voucher_type_id',23)->where('status',1)->where('department_id',$did)->where('deleted_at','0000-00-00 00:00:00')->get(); //'Purchase Stock' voucher from account settings...
+		$vouchers = DB::table('account_setting')->where('voucher_type_id',23)->where('status',1)->where('department_id',$did)->whereNull('deleted_at')->get(); //'Purchase Stock' voucher from account settings...
 		//echo '<pre>';print_r($orditems);exit;
 		return view('body.purchasesplit.edit')
 					->withItems($itemmaster)
@@ -506,7 +506,7 @@ class ViewBudgetController extends Controller
 			return redirect('purchase_split/edit/'.$id)->withInput()->withErrors();
 		}
 		
-		if( $this->purchase_split->update($id, Input::all()) ) {
+		if( $this->purchase_split->update($id, $request->all()) ) {
 			Session::flash('message', 'Purchase Split updated successfully');
 		} else
 			Session::flash('error', 'Something went wrong, Invoice failed to update!');
@@ -604,13 +604,13 @@ class ViewBudgetController extends Controller
 		$otbills = $this->purchase_split->getOthrBills($supplier_id,null,$pvid); //May 15
 		
 		if($pvid) {
-			$pvdat = DB::table('payment_voucher_entry')->where('id', $pvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->first();
+			$pvdat = DB::table('payment_voucher_entry')->where('id', $pvid)->where('status',1)->whereNull('deleted_at')->first();
 			
 			if($pvdat) {
-				$pvref = DB::table('payment_voucher_entry')->where('entry_type', 'Cr')->where('payment_voucher_id',$pvdat->payment_voucher_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference')->first();
+				$pvref = DB::table('payment_voucher_entry')->where('entry_type', 'Cr')->where('payment_voucher_id',$pvdat->payment_voucher_id)->where('status',1)->whereNull('deleted_at')->select('reference')->first();
 				$pvrefdat = ($pvref)?explode(',',$pvref->reference):[];
 				
-				$pvarr = $this->makeArr(DB::table('payment_voucher_entry')->where('entry_type', 'Dr')->where('payment_voucher_id',$pvdat->payment_voucher_id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference','amount')->get());
+				$pvarr = $this->makeArr(DB::table('payment_voucher_entry')->where('entry_type', 'Dr')->where('payment_voucher_id',$pvdat->payment_voucher_id)->where('status',1)->whereNull('deleted_at')->select('reference','amount')->get());
 			}
 			
 		}
@@ -636,10 +636,10 @@ class ViewBudgetController extends Controller
 		$pinbills = $this->purchase_split->getPINbills($supplier_id,null,null);
 		$ocbills = $this->purchase_split->getOtherCostBills($supplier_id,null,null);
 		
-		$pvref = DB::table('payment_voucher_entry')->where('entry_type', 'Cr')->where('payment_voucher_id',$pvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference')->first();
+		$pvref = DB::table('payment_voucher_entry')->where('entry_type', 'Cr')->where('payment_voucher_id',$pvid)->where('status',1)->whereNull('deleted_at')->select('reference')->first();
 		$pvrefdat = ($pvref)?explode(',',$pvref->reference):[];
 		
-		$pvarr = $this->makeArr(DB::table('payment_voucher_entry')->where('entry_type', 'Dr')->where('payment_voucher_id',$pvid)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('reference','amount')->get());
+		$pvarr = $this->makeArr(DB::table('payment_voucher_entry')->where('entry_type', 'Dr')->where('payment_voucher_id',$pvid)->where('status',1)->whereNull('deleted_at')->select('reference','amount')->get());
 		
 		return view('body.purchasesplit.supinvoiceedit')
 					->withNum($no)
@@ -664,15 +664,15 @@ class ViewBudgetController extends Controller
 	
 	public function setSessionVal()
 	{
-		//print_r(Input::all());
-		Session::put('voucher_id', Input::get('vchr_id'));
-		Session::put('voucher_no', Input::get('vchr_no'));
-		Session::put('reference_no', Input::get('ref_no'));
-		Session::put('voucher_date', Input::get('vchr_dt'));
-		Session::put('lpo_date', Input::get('lpo_dt'));
-		Session::put('purchase_acnt', Input::get('pur_ac'));
-		Session::put('acnt_master', Input::get('ac_mstr'));
-		Session::put('dpt_id', Input::get('dpt_id'));
+		//print_r($request->all());
+		Session::put('voucher_id', $request->get('vchr_id'));
+		Session::put('voucher_no', $request->get('vchr_no'));
+		Session::put('reference_no', $request->get('ref_no'));
+		Session::put('voucher_date', $request->get('vchr_dt'));
+		Session::put('lpo_date', $request->get('lpo_dt'));
+		Session::put('purchase_acnt', $request->get('pur_ac'));
+		Session::put('acnt_master', $request->get('ac_mstr'));
+		Session::put('dpt_id', $request->get('dpt_id'));
 
 	}
 	
@@ -736,7 +736,7 @@ class ViewBudgetController extends Controller
 	
 	public function checkVchrNo() {
 
-		$check = $this->purchase_split->check_voucher_no(Input::get('voucher_no'), Input::get('id'));
+		$check = $this->purchase_split->check_voucher_no($request->get('voucher_no'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -806,22 +806,22 @@ class ViewBudgetController extends Controller
 	// {
 	// 	$data = array();
 	// 	$dname = '';
-	// 	//echo '<pre>';print_r(Input::all());exit;
-	// 	$reports = $this->purchase_split->getReport(Input::all());
+	// 	//echo '<pre>';print_r($request->all());exit;
+	// 	$reports = $this->purchase_split->getReport($request->all());
 	// 	//echo '<pre>';print_r([$reports]);exit;
 	// 	if(Session::get('department')==1) {
-	// 		if(Input::get('department_id')!='') {
-	// 			$rec = DB::table('department')->where('id', Input::get('department_id'))->select('name')->first();
+	// 		if($request->get('department_id')!='') {
+	// 			$rec = DB::table('department')->where('id', $request->get('department_id'))->select('name')->first();
 	// 			$dname = $rec->name;
 	// 		}
 	// 	}
 		
-	// 	if(Input::get('search_type')=="summary")
+	// 	if($request->get('search_type')=="summary")
 	// 		$voucher_head = 'Purchase Split Summary';
-	// 	elseif(Input::get('search_type')=="purchase_register") {
+	// 	elseif($request->get('search_type')=="purchase_register") {
 	// 		$voucher_head = 'Purchase Splitt Summary';
 	// 		$reports = $this->makeTree($reports);
-	// 	} else if(Input::get('search_type')=="tax_code") {
+	// 	} else if($request->get('search_type')=="tax_code") {
 	// 		$voucher_head = 'Purchase split by Tax Code';
 	// 		$reports = $this->makeTreeTC($reports);
 	// 	}
@@ -829,11 +829,11 @@ class ViewBudgetController extends Controller
 	// 	return view('body.purchasesplit.preprint')
 	// 				->withReports($reports)
 	// 				->withVoucherhead($voucher_head)
-	// 				->withType(Input::get('search_type'))
-	// 				->withFromdate(Input::get('date_from'))
-	// 				->withTodate(Input::get('date_to'))
+	// 				->withType($request->get('search_type'))
+	// 				->withFromdate($request->get('date_from'))
+	// 				->withTodate($request->get('date_to'))
 	// 				->withI(0)
-	// 				->withIsimport(Input::get('isimport'))
+	// 				->withIsimport($request->get('isimport'))
 	// 				->withSettings($this->acsettings)
 	// 				->withDname($dname)
 	// 				->withData($data);
@@ -843,27 +843,27 @@ class ViewBudgetController extends Controller
 		$dname = '';
 		$data = array();
 		$supid = $itemid = '';
-		$reports = $this->purchase_split->customerWiseSummary(Input::all());
+		$reports = $this->purchase_split->customerWiseSummary($request->all());
 		//echo '<pre>';print_r($reports); exit();
 		if(Session::get('department')==1) {
-			 		if(Input::get('department_id')!='') {
-			 			$rec = DB::table('department')->where('id', Input::get('department_id'))->select('name')->first();
+			 		if($request->get('department_id')!='') {
+			 			$rec = DB::table('department')->where('id', $request->get('department_id'))->select('name')->first();
 			 			$dname = $rec->name;
 			 		}
 			 	}
-		if(Input::get('search_type')=='summary') {
+		if($request->get('search_type')=='summary') {
 			$voucher_head = 'Purchase Split  by Summary';
-			$reports =( $this->makeTreeSumm($this->purchase_split->customerWiseSummary(Input::all())));
+			$reports =( $this->makeTreeSumm($this->purchase_split->customerWiseSummary($request->all())));
 			//echo '<pre>';print_r($reports); exit();
 			
-		}  else if(Input::get('search_type')=='supplier') {
+		}  else if($request->get('search_type')=='supplier') {
 			$voucher_head = 'Purchase Split by supplierwise';
-		    $reports =( $this->makeTreeSup($this->purchase_split->customerWiseSummary(Input::all())));
-		//$reports =	$this->makeTreeCus( $this->makeTreeSumm( $this->sales_split->customerWiseSummary(Input::all())));
+		    $reports =( $this->makeTreeSup($this->purchase_split->customerWiseSummary($request->all())));
+		//$reports =	$this->makeTreeCus( $this->makeTreeSumm( $this->sales_split->customerWiseSummary($request->all())));
 	     	//echo '<pre>';print_r($reports); exit();
 			
-			if(Input::get('supplier_id')!==null)
-				$supid = implode(',', Input::get('supplier_id'));
+			if($request->get('supplier_id')!==null)
+				$supid = implode(',', $request->get('supplier_id'));
 			else
 				$supid = '';
 		}    
@@ -875,13 +875,13 @@ class ViewBudgetController extends Controller
 		return view('body.purchasesplit.preprint')
 					->withReports($reports)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withSupplier($supid)
 					//->withCustomer($custid)
 					->withItem($itemid)
-					->withIsimport(Input::get('isimport'))
+					->withIsimport($request->get('isimport'))
 					->withDname($dname)
 					->withSettings($this->acsettings)
 					->withI(0)
@@ -958,13 +958,13 @@ class ViewBudgetController extends Controller
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		Input::merge(['type' => 'export']);
-		//echo '<pre>';print_r(Input::all());exit;
+		$request->merge(['type' => 'export']);
+		//echo '<pre>';print_r($request->all());exit;
 		
 		
-		if(Input::get('search_type')=="summary")
+		if($request->get('search_type')=="summary")
 		{
-			$reports = $this->purchase_split->customerWiseSummary(Input::all());
+			$reports = $this->purchase_split->customerWiseSummary($request->all());
 			$voucher_head = 'Purchase Split Summary';
 
 			$datareport[] = ['','','','',strtoupper($voucher_head), '','',''];
@@ -988,13 +988,13 @@ class ViewBudgetController extends Controller
 				}
 		}
 			
-		elseif(Input::get('search_type')=="purchase_register") {
+		elseif($request->get('search_type')=="purchase_register") {
 			$voucher_head = 'Purchase Register Summary';
 			//$reports = $this->makeTree($reports);
-		}else if(Input::get('search_type')=='supplier') {
+		}else if($request->get('search_type')=='supplier') {
 			$voucher_head = 'Purchase Split by supplierwise';
-			$reports = $this->purchase_split->customerWiseSummary(Input::all());
-		   // $reports =( $this->makeTreeSup($this->purchase_split->customerWiseSummary(Input::all())));
+			$reports = $this->purchase_split->customerWiseSummary($request->all());
+		   // $reports =( $this->makeTreeSup($this->purchase_split->customerWiseSummary($request->all())));
 		//	echo '<pre>';print_r($reports );exit;
 			$voucher_head = 'Purchase Split Summary';
 
@@ -1017,11 +1017,11 @@ class ViewBudgetController extends Controller
 										  'total' => $row['net_amount']
 										];
 				}
-		//$reports =	$this->makeTreeCus( $this->makeTreeSumm( $this->sales_split->customerWiseSummary(Input::all())));
+		//$reports =	$this->makeTreeCus( $this->makeTreeSumm( $this->sales_split->customerWiseSummary($request->all())));
 	     	//echo '<pre>';print_r($reports); exit();
 			
-			if(Input::get('supplier_id')!==null)
-				$supid = implode(',', Input::get('supplier_id'));
+			if($request->get('supplier_id')!==null)
+				$supid = implode(',', $request->get('supplier_id'));
 			else
 				$supid = '';
 				$voucher_head = 'Purchase Split Summary';
@@ -1179,9 +1179,9 @@ class ViewBudgetController extends Controller
 	//EXCEL FORMAT:   Item Code|Description|Unit|Quantity|Rate
 	public function getImport(Request $request) {
 		  
-		if(Input::hasFile('import_file')){
+		if($request->hasFile('import_file')){
 			
-			$path = Input::file('import_file')->getRealPath();
+			$path = $request->file('import_file')->getRealPath();
 			$data = Excel::load($path, function($reader) { })->get();
 			//echo '<pre>';print_r($data);exit;
 			//$items = array();
@@ -1269,8 +1269,8 @@ class ViewBudgetController extends Controller
 		$datareport[] = [strtoupper(Session::get('company')),'','',''];
 		$datareport[] = ['','','','','','',''];
 		
-		$attributes['document_id'] = Input::get('id');
-		$attributes['is_fc'] = Input::get('fc');
+		$attributes['document_id'] = $request->get('id');
+		$attributes['is_fc'] = $request->get('fc');
 		$result = $this->purchase_split->getInvoice($attributes);
 		
 		$voucher_head = 'PURCHASE INVOICE';
@@ -1404,5 +1404,7 @@ class ViewBudgetController extends Controller
 	}
 	
 }
+
+
 
 
