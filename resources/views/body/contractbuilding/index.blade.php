@@ -99,7 +99,7 @@
 										<th>View/Print</th>
 										<th>Edit</th>
 										@if($consetting==1)<th>Delete</th>@endif
-										<th>Attach</th>
+										<th>View All</th>
                                     </tr>
                                     </thead>
                                     <tbody>

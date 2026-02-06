@@ -58,9 +58,9 @@
                                         <select id="voucher_type_id" class="form-control select2" disabled style="width:100%" name="voucher_type_id">
 											@foreach ($vouchertype as $type)
 											@if($settingrow->voucher_type_id==$type['id'])
-											{{--*/ $sel = "selected" /*--}}
+											@php $sel = "selected" @endphp
 											@else
-											{{--*/ $sel = "" /*--}}	
+											@php $sel = "" @endphp	
 											@endif
 											<option value="{{ $type['id'] }}" {{ $sel }}>{{ $type['name'] }}</option>
 											@endforeach
@@ -75,9 +75,9 @@
                                             <option value="">Select Department...</option>
 											@foreach ($department as $dept)
 											@if($settingrow->department_id==$dept['id'])
-											{{--*/ $sel = "selected" /*--}}
+											@php $sel = "selected" @endphp
 											@else
-											{{--*/ $sel = "" /*--}}	
+											@php $sel = "" @endphp	
 											@endif
 											<option value="{{ $dept['id'] }}" {{$sel}}>{{ $dept['name'] }}</option>
 											@endforeach
@@ -102,13 +102,13 @@
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-3 control-label">Prefix Enable</label>
 									@if($settingrow->is_prefix==0)
-									{{--*/ $chk1 = "checked";
+									@php $chk1 = "checked";
 											$chk2 = "";
-									/*--}}
+									@endphp
 									@else
-									{{--*/ $chk2 = "checked";
+									@php $chk2 = "checked";
 											$chk1 = "";
-									/*--}}	
+									@endphp	
 									@endif
 									<div class="col-sm-8">
                                         <label class="radio-inline iradio">
@@ -144,9 +144,9 @@
 											<select id="drcash_account_master_id" class="form-control select2" style="width:100%" name="drcash_account_master_id">
 												@foreach ($cashacs as $acc)
 													@if($settingrow->cash_account_id==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 												@endforeach
@@ -161,9 +161,9 @@
 											<select id="drbank_account_master_id" class="form-control select2" style="width:100%" name="drbank_account_master_id">
 												@foreach ($bankacs as $acc)
 													@if($settingrow->bank_account_id==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 												@endforeach
@@ -178,9 +178,9 @@
 											<select id="drpdc_account_master_id" class="form-control select2" style="width:100%" name="drpdc_account_master_id">
 												@foreach ($pdcs as $acc)
 												@if($settingrow->pdc_account_id==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 												<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 												@endforeach
@@ -197,9 +197,9 @@
 											<select id="drcash_account_master_id" class="form-control select2" style="width:100%" name="drcash_account_master_id">
 												@foreach ($cashacs as $acc)
 													@if($settingrow->cash_account_id==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 												@endforeach
@@ -214,9 +214,9 @@
 											<select id="drbank_account_master_id" class="form-control select2" style="width:100%" name="drbank_account_master_id">
 												@foreach ($bankacs as $acc)
 													@if($settingrow->bank_account_id==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 												@endforeach
@@ -237,9 +237,9 @@
 													<option value="">Select Debit Account...</option>
 													@foreach ($accounts as $acc)
 													@if($settingrow->dr_account_master_id==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 													@endforeach
@@ -255,9 +255,9 @@
 													<option value="">Select Credit Account...</option>
 													@foreach ($accounts as $acc)
 													@if($settingrow->cr_account_master_id==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 													@endforeach
@@ -276,9 +276,9 @@
 													<option value="">Select Debit Account...</option>
 													@foreach ($accounts as $acc)
 													@if($settingrow->dr_account_master_id_to==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 													@endforeach
@@ -294,9 +294,9 @@
 													<option value="">Select Credit Account...</option>
 													@foreach ($accounts as $acc)
 													@if($settingrow->cr_account_master_id_to==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 													@endforeach
@@ -314,9 +314,9 @@
 													<option value="">Select Debit Account...</option>
 													@foreach ($accounts as $acc)
 													@if($settingrow->dr_account_master_id==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 													@endforeach
@@ -332,9 +332,9 @@
 													<option value="">Select Credit Account...</option>
 													@foreach ($accounts as $acc)
 													@if($settingrow->cr_account_master_id==$acc['id'])
-													{{--*/ $sel = "selected" /*--}}
+													@php $sel = "selected" @endphp
 													@else
-													{{--*/ $sel = "" /*--}}	
+													@php $sel = "" @endphp	
 													@endif
 													<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 													@endforeach
@@ -348,13 +348,13 @@
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-3 control-label">Cash Voucher</label>
 									@if($settingrow->is_cash_voucher==0)
-									{{--*/ $chk1 = "checked";
+									@php $chk1 = "checked";
 											$chk2 = "";
-									/*--}}
+									@endphp
 									@else
-									{{--*/ $chk2 = "checked";
+									@php $chk2 = "checked";
 											$chk1 = "";
-									/*--}}	
+									@endphp	
 									@endif
 									<div class="col-sm-8">
                                         <label class="radio-inline iradio">
@@ -375,9 +375,9 @@
 											<option value="">Select Cash Account...</option>
 											@foreach ($accounts as $acc)
 											@if($settingrow->default_account_id==$acc['id'])
-											{{--*/ $sel = "selected" /*--}}
+											@php $sel = "selected" @endphp
 											@else
-											{{--*/ $sel = "" /*--}}	
+											@php $sel = "" @endphp	
 											@endif
 											<option value="{{ $acc['id'] }}" {{$sel}}>{{ $acc['master_name'] }}</option>
 											@endforeach
@@ -389,13 +389,13 @@
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-3 control-label">Voucher Status</label>
 									@if($settingrow->status==0)
-									{{--*/ $act1 = "checked";
+									@php $act1 = "checked";
 											$act2 = "";
-									/*--}}
+									@endphp
 									@else
-									{{--*/ $act2 = "checked";
+									@php $act2 = "checked";
 											$act1 = "";
-									/*--}}	
+									@endphp	
 									@endif
 									<div class="col-sm-8">
                                         <label class="radio-inline iradio">

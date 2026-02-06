@@ -98,13 +98,13 @@
 												<div class="col-sm-8">
 													<select id="item_class" class="form-control select2" style="width:100%" name="item_class">
 														@if($parameter1->item_class==1)
-														{{--*/ $sel1 = "selected";
+														@php $sel1 = "selected";
 																$sel2="";
-														/*--}}
+														@endphp
 														@else
-														{{--*/ $sel2 = "selected";
+														@php $sel2 = "selected";
 															$sel1="";
-														/*--}}	
+														@endphp	
 														@endif
 														<option value="1" {{ $sel1 }}>Stock</option>
 														<option value="2" {{ $sel2 }}>Service</option>
@@ -117,9 +117,9 @@
 													<select id="bcurrency_id" class="form-control select2" style="width:100%" name="bcurrency_id">
 														@foreach ($currency as $curr)
 														@if($parameter1->bcurrency_id==$curr['id'])
-														{{--*/ $sel = "selected" /*--}}
+														@php $sel = "selected" @endphp
 														@else
-														{{--*/ $sel = "" /*--}}	
+														@php $sel = "" @endphp	
 														@endif
 														<option value="{{ $curr['id'] }}" {{ $sel }}>{{ $curr['name'] }}</option>
 														@endforeach
@@ -139,9 +139,9 @@
 														<option value="">Select Currency...</option>
 														@foreach ($currency as $curr)
 														@if($parameter1->fcurrency_id==$curr['id'])
-														{{--*/ $sel = "selected" /*--}}
+														@php $sel = "selected" @endphp
 														@else
-														{{--*/ $sel = "" /*--}}	
+														@php $sel = "" @endphp	
 														@endif
 														<option value="{{ $curr['id'] }}" {{ $sel }}>{{ $curr['name'] }}</option>
 														@endforeach
@@ -178,17 +178,17 @@
 												<label for="input-text" class="col-sm-3 control-label">Costing Method</label>
 												<div class="col-sm-8">
 													@if($parameter1->cost_method==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = ""; $chk3 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->cost_method==2)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = ""; $chk3 = "";
-													/*--}}	
+													@endphp	
 													@elseif($parameter1->cost_method==3)
-													{{--*/ $chk3 = "checked";
+													@php $chk3 = "checked";
 														   $chk2 = ""; $chk1 = "";
-													/*--}}
+													@endphp
 													@endif
 													<label class="radio-inline iradio">
 														<input type="radio" id="inlineradio1" name="cost_method" value="1" {{ $chk1 }}>
@@ -204,11 +204,11 @@
 													</label>
 													<label class="radio-inline iradio">
 														@if($parameter1->is_refresh==1)
-														{{--*/ $chk = "checked";
-														/*--}}
+														@php $chk = "checked";
+														@endphp
 														@else
-														{{--*/ $chk = "";
-														/*--}}
+														@php $chk = "";
+														@endphp
 														@endif
 														&nbsp;&nbsp; <input type="checkbox" class="custom_icheck" id="terms" name="is_refresh" value="1" {{ $chk }}>
 														Refresh after Purchase/Sale
@@ -220,17 +220,17 @@
 												<label for="input-text" class="col-sm-3 control-label">VAT Entry</label>
 												<div class="col-sm-8">
 													@if($parameter1->vat_entry==0)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = ""; $chk3 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->vat_entry==1)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = ""; $chk3 = "";
-													/*--}}	
+													@endphp	
 													@elseif($parameter1->vat_entry==2)
-													{{--*/ $chk3 = "checked";
+													@php $chk3 = "checked";
 														   $chk2 = ""; $chk1 = "";
-													/*--}}
+													@endphp
 													@endif
 													<label class="radio-inline iradio">
 														<input type="radio" id="inlineradio1" name="vat_entry" value="0" {{ $chk1 }}>
@@ -254,17 +254,17 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Credit Limit</label>
 												@if($parameter1->credit_limit==0)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = ""; $chk3 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->credit_limit==1)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = ""; $chk3 = "";
-													/*--}}	
+													@endphp	
 													@elseif($parameter1->credit_limit==2)
-													{{--*/ $chk3 = "checked";
+													@php $chk3 = "checked";
 														   $chk2 = ""; $chk1 = "";
-													/*--}}
+													@endphp
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -286,13 +286,13 @@
 												<label for="input-text" class="col-sm-3 control-label">Item Profit</label>
 												<div class="col-sm-8">
 													@if($parameter1->item_profit==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = ""; 
-													/*--}}
+													@endphp
 													@elseif($parameter1->item_profit==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 													
 													@endif
 													<label class="radio-inline iradio">
@@ -316,13 +316,13 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Item Quantity Check</label>
 												@if($parameter1->item_quantity==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->item_quantity==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -339,13 +339,13 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Document Approval</label>
 												@if($parameter1->doc_approve==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->doc_approve==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -363,13 +363,13 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Daily Entry</label>
 												@if($parameter1->trip_entry==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->trip_entry==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -389,13 +389,13 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Vehicle Details Dashboard</label>
 												@if($parameter1->vehicle_dashboard==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->vehicle_dashboard==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -414,13 +414,13 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Advanced Dashboard</label>
 												@if($parameter1->adcd_dashboard==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->adcd_dashboard==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -437,13 +437,13 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">PDC Alert</label>
 												@if($parameter1->pdc_alert==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->pdc_alert==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -460,13 +460,13 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">Advanced Workshop</label>
 												@if($parameter1->advanced_workshop==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->advanced_workshop==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -483,13 +483,13 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">PI VAT Inclusive</label>
 												@if($parameter1->pi_vat_inc==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->pi_vat_inc==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -506,13 +506,13 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">SI VAT Inclusive</label>
 												@if($parameter1->si_vat_inc==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->si_vat_inc==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -529,13 +529,13 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">PV Approval System</label>
 												@if($parameter1->pv_approval==1)
-													{{--*/ $chk1 = "checked";
+													@php $chk1 = "checked";
 														   $chk2 = "";
-													/*--}}
+													@endphp
 													@elseif($parameter1->pv_approval==0)
-													{{--*/ $chk2 = "checked";
+													@php $chk2 = "checked";
 														   $chk1 = "";
-													/*--}}	
+													@endphp	
 												@endif
 												<div class="col-sm-8">
 													<label class="radio-inline iradio">
@@ -575,11 +575,11 @@
 											<input type="hidden" name="_token" value="{{ csrf_token() }}">
 											@foreach($parameter2 as $para)
 											@if($para->is_active==1)
-													{{--*/ $chk = "checked";
-													/*--}}
+													@php $chk = "checked";
+													@endphp
 													@else
-													{{--*/ $chk = "";
-													/*--}}	
+													@php $chk = "";
+													@endphp	
 											@endif
 											<div class="form-group">
 												<label for="input-text" class="col-sm-6 control-label">{{ $para->name }}</label>
@@ -698,11 +698,11 @@
 												<div class="form-group">
 														<label for="input-text" class="col-sm-3 control-label">Payroll by: </label>
 														@if($parameter4->payroll_by==1)
-																{{--*/ $chk = "checked";
-																/*--}}
+																@php $chk = "checked";
+																@endphp
 																@else
-																{{--*/ $chk2 = "checked";
-																/*--}}	
+																@php $chk2 = "checked";
+																@endphp	
 														@endif
 														<div class="col-sm-8">
 															<label class="radio-inline iradio">

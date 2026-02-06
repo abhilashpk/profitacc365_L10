@@ -70,6 +70,7 @@ class ProfitLossController2 extends Controller
 		$startDate = ($request->input('date_from')!='')?date('Y-m-d', strtotime($request->input('date_from'))):''; 
 		$endDate = ($request->input('date_to')!='')?date('Y-m-d', strtotime($request->input('date_to'))):'';
 		$reportType = $request->input('search_type');
+		
 	if (!$startDate || !$endDate) {
 			$startDate   = $this->acsettings->from_date;
             $endDate     = $this->acsettings->to_date;
@@ -85,7 +86,7 @@ class ProfitLossController2 extends Controller
 			->where('status', 1)
 			->where('deleted_at', '0000-00-00 00:00:00')
 			->get();
-
+//echo '<pre>';print_r($categories);exit;
 		foreach ($categories as $category) {
 			$side = null;
 
@@ -118,7 +119,7 @@ class ProfitLossController2 extends Controller
 				// Get accounts under this group
 				$accounts = DB::table('account_master')
 					->where('account_group_id', $group->id)
-					->where('deleted_at', '0000-00-00 00:00:00')
+					->whereNull('deleted_at')
 					->get();
 
 				foreach ($accounts as $account) {

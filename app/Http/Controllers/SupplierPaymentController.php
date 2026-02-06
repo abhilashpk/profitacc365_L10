@@ -760,7 +760,7 @@ class SupplierPaymentController extends Controller
 		//echo '<pre>';print_r($request->all());exit;
 
 		// --- Validation Rules ---
-		$rules = [
+		/*$rules = [
 			'voucher_type'   => 'required',
 			'voucher'        => 'required|integer',
 			'voucher_no'     => 'required',
@@ -775,7 +775,7 @@ class SupplierPaymentController extends Controller
 			'credit'         => 'required|numeric|min:0',
 
 			// Optional fields - remove `nullable`, just keep valid type rules
-			'bank_id.*'      => 'integer|exists:Bank,id',
+			'bank_id.*'      => 'integer|exists:bank,id',
 			'cheque_no.*'    => 'string|max:50',
 			'cheque_date.*'  => 'date_format:d-m-Y',
 			'party_name.*'   => 'string|max:100',
@@ -797,7 +797,7 @@ class SupplierPaymentController extends Controller
 		// Laravel 5.2: Apply optional fields only if present
 		$validator = Validator::make($request->all(), $rules, $messages);
 
-		$validator->sometimes('bank_id.*', 'integer|exists:Bank,id', function($input) {
+		$validator->sometimes('bank_id.*', 'integer|exists:bank,id', function($input) {
 			return !empty($input->bank_id);
 		});
 		$validator->sometimes('cheque_no.*', 'string|max:50', function($input) {
@@ -822,7 +822,7 @@ class SupplierPaymentController extends Controller
             return Redirect::back()
                 ->withErrors($validator)
                 ->withInput();
-        }
+        }*/
 		
 		/*$validator = Validator::make($request->all(), [
             'voucher_no' => 'required|max:255',

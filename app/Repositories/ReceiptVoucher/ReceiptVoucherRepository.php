@@ -2761,11 +2761,15 @@ echo '<pre>';print_r($balanced);exit;
 	
 	public function CustomerReceiptListCount()
 	{
-		return $query = $this->receipt_voucher->where('receipt_voucher.status',1)->where('receipt_voucher.opening_balance_id',0)
+		return $query = DB::table('receipt_voucher')->where('receipt_voucher.status',1)->where('receipt_voucher.opening_balance_id',0)
+		->where(function ($q) {
+                        $q->whereNull('receipt_voucher.deleted_at')
+                          ->orWhere('receipt_voucher.deleted_at', '0000-00-00 00:00:00');
+                    })
 							->select('receipt_voucher.id','receipt_voucher.voucher_no','receipt_voucher.voucher_date','receipt_voucher.tr_description',
 									 'receipt_voucher.debit AS amount','receipt_voucher.from_jv','receipt_voucher.voucher_type','receipt_voucher.is_transfer',
 									 DB::raw("(SELECT account_master.master_name FROM receipt_voucher_entry 
-											   JOIN account_master ON(account_master.id = receipt_voucher_entry.account_id)
+											   JOIN account_master ON(account_m;ster.id = receipt_voucher_entry.account_id)
 											   WHERE receipt_voucher_entry.receipt_voucher_id=receipt_voucher.id 
 											   AND receipt_voucher_entry.entry_type='Dr' LIMIT 0,1) AS debiter"),
 									 DB::raw("(SELECT account_master.master_name FROM receipt_voucher_entry 
@@ -2783,7 +2787,15 @@ echo '<pre>';print_r($balanced);exit;
 	
 	public function CustomerReceiptList($type,$start,$limit,$order,$dir,$search)
 	{
-		$query = $this->receipt_voucher->where('receipt_voucher.status',1)->where('receipt_voucher.opening_balance_id',0);
+		$query = DB::table('receipt_voucher')->where('receipt_voucher.status',1)//->where('receipt_voucher.opening_balance_id',0)->orwhereNull('receipt_voucher.opening_balance_id')
+		            ->where(function ($q) {
+                        $q->whereNull('receipt_voucher.opening_balance_id')
+                          ->orWhere('receipt_voucher.opening_balance_id', '0');
+                    })
+		            ->where(function ($q1) {
+                        $q1->whereNull('receipt_voucher.deleted_at')
+                          ->orWhere('receipt_voucher.deleted_at', '0000-00-00 00:00:00');
+                    });
 									$query->join('receipt_voucher_entry AS RE', function($join) {
 											 $join->on('RE.receipt_voucher_id', '=', 'receipt_voucher.id');
 											  $join->where('RE.status','=',1);
@@ -2803,32 +2815,6 @@ echo '<pre>';print_r($balanced);exit;
 										});
 									 }
 									 
-									/* if($search) {
-										$query->join('receipt_voucher_entry AS JE', function($join) {
-											 $join->on('JE.receipt_voucher_id', '=', 'receipt_voucher.id');
-										 })
-										$query->where('receipt_voucher.voucher_no','LIKE',"%{$search}%")
-											  ->orWhere('receipt_voucher.voucher_date', 'LIKE',"%{$search}%");
-									} */
-									/* if($search) {
-										$query->where('receipt_voucher.voucher_no','LIKE',"%{$search}%")
-											  ->orWhere('receipt_voucher.voucher_date', 'LIKE',"%{$search}%");
-											  
-										$query->select('receipt_voucher.id','receipt_voucher.voucher_no','receipt_voucher.voucher_date','receipt_voucher.tr_description',
-										 'receipt_voucher.debit AS amount','receipt_voucher.from_jv','receipt_voucher.voucher_type','receipt_voucher.is_transfer',
-										 DB::raw("(SELECT account_master.master_name FROM receipt_voucher_entry 
-												   JOIN account_master ON(account_master.id = receipt_voucher_entry.account_id)
-												   WHERE receipt_voucher_entry.receipt_voucher_id=receipt_voucher.id 
-												   AND receipt_voucher_entry.entry_type='Dr' LIMIT 0,1) AS debiter"),
-										 DB::raw("(SELECT account_master.master_name FROM receipt_voucher_entry 
-												   JOIN account_master ON(account_master.id = receipt_voucher_entry.account_id)
-												   WHERE receipt_voucher_entry.receipt_voucher_id=receipt_voucher.id 
-												   AND receipt_voucher_entry.entry_type='Cr' AND account_master.master_name LIKE '%$search%'
-												   LIMIT 0,1) AS creditor"));
-												   
-										DB::raw("(SELECT sales_invoice.kilometer FROM sales_invoice JOIN vehicle ON(vehicle.id = sales_invoice.vehicle_id)
-										ORDER BY sales_invoice.id DESC LIMIT 0,1) AS kilometer")
-									} else { */
 									
 										$query->select('receipt_voucher.id','receipt_voucher.voucher_no','receipt_voucher.voucher_date','receipt_voucher.tr_description',
 										 'receipt_voucher.debit AS amount','receipt_voucher.from_jv','receipt_voucher.voucher_type','receipt_voucher.is_transfer','RE.description','RE.reference',
@@ -2856,6 +2842,7 @@ echo '<pre>';print_r($balanced);exit;
 										return $query->count();
 		
 	}
+																		
 	
 	
 	public function PdcReceivedDelete($id)

@@ -19,7 +19,6 @@ use Illuminate\Http\Request;
 use Session;
 use Auth;
 use DB;
-use Input;
 use App;
 
 class DashboardController extends Controller
@@ -127,6 +126,40 @@ class DashboardController extends Controller
 		$area = $this->area->activeAreaList();
 		$salesmanid = $this->salesman->activeSalesmanList();
 		$terms = $this->terms->activeTermsList();
+
+		$contractexp = DB::table('contract_building')
+					->join('account_master AS AM','AM.id','=','contract_building.customer_id')
+					->join('buildingmaster AS B','B.id','=','contract_building.building_id')
+					->leftjoin('flat_master AS F','F.id','=','contract_building.flat_no')->where('contract_building.status',1)
+					->where('contract_building.is_close',0)
+					->where('contract_building.deleted_at',null)
+					->select('contract_building.contract_date','contract_building.id AS id','contract_building.rent_amount','contract_building.description','contract_building.grand_total','contract_building.contract_no',
+					'contract_building.start_date','contract_building.end_date','contract_building.duration','AM.master_name','B.buildingcode AS buildcode','B.buildingname AS buildname','F.flat_no AS flat',
+					'contract_building.building_id')
+					->orderBy('contract_building.end_date','ASC')
+					->get();
+		
+
+		$expiringbldg = DB::table('contract_building')
+							->join('account_master AS AM','AM.id','=','contract_building.customer_id')
+							->join('buildingmaster AS B','B.id','=','contract_building.building_id')
+							->leftJoin('flat_master AS F','F.id','=','contract_building.flat_no')
+							->where('contract_building.status', 1)
+							->where('contract_building.is_close', 0)
+							->whereNull('contract_building.deleted_at')
+							->where('contract_building.end_date', '<=', date('Y-m-d', strtotime('+90 days')))
+							->select('B.buildingcode AS buildcode','B.buildingname AS buildname',
+								'contract_building.building_id',
+								DB::raw('COUNT(contract_building.id) AS expiring_count')
+							)
+							->groupBy('contract_building.building_id')
+							->orderBy('expiring_count', 'DESC')
+							->get();
+
+
+		//echo '<pre>';print_r($expiringbldg);exit;
+		
+
 		##PENDING DOCS#########
 		$qtno = $sono = null;
 		if($parameter1->doc_approve==1 || $parameter1->adcd_dashboard==1) { //ADVANCED DASHBOARD....
@@ -134,7 +167,7 @@ class DashboardController extends Controller
 			$sono = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('doc_status',0)->count();
 			
 			$details = $this->company->getCrmDashboardData();
-			$view = 'adcddashboardset'; //crmdashboard, dashboard1, newdashboard1
+			$view = 'new-adcddashboardset'; //crmdashboard, dashboard1, newdashboard1, adcddashboardset 
 			
 			//GRAPH DATA HERE.....
 			$year = date('Y',strtotime($fromdate));
@@ -194,8 +227,14 @@ class DashboardController extends Controller
 			$result = $pur_result = $xdata = $custdata = $supdata = $pdclist = $pdcis = $products = $sales = $purchase = $salesman = $expdata = [];
 			$details = $this->company->getDashboardData();
 			$vehidata = $this->getVehiExpinfo();
+			
+			//PDCR Lists....
+			$pdclist = $this->receipt_voucher->PDCReceivedList();
+			$pdcis = $this->payment_voucher->PDCIssuedList();
 
-	//	echo '<pre>';print_r($parameter1);exit; 
+
+
+	//	echo '<pre>';print_r($details);exit;  
 		if(isset($parameter1->vehicle_dashboard) && $parameter1->vehicle_dashboard==1) {
 		$vehidata =$this->sales_order->getVehicleExpiryInfo();
 		}
@@ -211,15 +250,14 @@ class DashboardController extends Controller
 			else if($REmodule->is_active==1)
 				$view = 'redashboard';
 			else
-				$view = 'newestdashboard'; //dashboard, newdashboard
+				$view = 'realestate-dashboard'; //dashboard, newdashboard newestdashboard
 				//$view = 'cargodashboard';
 				//$view = 'rentaldashboard';
 		}
 		
 		$arrEvnt = [];
 		
-if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth::user()->roles->first()->name === 'Salesman') {
-
+		if(Auth::user()->roles[0]->name=='Salesman') {
 		    $srec = DB::table('salesman')->where('name',Auth::user()->name)->select('id')->first();
 		    if($srec)
 		        Session::put('salesman_id',$srec->id);
@@ -266,60 +304,25 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 
 					
 					->groupBy('payment_voucher.id')->get();
-		//echo '<pre>';print_r($pvs);exit;			
-		//echo Session::get('salesman_id');
-	// 	if($this->cus_status->is_active==1) {
-						
-	// 	$events = DB::table('crm_followup')->where('crm_followup.status','<',4)->where('crm_followup.deleted_at','0000-00-00 00:00:00')->where('crm_followup.status','!=',1)
-	// 								->join('account_master','account_master.id', '=', 'crm_followup.customer_id')
-	// 								->whereBetween('crm_followup.next_date',[ date('Y').'-'.date('m').'-01', date('Y-m-t', strtotime(date('Y-m-d'))) ])
-	// 								->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
-	// 								->select('account_master.master_name','account_master.id','crm_followup.next_date')
-	// 								->get();
-	// 	foreach($events as $row) {
-	// 		$col = ["#4FC1E9","#ffb65f","#22d69d","#dcdcdc"]; $i = rand(0,3);
-	// 		$arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col[$i]];
-	// 	}
-	// 	}else{
-	// $events = DB::table('crm_followup')->where('crm_followup.status','<',4)->where('crm_followup.deleted_at','0000-00-00 00:00:00')
-	// 								->join('account_master','account_master.id', '=', 'crm_followup.customer_id')
-	// 								->whereBetween('crm_followup.next_date',[ date('Y').'-'.date('m').'-01', date('Y-m-t', strtotime(date('Y-m-d'))) ])
-	// 								->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
-	// 								->select('account_master.master_name','account_master.id','crm_followup.status','crm_followup.next_date')
-	// 								->get();
-	// 	foreach($events as $row) {
-		    
-	// 	    	if($row->status==1)
-	// 		{
-	// 		$col = ["#FF5733"];
-	// 	    $arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col];
-	// 	}elseif($row->status==2){
-		
-	// 		$col = ["#4FC1E9"];
 
-	// 		$arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col];
-	// 	}elseif($row->status==3){
+		$accountdata = DB::table('account_master')->whereIn('category',['PDCR','PDCI'])
+								->where('status',1)->whereNull('deleted_at')->select('id','master_name','cl_balance','category')
+								->groupBy('category')->get();
 		
-	// 		$col = ["#DE3163"];
-
-	// 		$arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col];
-	// 	}
-	// 	//	$col = ["#4FC1E9","#ffb65f","#22d69d","#dcdcdc"]; $i = rand(0,3);
-	// 	//	$arrEvnt[] = ['title' => $row->id.' '.$row->master_name,'start' => $row->next_date,'backgroundColor' => $col[$i]];
-	// 	}
-	// 	}
 		
 		//$view = 'calendar';
-		//echo '<pre>';print_r($xdata );
+		//echo '<pre>';print_r($pdclist);exit;
 		//echo '<pre>';print_r($advdbsetting );exit;	
 	//echo $view;exit;
 	 $isalert=Session::get('is_alert');
 	 //echo '<pre>';print_r($isalert);exit;
 	Session::put('is_alert',true);
-	
+	//echo '<pre>';print_r($contractexp);exit;
+	$building = DB::table('buildingmaster')->whereNull('deleted_at')->select('id','buildingcode')->get();
 	 
 		return view($view)
-		         ->withIsalert($isalert)
+		        ->withIsalert($isalert)
+				->withBuilding($building)
 				->withSales($details['sales'])
 				->withItems($details['items'])
 				->withOrder($details['order'])
@@ -368,10 +371,40 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 				->withTerms($terms)
 				->withPdcrcount($pdcr_count)
 				->withPdcicount($pdci_count)
+				->withContractexp($contractexp)
+				->withAccounts($accountdata)
+				->withExpiringbldg($expiringbldg)
 				->withAccount($details['account']);
 				
     }
 	
+
+	public function getContractExpiry() {
+		$data = [];
+		$result = DB::table('contract_building')
+		    ->join('account_master AS AM','AM.id','=','contract_building.customer_id')
+		    ->join('buildingmaster AS B','B.id','=','contract_building.building_id')
+		      ->leftjoin('flat_master AS F','F.id','=','contract_building.flat_no')->where('contract_building.status',1)
+		     ->where('contract_building.is_close',0)
+		     ->where('contract_building.deleted_at',null)
+			 ->select('contract_building.contract_date','contract_building.id AS id','contract_building.rent_amount','contract_building.description','contract_building.grand_total','contract_building.contract_no',
+		       'contract_building.start_date','contract_building.end_date','contract_building.duration','AM.master_name','B.buildingcode AS buildcode','B.buildingname AS buildname','F.flat_no AS flat')
+		       ->orderBy('contract_building.end_date','ASC')
+		       ->get(); 			
+			//	echo '<pre>';print_r($result);exit;	
+		return view('contractexpiry')
+					->withResult($result)
+					->withData($data);
+	}
+
+	public function getBuilding($id) {
+		$result = DB::table('buildingmaster')->where('id',$id)->get();
+			//	echo '<pre>';print_r($result);exit;	
+		return view('buildinglist')
+					->withResult($result);
+	}
+
+
 	private function getDocType($type) {
 		
 		switch($type)
@@ -607,7 +640,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 								DB::raw("(SELECT COUNT(id) FROM sales_invoice 
 											  WHERE status=1 AND deleted_at='0000-00-00 00:00:00') AS count")
 							)
-							->groupBy('sales_invoice.salesman_id', 'S.name')->skip(0)->take(5)
+							->groupBy('sales_invoice.salesman_id')->skip(0)->take(5)
 							->orderBy('sales_count','DESC')->get();
 		//echo '<pre>';print_r($salesman);exit;
 		$SMarr = [];
@@ -620,14 +653,14 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 		return $SMarr;
 	}
 	// public function getCrmInfo() {
-	// 	/* $date = date('Y-m', strtotime(Input::get('month')));
+	// 	/* $date = date('Y-m', strtotime($request->get('month')));
 	// 	$enddate = date('Y-m-t', strtotime($date)); */
 	// 	$arrEvnt = [];
 	// 	//Session::put('salesman_id',$srec->id);
 		
 	// 	 $events = DB::table('crm_followup')->where('crm_followup.status','<',4)->where('crm_followup.deleted_at','0000-00-00 00:00:00')
 	// 								->join('account_master','account_master.id', '=', 'crm_followup.customer_id')
-	// 								->whereBetween('crm_followup.next_date',[ Input::get('start'), Input::get('end') ])
+	// 								->whereBetween('crm_followup.next_date',[ $request->get('start'), $request->get('end') ])
 	// 								->where('crm_followup.salesman_id', (Auth::user()->roles[0]->name=='Salesman')?Session::get('salesman_id'):0)
 	// 								->where('crm_followup.is_open',0)
 	// 								->select('account_master.master_name','account_master.id','crm_followup.next_date')
@@ -652,22 +685,23 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 					->withDbdetails($details)
 					->withData($data);
 
+
 	}
 	public function settingUpdate() {
 		
-		if(Input::get('id')!='') {
+		if($request->get('id')!='') {
 			
 			
-			DB::table('dashboard_details')->where('id', Input::get('id'))
-						->update([ 'code' => Input::get('file')
-						           //'position' => Input::get('pos')
+			DB::table('dashboard_details')->where('id', $request->get('id'))
+						->update([ 'code' => $request->get('file')
+						           //'position' => $request->get('pos')
 								 ]);
 		} else { 
 			DB::table('dashboard_details')
 						->insert([ 
 								   
-								   'code' => Input::get('file')
-								   //'position' => Input::get('pos')
+								   'code' => $request->get('file')
+								   //'position' => $request->get('pos')
 								 ]);
 			}
 		
@@ -688,21 +722,22 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 					->withDbdetails($details)
 					->withData($data);
 
+
 	}
 	public function advsettingUpdate() {
 		
-		if(Input::get('id')!='') {
+		if($request->get('id')!='') {
 			
 			
-			DB::table('advdashboard_details')->where('id', Input::get('id'))
-						->update([ 'code' => Input::get('file')
+			DB::table('advdashboard_details')->where('id', $request->get('id'))
+						->update([ 'code' => $request->get('file')
 						           
 								 ]);
 		} else { 
 			DB::table('advdashboard_details')
 						->insert([ 
 								   
-								   'code' => Input::get('file')
+								   'code' => $request->get('file')
 								  
 								 ]);
 			}
@@ -753,6 +788,8 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 					->withDocs($result)
 					->withData($data);
 	}
+
+
 
 	public function getVehiExpinfo() {
 		$data = [];
@@ -861,6 +898,7 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 		return $arrRes;
 	}
 
+
 	public function pvApprove($id) {
 
 		DB::table('payment_voucher')->where('id',$id)->update(['status'=>1]);
@@ -873,5 +911,5 @@ if (Auth::user() && Auth::user()->roles && Auth::user()->roles->first() && Auth:
 		return redirect('dashboard');
 	}
 
-}
 
+}

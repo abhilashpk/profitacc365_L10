@@ -160,7 +160,7 @@ class AccountMasterController extends Controller
 				$nestedData['category_name'] = $row->category_name;
 				$nestedData['cl_balance'] = $row->cl_balance;
 				$nestedData['op_balance'] = $row->op_balance;
-				$nestedData['issued_qty'] = $row->issued_qty;
+				//$nestedData['issued_qty'] = $row->issued_qty;
 				$nestedData['ishide'] = "<button class='btn btn-primary btn-xs getSts' >$hide</button>";
 				$nestedData['view'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$view}'>
 												<span class='glyphicon glyphicon-eye-open'></span></button></p>";
@@ -376,7 +376,7 @@ class AccountMasterController extends Controller
 	public function edit($id) { 
 
 		$data = array();
-		$acmasterrow = $this->accountmaster->find($id);
+		$acmasterrow = DB::table('account_master')->find($id);
 		$acctype = $this->category->accountType();
 		$currency = $this->currency->activeCurrencyList();
 		$cid=$this->acsettings->bcurrency_id;
@@ -389,7 +389,7 @@ class AccountMasterController extends Controller
 		$type = $this->category->find($acmasterrow->account_category_id);
 		$accategory = $this->category->getCategorybyType($type->parent_id);
 		$groups = $this->group->getGroupbyCategory($acmasterrow->account_category_id);
-		$opening_bals = $this->accountmaster->getOpeningBalance($id);	//echo '<pre>';print_r($opening_bals);exit;
+		$opening_bals = $this->accountmaster->getOpeningBalance($id, $acmasterrow->category);	//echo '<pre>';print_r($opening_bals);exit;
 		$banks = $this->bank->activeBankList();
 		$obfrom_date = date('Y-m-d', strtotime($this->acsettings->from_date.' -1 day'));
 		$obto_date = date('Y-m-d', strtotime($this->acsettings->to_date.' -1 day'));

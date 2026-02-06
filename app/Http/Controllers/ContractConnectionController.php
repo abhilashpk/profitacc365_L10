@@ -1261,6 +1261,8 @@ class ContractConnectionController extends Controller
 		
 	}
 	
+	
+	
 }
 
 //SELECT SUM(journal_entry.amount) AS amount,account_master.master_name,account_master.address,account_master.phone,contract_connection.connection_no,contract_connection.date,contract_connection.grand_total,AM.master_name AS acname FROM contract_connection JOIN account_master ON(account_master.id=contract_connection.customer_id) JOIN journal ON(journal.voucher_no=contract_connection.sin_no AND journal.voucher_type='SIN') JOIN journal_entry ON(journal_entry.journal_id=journal.id AND journal_entry.entry_type='Cr') JOIN account_master AS AM ON(AM.id=journal_entry.account_id) WHERE journal_entry.amount > 0 AND contract_connection.id={id} GROUP BY acname ORDER  BY journal_entry.amount DESC

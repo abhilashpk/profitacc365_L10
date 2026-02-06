@@ -197,7 +197,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 								$receipt_voucher_id = DB::table('receipt_voucher')
 														->insertGetId([ 'voucher_type' => 'PDCR',
 																		'voucher_id'		=> 9,
-																		'voucher_no'		=> 'OB'.$this->accountmaster->id,
+																		'voucher_no'		=> 'OB'.$this->accountmaster->id.'-'.($key+1),
 																		'voucher_date'		=> $invoice_date_pdc,
 																		'from_jv'			=> 0,
 																		'debit'				=> isset($attributes['amount'][$key])?$attributes['amount'][$key]:'',
@@ -260,7 +260,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 													'customer_id' => isset($attributes['frmaccount_id'][$key])?$attributes['frmaccount_id'][$key]:'',
 													'cheque_no' => isset($attributes['cheque_no'][$key])?$attributes['cheque_no'][$key]:'',
 													'cheque_date' => isset($attributes['cheque_date'][$key])?(date('Y-m-d',strtotime($attributes['cheque_date'][$key]))):date('Y-m-d'),
-													'voucher_no' => 'OB'.$this->accountmaster->id,
+													'voucher_no' => 'OB'.$this->accountmaster->id.'-'.($key+1),
 													//'description' => $attributes['customer_account']
 													'bank_id'	=> (isset($attributes['bank'][$key])&&$attributes['bank'][$key]!='')?$attributes['bank'][$key]:1,
 													'entry_id'=> $dr_entry,
@@ -276,7 +276,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 								$payment_voucher_id = DB::table('payment_voucher')
 														->insertGetId([ 'voucher_type' => 'PDCI',
 																		'voucher_id'		=> 10,
-																		'voucher_no'		=> 'OB'.$this->accountmaster->id,
+																		'voucher_no'		=> 'OB'.$this->accountmaster->id.'-'.($key+1),
 																		'voucher_date'		=> $invoice_date_pdc,
 																		'from_jv'			=> 0,
 																		'debit'				=> isset($attributes['amount'][$key])?$attributes['amount'][$key]:'',
@@ -338,7 +338,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 													'supplier_id' => isset($attributes['frmaccount_id'][$key])?$attributes['frmaccount_id'][$key]:'',
 													'cheque_no' => isset($attributes['cheque_no'][$key])?$attributes['cheque_no'][$key]:'',
 													'cheque_date' => isset($attributes['cheque_date'][$key])?(date('Y-m-d',strtotime($attributes['cheque_date'][$key]))):date('Y-m-d'),
-													'voucher_no' => 'OB'.$this->accountmaster->id,
+													'voucher_no' => 'OB'.$this->accountmaster->id.'-'.($key+1),
 													'bank_id'	=> (isset($attributes['bank'][$key])&&$attributes['bank'][$key]!='')?$attributes['bank'][$key]:1,
 													'entry_id'=> $cr_entry,
 													'entry_type' => 'PV'
@@ -359,7 +359,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 											'created_at' 		=> now(),
 											'created_by' 		=> Auth::User()->id,
 											'description' 		=> isset($attributes['description'][$key])?$attributes['description'][$key]:'',
-											'reference'			=> isset($attributes['reference_no'][$key])?$attributes['reference_no'][$key]:'OB Prior Year',  //.($key+1) //isset($attributes['reference_no'][$key])?$attributes['reference_no'][$key]:'',
+											'reference'			=> isset($attributes['reference_no'][$key])?$attributes['reference_no'][$key] ?? 'OB Prior Year':'OB Prior Year',  //.($key+1) //isset($attributes['reference_no'][$key])?$attributes['reference_no'][$key]:'',
 											'invoice_date'		=> $invoice_date,//isset($attributes['tr_date'][$key])?date('Y-m-d',strtotime($attributes['tr_date'][$key])):date('Y-m-d'),
 											'fc_amount'			=> isset($attributes['cnvt_amt'][$key])?$attributes['cnvt_amt'][$key]:$attributes['amount'][$key], //$attributes['amount'][$key],
 											'is_fc'				=> isset($attributes['currency'][$key])?(($attributes['bcurrency']!=$attributes['currency'][$key])?1:0):0,
@@ -553,7 +553,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 					$this->accountmaster->transaction_type = $trntype = 'Cr';
 					
 				//echo '<pre>';print_r($attributes);exit;
-				$this->accountmaster->fill($attributes)->save();
+				$this->accountmaster->save(); //->fill($attributes)
 				
 				 $fc = 0;
 				//account transactions..........
@@ -703,7 +703,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 									->update(['transaction_type' => $attributes['tr_type'][$key],
 											  'amount' => $attributes['amount'][$key], //isset($attributes['cnvt_amt'][$key])?$attributes['cnvt_amt'][$key]:$attributes['amount'][$key],
 											  'description' => isset($attributes['description'][$key])?$attributes['description'][$key]:'',
-											  'reference' => isset($attributes['reference_no'][$key])?$attributes['reference_no'][$key]:'',
+											  'reference' => isset($attributes['reference_no'][$key])?$attributes['reference_no'][$key]:'OB Prior Year',
 											  'invoice_date' => date('Y-m-d',strtotime($attributes['tr_date'][$key])),
 											  'loc_proj'	=> isset($attributes['loc_proj'][$key])?$attributes['loc_proj'][$key]:'',
 											  'eqp_type'	=> isset($attributes['eqp_type'][$key])?$attributes['eqp_type'][$key]:'',
@@ -776,7 +776,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 									$receipt_voucher_id = DB::table('receipt_voucher')
 															->insertGetId([ 'voucher_type' => 'PDCR',
 																			'voucher_id'		=> 9,
-																			'voucher_no'		=> 'OB'.$this->accountmaster->id,
+																			'voucher_no'		=> 'OB'.$this->accountmaster->id.'-'.($key+1),
 																			'voucher_date'		=> $invoice_date,
 																			'from_jv'			=> 0,
 																			'debit'				=> isset($attributes['amount'][$key])?$attributes['amount'][$key]:'',
@@ -838,7 +838,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 														'customer_id' => isset($attributes['frmaccount_id'][$key])?$attributes['frmaccount_id'][$key]:'',
 														'cheque_no' => isset($attributes['cheque_no'][$key])?$attributes['cheque_no'][$key]:'',
 														'cheque_date' => isset($attributes['cheque_date'][$key])?(date('Y-m-d',strtotime($attributes['cheque_date'][$key]))):date('Y-m-d'),
-														'voucher_no' => 'OB'.$this->accountmaster->id,
+														'voucher_no' => 'OB'.$this->accountmaster->id.'-'.($key+1),
 														//'description' => $attributes['customer_account']
 														'bank_id'	=> ($attributes['bank'][$key]!='')?$attributes['bank'][$key]:1,
 														'entry_id'	=> $dr_entry,
@@ -854,7 +854,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 									$payment_voucher_id = DB::table('payment_voucher')
 															->insertGetId([ 'voucher_type' => 'PDCI',
 																			'voucher_id'		=> 10,
-																			'voucher_no'		=> 'OB'.$this->accountmaster->id,
+																			'voucher_no'		=> 'OB'.$this->accountmaster->id.'-'.($key+1),
 																			'voucher_date'		=> $invoice_date,
 																			'from_jv'			=> 0,
 																			'debit'				=> isset($attributes['amount'][$key])?$attributes['amount'][$key]:'',
@@ -916,7 +916,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 														'supplier_id' => isset($attributes['frmaccount_id'][$key])?$attributes['frmaccount_id'][$key]:'',
 														'cheque_no' => isset($attributes['cheque_no'][$key])?$attributes['cheque_no'][$key]:'',
 														'cheque_date' => isset($attributes['cheque_date'][$key])?(date('Y-m-d',strtotime($attributes['cheque_date'][$key]))):date('Y-m-d'),
-														'voucher_no' => 'OB'.$this->accountmaster->id,
+														'voucher_no' => 'OB'.$this->accountmaster->id.'-'.($key+1),
 														'bank_id'				=> ($attributes['bank'][$key]!='')?$attributes['bank'][$key]:1
 														//'description' => $attributes['customer_account']
 													]);
@@ -935,7 +935,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 												'created_at' 		=> now(),
 												'created_by' 		=> Auth::User()->id,
 												'description' 		=> isset($attributes['description'][$key])?$attributes['description'][$key]:'',
-												'reference'			=> $attributes['reference_no'][$key],
+												'reference'			=> $attributes['reference_no'][$key] ?? 'OB Prior Year',
 												'invoice_date'		=> $invoice_date,
 												'fc_amount'			=> isset($attributes['cnvt_amt'][$key])?$attributes['cnvt_amt'][$key]:$attributes['amount'][$key], //$attributes['amount'][$key],
 												'is_fc'				=> isset($attributes['currency'][$key])?(($attributes['bcurrency']!=$attributes['currency'][$key])?1:0):0,
@@ -1096,8 +1096,12 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 		//CHECK DEPARTMENT.......
 		$deptid = (Session::get('department')==1)?Auth::user()->department_id:0;
 		
-		$query = $this->accountmaster->where('account_master.status',1);
-		
+		$query = DB::table('account_master')->where('account_master.status',1)
+		                ->where(function ($q) {
+                              $q->whereNull('account_master.deleted_at')
+                              ->orWhere('account_master.deleted_at', '0000-00-00 00:00:00');
+                        });
+
 		$query->join('account_category AS ac', function($join) {
 							$join->on('ac.id','=','account_master.account_category_id');
 						} )
@@ -1127,9 +1131,9 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 			}
 		}
 
-		if (Auth::check() && !Auth::user()->hasRole('Admin')) {
+		/*if (Auth::check() && !Auth::user()->hasRole('Admin')) {
 			$query->where('account_master.is_hide', 0);
-		}
+		}*/
 
 		if($search) {
 			$query->where(function($qry) use($search) {
@@ -1223,7 +1227,11 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 		//CHECK DEPARTMENT.......
 		$deptid = (Session::get('department')==1)?Auth::user()->department_id:0;
 		
-		$query = $this->accountmaster->where('account_master.status',1);
+		$query = DB::table('account_master')->where('account_master.status',1)
+		            ->where(function ($q) {
+                              $q->whereNull('account_master.deleted_at')
+                              ->orWhere('account_master.deleted_at', '0000-00-00 00:00:00');
+                        });
 		
 		if($deptid!=0)
 			$query->where('account_master.department_id', $deptid);
@@ -1714,7 +1722,11 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 	//JAN20
 	public function getCustomerList($deptid=null)
 	{
-		$query = $this->accountmaster->where('account_master.status',1);
+		$query = DB::table('account_master')->where('account_master.status',1)
+		            ->where(function ($q) {
+                        $q->whereNull('account_master.deleted_at')
+                          ->orWhere('account_master.deleted_at', '0000-00-00 00:00:00');
+                    });
 		
 		//CHECK DEPARTMENT.......
 		if(Session::get('department')==1) { //if active...
@@ -5456,16 +5468,45 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 		return $result;
 	}
 	
-	public function getOpeningBalance($id)
+	public function getOpeningBalance($id, $type)
 	{
-		return $result = DB::table('opening_balance_tr')
+		if($type=='PDCI') {
+
+			return $result = DB::table('opening_balance_tr')
 							 ->leftJoin('account_master', 'account_master.id', '=', 'opening_balance_tr.bank_id')
 							 ->leftJoin('account_master AS AM', 'AM.id', '=', 'opening_balance_tr.frmaccount_id')
+							 ->join('payment_voucher','payment_voucher.opening_balance_id','=','opening_balance_tr.id')
+							 ->join('pdc_issued','pdc_issued.voucher_id','=','payment_voucher.id')
 							 ->where('opening_balance_tr.account_master_id',$id)
 							 ->where('opening_balance_tr.status',1)
 							 ->orderBy('opening_balance_tr.id','ASC')
-							 ->select('opening_balance_tr.*','account_master.master_name','AM.master_name AS from_account')
+							 ->select('opening_balance_tr.*','account_master.master_name','AM.master_name AS from_account','pdc_issued.status as pdc_status')
 							 ->get();
+
+		} else if($type=='PDCR') {
+
+			return $result = DB::table('opening_balance_tr')
+							 ->leftJoin('account_master', 'account_master.id', '=', 'opening_balance_tr.bank_id')
+							 ->leftJoin('account_master AS AM', 'AM.id', '=', 'opening_balance_tr.frmaccount_id')
+							 ->join('receipt_voucher','receipt_voucher.opening_balance_id','=','opening_balance_tr.id')
+							 ->join('pdc_received','pdc_received.voucher_id','=','receipt_voucher.id')
+							 ->where('opening_balance_tr.account_master_id',$id)
+							 ->where('opening_balance_tr.status',1)
+							 ->orderBy('opening_balance_tr.id','ASC')
+							 ->select('opening_balance_tr.*','account_master.master_name','AM.master_name AS from_account','pdc_received.status as pdc_status')
+							 ->get();
+
+		} else {
+
+			return $result = DB::table('opening_balance_tr')
+								->leftJoin('account_master', 'account_master.id', '=', 'opening_balance_tr.bank_id')
+								->leftJoin('account_master AS AM', 'AM.id', '=', 'opening_balance_tr.frmaccount_id')
+								->where('opening_balance_tr.account_master_id',$id)
+								->where('opening_balance_tr.status',1)
+								->orderBy('opening_balance_tr.id','ASC')
+								->select('opening_balance_tr.*','account_master.master_name','AM.master_name AS from_account',DB::raw('"0" as pdc_status'))
+								->get();
+		}
 	}
 	
 	public function check_refno($refno,$acid)
@@ -9930,7 +9971,7 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 	
 	public function findDetails($id) {
 		
-		return $this->accountmaster->where('id',$id)->select('master_name','account_id','address','phone','vat_no','category','id as acid','email')->first();
+		return DB::table('account_master')->where('id',$id)->select('master_name','account_id','address','phone','vat_no','category','id as acid','email')->first();
 	}
 	
 	
@@ -10153,40 +10194,68 @@ class AccountMasterRepository extends AbstractValidator implements AccountMaster
 			}
 	}
 	
-	
-	public function getPDCs($data) {
+	public function getPDCs($data, $attributes) {
+
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):$attributes['curr_from_date'];
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):date('Y-m-d');
 	
 		if($data->category=='PDCR') {
 			
 			$result = DB::table('pdc_received')
-								->join('account_master','account_master.id','=','pdc_received.dr_account_id')
+								->join('account_master','account_master.id','=','pdc_received.cr_account_id')
 								->leftjoin('bank AS B', 'B.id', '=', 'pdc_received.bank_id')
-								->where('pdc_received.status',0)
+								->leftjoin('account_transaction AS account_transaction', function($join){
+									$join->on('account_transaction.account_master_id', '=', 'pdc_received.cr_account_id');
+									$join->on('account_transaction.voucher_type_id', '=', 'pdc_received.id');
+									$join->where('account_transaction.voucher_type', '=', 'DB');
+									$join->where('account_transaction.status', '=', 1);
+									$join->where('account_transaction.deleted_at', '=', '0000-00-00 00:00:00');
+									//$join->where('account_transaction.voucher_type_id', '=', 'pdc_received.id');
+								})
+								//->where('pdc_received.status',0)
 								->where('pdc_received.cr_account_id',$data->acid)
 								->where('pdc_received.amount','>',0)
 								->where('pdc_received.deleted_at','0000-00-00 00:00:00')
-								->select('pdc_received.voucher_date','pdc_received.voucher_no','pdc_received.amount','pdc_received.cheque_date','pdc_received.cheque_no',
-								  DB::raw('"Dr" as type'),'account_master.master_name','B.code','pdc_received.description')
+								->where('pdc_received.voucher_date', '<=', $date_to)
+								//->whereBetween('pdc_received.voucher_date', array($date_from, $date_to))
+								->select('account_transaction.id','account_transaction.invoice_date','pdc_received.voucher_date','pdc_received.voucher_no','pdc_received.amount','pdc_received.cheque_date','pdc_received.cheque_no','pdc_received.status',
+								  DB::raw('"Dr" as type'),'account_master.master_name','B.code','pdc_received.description','pdc_received.status','pdc_received.customer_id','pdc_received.cr_account_id as pdcr_id','pdc_received.bank_id','pdc_received.id as pid')
 								->orderBy('pdc_received.voucher_date')
 								->groupBy('pdc_received.id')
-								->get();
+								->get(); //echo '<pre>';print_r($result);exit;
 		} else {
+
 			$result = DB::table('pdc_issued')
-								->join('account_master','account_master.id','=','pdc_issued.cr_account_id')
+								->join('account_master','account_master.id','=','pdc_issued.dr_account_id')
 								->leftjoin('bank AS B', 'B.id', '=', 'pdc_issued.bank_id')
-								->where('pdc_issued.status',0)
+								->leftjoin('account_transaction AS account_transaction', function($join){
+									$join->on('account_transaction.account_master_id', '=', 'pdc_issued.dr_account_id');
+									$join->on('account_transaction.voucher_type_id', '=', 'pdc_issued.id');
+									$join->where('account_transaction.voucher_type', '=', 'CB');
+									$join->where('account_transaction.status', '=', 1);
+									$join->where('account_transaction.deleted_at', '=', '0000-00-00 00:00:00');
+									//$join->where('account_transaction.voucher_type_id', '=', 'pdc_received.id');
+								})
+								//->where('pdc_received.status',0)
 								->where('pdc_issued.dr_account_id',$data->acid)
 								->where('pdc_issued.amount','>',0)
 								->where('pdc_issued.deleted_at','0000-00-00 00:00:00')
-								->select('pdc_issued.voucher_date','pdc_issued.voucher_no','pdc_issued.amount','pdc_issued.cheque_date','pdc_issued.cheque_no',
-								  DB::raw('"Cr" as type'),'account_master.master_name','B.code','pdc_issued.description')
+								->where('pdc_issued.voucher_date', '<=', $date_to)//->whereBetween('pdc_issued.voucher_date', array($date_from, $date_to))
+								//->where('account_transaction.invoice_date', '<=', $date_to)
+								->select('account_transaction.id','account_transaction.invoice_date','pdc_issued.voucher_date','pdc_issued.voucher_no','pdc_issued.amount',
+										'pdc_issued.cheque_date','pdc_issued.cheque_no',
+								  DB::raw('"Cr" as type'),'B.code','pdc_issued.description','pdc_issued.status', //'account_master.master_name',
+								  'pdc_issued.supplier_id','pdc_issued.dr_account_id as pdci_id','pdc_issued.bank_id','pdc_issued.id as pid')
 								->orderBy('pdc_issued.voucher_date')
-								->get();
+								->groupBy('pdc_issued.id')
+								->get(); //echo '<pre>';print_r($result);exit;
+
+			
 		}
 		
 		return $result;
 	}
-
+	
 }
 
 

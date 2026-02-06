@@ -14,6 +14,10 @@
     <link rel="stylesheet" type="text/css" href="{{asset('assets/css/formelements.css')}}">
         <!--end of page level css-->
         
+    <link href="{{asset('assets/vendors/bootstrap-multiselect/css/bootstrap-multiselect.css')}}" rel="stylesheet" type="text/css">
+   <link href="{{asset('assets/vendors/select2/css/select2.min.css')}}" rel="stylesheet" type="text/css">
+	<link href="{{asset('assets/vendors/select2/css/select2-bootstrap.css')}}" rel="stylesheet" type="text/css">    
+        
     <link href="{{asset('assets/vendors/bootstrap3-wysihtml5-bower/css/bootstrap3-wysihtml5.min.css')}}" rel="stylesheet" type="text/css"/>
     <link rel="stylesheet" media="screen" type="text/css" href="{{asset('assets/vendors/summernote/summernote.css')}}">
     <link href="{{asset('assets/vendors/trumbowyg/css/trumbowyg.min.css')}}" rel="stylesheet" type="text/css">
@@ -115,13 +119,14 @@
                             <form class="form-horizontal" role="form" method="POST" name="frmQuotationSales" id="frmQuotationSales" action="{{ url('job_estimate/save') }}">
                                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
 								<input type="hidden" name="is_rental" id="is_rental" value="2">
+								<input type="hidden" name="doctype" value="JE">
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-2 control-label">Estimate No.</label>
                                     <div class="col-sm-10">
 										<?php if($voucherno->prefix!='') { ?>
 										<div class="input-group">
 											<span class="input-group-addon">{{$voucherno->prefix}}</span>
-											<input type="text" class="form-control" id="voucher_no" name="voucher_no" <?php if($voucherno->autoincrement==1) { ?> readonly value="{{$voucherno->no}}" <?php } else { ?> value="{{old('voucher_no')}}" <?php } ?>>
+											<input type="text" class="form-control" id="voucher_no" name="voucher_no" <?php if($voucherno->autoincrement==1) { ?> readonly placeholder="{{$voucherno->no}}" <?php } else { ?> placeholder="{{old('voucher_no')}}" <?php } ?>>
 											<input type="hidden" value="{{$voucherno->prefix}}" name="prefix">
 											<input type="hidden" value="{{$voucherno->voucher_type}}" name="voucher_type">
 											<input type="hidden" value="{{$voucherno->autoincrement}}" name="autoincrement">
@@ -129,7 +134,7 @@
 										</div>
 										<?php } else { ?>
 										   <div class="input-group">
-											<input type="text" class="form-control" id="voucher_no" name="voucher_no" <?php if($voucherno->autoincrement==1) { ?> readonly value="{{$voucherno->no}}" <?php } else { ?> value="{{old('voucher_no')}}" <?php } ?>>
+											<input type="text" class="form-control" id="voucher_no" name="voucher_no" <?php if($voucherno->autoincrement==1) { ?> readonly placeholder="{{$voucherno->no}}" <?php } else { ?> placeholder="{{old('voucher_no')}}" <?php } ?>>
 											<span class="input-group-addon inputvn"><i class="fa fa-edit" style="font-size:22px;color:#ff9f2c"></i></span>
 											<input type="hidden" value="{{$voucherno->prefix}}" name="prefix">
 											<input type="hidden" value="{{$voucherno->voucher_type}}" name="voucher_type">
@@ -159,133 +164,61 @@
                                     </div>
                                 </div>
 								
-								@if(Session::get('mod_vehicle_cust')==0)
-    								<div class="form-group">
-                                        <font color="#16A085"> <label for="input-text" class="col-sm-2 control-label <?php if($errors->has('customer_name')) echo 'form-error';?>"><b>Customer</b></label></font>
-                                        <div class="col-sm-10">
-                                            <input type="text" name="customer_name" id="customer_name" class="form-control <?php if($errors->has('customer_name')) echo 'form-error';?>" value="{{ old('customer_name') }}" autocomplete="off" data-toggle="modal" data-target="#customer_modal" placeholder="Customer">
-    										<input type="hidden" name="customer_id" id="customer_id" value="{{ old('customer_id') }}">
-    									</div>
-                                    </div>
-                                    
-                                    <?php if(Session::get('mod_jo_to_je')==1) { ?>
-    								<div class="form-group">
-                                        <label for="input-text" class="col-sm-2 control-label"> Job Order#</label>
-                                        <div class="col-sm-10">
-                                            <input type="text" class="form-control" id="joborder_id" readonly name="joborder_id" placeholder="Job Order No" autocomplete="off" onclick="getJoborder()">
-                                        </div>
-                                    </div>
-    								<?php } ?>
-    								
-    								<?php if($formdata['vehicle']==1) { ?>
-    								<div class="form-group">
-                                        <label for="input-text" class="col-sm-2 control-label">Vehicle</label>
-                                        <div class="col-sm-8">
-                                            <input type="text" name="vehicle_name" id="vehicle_name" value="<?php echo (isset($vehicledata))?$vehicledata->name:''?>" class="form-control" autocomplete="off" data-toggle="modal" data-target="#vehicle_modal" placeholder="Vehicle">
-    										<input type="hidden" name="vehicle_id" id="vehicle_id" value="<?php echo (isset($vehicledata))?$vehicledata->id:''?>">
-    									</div>	
-    								<div class="col-sm-2">
-    									<button type="button" id="vehicle_info" class="btn btn-primary btn-xs vehicle-info">Vehicle Info</button>
-    								</div>		
-    										<div class="col-xs-10" style="float: right;" id="vehicleInfo">
-    											<div class="col-xs-2">
-    												<span class="small">Vehicle Reg.No.</span> <input type="text" id="vehicle_regno" name="vehicle_regno" value="{{old('vehicle_regno')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-2">
-    												<span class="small">ChasisNo</span> <input type="text" id="chasis_no" name="chasis_no" value="{{old('chasis_no')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-2">
-    												<span class="small">Issue Plate</span> <input type="text" id="issue_plate" name="issue_plate" value="{{old('issue_plate')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-1">
-    												<span class="small">CodePlate</span> <input type="text" id="code_plate" name="code_plate" value="{{old('code_plate')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-1">
-    												<span class="small">Make</span> <input type="text" id="make" name="make" value="{{old('make')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-1">
-    												<span class="small">Model</span> <input type="text" id="model" name="model" value="{{old('model')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-1">
-    												<span class="small">MetreIn</span> <input type="text" id="metre_in" name="metre_in"  class="form-control">
-    											</div>
-    											<div class="col-xs-1">
-    												<span class="small">MetreOut</span> <input type="text" id="metre_out" name="metre_out"  class="form-control">
-    											</div>
-    											<div class="col-xs-1"><br/>
-    												<a href="" class="btn btn-info vehicle-history" data-toggle="modal" data-target="#veh_history_modal">History</a>
-    											</div>
-    											
-    					
-    											
-    										
-    									</div>
-                                    </div>
-    								<?php } else { ?>
-    								<input type="hidden" name="vehicle_id" id="vehicle_id">
-    								<?php } ?>
-								@else
-								    <?php if($formdata['vehicle']==1) { ?>
-    								<div class="form-group">
-                                        <label for="input-text" class="col-sm-2 control-label">Vehicle</label>
-                                        <div class="col-sm-8">
-                                            <input type="text" name="vehicle_name" id="vehicle_name" value="<?php echo (isset($vehicledata))?$vehicledata->name:''?>" class="form-control" autocomplete="off" data-toggle="modal" data-target="#vehicle_modal" placeholder="Vehicle">
-    										<input type="hidden" name="vehicle_id" id="vehicle_id" value="<?php echo (isset($vehicledata))?$vehicledata->id:''?>">
-    									</div>	
-    								<div class="col-sm-2">
-    									<button type="button" id="vehicle_info" class="btn btn-primary btn-xs vehicle-info">Vehicle Info</button>
-    								</div>		
-    										<div class="col-xs-10" style="float: right;" id="vehicleInfo">
-    											<div class="col-xs-2">
-    												<span class="small">Vehicle Reg.No.</span> <input type="text" id="vehicle_regno" name="vehicle_regno" value="{{old('vehicle_regno')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-2">
-    												<span class="small">ChasisNo</span> <input type="text" id="chasis_no" name="chasis_no" value="{{old('chasis_no')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-2">
-    												<span class="small">Issue Plate</span> <input type="text" id="issue_plate" name="issue_plate" value="{{old('issue_plate')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-1">
-    												<span class="small">CodePlate</span> <input type="text" id="code_plate" name="code_plate" value="{{old('code_plate')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-1">
-    												<span class="small">Make</span> <input type="text" id="make" name="make" value="{{old('make')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-1">
-    												<span class="small">Model</span> <input type="text" id="model" name="model" value="{{old('model')}}" readonly class="form-control">
-    											</div>
-    											<div class="col-xs-1">
-    												<span class="small">MetreIn</span> <input type="text" id="metre_in" name="metre_in"  class="form-control">
-    											</div>
-    											<div class="col-xs-1">
-    												<span class="small">MetreOut</span> <input type="text" id="metre_out" name="metre_out"  class="form-control">
-    											</div>
-    											<div class="col-xs-1"><br/>
-    												<a href="" class="btn btn-info vehicle-history" data-toggle="modal" data-target="#veh_history_modal">History</a>
-    											</div>
-    									</div>
-                                    </div>
-    								<?php } else { ?>
-        								<input type="hidden" name="vehicle_id" id="vehicle_id">
-        								<?php } ?>
-        								
-        								<div class="form-group">
-                                            <font color="#16A085"> <label for="input-text" class="col-sm-2 control-label <?php if($errors->has('customer_name')) echo 'form-error';?>"><b>Customer</b></label></font>
-                                            <div class="col-sm-10">
-                                                <input type="text" name="customer_name" id="customer_name" class="form-control <?php if($errors->has('customer_name')) echo 'form-error';?>" value="{{ old('customer_name') }}" autocomplete="off" data-toggle="modal" data-target="#customer_modal" placeholder="Customer">
-        										<input type="hidden" name="customer_id" id="customer_id" value="{{ old('customer_id') }}">
-        									</div>
-                                        </div>
-                                        
-                                        <?php if(Session::get('mod_jo_to_je')==1) { ?>
-        								<div class="form-group">
-                                            <label for="input-text" class="col-sm-2 control-label"> Job Order#</label>
-                                            <div class="col-sm-10">
-                                                <input type="text" class="form-control" id="joborder_id" readonly name="joborder_id" placeholder="Job Order No" autocomplete="off" onclick="getJoborder()">
-                                            </div>
-                                        </div>
-        								<?php } ?>
-								@endif
+								<div class="form-group">
+                                    <font color="#16A085"> <label for="input-text" class="col-sm-2 control-label <?php if($errors->has('customer_name')) echo 'form-error';?>"><b>Customer</b></label></font>
+                                    <div class="col-sm-10">
+                                        <input type="text" name="customer_name" id="customer_name" class="form-control <?php if($errors->has('customer_name')) echo 'form-error';?>" value="{{ old('customer_name') }}" autocomplete="off" data-toggle="modal" data-target="#customer_modal" placeholder="Customer">
+										<input type="hidden" name="customer_id" id="customer_id" value="{{ old('customer_id') }}">
+									</div>
+                                </div>
+								
+								<?php if($formdata['vehicle']==1) { ?>
+								<div class="form-group">
+                                    <label for="input-text" class="col-sm-2 control-label">Vehicle</label>
+                                    <div class="col-sm-8">
+                                        <input type="text" name="vehicle_name" id="vehicle_name" value="<?php echo (isset($vehicledata))?$vehicledata->name:''?>" class="form-control" autocomplete="off" data-toggle="modal" data-target="#vehicle_modal" placeholder="Vehicle">
+										<input type="hidden" name="vehicle_id" id="vehicle_id" value="<?php echo (isset($vehicledata))?$vehicledata->id:''?>">
+									</div>	
+								<div class="col-sm-2">
+									<button type="button" id="vehicle_info" class="btn btn-primary btn-xs vehicle-info">Vehicle Info</button>
+								</div>		
+										<div class="col-xs-10" style="float: right;" id="vehicleInfo">
+											<div class="col-xs-2">
+												<span class="small">Vehicle Reg.No.</span> <input type="text" id="vehicle_regno" name="vehicle_regno" value="{{old('vehicle_regno')}}" readonly class="form-control">
+											</div>
+											<div class="col-xs-2">
+												<span class="small">ChasisNo</span> <input type="text" id="chasis_no" name="chasis_no" value="{{old('chasis_no')}}" readonly class="form-control">
+											</div>
+											<div class="col-xs-2">
+												<span class="small">Issue Plate</span> <input type="text" id="issue_plate" name="issue_plate" value="{{old('issue_plate')}}" readonly class="form-control">
+											</div>
+											<div class="col-xs-1">
+												<span class="small">CodePlate</span> <input type="text" id="code_plate" name="code_plate" value="{{old('code_plate')}}" readonly class="form-control">
+											</div>
+											<div class="col-xs-1">
+												<span class="small">Make</span> <input type="text" id="make" name="make" value="{{old('make')}}" readonly class="form-control">
+											</div>
+											<div class="col-xs-1">
+												<span class="small">Model</span> <input type="text" id="model" name="model" value="{{old('model')}}" readonly class="form-control">
+											</div>
+											<div class="col-xs-1">
+												<span class="small">MetreIn</span> <input type="text" id="metre_in" name="metre_in"  class="form-control">
+											</div>
+											<div class="col-xs-1">
+												<span class="small">MetreOut</span> <input type="text" id="metre_out" name="metre_out"  class="form-control">
+											</div>
+											<div class="col-xs-1"><br/>
+												<a href="" class="btn btn-info vehicle-history" data-toggle="modal" data-target="#veh_history_modal">History</a>
+											</div>
+											
+					
+											
+										
+									</div>
+                                </div>
+								<?php } else { ?>
+								<input type="hidden" name="vehicle_id" id="vehicle_id">
+								<?php } ?>
 								
 								<?php if($formdata['jobtype']==1) { ?>
 								<div class="form-group">
@@ -307,8 +240,12 @@
 								<div class="form-group">
                                     <label for="input-text" class="col-sm-2 control-label">Technician</label>
                                     <div class="col-sm-10">
-                                        <input type="text" name="salesman" id="salesman" class="form-control" value="{{ old('salesman') }}" autocomplete="off" data-toggle="modal" data-target="#salesman_modal" placeholder="Technician">
-										<input type="hidden" name="salesman_id" id="salesman_id" value="{{ old('salesman_id') }}">
+                                        <select id="select22" class="form-control select2" multiple style="width:100%" name="salesman_id[]">
+											<option value="">--Select Technician--</option>
+											@foreach($salesman as $row)
+											<option value="{{$row->id}}">{{$row->name}}</option>
+											@endforeach
+										</select>		
 									</div>
                                 </div>
 								<?php } else { ?>
@@ -1084,6 +1021,9 @@
 <script src="{{asset('assets/vendors/airdatepicker/js/datepicker.en.js')}}" type="text/javascript"></script>
 <script src="{{asset('assets/js/custom_js/advanceddate_pickers.js')}}"></script>
 
+<script src="{{asset('assets/vendors/bootstrap-multiselect/js/bootstrap-multiselect.js')}}" type="text/javascript"></script>
+<script src="{{asset('assets/vendors/select2/js/select2.js')}}" type="text/javascript"></script>
+
 <script src="{{asset('assets/vendors/bootstrap3-wysihtml5-bower/js/bootstrap3-wysihtml5.all.min.js')}}" type="text/javascript"></script>
 <script src="{{asset('assets/vendors/trumbowyg/js/trumbowyg.js')}}" type="text/javascript"></script>
 <script type="text/javascript" src="{{asset('assets/vendors/bootstrap3-wysihtml5-bower/js/bootstrap3-wysihtml5.min.js')}}"></script>
@@ -1113,6 +1053,11 @@ $('#voucher_date').datepicker( { autoClose: true,dateFormat: 'dd-mm-yyyy',minDat
  $('#lpo_date').datepicker( { dateFormat: 'dd-mm-yyyy',minDate: new Date('{{$settings->from_date}}'),maxDate: new Date('{{$settings->to_date}}') } );
 	
 $(document).ready(function () { 
+    
+    $("#select22").select2({
+        theme: "bootstrap",
+        placeholder: "Technician"
+    });
     
     $('#vehicleInfo').toggle();
 	@if(old('voucher_date')=='')
@@ -1882,24 +1827,15 @@ $(function() {
 		});
 	});
 	
-	@if(Session::get('mod_vehicle_cust')==0)
-    	var vclurl = "{{ url('job_order/vehicle_data/') }}"
-    	$('#vehicle_name').click(function() { 
-    		$('#cust_id').val( $('#customer_id').val() );
-    		if(  $('#customer_id').val() != '') {
-    			$('#vehicleData').load(vclurl+'/'+$('#customer_id').val(), function(result) {
-    				$('#myModal').modal({show:true});
-    			});
-    		}
-    	});
-    @else
-		var vclurl = "{{ url('job_order/all_vehicle/') }}"
-    	$('#vehicle_name').click(function() { 
-			$('#vehicleData').load(vclurl, function(result) {
+	var vclurl = "{{ url('job_order/vehicle_data/') }}"
+	$('#vehicle_name').click(function() { 
+		$('#cust_id').val( $('#customer_id').val() );
+		if(  $('#customer_id').val() != '') {
+			$('#vehicleData').load(vclurl+'/'+$('#customer_id').val(), function(result) {
 				$('#myModal').modal({show:true});
 			});
-    	});
-	@endif
+		}
+	});
 	
 	$(document).on('click', '.vclRow', function(e) {
 		$('#vehicle_name').val($(this).attr("data-name"));
@@ -1910,12 +1846,6 @@ $(function() {
 		$('#issue_plate').val($(this).attr("data-issue"));
 		$('#code_plate').val($(this).attr("data-code"));
 		$('#chasis_no').val($(this).attr("data-chasis"));
-		
-		@if(Session::get('mod_vehicle_cust')==1)
-		    $('#customer_name').val($(this).attr("data-custname"));
-		    $('#customer_id').val($(this).attr("data-custid"));
-		@endif
-		
 		e.preventDefault();
 	});
 	
@@ -2138,7 +2068,7 @@ $(function() {
 	
 	///Customer search...
 	var acmst = "{{ url('account_master/ajax_account/') }}";
-	$('#customer_name').autocomplete({
+/*	$('#customer_name').autocomplete({
         source: function(request, response) {
             $.ajax({
                 url: acmst,
@@ -2156,7 +2086,7 @@ $(function() {
 		},
         minLength: 2,
     });
-	
+	*/
 	
 	$(document).on('click', '.pur-his', function(e) { 
 	   e.preventDefault();
@@ -2216,20 +2146,6 @@ function getItems(e) {
 	var curNum = res[1]; 
 	var itmurl = "{{ url('purchase_order/item_data/') }}/"+curNum;
 	popup = window.open(itmurl, "Popup", "width=900,height=500,top=100,left=200");
-	popup.focus();
-	return false
-}
-
-function getJoborder() { 
-	if($("#customer_name").val()=='') {
-		alert('Please select a customer first!');
-		return false
-	}
-	var ht = $(window).height();
-	var wt = $(window).width();
-	var customer_id = $("#customer_id").val();
-	var pourl = "{{ url('job_order/get_order/') }}/"+customer_id+"/JE";
-	popup = window.open(pourl, "Popup", "width=900,height=500,top=100,left=200");
 	popup.focus();
 	return false
 }

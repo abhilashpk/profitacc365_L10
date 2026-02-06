@@ -239,7 +239,7 @@ class BalanceSheetController2 extends Controller
                 // Get accounts under this group
                 $accounts = DB::table('account_master')
                     ->where('account_group_id', $group->id)
-                    ->where('deleted_at', '0000-00-00 00:00:00')
+                    ->whereNull('deleted_at')
                     ->get();
 
                 foreach ($accounts as $account) {

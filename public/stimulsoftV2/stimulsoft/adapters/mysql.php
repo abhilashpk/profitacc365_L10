@@ -24,7 +24,7 @@ class StiMySqlAdapter {
 		return StiResult::error("[$code] $message");
 	}
 	
-	private function connect() {
+	/*private function connect() {
 		if ($this->info->isPdo) {
 			try {
 				$this->link = new PDO($this->info->dsn, $this->info->userId, $this->info->password);
@@ -47,7 +47,47 @@ class StiMySqlAdapter {
 			return $this->getLastErrorResult();
 			
 		return StiResult::success();
+	}*/
+
+	private function connect() {		 
+
+		  // 🔥 FIX: FORCE override with Laravel's database credentials
+		$this->info->database = getenv('DB_DATABASE') ?: 'laravel';
+		$this->info->host = getenv('DB_HOST') ?: 'localhost';
+		$this->info->userId = getenv('DB_USERNAME') ?: 'root';
+		$this->info->password = getenv('DB_PASSWORD') ?: 'mysql';
+		$this->info->port = (int)(getenv('DB_PORT') ?: 3306);
+
+		if ($this->info->isPdo) {
+			try {
+				$this->link = new PDO(
+					$this->info->dsn,
+					$this->info->userId,
+					$this->info->password
+				);
+			} catch (PDOException $e) {
+				return StiResult::error("[".$e->getCode()."] ".$e->getMessage());
+			}
+			return StiResult::success();
+		}
+
+		$this->link = new mysqli(
+			$this->info->host,
+			$this->info->userId,
+			$this->info->password,
+			$this->info->database,
+			$this->info->port
+		);
+
+		if ($this->link->connect_error)
+			return StiResult::error("[{$this->link->connect_errno}] {$this->link->connect_error}");
+
+		if (!$this->link->set_charset($this->info->charset))
+			return $this->getLastErrorResult();
+
+		return StiResult::success();
 	}
+
 	
 	private function disconnect() {
 		if (!$this->link) return;

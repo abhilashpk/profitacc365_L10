@@ -72,65 +72,98 @@ thead
 						<div class="col-md-12">
 												
 							<table border="0" style="width:100%;height:100%;">
-								<thead>
-									<tr>
-										<td colspan="2" align="center">@include('main.print_head_stmt')</td>
-									</tr>
-									<tr>
-										<td colspan="2" align="center"><b style="font-size:16px;"><br/><b><u>{{$voucherhead}}</u></b></b></td>
-									</tr>
-									<tr><td><br/></td></tr>
-									<tr>
-										<td colspan="2" align="left" valign="top" style="padding-left:0px;">
-											<p>As on: <b><?php echo ($from=='')?date('d-m-Y',strtotime($settings->from_date)):date('d-m-Y',strtotime($from));?></b> </p>
-										</td>
-									</tr>
-									
-								</thead>
-								<tbody id="bod">
-									<tr style="border:0px solid black;">
-										<td colspan="2" align="center">
-                                           <table border="1" cellpadding="5" cellspacing="0" class="table">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Group Name</th>
-                                                        <th>Debit</th>
-                                                        <th>Credit</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @php($grandDr = $grandCr = 0)
-                                                    @foreach($grouped as $group => $amounts)
-                                                        <tr>
-                                                            <td>{{ $group }}</td>
-                                                            <td style="text-align:right">{{ number_format($amounts['debit'], 2) }}</td>
-                                                            <td style="text-align:right">{{ number_format($amounts['credit'], 2) }}</td>
-                                                        </tr>
-                                                        @php
-                                                            $grandDr += $amounts['debit'];
-                                                            $grandCr += $amounts['credit'];
-                                                        @endphp
-                                                    @endforeach
-                                                </tbody>
-                                                <tfoot>
-                                                    <tr style="font-weight: bold; background-color: #d0f0d0;">
-                                                        <td>Grand Total</td>
-                                                        <td style="text-align:right">{{ number_format($grandDr, 2) }}</td>
-                                                        <td style="text-align:right">{{ number_format($grandCr, 2) }}</td>
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
+    <thead>
+        <tr>
+            <td colspan="2" align="center">
+                @include('main.print_head_stmt')
+            </td>
+        </tr>
 
-                                            
-										</td>
-									</tr>
-								</tbody>
-								<tfoot id="inv">
-									<tr>
-										<td colspan="2" class="footer"><br/>@include('main.print_foot_stmt')</td>
-									</tr>
-								</tfoot>
-							</table>
+        <tr>
+            <td colspan="2" align="center">
+                <b style="font-size:16px;">
+                    <u>{{ $voucherhead }}</u>
+                </b>
+            </td>
+        </tr>
+
+        <tr><td><br></td></tr>
+
+        <tr>
+            <td colspan="2" align="left" valign="top">
+                <p>
+                    As on:
+                    <b>
+                        {{ $from == '' 
+                            ? \Carbon\Carbon::parse($settings->from_date)->format('d-m-Y') 
+                            : \Carbon\Carbon::parse($from)->format('d-m-Y') 
+                        }}
+                    </b>
+                </p>
+            </td>
+        </tr>
+    </thead>
+
+    <tbody id="bod">
+        <tr>
+            <td colspan="2" align="center">
+
+                <table border="1" cellpadding="5" cellspacing="0" class="table">
+                    <thead>
+                        <tr>
+                            <th>Group Name</th>
+                            <th>Debit</th>
+                            <th>Credit</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @php
+                            $grandDr = 0;
+                            $grandCr = 0;
+                        @endphp
+
+                        @foreach ($grouped as $group => $amounts)
+                            <tr>
+                                <td>{{ $group }}</td>
+                                <td style="text-align:right">
+                                    {{ number_format($amounts['debit'], 2) }}
+                                </td>
+                                <td style="text-align:right">
+                                    {{ number_format($amounts['credit'], 2) }}
+                                </td>
+                            </tr>
+
+                            @php
+                                $grandDr += $amounts['debit'];
+                                $grandCr += $amounts['credit'];
+                            @endphp
+                        @endforeach
+                    </tbody>
+
+                    <tfoot>
+                        <tr style="font-weight:bold; background-color:#d0f0d0;">
+                            <td>Grand Total</td>
+                            <td style="text-align:right">{{ number_format($grandDr, 2) }}</td>
+                            <td style="text-align:right">{{ number_format($grandCr, 2) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+            </td>
+        </tr>
+    </tbody>
+
+    <tfoot id="inv">
+        <tr>
+            <td colspan="2" class="footer">
+                <br>
+                @include('main.print_foot_stmt')
+            </td>
+        </tr>
+    </tfoot>
+</table>
+
 						
 						
 						</div>

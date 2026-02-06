@@ -126,60 +126,41 @@
 								
 								<tr>
 								@if($masterrow->job_assign==0)
-									{{--*/ $chk = "No";
+									@php $chk = "No";
 											
-									/*--}}
+									@endphp
 									@else
-									{{--*/ $chk = "Yes";
+									@php $chk = "Yes";
 											
-									/*--}}	
+									@endphp	
 								@endif
                                     <td>Job Assignable?</td> <td>{{ $chk }} </td>
                                 </tr>
                                 <tr>
 								@if($masterrow->job_compulsary==0)
-									{{--*/ $chk = "No";
+									@php $chk = "No";
 											
-									/*--}}
+									@endphp
 									@else
-									{{--*/ $chk = "Yes";
+									@php $chk = "Yes";
 											
-									/*--}}	
+									@endphp	
 								@endif
                                     <td>Job Compulsary?</td> <td> {{ $chk }} </td>
                                 </tr>
 								<tr>
 								@if($masterrow->is_hide==0)
-									{{--*/ $chk = "No";
+									@php $chk = "No";
 											
-									/*--}}
+									@endphp
 									@else
-									{{--*/ $chk = "Yes";
+									@php $chk = "Yes";
 											
-									/*--}}	
+									@endphp	
 								@endif
                                     <td>Hide</td> <td>{{ $chk }} </td>
                                 </tr>
-								<!--- check permission code here --->
-									<!--<tr>
-										<td>Created At</td> <td> {{ date('d-M-Y H:i a', strtotime($masterrow->created_at)) }} </td>
-									</tr>
-									<tr>
-										<td>Created By</td> <td>{{ $masterrow->created_by }} </td>
-									</tr>
-									
-									<tr>
-									@if($masterrow->modified_at!='0000-00-00 00:00:00')
-										{{--*/ $date = date('d-M-Y H:i a', strtotime($masterrow->modified_at)); /*--}}
-									@else
-									{{--*/ $date = '--'; /*--}}
-									@endif
-										<td>Modified At</td> <td> {{ $date }} </td>
-									</tr>
-									<tr>
-										<td>Modified By</td> <td>{{ $masterrow->modify_by }} </td>
-									</tr>-->
-                                <!--- check permission code end --->
+								
 								
                                 </tbody>
                             </table>

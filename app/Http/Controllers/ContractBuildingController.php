@@ -200,6 +200,7 @@ class ContractBuildingController extends Controller
 				$settle =  '"'.url('contractbuilding/settle/'.$row->id).'"';
 				$mail =  '"'.url('contractbuilding/mail/'.$row->id).'"';
 				$attach =  '"'.url('contractbuilding/attach/'.$row->id).'"';
+				$viewall =  '"'.url('contractbuilding/print_all/'.$row->id).'"';
 				
                 $nestedData['id'] = $row->id;
                 $nestedData['contract_no'] = $row->contract_no;
@@ -231,7 +232,7 @@ class ContractBuildingController extends Controller
 				$nestedData['open'] = "<p><button class='btn btn-success btn-xs' onClick='location.href={$open}'>
 												<i class='fa fa-fw fa-folder-open'></i></button></p>";
 												
-				$nestedData['attach'] = "<p><a href={$attach}' class='btn btn-info btn-xs' target='_blank'><span class='glyphicon glyphicon-paperclip'></span></a></p>";
+				$nestedData['attach'] = "<p><a href={$viewall}' class='btn btn-info btn-xs' target='_blank'><span class='glyphicon glyphicon-eye-open'></span></a></p>";
 				
                 $data[] = $nestedData;
             }
@@ -1382,7 +1383,7 @@ protected function makeTreeexp($result)
 	 
 	
 	
-	public function getSearch()
+	public function getSearch(Request $request)
 	{
 		$data = array();
 		$voucher_head  = '';
@@ -1869,7 +1870,8 @@ public function dataExport()
 
 			$jerow = DB::table('journal')->where('journal.voucher_no', $crow->si_no)->where('journal.voucher_type','SIN')
 								->join('journal_entry AS JE','JE.journal_id','=','journal.id')
-								->select('JE.id','journal.id AS jid' /* ,'JE.account_id','JE.entry_type','JE.amount' */)->orderBy('JE.id','ASC')->get();
+								->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+								->select('JE.id','journal.id AS jid','JE.account_id','JE.amount' /* ,'JE.account_id','JE.entry_type', */)->orderBy('JE.id','ASC')->get();
 		}
 
 		$prints = DB::table('report_view_detail')
@@ -2022,6 +2024,16 @@ public function dataExport()
 		else
 			$view = 'editrenew';
 			
+			
+		$rearranged = [];
+        foreach ($jerow as $row) {
+            $rearranged[$row->account_id] = [
+                'id'     => $row->id,
+                'amount' => (float) $row->amount,
+            ];
+        }
+
+			
 	//echo '<pre>';print_r($jerow);exit; 
 		return view('body.contractbuilding.'.$view)
 					->withBuildingmaster($buildingmaster)
@@ -2056,12 +2068,14 @@ public function dataExport()
 					->withIncmac($incmac)
 					->withHeads($heads)
 					->withTxtotal($txtotal)
+					->withJvrows($rearranged)
 					->withRentopt(($rentOpt)?$rentOpt->daily_rent:0); //pvrow 
 	}
 	
 	public function update(Request $request, $id)
 	{ //echo '<pre>';print_r($request->all());exit;
 		try {
+		    
 			$acname = $acid = $grparr = $siarr = $btarr = $desarr = $refarr = $invarr = $actarr = $actypearr = $lnarr = $jbarr = $dptarr = $vatarr = $cqarr = $bkarr = $cqdarr = $cqoarr = []; 
 			DB::table('contract_building')
 						->where('id', $id)
@@ -2160,15 +2174,26 @@ public function dataExport()
 				//TAX EXTRY.... NOV26
 				$vatrow = DB::table('vat_master')->where('status', 1)->where('deleted_at','0000-00-00 00:00:00')->select('payment_account')->first();
 				if($vatrow) {
-					foreach($request->get('acid') as $key => $val) {
-						//if($actax[$key] > 0 && isset($arrchk[$val])) {
-							$acname[] = $arracname[$key];
+				    
+				    $vatjerow = DB::table('journal')->where('journal.voucher_no', $request->get('si_no'))->where('journal.voucher_type','SIN')
+								->join('journal_entry AS JE','JE.journal_id','=','journal.id')
+								->where('JE.account_id', $vatrow->payment_account)->where('JE.status',1)->where('JE.deleted_at','0000-00-00 00:00:00')
+								->select('JE.id','journal.id AS jid','JE.account_id','JE.amount')->orderBy('JE.id','ASC')->get();
+								
+					foreach($request->get('actax') as $key => $val) {
+					    if($val!='') {
+					        $acname[] = $arracname[$key];
 							$acid[] = $vatrow->payment_account;
 							$grparr[] = ''; $siarr[] = ''; $btarr[] = ''; $invarr[] = ''; $actarr[] = ''; $jbarr[] = '';
 							$desarr[] = $arracname[$key].'/TAX';
 							$refarr[] = $request->get('contract_no');
 							$actypearr[] = 'Cr';
 							$lnarr[] = $actax[$key];
+							
+							$jearr[] = $vatjerow[$key]->id ?? '';
+					    }
+						//if($actax[$key] > 0 && isset($arrchk[$val])) {
+							
 						//}
 					}
 				}
@@ -2623,7 +2648,8 @@ public function destroy2($id)
 							$this->updateJV($jvarr[$key], $input); 
 							$edit = true;
 						} else {
-							$jvid = $this->createJV($input); 
+							$accset = DB::table('account_setting')->where('id',$input['voucher'])->first();
+							$jvid = $this->createJV($input, $accset); 
 							DB::table('contract_jv')->insert(['contract_id'=> $attributes['con_id'], 'jv_id' => $jvid]);
 						}
 					}
@@ -2649,7 +2675,7 @@ public function destroy2($id)
 		}
 	}
 	
-	private function createJV($attributes) {
+	private function createJV($attributes, $accset) {
 		
 		$jvid = null;
 		//VOUCHER NO LOGIC.....................
@@ -2662,7 +2688,7 @@ public function destroy2($id)
 			->value('max_no');
 		
 		$dept = isset($attributes['department_id'])?$attributes['department_id']:0;
-		$accset = DB::table('account_setting')->where('id',$attributes['voucher'])->first();//echo '<pre>';print_r($accset);
+		//$accset = DB::table('account_setting')->where('id',$attributes['voucher'])->first();//echo '<pre>';print_r($accset);
 		$attributes['voucher_no'] = $this->objUtility->generateVoucherNo($accset->id, $maxNumeric, $dept, $attributes['voucher_no']);
 		//VOUCHER NO LOGIC.....................
 		//exit;
@@ -2681,6 +2707,8 @@ public function destroy2($id)
 							'status' => 1,
 							'created_at' => date('Y-m-d H:i:s')
 						]);
+
+						$saved = true;
 
 				} catch (\Illuminate\Database\QueryException $ex) {
 
@@ -2960,11 +2988,16 @@ public function destroy2($id)
 			$arr_chq = $request->get('cheque_no');
 			$arr_chqdt = $request->get('cheque_date');
 			$jearr = $request->get('je_id');
-			$desarr[] = $arr_desc[0];
-			$refarr[] = $arr_ref[0]; $bnkarr[] = ''; $chqarr[] = ''; $chqdtarr[] = '';
+			$desarr[] = $arr_desc[0] ?? null;//$desarr[] = $arr_desc[0];
+			$refarr[]   = $arr_ref[0] ?? '';
+            $bnkarr[]   = '';
+            $chqarr[]   = '';
+            $chqdtarr[] = '';
+//$refarr[] = $arr_ref[0]; $bnkarr[] = ''; $chqarr[] = ''; $chqdtarr[] = '';
 			$grparr[] = $vatamt[] = ''; $siarr[] = ''; $btarr[] = ''; $invarr[] = ''; $actarr[] = ''; $jbarr[] = ''; $dptarr[] = ''; $pryarr[] = ''; $prtnarr[] = ''; $trarr[] = '';
 			$ispdc = false; $vtype = 9;
-			foreach($request->get('drac_id') as $key => $val) {
+			foreach ((array) $request->get('drac_id') as $key => $val) {
+ //foreach($request->get('drac_id') as $key => $val) {
 				$acname[] = $arr_acname[$key];
 				$acid[] = $val;
 				if($arr_trtype[$key]=='C') {
@@ -3815,7 +3848,7 @@ public function destroy2($id)
 			Session::flash('message', 'Settlement has been completed successfully.');
 			
 			if($request->get('settle_id')=='')
-				return redirect('contractbuilding/enquiry');
+				return redirect('contractbuilding/closed');
 			else
 				return redirect('contractbuilding/closed');
 			
@@ -3823,7 +3856,7 @@ public function destroy2($id)
 			
 			DB::rollback(); echo $e->getLine().' '.$e->getMessage();exit;
 			Session::flash('error', 'Settlement faied.');
-			return redirect('contractbuilding/enquiry');
+			return redirect('contractbuilding/closed');
 		}
 	}
 	
@@ -4543,9 +4576,12 @@ public function destroy2($id)
 		$rvs = DB::table('contract_rvs')->where('contract_id',$id)->select('rv_id')->get();
 		$pvs = DB::table('contract_pvs')->where('contract_id',$id)->select('pv_id')->get();
 		
-		$attributes['jvids'] = array_map(function ($jvs) { return $jvs->jv_id;}, $jvs);
-		$attributes['rvids'] = array_map(function ($rvs) { return $jvs->jv_id;}, $pvs);
-		$attributes['pvids'] = array_map(function ($rvs) { return $jvs->jv_id;}, $pvs);
+		$attributes['jvids'] = $jvs->pluck('jv_id')->toArray(); //$attributes['jvids'] = array_map(function ($jvs) { return $jvs->jv_id;}, $jvs);
+		$attributes['rvids'] = $pvs->pluck('rv_id')->toArray();
+		$attributes['pvids'] = $pvs->pluck('pv_id')->toArray();
+
+		//$attributes['rvids'] = array_map(function ($rvs) { return $jvs->jv_id;}, $pvs);
+		//$attributes['pvids'] = array_map(function ($rvs) { return $jvs->jv_id;}, $pvs);
 		//echo '<pre>';print_r($jvids);exit;
 		if($crow) {
 			$jerow = DB::table('journal')->where('journal.voucher_no', $crow->si_no)->where('journal.voucher_type','SIN')->first();
@@ -4770,7 +4806,8 @@ public function destroy2($id)
 					
 		$jvs = DB::table('contract_jv')->where('contract_id',$id)->select('jv_id')->get();
 		
-		$attributes['jvids'] = array_map(function ($jvs) { return $jvs->jv_id;}, $jvs);
+		$attributes['jvids'] = $jvs->pluck('jv_id')->toArray();
+
 		//echo '<pre>';print_r($jvids);exit;
 		if($crow) {
 			$jerow = DB::table('journal')->where('journal.voucher_no', $crow->si_no)->where('journal.voucher_type','SIN')->first();
@@ -4785,5 +4822,7 @@ public function destroy2($id)
 						->withDetails($crow)
 						->withTransactions($results);
 	}
+	
+	
 	
 }

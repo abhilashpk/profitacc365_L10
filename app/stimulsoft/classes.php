@@ -107,7 +107,7 @@ class StiResponse {
 	}
 }
 
-class StiResult {
+/*class StiResult {
 	public $success = true;
 	public $notice = null;
 	public $object = null;
@@ -126,7 +126,35 @@ class StiResult {
 		$result->notice = $notice;
 		return $result;
 	}
+}*/
+
+class StiResult {
+	public $success = true;
+	public $notice = null;
+	public $object = null;
+
+	// Added properties to fix the php deprecation warning
+    public $types = array();
+    public $columns = array();
+    public $rows = array();
+    public $count = 0;
+
+	public static function success($notice = null, $object = null) {
+		$result = new StiResult();
+		$result->success = true;
+		$result->notice = $notice;
+		$result->object = $object;
+		return $result;
+	}
+
+	public static function error($notice = null) {
+		$result = new StiResult();
+		$result->success = false;
+		$result->notice = $notice;
+		return $result;
+	}
 }
+
 
 class StiEmailSettings {
 	/** Email address of the sender */

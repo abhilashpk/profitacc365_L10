@@ -139,12 +139,12 @@
 								<br/>
 								<fieldset>
 								<legend><h5>Transactions</h5></legend>
-										{{--*/ $i = 0; $num = count($jerow); /*--}}
+										@php $i = 0; $num = count($jerow); @endphp
 										<input type="hidden" id="rowNum" value="{{$num}}">
 										<input type="hidden" id="remitem" name="remove_item">
 										<div class="itemdivPrnt">
 										@foreach($jerow as $item)
-										{{--*/ $i++; /*--}}
+										@php $i++; @endphp
 											<div class="itemdivChld">							
 												<div class="form-group" style="margin-bottom: 1px;">
 													<div class="col-sm-2"> <span class="small">Account Name<!-- acntname_1 --></span>

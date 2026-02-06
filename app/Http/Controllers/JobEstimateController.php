@@ -12,7 +12,6 @@ use App\Repositories\QuotationSales\QuotationSalesInterface;
 use App\Repositories\Salesman\SalesmanInterface;
 use App\Repositories\AccountSetting\AccountSettingInterface;
 use App\Repositories\Forms\FormsInterface;
-use App\Repositories\SalesOrder\SalesOrderInterface;
 
 
 use Illuminate\Http\Request;
@@ -20,6 +19,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests;
 use Session;
 use Response;
+use Input;
 use Excel;
 use App;
 use DB;
@@ -40,9 +40,8 @@ class JobEstimateController extends Controller
 	protected $forms;
 	protected $formData;
 	protected $matservice;
-	protected $sales_order;
 	
-	public function __construct(SalesOrderInterface $sales_order, QuotationSalesInterface $quotation_sales, ItemmasterInterface $itemmaster, TermsInterface $terms, JobmasterInterface $jobmaster, AccountMasterInterface $accountmaster, CurrencyInterface $currency, VoucherNoInterface $voucherno, AreaInterface $area, SalesmanInterface $salesman,AccountSettingInterface $accountsetting,FormsInterface $forms) {
+	public function __construct(QuotationSalesInterface $quotation_sales, ItemmasterInterface $itemmaster, TermsInterface $terms, JobmasterInterface $jobmaster, AccountMasterInterface $accountmaster, CurrencyInterface $currency, VoucherNoInterface $voucherno, AreaInterface $area, SalesmanInterface $salesman,AccountSettingInterface $accountsetting,FormsInterface $forms) {
 		
 		parent::__construct( App::make('App\Repositories\Parameter1\Parameter1Interface'), App::make('App\Repositories\VatMaster\VatMasterInterface') );
 		
@@ -59,7 +58,6 @@ class JobEstimateController extends Controller
 		$this->accountsetting = $accountsetting;
 		$this->forms = $forms;
 		$this->formData = $this->forms->getFormData('JE');
-		$this->sales_order = $sales_order;
 		
 		$this->matservice = DB::table('parameter2')->where('keyname', 'mod_material_service')->where('status',1)->select('is_active')->first();
 	}
@@ -69,14 +67,14 @@ class JobEstimateController extends Controller
 		$data = array();
 		$quotations = [];//$this->quotation_sales->quotationSalesList();//echo '<pre>';print_r($quotations);exit;
 		
-        $jobs = $this->jobmaster->activeJobmasterList();
+
 		$salesmans = $this->salesman->getSalesmanList();
-		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('id','master_name')->get(); 
+		$cus =DB::table('account_master')->where('category','CUSTOMER')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')
+		->select('id','master_name')->get(); 
 		return view('body.jobestimate.index')
 					->withQuotations($quotations)
 					->withSalesman($salesmans)
 					->withCus($cus)
-					->withJobs($jobs)
 					->withSettings($this->acsettings)
 					->withData($data);
 	}
@@ -99,10 +97,10 @@ class JobEstimateController extends Controller
 
         $limit = $request->input('length');
         $start = $request->input('start');
-        //$order = 'quotation_sales.id';
-        //$dir = 'desc';
-        $order = $columns[$request->input('order.0.column')];
-        $dir = $request->input('order.0.dir');
+        $order = 'quotation_sales.id';
+        $dir = 'desc';
+        //$order = $columns[$request->input('order.0.column')];
+        //$dir = $request->input('order.0.dir');
 		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
         
 		$invoices = $this->quotation_sales->jobEstimateList('get', $start, $limit, $order, $dir, $search);
@@ -128,7 +126,7 @@ class JobEstimateController extends Controller
 				
 				$edit =  url('job_estimate/edit/'.$row->id);
 				$docs =  url('job_estimate/docs/'.$row->id);
-				$view =  url('job_estimate/views/'.$row->id);
+				
 				
                 $nestedData['id'] = $row->id;
                 $nestedData['voucher_no'] = $row->voucher_no;
@@ -139,7 +137,7 @@ class JobEstimateController extends Controller
 				$nestedData['chasis_no'] = $row->chasis_no;
                 /*$nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
 												<span class='glyphicon glyphicon-pencil'></span></button></p>";*/
-				$nestedData['view'] = "<p><a href='{$view}' class='btn btn-info btn-xs' target='_blank'><i class='fa fa-fw fa-eye'></i></a></p>";								
+												
 				$nestedData['edit'] = "<div class='btn-group drop_btn' role='group'>
 											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
 													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
@@ -185,13 +183,14 @@ class JobEstimateController extends Controller
         echo json_encode($json_data);
 	}
 	
-	public function add($id=null) {
+	public function add() {
 
-		$data = array(); $vehicle_data = $orderrow = $photos = $orditems = null;
+		$data = array(); $vehicle_data = null;
 		$itemmaster = $this->itemmaster->activeItemmasterList();
 		$terms = $this->terms->activeTermsList();
 		$jobs = $this->jobmaster->getOpenJobs();
 		$currency = $this->currency->activeCurrencyList();
+		$salesman = $this->salesman->getSalesmanList();
 		$res = $this->voucherno->getVoucherNo('JE'); //echo '<pre>';print_r($this->formData);exit;
 		//$vno = $res->no;//echo sizeof($vehicle_data);exit;//'<pre>';print_r($vehicle_data);exit;
 		$lastid = DB::table('quotation_sales')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
@@ -203,15 +202,7 @@ class JobEstimateController extends Controller
 							->where('report_view.code','JE')
 							->where('report_view_detail.is_default',1)
 							->select('report_view_detail.id')
-							->first(); 
-							
-		if($id) {
-		    $ids = explode(',', $id);
-		    $orderrow = $this->sales_order->findPOdata($ids[0]);
-			$orditems = $this->sales_order->getSOItems($ids);
-			$photos = DB::table('job_photos')->where('job_order_id',$ids[0])->get(); 
-			$view = 'add-jo';
-		} 
+							->first();
 							
 		return view('body.jobestimate.'.$view)
 					->withItems($itemmaster)
@@ -228,36 +219,31 @@ class JobEstimateController extends Controller
 					->withJobtype($jobtype)
 					->withPrint($print)
 					->withFooter(isset($footertxt)?$footertxt->description:'')
-					->withOrderrow($orderrow)
-					->withOrditems($orditems)
-					->withPhotos($photos)
+					->withSalesman($salesman)
 					->withData($data);
 	}
 	
 	public function save(Request $request) { //echo '<pre>';print_r( $request->all() );exit;
 		
-		if( $this->validate(
+		$this->validate(
 			$request, 
 			[//'reference_no' => 'required',
 			 'customer_name' => 'required','customer_id' => 'required',
-			 //'vehicle_name' => 'required','vehicle_id' => 'required',
-			 /* 'item_code.*'  => 'required', 'item_id.*' => 'required',
-			 'unit_id.*' => 'required',
-			 'quantity.*' => 'required',
-			 'cost.*' => 'required' */
+			// 'vehicle_name' => 'required','vehicle_id' => 'required',
+		     'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 //'unit_id.*' => 'required',
+			// 'quantity.*' => 'required',
+			// 'cost.*' => 'required' 
 			],
 			[//'reference_no.required' => 'Reference no. is required.',
 			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
-			 //'vehicle_name.required' => 'Vehicle Name is required.','vehicle_id.required' => 'Vehicle name is invalid.',
-			/*  'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
-			 'unit_id.*' => 'Item unit is required.',
-			 'quantity.*' => 'Item quantity is required.',
-			 'cost.*' => 'Item cost is required.' */
+			// 'vehicle_name.required' => 'Vehicle Name is required.','vehicle_id.required' => 'Vehicle name is invalid.',
+			  'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			 //'unit_id.*' => 'Item unit is required.',
+			// 'quantity.*' => 'Item quantity is required.',
+			// 'cost.*' => 'Item cost is required.' 
 			]
-		)) {
-			//echo '<pre>';print_r($request->flash());exit;
-			return redirect('job_estimate/add')->withInput()->withErrors();
-		}
+		);
 		//echo '<pre>';print_r($this->quotation_sales->create($request->all()));exit;
 		$id = $this->quotation_sales->create($request->all());
 		if($id) {
@@ -305,6 +291,7 @@ class JobEstimateController extends Controller
 		$itemmaster = $this->itemmaster->activeItemmasterList();
 		$terms = $this->terms->activeTermsList();
 		$jobs = $this->jobmaster->activeJobmasterList();
+		$salesman = $this->salesman->getSalesmanList();
 		$currency = $this->currency->activeCurrencyList();
 		$orderrow = $this->quotation_sales->findPOdata($id);
 		
@@ -346,6 +333,7 @@ class JobEstimateController extends Controller
 					->withJobtype($jobtype)
 					->withPrint($print)
 					->withPhotos($photos)
+					->withSalesman($salesman)
 					->withData($data);
 
 	}
@@ -354,78 +342,29 @@ class JobEstimateController extends Controller
 	{	
 		//echo '<pre>';print_r($request->all());exit;
 		$id = $request->input('quotation_order_id');
-		if( $this->validate(
+		$this->validate(
 			$request, 
 			[//'reference_no' => 'required',
 			 'customer_name' => 'required','customer_id' => 'required',
 			 //'vehicle_name' => 'required','vehicle_id' => 'required',
-			 /* 'item_code.*'  => 'required', 'item_id.*' => 'required',
-			 'unit_id.*' => 'required',
-			 'quantity.*' => 'required',
-			 'cost.*' => 'required' */
+			 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			 //'unit_id.*' => 'required',
+			// 'quantity.*' => 'required',
+			 //'cost.*' => 'required' 
 			],
 			[//'reference_no.required' => 'Reference no. is required.',
 			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
 			 //'vehicle_name.required' => 'Vehicle Name is required.','vehicle_id.required' => 'Vehicle name is invalid.',
-			 /* 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
-			 'unit_id.*' => 'Item unit is required.',
-			 'quantity.*' => 'Item quantity is required.',
-			 'cost.*' => 'Item cost is required.' */
+			 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			// 'unit_id.*' => 'Item unit is required.',
+			// 'quantity.*' => 'Item quantity is required.',
+		//	 'cost.*' => 'Item cost is required.' 
 			]
-		)) {
-			//echo '<pre>';print_r($request->flash());exit;
-			return redirect('job_estimate/edit/'.$id)->withInput()->withErrors();
-		}
+		);
 		
 		$this->quotation_sales->update($id, $request->all()); 
 		Session::flash('message', 'Quotation sales updated successfully');
 		return redirect('job_estimate');
-	}
-	
-	
-		public function getViews($id) { 
-
-		$data = array();
-		$itemmaster = $this->itemmaster->activeItemmasterList();
-		$terms = $this->terms->activeTermsList();
-		$jobs = $this->jobmaster->activeJobmasterList();
-		$currency = $this->currency->activeCurrencyList();
-		$orderrow = $this->quotation_sales->findPOdata($id);
-		
-		$itemdesc = $this->makeTreeArr($this->quotation_sales->getItemDesc($id));//echo '<pre>';print_r($orderrow);exit;
-		$jobdesc = $this->quotation_sales->getjobDescription($id);
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		
-		if($this->matservice->is_active==1) {
-			$orditems = $this->quotation_sales->getItems($id,'itm');
-			$seritems = $this->quotation_sales->getItems($id,'ser');
-			$view = 'editms';
-		} else {
-			$seritems = null;
-			$orditems = $this->quotation_sales->getItems($id);
-			$view = 'edit';
-		}
-		
-		
-			$photos = DB::table('quot_fotos')->where('quot_id',$id)->get(); 
-		//	echo '<pre>';print_r($orderrow);exit;
-		return view('body.jobestimate.viewonly')
-					->withItems($itemmaster)
-					->withTerms($terms)
-					->withJobs($jobs)
-					->withCurrency($currency)
-					->withOrderrow($orderrow)
-					->withOrditems($orditems)
-					->withItemdesc($itemdesc)
-					->withVatdata($this->vatdata)
-					->withSettings($this->acsettings)
-					->withFormdata($this->formData)
-					->withJobdesc($jobdesc)
-					->withSeritems($seritems)
-					->withJobtype($jobtype)
-					->withPhotos($photos)
-					->withData($data);
-
 	}
 	
 
@@ -485,7 +424,7 @@ class JobEstimateController extends Controller
 	public function getQuotation($customer_id, $url)
 	{
 		$data = array();
-		$quotations = $this->quotation_sales->getCustomerJobQuotation($customer_id);//print_r($quotations);exit;
+		$quotations = $this->quotation_sales->getCustomerQuotation($customer_id);//print_r($quotations);exit;
 		return view('body.jobestimate.quotation')
 					->withQuotations($quotations)
 					->withUrl($url)
@@ -546,13 +485,7 @@ class JobEstimateController extends Controller
 						->withItems($result['items']);
 		} else {
 			$path = app_path() . '/stimulsoft/helper.php';
-			
-			if(env('STIMULSOFT_VER')==2)
-			        return view('body.reports')->withPath($path)->withView($viewfile->print_name);
-			   else
-			        return view('body.jobestimate.viewer')->withPath($path)->withView($viewfile->print_name);
-			
-			
+			return view('body.jobestimate.viewer')->withPath($path)->withView($viewfile->print_name);
 		}
 		
 	}
@@ -607,19 +540,19 @@ class JobEstimateController extends Controller
 	public function getSearch(Request $request)
 	{
 		$data = array();
-		$pending=($request->get('pending'))?$request->get('pending'):0;
+		
 		$reports = $this->quotation_sales->getPendingReportJob($request->all());
 		
-		if($request->get('search_type')=="summary" && $pending==0)
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Job Estimate Summary';
-		elseif($request->get('search_type')=="summary" && $pending==1) {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Job Estimate Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif($request->get('search_type')=="detail" && $pending==0) {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Job Estimate Detail';
 			$reports = $this->makeTree($reports);
 		} else {
-		    if($request->get('search_type')=="detail" && $pending==1){
+		    if($request->get('search_type')=="detail_pending"){
 			$voucher_head = 'Job Estimate Pending Detail';
 		    }
 		    else{
@@ -804,12 +737,22 @@ class JobEstimateController extends Controller
 		try { 
 			$attributes = $request->all();
 			//$check = DB::table('vehicle')->where('reg_no', $attributes['reg_no'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
-			if($attributes['chasis_no']!='') {
+			/*if($attributes['chasis_no']!='') {
 				$check = DB::table('vehicle')->where('chasis_no', $attributes['chasis_no'])->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->count();
 				if($check > 0)
 					return 0;
-			}
-			
+			}*/
+			$record = DB::table('vehicle')
+                     ->join('account_master', 'vehicle.customer_id', '=', 'account_master.id') 
+                       ->where('vehicle.chasis_no', $attributes['chasis_no'])
+                        ->select('account_master.master_name as customer_name')->first();
+	if ($record) {
+        return response()->json([
+            'status' => 'exists',
+            'customer' => $record->customer_name
+        ]);
+	}
+
 			$id = DB::table('vehicle')
 						->insertGetId([ 'customer_id' => $attributes['customer_id'],
 										'name'   => $attributes['name'],
@@ -884,4 +827,3 @@ class JobEstimateController extends Controller
 					
 	}
 }
-

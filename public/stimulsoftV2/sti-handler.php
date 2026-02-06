@@ -65,16 +65,26 @@ $handler->onPrepareVariables = function ($args) {
 };
 
 // Called when engine begins processing a data source (use to set connection string / SQL)
-$handler->onBeginProcessData = function ($args) {
-    // $args->database, $args->connection, $args->dataSource, $args->connectionString, $args->queryString
+/*$handler->onBeginProcessData = function ($args) {
     if (isset($args->connection) && $args->connection == 'MySQL') {
-        // set your MySQL connection string (example)
         $args->connectionString = 'Server=localhost;Database=trading;uid=root;password=;';
-        //$args->connectionString = 'Server=db;Port=3306;Database=laravel;uid=root;password=root;';
 
     }
     return StiResult::success();
+};*/
+
+$handler->onBeginProcessData = function ($args) {
+    if (isset($args->connection) && $args->connection === 'MySQL') {
+        // 🔥 Use getenv() or hardcode values since we're outside Laravel
+        $args->connectionString =
+            'Server=' . (getenv('DB_HOST') ?: 'localhost') .
+            ';Database=' . (getenv('DB_DATABASE') ?: 'laravel') .
+            ';uid=' . (getenv('DB_USERNAME') ?: 'root') .
+            ';password=' . (getenv('DB_PASSWORD') ?: '') . ';';
+    }
+    return StiResult::success();
 };
+
 
 // Called when the report is printed
 $handler->onPrintReport = function ($args) {

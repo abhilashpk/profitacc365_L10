@@ -162,7 +162,7 @@
 									<div class="col-sm-10">
 										<div class="input-group">
 										 @if($vchrdata['is_prefix']==0)
-                                        <input type="text" class="form-control" id="voucher_no" readonly name="voucher_no" value="{{$vchrdata['voucher_no']}}">
+                                        <input type="text" class="form-control" id="voucher_no" readonly name="voucher_no" placeholder="{{$vchrdata['voucher_no']}}">
                                         <span class="input-group-addon"><i class="fa fa-fw fa-edit"></i></span>
                                         @else
                                         <span class="input-group-addon">{{$vchrdata['prefix']}}<input type="hidden" id="hdn_voucher_no" value="{{$vchrdata['voucher_no']}}" name="voucher_no" ></span>

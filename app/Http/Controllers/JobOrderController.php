@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests;
 use Session;
 use Response;
+use Input;
 use Excel;
 use Auth;
 use App;
@@ -98,7 +99,9 @@ class JobOrderController extends Controller
                             3=> 'customer',
 							4=> 'reg_no',
 							5=> 'technician',
-							6=>'chasis_no'
+							6=>'chasis_no',
+							7=>'status'
+							
                         );
 						
 		$totalData = $this->sales_order->jobOrderListCount();
@@ -135,7 +138,8 @@ class JobOrderController extends Controller
 				$print = url('job_order/print/'.$row->id);
 				$edit =  url('job_order/edit/'.$row->id);
 				$docs =  url('job_order/docs/'.$row->id);
-				$viewonly =  url('job_order/viewonly/'.$row->id);
+				$close =  url('job_order/close/'.$row->id);
+				
 				
                 $nestedData['id'] = $i = $row->id;
                 $nestedData['voucher_no'] = $row->voucher_no;
@@ -144,10 +148,10 @@ class JobOrderController extends Controller
 				$nestedData['vehicle'] = $row->vehicle;
 				$nestedData['reg_no'] = $row->reg_no;
 				$nestedData['chasis_no'] = $row->chasis_no;
+				$nestedData['status'] = ($row->is_transfer==1)?'Closed':'Open';
                /* $nestedData['edit'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$edit}'>
 												<span class='glyphicon glyphicon-pencil'></span></button></p>";*/
-				$nestedData['viewonly'] = "<p><a href='{$viewonly}' class='btn btn-info btn-xs' target='_blank'><i class='glyphicon glyphicon-eye-open'></i></a></p>";
-																
+												
 				$nestedData['edit'] = "<div class='btn-group drop_btn' role='group'>
 											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
 													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
@@ -155,6 +159,7 @@ class JobOrderController extends Controller
 											</button>
 											<ul style='min-width:100px !important;' class='dropdown-menu' aria-labelledby='exampleIconDropdown1' role='menu'>
 												<li role='presentation'><a href='{$edit}' role='menuitem'>Edit</a></li>
+												<li role='presentation'><a href='{$close}' role='menuitem'>Close</a></li>
 												<li role='presentation'><a href='{$docs}' role='menuitem' target='_blank'>Docs</a></li>
 											</ul>
 										</div>";
@@ -208,7 +213,9 @@ class JobOrderController extends Controller
 		$terms = $this->terms->activeTermsList();
 		$jobs = $this->jobmaster->activeJobmasterList();
 		$currency = $this->currency->activeCurrencyList();
+		$salesman = $this->salesman->getSalesmanList();
 		$res = $this->voucherno->getVoucherNo('JO');
+		$services = DB::table('vehicle_service')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
 		//$vno = $res->no;
 		$lastid = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->orderBy('id','DESC')->select('id')->first();
 		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
@@ -257,8 +264,8 @@ class JobOrderController extends Controller
 			}
 			$photos = DB::table('quot_fotos')->where('quot_id',$id)->get(); 
 			$nettotal = $total + $vat_amount;
-			$view = ($this->matservice->is_active==1)?'addquotems':'addquote'; 
-		//	echo '<pre>';print_r($view);exit;
+			$view = ($this->matservice->is_active==1)?'addquotems':'addquote';
+			//echo '<pre>';print_r($photos);exit;
 			return view('body.joborder.'.$view)
 						->withItems($itemmaster)
 						->withTerms($terms)
@@ -283,14 +290,12 @@ class JobOrderController extends Controller
 						->withSeritems($seritems)
 						->withJobtype($jobtype)
 						->withPhotos($photos)
+						->withSalesman($salesman)
 						->withData($data);
 		}
 		
 		$view = ($this->matservice->is_active==1)?'addms': (($this->acsettings->advanced_workshop==1)? 'addadv' : 'add');
-	/*	if($view=='add' && Session::get('mod_jo_to_je')==1) {
-		    $view = 'add-jo';
-		}*/
-
+	
 	//echo '<pre>';print_r($view);exit;
 		return view('body.joborder.'.$view)
 					->withItems($itemmaster)
@@ -307,35 +312,35 @@ class JobOrderController extends Controller
 					->withPrint($print)
 					->withPackages($pkgs)
 					->withFooter(isset($footertxt)?$footertxt->description:'')
+					->withSalesman($salesman)
+					->withServices($services)
 					->withData($data);
 	}
 	
 	public function save(Request $request) { //echo '<pre>';print_r($request->all());exit;
 	
-		if( $this->validate(
+		$this->validate(
 			$request, 
 			[
 			 'voucher_no' => 'required|unique:sales_order,voucher_no,NULL,id,deleted_at,NULL',
 			 //'job_type' => 'required',
 			 'customer_name' => 'required','customer_id' => 'required',
-			 //'vehicle_name' => 'required','vehicle_id' => 'required',
-			 /* 'item_code.*'  => 'required', 'item_id.*' => 'required',
-			 'unit_id.*' => 'required',
-			 'quantity.*' => 'required',
-			 'cost.*' => 'required' */
+			// 'vehicle_name' => 'required','vehicle_id' => 'required',
+		     'item_code.*'  => 'required', 'item_id.*' => 'required',
+			// 'unit_id.*' => 'required',
+			// 'quantity.*' => 'required',
+			// 'cost.*' => 'required' 
 			],
 			['voucher_no' => 'Voucher no should be unique.',
 			 //'job_type.required' => 'Job type is required.',
 			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
-			 //'vehicle_name.required' => 'Vehicle Name is required.','vehicle_id.required' => 'Vehicle name is invalid.',
-			 /* 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
-			 'unit_id.*' => 'Item unit is required.',
-			 'quantity.*' => 'Item quantity is required.',
-			 'cost.*' => 'Item cost is required.' */
+			// 'vehicle_name.required' => 'Vehicle Name is required.','vehicle_id.required' => 'Vehicle name is invalid.',
+		      'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			// 'unit_id.*' => 'Item unit is required.',
+			// 'quantity.*' => 'Item quantity is required.',
+			// 'cost.*' => 'Item cost is required.' 
 			]
-		)) {
-			return redirect('job_order/add')->withInput()->withErrors();
-		}
+		);
 		
 		$id=$this->sales_order->create($request->all());
 		
@@ -421,10 +426,14 @@ class JobOrderController extends Controller
 		$itemmaster = $this->itemmaster->activeItemmasterList();
 		$terms = $this->terms->activeTermsList();
 		$jobs = $this->jobmaster->activeJobmasterList();
+		$salesman = $this->salesman->getSalesmanList();
 		$currency = $this->currency->activeCurrencyList();
-		$orderrow = $this->sales_order->findPOdata($id);
+		$orderrow = $this->sales_order->findPOdata($id); //echo '<pre>';print_r($orderrow);exit;
 		$jobdesc = $this->sales_order->getjobDescription($id);
 		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		$services = DB::table('vehicle_service')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
+		
+		
 		
 		$print = DB::table('report_view_detail')
 							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
@@ -464,6 +473,8 @@ class JobOrderController extends Controller
 					->withJobtype($jobtype)
 					->withPrint($print)
 					->withPhotos($photos)
+					->withSalesman($salesman)
+					->withServices($services)
 					->withData($data);
 
 	}
@@ -471,88 +482,30 @@ class JobOrderController extends Controller
 	public function update(Request $request)
 	{
 		$id = $request->input('sales_order_id');
-		if( $this->validate(
+		$this->validate(
 			$request, 
 			[//'reference_no' => 'required',
 			 'customer_name' => 'required','customer_id' => 'required',
 			 //'vehicle_name' => 'required','vehicle_id' => 'required',
-			 /* 'item_code.*'  => 'required', 'item_id.*' => 'required',
-			 'unit_id.*' => 'required',
-			 'quantity.*' => 'required',
-			 'cost.*' => 'required' */
+			 'item_code.*'  => 'required', 'item_id.*' => 'required',
+			// 'unit_id.*' => 'required',
+			// 'quantity.*' => 'required',
+			// 'cost.*' => 'required' 
 			],
 			[//'reference_no.required' => 'Reference no. is required.',
 			 'customer_name.required' => 'Customer Name is required.','customer_id.required' => 'Customer name is invalid.',
 			 //'vehicle_name.required' => 'Vehicle Name is required.','vehicle_id.required' => 'Vehicle name is invalid.',
-			 /* 'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
-			 'unit_id.*' => 'Item unit is required.',
-			 'quantity.*' => 'Item quantity is required.',
-			 'cost.*' => 'Item cost is required.' */
+		      'item_code.*.required'   => 'Item code is required.', 'item_id.*' => 'Item code is invalid.',
+			// 'unit_id.*' => 'Item unit is required.',
+			// 'quantity.*' => 'Item quantity is required.',
+			// 'cost.*' => 'Item cost is required.' 
 			]
-		)) {
-			//echo '<pre>';print_r($request->flash());exit;
-			return redirect('job_order/edit/'.$id)->withInput()->withErrors();
-		}
-		
+		);
+		//exit;
 		$this->sales_order->update($id, $request->all());
 		Session::flash('message', 'Job Order updated successfully');
 		return redirect('job_order');
 	}
-	
-	
-		public function viewonly($id) { 
-
-		$data = array();
-		$itemmaster = $this->itemmaster->activeItemmasterList();
-		$terms = $this->terms->activeTermsList();
-		$jobs = $this->jobmaster->activeJobmasterList();
-		$currency = $this->currency->activeCurrencyList();
-		$orderrow = $this->sales_order->findPOdata($id);
-		$jobdesc = $this->sales_order->getjobDescription($id);
-		$jobtype = DB::table('jobtype')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->get();
-		
-		$print = DB::table('report_view_detail')
-							->join('report_view','report_view.id','=','report_view_detail.report_view_id')
-							->where('report_view.code','JO')
-							->where('report_view_detail.is_default',1)
-							->select('report_view_detail.id')
-							->first();
-							
-		if($this->matservice->is_active==1) {
-			$orditems = $this->sales_order->getItems($id,'itm');
-			$seritems = $this->sales_order->getItems($id,'ser');
-			$view = 'editms';
-		} else {
-			$seritems = null;
-			$orditems = $this->sales_order->getItems($id);
-			$view = 'edit';
-		}
-		
-		$photos = DB::table('job_photos')->where('job_order_id',$id)->get(); 
-		/*$val = '';
-		foreach($photos as $row) {
-			$val .= ($val=='')?$row->photo:','.$row->photo;
-		}*/
-		
-		return view('body.joborder.viewonly')
-					->withItems($itemmaster)
-					->withTerms($terms)
-					->withJobs($jobs)
-					->withCurrency($currency)
-					->withOrderrow($orderrow)
-					->withOrditems($orditems)
-					->withVatdata($this->vatdata)
-					->withSettings($this->acsettings)
-					->withFormdata($this->formData)
-					->withJobdesc($jobdesc)
-					->withSeritems($seritems)
-					->withJobtype($jobtype)
-					->withPrint($print)
-					->withPhotos($photos)
-					->withData($data);
-
-	}
-	
 	
 	public function ajax_getcode($category)
 	{
@@ -595,7 +548,9 @@ class JobOrderController extends Controller
 	public function getVehicle($id)
 	{
 		$data = array();
-		$vehicles = DB::table('vehicle')->where('customer_id',$id)->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('*')->get();
+		$vehicles = DB::table('vehicle')->where('vehicle.customer_id',$id)->where('vehicle.status',1)
+		          ->leftjoin('vehicle_assign','vehicle_assign.vehicle_id','=','vehicle.id') 
+		          ->where('vehicle.deleted_at','0000-00-00 00:00:00')->select('vehicle.*','vehicle_assign.km_done AS km_update','vehicle_assign.id AS assign_id')->get();
 		return view('body.joborder.vehicle')
 					->withVehicles($vehicles)
 					->withData($data);
@@ -604,11 +559,7 @@ class JobOrderController extends Controller
 	public function getAllVehicle()
 	{
 		$data = array();
-		$vehicles = DB::table('vehicle')
-		            ->leftJoin('account_master','account_master.id','=','vehicle.customer_id')
-		            ->where('vehicle.status',1)->where('vehicle.deleted_at','0000-00-00 00:00:00')
-		            //->where('account_master.status',1)->where('account_master.deleted_at','0000-00-00 00:00:00')
-		            ->select('vehicle.*','account_master.id AS cust_id','account_master.master_name')->get();
+		$vehicles = DB::table('vehicle')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->select('*')->get();
 		return view('body.joborder.vehicle')
 					->withVehicles($vehicles)
 					->withData($data);
@@ -636,7 +587,7 @@ class JobOrderController extends Controller
 	public function getOrder($customer_id, $url)
 	{
 		$data = array();
-		$orders = $this->sales_order->getCustomerJobOrder($customer_id, $this->acsettings->advanced_workshop);
+		$orders = $this->sales_order->getCustomerOrder($customer_id, $this->acsettings->advanced_workshop);
 		return view('body.joborder.order')
 					->withOrders($orders)
 					->withUrl($url)
@@ -695,18 +646,12 @@ class JobOrderController extends Controller
 		
 		} else {
 			$path = app_path() . '/stimulsoft/helper.php';
-			
-			if(env('STIMULSOFT_VER')==2)
-			        return view('body.reports')->withPath($path)->withView($viewfile->print_name);
-			   else
-			       return view('body.joborder.viewer')->withPath($path)->withView($viewfile->print_name);
-			        
-			
+			return view('body.joborder.viewer')->withPath($path)->withView($viewfile->print_name);
 		}
 		
 	}
 	
-	public function setSessionVal(Request $request)
+	public function setSessionVal()
 	{
 		Session::put('voucher_no', $request->get('vchr_no'));
 		Session::put('reference_no', $request->get('ref_no'));
@@ -744,9 +689,12 @@ class JobOrderController extends Controller
 				$salesman = $row->salesman;
 				$discount = $row->discount;
 				$vehicle = $row->reg_no.' '.$row->issue_plate.' '.$row->code_plate;
-			}
-			$arr[] = ['voucher_no' => $voucher_no,'reference_no' => $refno, 'master_name' => $suppname, 'discount' => $discount, 
-					  'total' => $pending_amt,'vat_amount' => $vat_amount, 'net_total' => $net_amount, 'salesman' => $salesman,'vehicle' => $vehicle];
+				$jobname = $row->jobname;
+				$vname = $row->vehicle_name;
+				$chno = $row->chasis_no;
+ 			}
+			$arr[] = ['voucher_no' => $voucher_no,'reference_no' => $refno, 'master_name' => $suppname, 'discount' => $discount, 'jobname' => $jobname,'vehicle_name' => $vname,
+					  'total' => $pending_amt,'vat_amount' => $vat_amount, 'net_total' => $net_amount, 'salesman' => $salesman,'vehicle' => $vehicle,'chasis_no' => $chno];
 			
 		}
 
@@ -756,20 +704,19 @@ class JobOrderController extends Controller
 	public function getSearch(Request $request)
 	{
 		$data = array();
-	//	echo '<pre>';print_r($request->all());exit;
-	$pending=($request->get('pending'))?$request->get('pending'):0;
+		//echo '<pre>';print_r($request->all());exit;
 		$reports = $this->sales_order->getPendingReportJob($request->all());//echo '<pre>';print_r($reports);exit;
 		
-		if($request->get('search_type')=="summary" && $pending==0)
+		if($request->get('search_type')=="summary")
 			$voucher_head = 'Job Order Summary';
-		elseif($request->get('search_type')=="summary" && $pending==1) {
+		elseif($request->get('search_type')=="summary_pending") {
 			$voucher_head = 'Job Order Pending Summary';
 			$reports = $this->makeArrGroup($reports);
-		} elseif($request->get('search_type')=="detail" && $pending==0) {
+		} elseif($request->get('search_type')=="detail") {
 			$voucher_head = 'Job Order Detail';
 			$reports = $this->makeTree($reports);
 		} else {
-		    if($request->get('search_type')=="detail" && $pending==1){
+		    if($request->get('search_type')=="detail_pending"){
 			$voucher_head = 'Job Order Pending Detail';
 		    }
 		    else{
@@ -1061,7 +1008,7 @@ class JobOrderController extends Controller
 		return response()->json(array('file_name' => $res), 200);
 	}
 	
-	public function setTechnician() {
+	public function setTechnician(Request $request) {
 		//echo '<pre>';print_r($request->get('id'));exit;
 		DB::table('sales_order')->where('id',$request->get('id'))->update(['salesman_id' => $request->get('tech')]);
 		
@@ -1199,7 +1146,7 @@ class JobOrderController extends Controller
 		
 	}
 	
-	public function getJobSearch()
+	public function getJobSearch(Request $request)
 	{
 		$is_techn = false;
 		//Getting Salesman/Technician id...
@@ -1242,6 +1189,12 @@ class JobOrderController extends Controller
 					
 	}
 	
+	public function getClose($id) {
+	    
+	    DB::table('sales_order')->where('id',$id)->update(['is_transfer' => 1, 'is_editable' => 1]);
+	    DB::table('sales_order_item')->where('sales_order_id',$id)->update(['is_transfer' => 1]);
+	    Session::flash('message', 'Job Order status updated successfully.');
+	    return redirect('job_order');
+	}
+	
 }
-
-

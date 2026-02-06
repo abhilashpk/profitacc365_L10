@@ -1,6 +1,4 @@
-<?php
-declare(strict_types=1);
-namespace App\Repositories\Jobmaster;
+<?php namespace App\Repositories\Jobmaster;
 
 use App\Models\Jobmaster;
 use App\Models\Budgeting;
@@ -8,7 +6,8 @@ use App\Models\ProjectBudget;
 use App\Repositories\AbstractValidator;
 use App\Exceptions\Validation\ValidationException;
 use Config;
-use Illuminate\Support\Facades\DB;
+use DB;
+
 
 class JobmasterRepository extends AbstractValidator implements JobmasterInterface {
 	
@@ -77,8 +76,8 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 			$this->jobmaster->be_no = $attributes['be_no'];
 			$this->jobmaster->flight_date = $attributes['flight_date'];
 			$this->jobmaster->container_no = $attributes['container_no'];
-            $this->jobmaster->shipper = $attributes['shipper']; 
-            $this->jobmaster->consignee= $attributes['consignee']; 
+
+
 
 			///END
 			$this->jobmaster->contract_amount = $attributes['contract_amount'];
@@ -119,6 +118,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 		$this->jobmaster->end_date = ($attributes['start_date']!='')?date('Y-m-d', strtotime($attributes['end_date'])):'';
 		$this->jobmaster->vehicle_id = isset($attributes['vehicle_id'])?$attributes['vehicle_id']:'';
 
+
 		//NEW FIELDS
 
 			
@@ -141,10 +141,9 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 			$this->jobmaster->be_no = $attributes['be_no'];
 			$this->jobmaster->flight_date = $attributes['flight_date'];
 			$this->jobmaster->container_no = $attributes['container_no'];
-			$this->jobmaster->shipper = $attributes['shipper']; 
-            $this->jobmaster->consignee= $attributes['consignee'];
             $document_type = $attributes['document_type'];
 			$cid = $attributes['customer_id'];
+
 
 			///END
 		
@@ -279,10 +278,10 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 		DB::beginTransaction();
 		try {
 			
-		DB::table('project_budget')->where('budgeting_id', $id)->update(['deleted_at' => now()]);
+		DB::table('project_budget')->where('budgeting_id', $id)->update(['deleted_at' => date('Y-m-d H:i:s')]);
 		
 			
-		//	DB::table('budgeting')->where('id', $id)->update(['deleted_at' => now() ]);
+		//	DB::table('budgeting')->where('id', $id)->update(['deleted_at' => date('Y-m-d H:i:s') ]);
 			$this->budgeting->delete();
 			
 			DB::commit();
@@ -370,7 +369,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 			
 				foreach($arrids as $row) {
 				
-					DB::table('project_budget')->where('id', $row)->update(['status' => 1, 'deleted_at' => now()]);
+					DB::table('project_budget')->where('id', $row)->update(['status' => 1, 'deleted_at' => date('Y-m-d H:i:s')]);
 					
 				}
 			
@@ -447,7 +446,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 			
 				foreach($arrids as $row) {
 				
-					DB::table('project_budget')->where('id', $row)->update(['status' => 1, 'deleted_at' => now()]);
+					DB::table('project_budget')->where('id', $row)->update(['status' => 1, 'deleted_at' => date('Y-m-d H:i:s')]);
 					
 				}
 			
@@ -458,7 +457,7 @@ class JobmasterRepository extends AbstractValidator implements JobmasterInterfac
 			
 			if($this->setInputValuebud($attributes)) {
 				
-			//	$this->budgeting->modify_at = now();
+			//	$this->budgeting->modify_at = date('Y-m-d H:i:s');
 			//	$this->budgeting->modify_by = 1;
 				$this->budgeting->fill($attributes)->save();
 				
@@ -554,7 +553,7 @@ public function budgetcreate($attributes)
 												'total'	=>$grandtotal ,
 												 'total_cost'	=> $attributes['totalinc'],
 												  'total_income'	=> $attributes['total'],
-											'created_at' => now(),
+											'created_at' => date('Y-m-d H:i:s'),
 											
 										]);
 									//	$blogs[0]->title
@@ -571,7 +570,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 		 						'amount'	=>$line_total ,
 		 						'budgeting_id' => $budget_id,
 		 						'description' => $attributes['item_description'][$key] ,
-								'created_at' => now(),
+								'created_at' => date('Y-m-d H:i:s'),
 											
 										]);
 
@@ -590,16 +589,19 @@ if(!empty( array_filter($attributes['account_id']))) {
 		 						'budgeting_id' => $budget_id,
 		 						'description' => $attributes['iteminc_description'][$key] ,
 		 						'is_log' => 1,
-								'created_at' => now(),
+								'created_at' => date('Y-m-d H:i:s'),
 											
 										]);
 
 		}
 
+
 	}
 
 	
 	//	echo '<pre>';print_r($total);exit;
+
+
 
 	}
 	
@@ -675,6 +677,21 @@ if(!empty( array_filter($attributes['account_id']))) {
 		return $this->jobmaster->select('id','name','code')->where('status', 1)->where('is_close',0)->where('is_salary_job',0)->orderBy('name', 'ASC')->get()->toArray();
 	}
 	
+	public function check_job($id)
+	{
+		$count = DB::table('sales_order')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('job_id', $id)->count();
+		if($count > 0)
+			return false;
+		else {
+			$count = DB::table('sales_invoice')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('job_id', $id)->count();
+			if($count > 0)
+				return false;
+			else
+				return true;
+		}
+			
+	}
+	
 	public function check_jobmaster_code($code, $id = null) {
 		
 		if($id)
@@ -712,6 +729,7 @@ if(!empty( array_filter($attributes['account_id']))) {
    ->get();
 	
 
+
 					}
 	public function getJobReportvehi($attributes)
 	{
@@ -727,6 +745,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 
 					//purchase split
+
 
 					$qry1 = DB::table('jobmaster')->where('jobmaster.status', 1)
 								->join('purchase_split AS PS', function($join) {
@@ -830,8 +849,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 	{
 		$is_jobsplit = (isset($attributes['is_jobsplit']))?true:false;
 
-	  $is_workshopsplit = (isset($attributes['is_workshopsplit']))?true:false;
-        
+
+		$is_workshopsplit = (isset($attributes['is_workshopsplit']))?true:false; 
         
 		if($is_workshopsplit) 
 		{
@@ -846,6 +865,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 
 				//purchase split
 
+
 				$qry1 = DB::table('jobmaster')->where('jobmaster.status', 1)
 							->join('purchase_split AS PS', function($join) {
 									$join->on('PS.job_id','=','jobmaster.id');
@@ -858,6 +878,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 			if(isset($attributes['job_id']) && $attributes['job_id']!='')
 				$qry1->whereIn('jobmaster.id', $attributes['job_id']);	
+
+
 
 				if($date_from!='' && $date_to!='')
 					$qry1->whereBetween('PS.voucher_date', array($date_from, $date_to));
@@ -914,6 +936,11 @@ if(!empty( array_filter($attributes['account_id']))) {
 			return array_merge($results1,$results2);
            // echo '<pre>';print_r($results);exit;	
 
+
+
+
+
+
 			case 'detail': //journal
 				$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
 				$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
@@ -940,7 +967,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 				
 				$qry1->select('jobmaster.*','PIM.item_total AS amount', //DB::raw('SUM(PI.net_amount) AS amount'),
 							'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',DB::raw('"PS" AS type'),
-							'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
+							'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
 							'PS.description AS jdesc','AM.master_name AS customer');
 							
 				$qry2 = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -964,7 +991,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 				
 				$qry2->select('jobmaster.*',DB::raw('"0" AS amount'), //DB::raw('SUM(PI.net_amount) AS amount'),
 							'PIM.item_total AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',DB::raw('"SS" AS type'),
-							'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
+							'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
 							'PS.description AS jdesc','AM.master_name AS customer');
 							
 				
@@ -990,7 +1017,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 				
 				$qry3->select('jobmaster.*',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
 							'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"PV" AS type'),
-							DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+							DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 							'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer')
 							->groupBy('PV.voucher_no');
 							
@@ -1016,7 +1043,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 				
 				$qry4->select('jobmaster.*',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
 							'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"PC" AS type'),
-							DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+							DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 							'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer')
 							->groupBy('PV.voucher_no');
 							
@@ -1042,7 +1069,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 				
 				$qry5->select('jobmaster.*',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', 
 							'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"JV" AS type'),
-							DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+							DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 							'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer')
 							->groupBy('PV.voucher_no');
 							
@@ -1072,7 +1099,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 				
 						$qry16 = $qry16->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name', 
 							'jobmaster.incexp AS amount','AC.account_id','SI.less_description AS vehiclemodel','AC.id AS acid',DB::raw('"" AS item_code'),
-							'SIM.quantity','SIM.id AS itemid','SIM.unit_price','SI.vehicle_no AS vehicleno','SI.less_description2 AS vehiclemake','SI.less_description3 AS nextservice','SI.previnv_description AS servicedby','SI.kilometer AS kilometer');
+							'SIM.quantity','SIM.unit_price','SI.vehicle_no AS vehicleno','SI.less_description2 AS vehiclemake','SI.less_description3 AS nextservice','SI.previnv_description AS servicedby','SI.kilometer AS kilometer');
 							$results2 = $qry16->get();
 								
 			$results1 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->orderBy('type','ASC')->get();	
@@ -1094,6 +1121,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 
 					//purchase split
+
 
 					$qry1 = DB::table('jobmaster')->where('jobmaster.status', 1)
 					           ->join('purchase_split_item AS PSI', function($join) {
@@ -1163,7 +1191,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry1->select('jobmaster.*','PIM.item_total AS amount', //DB::raw('SUM(PI.net_amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',DB::raw('"PS" AS type'),
-								'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
+								'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
 								'PS.description AS jdesc','AM.master_name AS customer');
 								
 					$qry2 = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -1187,7 +1215,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry2->select('jobmaster.*',DB::raw('"0" AS amount'), //DB::raw('SUM(PI.net_amount) AS amount'),
 								'PIM.item_total AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',DB::raw('"SS" AS type'),
-								'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
+								'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
 								'PS.description AS jdesc','AM.master_name AS customer');
 								
 					
@@ -1213,7 +1241,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry3->select('jobmaster.*',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"PV" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer')
 								->groupBy('PV.voucher_no');
 								
@@ -1239,7 +1267,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry4->select('jobmaster.*',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"PC" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer')
 								->groupBy('PV.voucher_no');
 								
@@ -1265,7 +1293,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry5->select('jobmaster.*',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"JV" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer')
 								->groupBy('PV.voucher_no');
 								
@@ -1277,7 +1305,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 		}
 		 else
 		{
-		    ############ NORMAL TYPE JOB SEARCH HERE #############
+		
 			switch($attributes['search_type']) 
 			{
 				case 'summary':
@@ -1477,29 +1505,9 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					
                        $query6->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name',DB::raw('SUM(PIM.item_total) AS amount'),
-								'jobmaster.incexp AS income')->groupBy('jobmaster.id');	
-								
-					$query6_1 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('salessplit_return_item AS SIM', function($join) {
-										$join->on('SIM.item_jobid','=','jobmaster.id');
-									} )
-								->join('salessplit_return AS SS', function($join) {
-										$join->on('SS.id','=','SIM.salessplit_return_id');
-									} )
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$query6_1->where('jobmaster.id', $job_id);
-					
-					if($date_from!='' && $date_to!='')
-						$query6_1->whereBetween('SS.voucher_date', array($date_from, $date_to));
-					
-					
-                       $query6_1->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name',DB::raw('SUM(SIM.item_total) AS amount'),
 								'jobmaster.incexp AS income')->groupBy('jobmaster.id');			
-											
 								
-					$results1 = $query1->union($query2)->union($query3)->union($query4)->union($query5)->union($query1_1)->union($query3_1)->union($query4_1)->union($query5_1)->union($query6)->union($query6_1)->get();
+					$results1 = $query1->union($query2)->union($query3)->union($query4)->union($query5)->union($query1_1)->union($query3_1)->union($query4_1)->union($query5_1)->union($query6)->get();
 					
 					
 					//JOB INCOME SECTION...
@@ -1688,30 +1696,10 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					
                        $qry6->select('jobmaster.id','jobmaster.code','jobmaster.name',DB::raw('SUM(SIM.item_total) AS amount'),
-								'jobmaster.incexp AS income')->groupBy('jobmaster.id');	
+								'jobmaster.incexp AS income')->groupBy('jobmaster.id');			
 								
 								
-				$qry6_1 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('purchasesplit_return_item AS PIM', function($join) {
-										$join->on('PIM.item_jobid','=','jobmaster.id');
-									} )
-								->join('purchasesplit_return AS PS', function($join) {
-										$join->on('PS.id','=','PIM.purchasesplit_return_id');
-									} )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$qry6_1->where('jobmaster.id', $job_id);
-					
-					if($date_from!='' && $date_to!='')
-						$qry6_1->whereBetween('PS.voucher_date', array($date_from, $date_to));
-					
-					
-                       $qry6_1->select('jobmaster.id','jobmaster.code','jobmaster.name',DB::raw('SUM(PIM.item_total) AS amount'),
-								'jobmaster.incexp AS income')->groupBy('jobmaster.id');					
-								
-								
-					$results2 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry1_1)->union($qry2_1)->union($qry3_1)->union($qry4_1)->union($qry5_1)->union($qry6)->union($qry6_1)->get();
+					$results2 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry1_1)->union($qry2_1)->union($qry3_1)->union($qry4_1)->union($qry5_1)->union($qry6)->get();
 					
 					return array_merge($results1,$results2);
 					
@@ -1920,7 +1908,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$query1->whereBetween('PI.voucher_date', array($date_from, $date_to));
 					
 					$query1->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','PI.subtotal AS amount', //DB::raw('SUM(PI.net_amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PI.voucher_no',DB::raw('"PI" AS type'),'PIM.id AS itemid',
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PI.voucher_no',DB::raw('"PI" AS type'),
 								'PIM.quantity','PIM.unit_price','IM.item_code','IM.description','PI.voucher_date','PI.description AS jdesc');
 							//	->groupBy('PI.id');
 					
@@ -1946,7 +1934,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$query2->whereBetween('GI.voucher_date', array($date_from, $date_to));
 					
 					$query2->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','GI.net_amount AS amount', //DB::raw('SUM(GI.net_amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','GI.voucher_no',DB::raw('"GI" AS type'),'GIM.id AS itemid',
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','GI.voucher_no',DB::raw('"GI" AS type'),
 								'GIM.quantity','GIM.unit_price','IM.item_code','IM.description','GI.voucher_date','GI.description AS jdesc');
 							//	->groupBy('GI.id');
 					
@@ -1969,7 +1957,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$query3->whereBetween('J.voucher_date', array($date_from, $date_to));
 					
 					$query3->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','JE.amount AS amount', //DB::raw('SUM(JE.amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"JV" AS type'),DB::raw('"" AS itemid'),
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"JV" AS type'),
 								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc');
 								//->groupBy('J.id');
@@ -1993,7 +1981,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$query4->whereBetween('PV.voucher_date', array($date_from, $date_to));
 					
 					$query4->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','PVE.amount AS amount', //DB::raw('SUM(PVE.amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"SP" AS type'),DB::raw('"" AS itemid'),
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"SP" AS type'),
 								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'PV.voucher_date','PVE.description AS jdesc');
 							//->groupBy('PV.id');
@@ -2017,7 +2005,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$query5->whereBetween('PV.voucher_date', array($date_from, $date_to));	
 						
 					$query5->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','PVE.amount AS amount', //DB::raw('SUM(PVE.amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"PC" AS type'),DB::raw('"" AS itemid'),
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"PC" AS type'),
 								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'PV.voucher_date','PVE.description AS jdesc');
 								//->groupBy('PV.id');
@@ -2042,7 +2030,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$query6->whereBetween('J.voucher_date', array($date_from, $date_to));
 					
 					$query6->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','JE.amount AS amount', //DB::raw('SUM(JE.amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"PIN" AS type'),DB::raw('"" AS itemid'),
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"PIN" AS type'),
 								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc');
 								//->groupBy('J.id');
@@ -2068,7 +2056,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$query7->whereBetween('J.voucher_date', array($date_from, $date_to));
 					
 					$query7->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','JE.amount AS amount', //DB::raw('SUM(JE.amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"SIN" AS type'),DB::raw('"" AS itemid'),
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"SIN" AS type'),
 								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc');
 					//	->groupBy('J.id');
@@ -2081,7 +2069,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('PS.id','=','PIM.purchase_split_id');
 									} )
 								->join('account_master AS AC', function($join) {
-									$join->on('AC.id','=','PIM.account_id');
+									$join->on('AC.id','=','PS.supplier_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
@@ -2094,40 +2082,13 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					
    $query8->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','PIM.item_total AS amount', //DB::raw('SUM(GI.net_amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',DB::raw('"PS" AS type'),'PIM.id AS itemid',
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',DB::raw('"PS" AS type'),
 								'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date','PS.description AS jdesc');
-								
-								
-				$query9 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('salessplit_return_item AS SIM', function($join) {
-										$join->on('SIM.item_jobid','=','jobmaster.id');
-									} )
-								->join('salessplit_return AS SS', function($join) {
-										$join->on('SS.id','=','SIM.salessplit_return_id');
-									} )
-								->join('account_master AS AC', function($join) {
-									$join->on('AC.id','=','SIM.account_id');
-								} )
-								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$query9->where('jobmaster.id', $job_id);
-					
-					if($date_from!='' && $date_to!='')
-						$query9->whereBetween('SS.voucher_date', array($date_from, $date_to));
-					
-					
-    $query9->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','SIM.item_total AS amount', //DB::raw('SUM(GI.net_amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','SS.voucher_no',DB::raw('"SSR" AS type'),'SIM.id AS itemid',
-								'SIM.quantity','SIM.unit_price','SIM.account_id AS item_code','SIM.item_description AS description','SS.voucher_date','SS.description AS jdesc');
-												
 					
 					
 					
-					$results1 = $query1->union($query2)->union($query3)->union($query4)->union($query5)->union($query6)->union($query7)->union($query8)->union($query9)->get();
-					
-					//echo '<pre>';print_r($results1);exit;
+					$results1 = $query1->union($query2)->union($query3)->union($query4)->union($query5)->union($query6)->union($query7)->union($query8)->get();
+				//	echo '<pre>';print_r($results1);exit;
 				
 					//SALES INVO;
 				
@@ -2152,7 +2113,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$qry1->whereBetween('SI.voucher_date', array($date_from, $date_to));
 					
 					$qry1->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','SI.subtotal AS income', //DB::raw('SUM(SI.net_total) AS income'),
-								'jobmaster.incexp AS amount','AC.account_id','AC.master_name','AC.id AS acid','SI.voucher_no',DB::raw('"SI" AS type'),'SIM.id AS itemid',
+								'jobmaster.incexp AS amount','AC.account_id','AC.master_name','AC.id AS acid','SI.voucher_no',DB::raw('"SI" AS type'),
 								'SIM.quantity','SIM.unit_price','IM.item_code','IM.description','SI.voucher_date','SI.description AS jdesc')
 								->groupBy('SI.id');
 					
@@ -2179,7 +2140,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$qry2->whereBetween('GR.voucher_date', array($date_from, $date_to));
 					
 					$qry2->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','GR.net_amount AS income',//DB::raw('SUM(GR.net_amount) AS income'),
-								'jobmaster.incexp AS amount','AC.account_id','AC.master_name','AC.id AS acid','GR.voucher_no',DB::raw('"GR" AS type'),'GRM.id AS itemid',
+								'jobmaster.incexp AS amount','AC.account_id','AC.master_name','AC.id AS acid','GR.voucher_no',DB::raw('"GR" AS type'),
 								'GRM.quantity','GRM.unit_price','IM.item_code','IM.description','GR.voucher_date','GR.description AS jdesc')
 								->groupBy('GR.id');
 					
@@ -2203,7 +2164,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$qry3->whereBetween('J.voucher_date', array($date_from, $date_to));
 					
 					$qry3->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','JE.amount AS amount',//DB::raw('SUM(JE.amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"JV" AS type'),DB::raw('"" AS itemid'),
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"JV" AS type'),
 								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc')
 								->groupBy('J.id');
@@ -2229,7 +2190,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$qry4->whereBetween('RV.voucher_date', array($date_from, $date_to));
 					
 					$qry4->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','RVE.amount AS amount',//DB::raw('SUM(RVE.amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','RV.voucher_no',DB::raw('"CR" AS type'),DB::raw('"" AS itemid'),
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','RV.voucher_no',DB::raw('"CR" AS type'),
 								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'RV.voucher_date','RVE.description AS jdesc')
 								->groupBy('RV.id');
@@ -2253,7 +2214,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$qry5->whereBetween('RV.voucher_date', array($date_from, $date_to));
 					
 					$qry5->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','RVE.amount AS amount',//DB::raw('SUM(RVE.amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','RV.voucher_no',DB::raw('"PC" AS type'),DB::raw('"" AS itemid'),
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','RV.voucher_no',DB::raw('"PC" AS type'),
 								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'RV.voucher_date','RVE.description AS jdesc')
 								->groupBy('RV.id');
@@ -2281,7 +2242,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$qry6->whereBetween('J.voucher_date', array($date_from, $date_to));
 					
 					$qry6->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','JE.amount AS amount',//DB::raw('SUM(JE.amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"PIN" AS type'),DB::raw('"" AS itemid'),
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"PIN" AS type'),
 								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc');
 							//	->groupBy('J.id');
@@ -2306,7 +2267,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						$qry7->whereBetween('J.voucher_date', array($date_from, $date_to));
 					
 					$qry7->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','JE.amount AS amount',//DB::raw('SUM(JE.amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"SIN" AS type'),DB::raw('"" AS itemid'),
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"SIN" AS type'),
 								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc');
 								//->groupBy('J.id');	
@@ -2319,7 +2280,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 										$join->on('SS.id','=','SIM.sales_split_id');
 									} )
 								->join('account_master AS AC', function($join) {
-									$join->on('AC.id','=','SIM.account_id');
+									$join->on('AC.id','=','SS.customer_id');
 								} )
 								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
 								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
@@ -2332,35 +2293,12 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					
     $qry8->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','SIM.item_total AS amount', //DB::raw('SUM(GI.net_amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','SS.voucher_no',DB::raw('"SS" AS type'),'SIM.id AS itemid',
+								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','SS.voucher_no',DB::raw('"SS" AS type'),
 								'SIM.quantity','SIM.unit_price','SIM.account_id AS item_code','SIM.item_description AS description','SS.voucher_date','SS.description AS jdesc');
 								
-			$qry9 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('purchasesplit_return_item AS PIM', function($join) {
-										$join->on('PIM.item_jobid','=','jobmaster.id');
-									} )
-								->join('purchasesplit_return AS PS', function($join) {
-										$join->on('PS.id','=','PIM.purchasesplit_return_id');
-									} )
-								->join('account_master AS AC', function($join) {
-									$join->on('AC.id','=','PIM.account_id');
-								} )
-								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$qry9->where('jobmaster.id', $job_id);
-					
-					if($date_from!='' && $date_to!='')
-						$qry9->whereBetween('PS.voucher_date', array($date_from, $date_to));
-					
-					
-   $qry9->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','PIM.item_total AS amount', //DB::raw('SUM(GI.net_amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',DB::raw('"PSR" AS type'),'PIM.id AS itemid',
-								'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date','PS.description AS jdesc');
-													
 								
-					$results2 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry6)->union($qry7)->union($qry8)->union($qry9)->get();
+								
+					$results2 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry6)->union($qry7)->union($qry8)->get();
 					
 					return array_merge($results1,$results2);
 					
@@ -2402,7 +2340,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$query->select('jobmaster.id','jobmaster.code','jobmaster.name','PI.id AS piid','IM.id AS item_id',DB::raw('"PI" AS type'),
 														 'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PI.reference_no',
-														 'IM.item_code','IM.description','PIM.quantity','PIM.id AS itemid','PIM.unit_price','PI.voucher_date','PI.voucher_no');
+														 'IM.item_code','IM.description','PIM.quantity','PIM.unit_price','PI.voucher_date','PI.voucher_no');
 					
 					$query2 = DB::table('jobmaster')->where('jobmaster.status', 1)
 								->join('goods_return AS GR', function($join) {
@@ -2427,7 +2365,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$query2->select('jobmaster.id','jobmaster.code','jobmaster.name','GR.id AS siid','IM.id AS item_id',DB::raw('"GR" AS type'),
 									'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','GR.voucher_no AS reference_no',
-									'IM.item_code','IM.description','GRM.quantity','GRM.id AS itemid','GRM.unit_price','GR.voucher_date','GR.voucher_no');
+									'IM.item_code','IM.description','GRM.quantity','GRM.unit_price','GR.voucher_date','GR.voucher_no');
 					
 					
 					//$results = $query2->get
@@ -2455,35 +2393,10 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
    $query3->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','PS.id AS siid',DB::raw('"PS" AS type'), //DB::raw('SUM(GI.net_amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no AS reference_no',
-								'PIM.account_id AS item_code','PIM.item_description AS description','PIM.quantity','PIM.id AS itemid','PIM.unit_price','PS.voucher_date','PS.voucher_no');
+								'PIM.account_id AS item_code','PIM.item_description AS description','PIM.quantity','PIM.unit_price','PS.voucher_date','PS.voucher_no');
 					
 			
-			$query4 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('salessplit_return_item AS SIM', function($join) {
-										$join->on('SIM.item_jobid','=','jobmaster.id');
-									} )
-								->join('salessplit_return AS SS', function($join) {
-										$join->on('SS.id','=','SIM.salessplit_return_id');
-									} )
-								->join('account_master AS AC', function($join) {
-									$join->on('AC.id','=','SS.customer_id');
-								} )
-								
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$query4->where('jobmaster.id', $job_id);
-					
-					if($date_from!='' && $date_to!='')
-						$query4->whereBetween('SS.voucher_date', array($date_from, $date_to));
-					
-					
-   $query4->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','SS.id AS siid',DB::raw('"SSR" AS type'), //DB::raw('SUM(GI.net_amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','SS.voucher_no AS reference_no',
-								'SIM.account_id AS item_code','SIM.item_description AS description','SIM.quantity','SIM.id AS itemid','SIM.unit_price','SS.voucher_date','SS.voucher_no');
-					
-			
-					$results = $query->union($query2)->union($query3)->union($query4)->get();
+					$results = $query->union($query2)->union($query3)->get();
 					
 					return $results;			
 				
@@ -2516,7 +2429,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$query1->select('jobmaster.id','jobmaster.code','jobmaster.name','SI.id AS siid','IM.id AS item_id',DB::raw('"SI" AS type'),
 														 'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','SI.reference_no',
-														 'IM.item_code','IM.description','SIM.quantity','SIM.id AS itemid','SIM.unit_price','SI.voucher_date','SI.voucher_no');
+														 'IM.item_code','IM.description','SIM.quantity','SIM.unit_price','SI.voucher_date','SI.voucher_no');
 												
 					
 					$query2 = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -2543,7 +2456,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$query2->select('jobmaster.id','jobmaster.code','jobmaster.name','GI.id AS siid','IM.id AS item_id',DB::raw('"GI" AS type'),
 									'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','GI.voucher_no AS reference_no',
-									'IM.item_code','IM.description','GIM.quantity','GIM.id AS itemid','GIM.unit_price','GI.voucher_date','GI.voucher_no');
+									'IM.item_code','IM.description','GIM.quantity','GIM.unit_price','GI.voucher_date','GI.voucher_no');
 									//->groupBy('GI.id');
 					
 					//$results = $query2->get(); 
@@ -2571,36 +2484,10 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
    $query3->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','SS.id AS siid',DB::raw('"SS" AS type'), //DB::raw('SUM(GI.net_amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','SS.voucher_no AS reference_no',
-								'SIM.account_id AS item_code','SIM.item_description AS description','SIM.quantity','SIM.id AS itemid','SIM.unit_price','SS.voucher_date','SS.voucher_no');
-					
-					
-					
-						$query4 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('purchasesplit_return_item AS PIM', function($join) {
-										$join->on('PIM.item_jobid','=','jobmaster.id');
-									} )
-								->join('purchasesplit_return AS PS', function($join) {
-										$join->on('PS.id','=','PIM.purchasesplit_return_id');
-									} )
-								->join('account_master AS AC', function($join) {
-									$join->on('AC.id','=','PS.supplier_id');
-								} )
-								
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$query4->where('jobmaster.id', $job_id);
-					
-					if($date_from!='' && $date_to!='')
-						$query4->whereBetween('PS.voucher_date', array($date_from, $date_to));
-					
-					
-   $query4->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name','PS.id AS siid',DB::raw('"PSR" AS type'), //DB::raw('SUM(GI.net_amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no AS reference_no',
-								'PIM.account_id AS item_code','PIM.item_description AS description','PIM.quantity','PIM.id AS itemid','PIM.unit_price','PS.voucher_date','PS.voucher_no');
+								'SIM.account_id AS item_code','SIM.item_description AS description','SIM.quantity','SIM.unit_price','SS.voucher_date','SS.voucher_no');
 					
 			
-					$results = $query1->union($query2)->union($query3)->union($query4)->get();//['invoice']
+					$results = $query1->union($query2)->union($query3)->get();//['invoice']
 					
 					return $results;	
 					
@@ -2646,7 +2533,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 			
 		} catch(\Exception $e) {
 				
-			DB::rollback();
+			DB::rollback(); echo $e->getLine().'-'.$e->getMessage().' '.$e->getFile();exit;
 			return -1;
 		}
 	}
@@ -2898,7 +2785,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 	}
 	
 	public function getVehicleJobReport($attributes) {
-		
+	//	echo '<pre>';print_r($attributes);exit; 
 		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
 		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
 		$job_id = isset($attributes['job_id'])?$attributes['job_id']:''; 
@@ -2926,17 +2813,17 @@ if(!empty( array_filter($attributes['account_id']))) {
 				
 				$qry1->select('jobmaster.code','PIM.item_total AS amount', //DB::raw('SUM(PI.net_amount) AS amount'),type
 							'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',
-							'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
+							'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
 							'PS.description AS jdesc','AM.master_name AS customer',DB::raw('"PS" AS vtype '),
 							DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-							DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'));
+							DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PIM.id AS rowid',DB::raw('"0" AS type'));
 							
 		$qry2 = DB::table('jobmaster')->where('jobmaster.status', 1)
-							->join('salessplit_return AS PS', function($join) {
+							->join('sales_split AS PS', function($join) {
 									$join->on('PS.job_id','=','jobmaster.id');
 								} )
-							->join('salessplit_return_item AS PIM', function($join) {
-									$join->on('PIM.salessplit_return_id','=','PS.id');
+							->join('sales_split_item AS PIM', function($join) {
+									$join->on('PIM.sales_split_id','=','PS.id');
 								} )
 							->join('account_master AS AC', function($join) {
 								$join->on('AC.id','=','PIM.account_id');
@@ -2950,12 +2837,12 @@ if(!empty( array_filter($attributes['account_id']))) {
 				if($date_from!='' && $date_to!='')
 					$qry2->whereBetween('PS.voucher_date', array($date_from, $date_to));
 				
-				$qry2->select('jobmaster.code','PIM.item_total AS amount', 
-							'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',
-							'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
-							'PS.description AS jdesc','AM.master_name AS customer',DB::raw('"SSR" AS vtype '),
+				$qry2->select('jobmaster.code',DB::raw('"0" AS amount'), //DB::raw('SUM(PI.net_amount) AS amount'),
+							'PIM.item_total AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',
+							'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
+							'PS.description AS jdesc','AM.master_name AS customer',DB::raw('"SS" AS vtype '),
 							DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-							DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'));
+							DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PS.id AS rowid',DB::raw('"1" AS type'));
 							
 				
 		$qry3 = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -2980,10 +2867,10 @@ if(!empty( array_filter($attributes['account_id']))) {
 		
 		$qry3->select('jobmaster.code',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
 					'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',
-					DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+					DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 					'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer',DB::raw('"PV" AS vtype '),
 					DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'))
+					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PVE.id AS rowid',DB::raw('"0" AS type'))
 					->groupBy('PV.voucher_no');
 					
 		$qry4 = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -3008,10 +2895,10 @@ if(!empty( array_filter($attributes['account_id']))) {
 		
 		$qry4->select('jobmaster.code',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
 					'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',
-					DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+					DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 					'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer',DB::raw('"PC" AS vtype '),
 					DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'))
+					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PVE.id AS rowid',DB::raw('"0" AS type'))
 					->groupBy('PV.voucher_no');
 					
 		$qry5 = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -3036,10 +2923,10 @@ if(!empty( array_filter($attributes['account_id']))) {
 		
 		$qry5->select('jobmaster.code',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', 
 					'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',
-					DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+					DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 					'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer',DB::raw('"JV" AS vtype '),
 					DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'))
+					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PVE.id AS rowid',DB::raw('"0" AS type'))
 					->groupBy('PV.voucher_no');
 					
 		$qry6 = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -3065,10 +2952,10 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry6->select('jobmaster.code','PIM.total_price AS amount', //DB::raw('SUM(PI.net_amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PI.voucher_no',
-								'PIM.quantity','PIM.id AS itemid','PIM.unit_price','IM.item_code','IM.description','PI.voucher_date','PI.description AS jdesc',
+								'PIM.quantity','PIM.unit_price','IM.item_code','IM.description','PI.voucher_date','PI.description AS jdesc',
 								'AC.master_name AS customer',
 								DB::raw('"PI" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'));
+					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PIM.id AS rowid',DB::raw('"0" AS type'));
 							
 		
 		$qry7 = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -3094,12 +2981,12 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry7->select('jobmaster.code','GIM.total_price AS amount', 
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','GI.voucher_no',
-								'GIM.quantity','GIM.id AS itemid','GIM.unit_price','IM.item_code','IM.description','GI.voucher_date','GI.description AS jdesc',
+								'GIM.quantity','GIM.unit_price','IM.item_code','IM.description','GI.voucher_date','GI.description AS jdesc',
 								'AC.master_name AS customer',
 								DB::raw('"GI" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'));
+					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'GIM.id AS rowid',DB::raw('"0" AS type'));
 					
-		$results1 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry6)->union($qry7)->orderBy('voucher_date','ASC')->get();	
+		$results1 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry6)->union($qry7)->orderBy('voucher_date','ASC')->get();	//echo '<pre>';print_r($results1);exit;
 								
 		//GETTING JOB INVOICE.....		
 		$qry = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -3113,18 +3000,16 @@ if(!empty( array_filter($attributes['account_id']))) {
 							$join->on('IM.id','=','SIM.item_id');
 						} )
 					->join('account_master AS AC', function($join) {
-							$join->on('AC.id','=','SI.cr_account_id');
+							$join->on('AC.id','=','SI.customer_id');
 						} )
-					->leftjoin('vehicle AS V', function($join) {
+					->join('vehicle AS V', function($join) {
 							$join->on('V.id','=','SI.vehicle_id');
 						} )
 					->leftjoin('sales_order AS JO', function($join) {
 							$join->on('JO.id','=','SI.document_id')->where('SI.document_type','=','SO');
 						} )
-					->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00')//
+					->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00')->where('SI.is_rental', 2)
 					->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00');
-					
-		
 				
 		if($job_id)
 			$qry = $qry->where('jobmaster.id', $job_id);
@@ -3135,19 +3020,15 @@ if(!empty( array_filter($attributes['account_id']))) {
 		if($date_from!='' && $date_to!='')
 			$qry = $qry->whereBetween('SI.voucher_date', array($date_from, $date_to));
 		
-		if($attributes['type']=='workshop') {
-		    $qry->where('SI.is_rental', 2); 
-		    
-    		$qry->where(function($qry1) use($search_val) {
-    			$qry1->where('V.reg_no','LIKE',"%{$search_val}%")
-    				->orWhere('V.engine_no', 'LIKE',"%{$search_val}%")
-    				->orWhere('V.chasis_no','LIKE',"%{$search_val}%");
-    		}); 
-		}
+		$qry->where(function($qry1) use($search_val) {
+			$qry1->where('V.reg_no','LIKE',"%{$search_val}%")
+				->orWhere('V.engine_no', 'LIKE',"%{$search_val}%")
+				->orWhere('V.chasis_no','LIKE',"%{$search_val}%");
+		});
 		
-		$qry->select('SI.voucher_date','SI.voucher_no','IM.description','SIM.quantity','SIM.id AS itemid','SIM.unit_price','jobmaster.code','V.reg_no','V.engine_no',
+		$qry->select('SI.voucher_date','SI.voucher_no','IM.description','SIM.quantity','SIM.unit_price','jobmaster.code','V.reg_no','V.engine_no',
 					 DB::raw('"SI" AS vtype '),'V.chasis_no','SIM.line_total AS income','AC.master_name','V.name','V.model','jobmaster.incexp AS amount',
-									'JO.next_due','JO.present_km','JO.next_km');
+									'JO.next_due','JO.present_km','JO.next_km',DB::raw('"1" AS type'));
 							 
 		
 		$qry2 = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -3163,19 +3044,19 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','GRM.item_id');
 								} )
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00')
-								->where('GRM.status', 1)->where('GRM.deleted_at', '0000-00-00 00:00:00');
+								->where('GRM.status', 1)->where('GRM.deleted_at', '0000-00-00 00:00:00')
+								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
 			if($job_id)
 				$qry2->where('jobmaster.id', $job_id);
 			
 			if($date_from!='' && $date_to!='')
 				$qry2->whereBetween('GR.voucher_date', array($date_from, $date_to));
 								
-		$qry2->select('GR.voucher_date','GR.voucher_no','IM.description','GRM.quantity','GRM.id AS itemid','GRM.unit_price','jobmaster.code','GR.net_amount AS income',
+		$qry2->select('GR.voucher_date','GR.voucher_no','IM.description','GRM.quantity','GRM.unit_price','jobmaster.code','GR.net_amount AS income',
 					  'AC.master_name','jobmaster.incexp AS amount',
 					  DB::raw('"GR" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
 					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
-					  DB::raw('"" AS model'))->groupBy('GR.id');
+					  DB::raw('"" AS model'),DB::raw('"1" AS type'))->groupBy('GR.id');
 									
 									
 		$qry3 = DB::table('jobmaster')->where('jobmaster.status', 1)
@@ -3195,11 +3076,11 @@ if(!empty( array_filter($attributes['account_id']))) {
 			if($date_from!='' && $date_to!='')
 				$qry3->whereBetween('J.voucher_date', array($date_from, $date_to));
 								
-			$qry3->select('J.voucher_date','J.voucher_no','JE.description',DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'),DB::raw('"0" AS unit_price'),'jobmaster.code',
+			$qry3->select('J.voucher_date','J.voucher_no','JE.description',DB::raw('"0" AS quantity'),DB::raw('"0" AS unit_price'),'jobmaster.code',
 						'jobmaster.incexp AS income','AC.master_name','JE.amount AS amount',
-					  DB::raw('"JV" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km'),DB::raw('"" AS present_km'),
+					  DB::raw('"JV" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
 					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
-					  DB::raw('"" AS model'))->groupBy('J.id');
+					  DB::raw('"" AS model'),DB::raw('"1" AS type'))->groupBy('J.id');
 								
 		$qry4 = DB::table('jobmaster')->where('jobmaster.status', 1)
 								->join('receipt_voucher_entry AS RVE', function($join) {
@@ -3219,11 +3100,11 @@ if(!empty( array_filter($attributes['account_id']))) {
 				$qry4->whereBetween('RV.voucher_date', array($date_from, $date_to));
 		
 			$qry4->select('RV.voucher_date','RV.voucher_no','jobmaster.code','jobmaster.incexp AS income',
-						DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),'RVE.description',
+						DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),'RVE.description',
 					  'AC.master_name','RVE.amount AS amount',
 					  DB::raw('"RV" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
 					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
-					  DB::raw('"" AS model'))->groupBy('RV.id');
+					  DB::raw('"" AS model'),DB::raw('"1" AS type'))->groupBy('RV.id');
 					  
 		$qry5 = DB::table('jobmaster')->where('jobmaster.status', 1)
 								->join('petty_cash_entry AS RVE', function($join) {
@@ -3244,14 +3125,57 @@ if(!empty( array_filter($attributes['account_id']))) {
 				
 								
 				$qry5->select('RV.voucher_date','RV.voucher_no','jobmaster.code','jobmaster.incexp AS income',
-						DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'),DB::raw('"0" AS unit_price'),'RVE.description',
+						DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),'RVE.description',
 					  'AC.master_name','RVE.amount AS amount',
 					  DB::raw('"PC" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
 					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
-					  DB::raw('"" AS model'))->groupBy('RV.id');
+					  DB::raw('"" AS model'),DB::raw('"0" AS type'))->groupBy('RV.id');
 					  
-					  
-					  $qry6 = DB::table('jobmaster')->where('jobmaster.status', 1)
+			
+		$jobResults = $qry->union($qry2)->union($qry3)->union($qry4)->union($qry5)->get();
+		
+		return array_merge($jobResults, $results1);
+		//echo '<pre>';print_r($ar);exit;
+		//return $jobResults;
+	}
+	
+	//JAN25...
+	public function getVehicleJobReportVoucherwise($attributes) {
+	
+		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
+		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
+		$job_id = isset($attributes['job_id'])?$attributes['job_id']:''; 
+		$customer_id = isset($attributes['customer_id'])?$attributes['customer_id']:''; 
+		$search_val = isset($attributes['search_val'])?$attributes['search_val']:''; 
+		
+		$qry1 = DB::table('jobmaster')->where('jobmaster.status', 1)
+							->leftjoin('purchase_split AS PS', function($join) {
+								$join->on('PS.job_id','=','jobmaster.id');
+							})
+							->join('purchase_split_item AS PIM', function($join) {
+								$join->on('PIM.purchase_split_id','=','PS.id');
+							})
+							->join('account_master AS AC', function($join) {
+								$join->on('AC.id','=','PIM.account_id');
+							} )
+							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
+							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
+							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
+				if($job_id)
+					$qry1->where('jobmaster.id', $job_id);
+				
+				if($date_from!='' && $date_to!='')
+					$qry1->whereBetween('PS.voucher_date', array($date_from, $date_to));
+				
+				$qry1->select('jobmaster.code','jobmaster.name AS jobname', //DB::raw('SUM(PI.net_amount) AS amount'),type
+							'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',
+							'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
+							'PS.description AS jdesc','AM.master_name AS customer',DB::raw('"PS" AS vtype '),
+							DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+							DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PIM.id AS rowid',DB::raw('"0" AS type'),
+							DB::raw('SUM(PIM.item_total) AS amount'))->groupBy('PS.voucher_no');
+							
+		$qry2 = DB::table('jobmaster')->where('jobmaster.status', 1)
 							->join('sales_split AS PS', function($join) {
 									$join->on('PS.job_id','=','jobmaster.id');
 								} )
@@ -3265,47 +3189,316 @@ if(!empty( array_filter($attributes['account_id']))) {
 							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
 							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
 				if($job_id)
-					$qry6->where('jobmaster.id', $job_id);
+					$qry2->where('jobmaster.id', $job_id);
 				
 				if($date_from!='' && $date_to!='')
-					$qry6->whereBetween('PS.voucher_date', array($date_from, $date_to));
+					$qry2->whereBetween('PS.voucher_date', array($date_from, $date_to));
 				
-				$qry6->select('PS.voucher_no','PS.voucher_date','jobmaster.code','jobmaster.incexp AS income','PIM.quantity','PIM.id AS itemid',
-			                	'PIM.unit_price','PIM.item_description AS description','AC.master_name','PIM.item_total AS amount',DB::raw('"SS" AS vtype'), 
-							DB::raw('"" AS next_due'),DB::raw('"" AS next_km'),DB::raw('"" AS present_km'),
-							DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'));
+				$qry2->select('jobmaster.code','jobmaster.name AS jobname',DB::raw('"0" AS amount'), //DB::raw('SUM(PI.net_amount) AS amount'),
+							'AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',
+							'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
+							'PS.description AS jdesc','AM.master_name AS customer',DB::raw('"SS" AS vtype '),
+							DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+							DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PS.id AS rowid',DB::raw('"1" AS type'),
+							DB::raw('SUM(PIM.item_total) AS income'))->groupBy('PS.voucher_no');
 							
-				$qry7 = DB::table('jobmaster')->where('jobmaster.status', 1)
-							->join('purchasesplit_return AS PS', function($join) {
-									$join->on('PS.job_id','=','jobmaster.id');
-								} )
-							->join('purchasesplit_return_item AS PIM', function($join) {
-									$join->on('PIM.purchasesplit_return_id','=','PS.id');
-								} )
-							->join('account_master AS AC', function($join) {
-								$join->on('AC.id','=','PIM.account_id');
-							} )
-							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
-				if($job_id)
-					$qry7->where('jobmaster.id', $job_id);
 				
-				if($date_from!='' && $date_to!='')
-					$qry7->whereBetween('PS.voucher_date', array($date_from, $date_to));
+		$qry3 = DB::table('jobmaster')->where('jobmaster.status', 1)
+					->join('payment_voucher_entry AS PVE', function($join) {
+							$join->on('PVE.job_id','=','jobmaster.id');
+						} )
+					->join('payment_voucher AS PV', function($join) {
+							$join->on('PV.id','=','PVE.payment_voucher_id');
+						} )
+					->join('account_master AS AC', function($join) {
+						$join->on('AC.id','=','PVE.account_id');
+						} )
+					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
+					->where('PVE.status', 1)
+					->where('PVE.entry_type','Dr')
+					->where('PVE.deleted_at', '0000-00-00 00:00:00');
+		if($job_id)
+			$qry3->where('jobmaster.id', $job_id);
+		
+		if($date_from!='' && $date_to!='')
+			$qry3->whereBetween('PV.voucher_date', array($date_from, $date_to));
+		
+		$qry3->select('jobmaster.code','jobmaster.name AS jobname',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
+					'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',
+					DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+					'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer',DB::raw('"PV" AS vtype '),
+					DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PVE.id AS rowid',DB::raw('"0" AS type'))
+					->groupBy('PV.voucher_no');
+					
+		$qry4 = DB::table('jobmaster')->where('jobmaster.status', 1)
+					->join('petty_cash_entry AS PVE', function($join) {
+							$join->on('PVE.job_id','=','jobmaster.id');
+						} )
+					->join('petty_cash AS PV', function($join) {
+							$join->on('PV.id','=','PVE.petty_cash_id');
+						} )
+					->join('account_master AS AC', function($join) {
+						$join->on('AC.id','=','PVE.account_id');
+						})
+					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
+					->where('PVE.status', 1)
+					->where('PVE.entry_type','Dr')
+					->where('PVE.deleted_at', '0000-00-00 00:00:00');
+		if($job_id)
+			$qry4->where('jobmaster.id', $job_id);
+		
+		if($date_from!='' && $date_to!='')
+			$qry4->whereBetween('PV.voucher_date', array($date_from, $date_to));
+		
+		$qry4->select('jobmaster.code','jobmaster.name AS jobname',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
+					'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',
+					DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+					'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer',DB::raw('"PC" AS vtype '),
+					DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PVE.id AS rowid',DB::raw('"0" AS type'))
+					->groupBy('PV.voucher_no');
+					
+		$qry5 = DB::table('jobmaster')->where('jobmaster.status', 1)
+					->join('journal_entry AS PVE', function($join) {
+							$join->on('PVE.job_id','=','jobmaster.id');
+						} )
+					->join('journal AS PV', function($join) {
+							$join->on('PV.id','=','PVE.journal_id');
+						} )
+					->join('account_master AS AC', function($join) {
+						$join->on('AC.id','=','PVE.account_id');
+						} )
+					->join('account_category', 'account_category.id', '=', 'AC.account_category_id')
+					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
+					->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00');
+					//->where('account_category.parent_id',4);
+		if($job_id)
+			$qry5->where('jobmaster.id', $job_id);
+		
+		if($date_from!='' && $date_to!='')
+			$qry5->whereBetween('PV.voucher_date', array($date_from, $date_to));
+		
+		$qry5->select('jobmaster.code','jobmaster.name AS jobname',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', 
+					'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',
+					DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+					'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer',DB::raw('"JV" AS vtype '),
+					DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PVE.id AS rowid',DB::raw('"0" AS type'))
+					->groupBy('PV.voucher_no');
+					
+		$qry6 = DB::table('jobmaster')->where('jobmaster.status', 1)
+								->join('purchase_invoice AS PI', function($join) {
+										$join->on('PI.job_id','=','jobmaster.id');
+									} )
+								->join('purchase_invoice_item AS PIM', function($join) {
+										$join->on('PIM.purchase_invoice_id','=','PI.id');
+									} )
+								->join('account_master AS AC', function($join) {
+										$join->on('AC.id','=','PI.account_master_id');
+									} )
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','PIM.item_id');
+								} )
+								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00')
+								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00');
+					if($job_id)
+						$qry6->where('jobmaster.id', $job_id);
+					
+					if($date_from!='' && $date_to!='')
+						$qry6->whereBetween('PI.voucher_date', array($date_from, $date_to));
+					
+					$qry6->select('jobmaster.code','jobmaster.name AS jobname','PIM.total_price AS amount', //DB::raw('SUM(PI.net_amount) AS amount'),
+								'AC.account_id','AC.master_name','AC.id AS acid','PI.voucher_no',
+								'PIM.quantity','PIM.unit_price','IM.item_code','IM.description','PI.voucher_date','PI.description AS jdesc',
+								'AC.master_name AS customer',
+								DB::raw('"PI" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PIM.id AS rowid',DB::raw('"0" AS type'),
+					DB::raw('SUM(PIM.total_price) AS income'))->groupBy('PI.voucher_no');
+							
+		
+		$qry7 = DB::table('jobmaster')->where('jobmaster.status', 1)
+								->join('goods_issued AS GI', function($join) {
+										$join->on('GI.job_id','=','jobmaster.id');
+									} )
+								->join('goods_issued_item AS GIM', function($join) {
+										$join->on('GIM.goods_issued_id','=','GI.id');
+									} )
+								->join('account_master AS AC', function($join) {
+										$join->on('AC.id','=','GI.job_account_id');
+									} )
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','GIM.item_id');
+								} )
+								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00')
+								->where('GIM.status', 1)->where('GIM.deleted_at', '0000-00-00 00:00:00');
+					if($job_id)
+						$qry7->where('jobmaster.id', $job_id);
+					
+					if($date_from!='' && $date_to!='')
+						$qry7->whereBetween('GI.voucher_date', array($date_from, $date_to));
+					
+					$qry7->select('jobmaster.code','jobmaster.name AS jobname','GIM.total_price AS amount', 
+								'AC.account_id','AC.master_name','AC.id AS acid','GI.voucher_no',
+								'GIM.quantity','GIM.unit_price','IM.item_code','IM.description','GI.voucher_date','GI.description AS jdesc',
+								'AC.master_name AS customer',
+								DB::raw('"GI" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'GIM.id AS rowid',DB::raw('"0" AS type'),
+					DB::raw('SUM(GIM.total_price) AS income'))->groupBy('GI.voucher_no');
+					
+		$results1 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry6)->union($qry7)->orderBy('voucher_date','ASC')->get();	//echo '<pre>';print_r($results1);exit;
+								
+		//GETTING JOB INVOICE.....		
+		$qry = DB::table('jobmaster')->where('jobmaster.status', 1)
+					->join('sales_invoice AS SI', function($join) {
+							$join->on('SI.job_id','=','jobmaster.id');
+						} )
+					->join('sales_invoice_item AS SIM', function($join) {
+							$join->on('SIM.sales_invoice_id','=','SI.id');
+						} )
+					->join('itemmaster AS IM', function($join) {
+							$join->on('IM.id','=','SIM.item_id');
+						} )
+					->join('account_master AS AC', function($join) {
+							$join->on('AC.id','=','SI.cr_account_id');//customer_id
+						} )
+					->join('vehicle AS V', function($join) {
+							$join->on('V.id','=','SI.vehicle_id');
+						} )
+					->leftjoin('sales_order AS JO', function($join) {
+							$join->on('JO.id','=','SI.document_id')->where('SI.document_type','=','SO');
+						} )
+					->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00')->where('SI.is_rental', 2)
+					->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00');
 				
-				$qry7->select('PS.voucher_no','PS.voucher_date','jobmaster.code','jobmaster.incexp AS income','PIM.quantity','PIM.id AS itemid',
-			                	'PIM.unit_price','PIM.item_description AS description','AC.master_name','PIM.item_total AS amount',DB::raw('"PSR" AS vtype'), 
-							DB::raw('"" AS next_due'),DB::raw('"" AS next_km'),DB::raw('"" AS present_km'),
-							DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'));
-								  
+		if($job_id)
+			$qry = $qry->where('jobmaster.id', $job_id);
+		
+		if($customer_id)
+			$qry = $qry->where('SI.customer_id', $customer_id);
+
+		if($date_from!='' && $date_to!='')
+			$qry = $qry->whereBetween('SI.voucher_date', array($date_from, $date_to));
+		
+		$qry->where(function($qry1) use($search_val) {
+			$qry1->where('V.reg_no','LIKE',"%{$search_val}%")
+				->orWhere('V.engine_no', 'LIKE',"%{$search_val}%")
+				->orWhere('V.chasis_no','LIKE',"%{$search_val}%");
+		});
+		
+		$qry->select('jobmaster.name AS jobname','SI.voucher_date','SI.voucher_no','IM.description','SIM.quantity','SIM.unit_price','jobmaster.code','V.reg_no','V.engine_no','AC.id AS acid',
+					 DB::raw('"SI" AS vtype '),'V.chasis_no','AC.account_id','AC.master_name','V.name','V.model','jobmaster.incexp AS amount',
+									'JO.next_due','JO.present_km','JO.next_km',DB::raw('"1" AS type'),DB::raw('SUM(SIM.line_total) AS income'))->groupBy('SI.voucher_no');
+							 
+		
+		$qry2 = DB::table('jobmaster')->where('jobmaster.status', 1)
+								->join('goods_return AS GR', function($join) {
+										$join->on('GR.job_id','=','jobmaster.id');
+									} )
+								->join('goods_return_item AS GRM', function($join) {
+										$join->on('GRM.goods_return_id','=','GR.id');
+									} )
+								->join('account_master AS AC', function($join) {
+										$join->on('AC.id','=','GR.account_master_id');
+									} )
+								->join('itemmaster AS IM', function($join) {
+									$join->on('IM.id','=','GRM.item_id');
+								} )
+								->where('GRM.status', 1)->where('GRM.deleted_at', '0000-00-00 00:00:00')
+								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
+			if($job_id)
+				$qry2->where('jobmaster.id', $job_id);
 			
-		$jobResults = $qry->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry6)->union($qry7)->get();
+			if($date_from!='' && $date_to!='')
+				$qry2->whereBetween('GR.voucher_date', array($date_from, $date_to));
+								
+		$qry2->select('jobmaster.name AS jobname','GR.voucher_date','GR.voucher_no','IM.description','GRM.quantity','GRM.unit_price','jobmaster.code','GR.net_amount AS income',
+					  'AC.master_name','jobmaster.incexp AS amount','AC.id AS acid','AC.account_id',
+					  DB::raw('"GR" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
+					  DB::raw('"" AS model'),DB::raw('"1" AS type'))->groupBy('GR.id');
+									
+									
+		$qry3 = DB::table('jobmaster')->where('jobmaster.status', 1)
+								->join('journal_entry AS JE', function($join) {
+										$join->on('JE.job_id','=','jobmaster.id');
+									} )
+								->join('journal AS J', function($join) {
+										$join->on('J.id','=','JE.journal_id');
+									} )
+								->join('account_master AS AC', function($join) {
+										$join->on('AC.id','=','JE.account_id');
+									} )
+								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
+			if($job_id)
+				$qry3->where('jobmaster.id', $job_id);
+			
+			if($date_from!='' && $date_to!='')
+				$qry3->whereBetween('J.voucher_date', array($date_from, $date_to));
+								
+			$qry3->select('jobmaster.name AS jobname','J.voucher_date','J.voucher_no','JE.description',DB::raw('"0" AS quantity'),DB::raw('"0" AS unit_price'),'jobmaster.code',
+						'jobmaster.incexp AS income','AC.master_name','JE.amount AS amount','AC.id AS acid','AC.account_id',
+					  DB::raw('"JV" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
+					  DB::raw('"" AS model'),DB::raw('"1" AS type'))->groupBy('J.id');
+								
+		$qry4 = DB::table('jobmaster')->where('jobmaster.status', 1)
+								->join('receipt_voucher_entry AS RVE', function($join) {
+										$join->on('RVE.job_id','=','jobmaster.id');
+									} )
+								->join('receipt_voucher AS RV', function($join) {
+										$join->on('RV.id','=','RVE.receipt_voucher_id');
+									} )
+								->join('account_master AS AC', function($join) {
+										$join->on('AC.id','=','RVE.account_id');
+									} )
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+			if($job_id)
+				$qry4->where('jobmaster.id', $job_id);
+			
+			if($date_from!='' && $date_to!='')
+				$qry4->whereBetween('RV.voucher_date', array($date_from, $date_to));
+		
+			$qry4->select('jobmaster.name AS jobname','RV.voucher_date','RV.voucher_no','jobmaster.code','jobmaster.incexp AS income',
+						DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),'RVE.description',
+					  'AC.master_name','RVE.amount AS amount','AC.id AS acid','AC.account_id',
+					  DB::raw('"RV" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
+					  DB::raw('"" AS model'),DB::raw('"1" AS type'))->groupBy('RV.id');
+					  
+		$qry5 = DB::table('jobmaster')->where('jobmaster.status', 1)
+								->join('petty_cash_entry AS RVE', function($join) {
+										$join->on('RVE.job_id','=','jobmaster.id');
+									} )
+								->join('petty_cash AS RV', function($join) {
+										$join->on('RV.id','=','RVE.petty_cash_id');
+									} )
+								->join('account_master AS AC', function($join) {
+										$join->on('AC.id','=','RVE.account_id');
+									} )
+								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
+					if($job_id)
+						$qry5->where('jobmaster.id', $job_id);
+					
+					if($date_from!='' && $date_to!='')
+						$qry5->whereBetween('RV.voucher_date', array($date_from, $date_to));
+				
+								
+				$qry5->select('jobmaster.name AS jobname','RV.voucher_date','RV.voucher_no','jobmaster.code','jobmaster.incexp AS income',
+						DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),'RVE.description','AC.account_id',
+					  'AC.master_name','RVE.amount AS amount','AC.id AS acid',
+					  DB::raw('"PC" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
+					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
+					  DB::raw('"" AS model'),DB::raw('"0" AS type'))->groupBy('RV.id');
+					  
+			
+		$jobResults = $qry->union($qry2)->union($qry3)->union($qry4)->union($qry5)->get();
 		
 		return array_merge($jobResults, $results1);
 		//echo '<pre>';print_r($ar);exit;
 		//return $jobResults;
 	}
+	
 	
 	public function getVehicleJobStockinReport($attributes) {
 		
@@ -3423,7 +3616,8 @@ if(!empty( array_filter($attributes['account_id']))) {
 							$join->on('IM.id','=','GIM.item_id');
 						} )
 					->where('GI.status', 1)
-					->where('GI.deleted_at', '0000-00-00 00:00:00');
+					->where('GI.deleted_at', '0000-00-00 00:00:00')
+					->where('GIM.deleted_at', '0000-00-00 00:00:00');
 		if($job_id)
 			$query2->where('jobmaster.id', $job_id);
 		
@@ -3605,7 +3799,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$query1->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','PI.subtotal AS amount', //DB::raw('SUM(PI.net_amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PI.voucher_no',DB::raw('"PI" AS type'),
-								'PIM.quantity','PIM.id AS itemid','PIM.unit_price','IM.item_code','IM.description','PI.voucher_date','PI.description AS jdesc',
+								'PIM.quantity','PIM.unit_price','IM.item_code','IM.description','PI.voucher_date','PI.description AS jdesc',
 								DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 							//	->groupBy('PI.id');
 					
@@ -3632,7 +3826,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$query2->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','GI.net_amount AS amount', //DB::raw('SUM(GI.net_amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','GI.voucher_no',DB::raw('"GI" AS type'),
-								'GIM.quantity','GIM.id AS itemid','GIM.unit_price','IM.item_code','IM.description','GI.voucher_date','GI.description AS jdesc',
+								'GIM.quantity','GIM.unit_price','IM.item_code','IM.description','GI.voucher_date','GI.description AS jdesc',
 								DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 							//	->groupBy('GI.id');
 					
@@ -3656,7 +3850,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$query3->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','JE.amount AS amount', //DB::raw('SUM(JE.amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"JV" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc',DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 								//->groupBy('J.id');
 			
@@ -3680,7 +3874,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$query4->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','PVE.amount AS amount', //DB::raw('SUM(PVE.amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"SP" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'PV.voucher_date','PVE.description AS jdesc',DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 							//->groupBy('PV.id');
 			
@@ -3704,7 +3898,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 						
 					$query5->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','PVE.amount AS amount', //DB::raw('SUM(PVE.amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',DB::raw('"PC" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'PV.voucher_date','PVE.description AS jdesc',DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 								//->groupBy('PV.id');
 					//	$results1 = $query5	->get();
@@ -3729,7 +3923,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$query6->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','JE.amount AS amount', //DB::raw('SUM(JE.amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"PIN" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc',DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 								//->groupBy('J.id');
 								
@@ -3755,7 +3949,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$query7->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','JE.amount AS amount', //DB::raw('SUM(JE.amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"SIN" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc',DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 					//	->groupBy('J.id');
 					
@@ -3781,38 +3975,12 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
    $query8->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','PIM.item_total AS amount', //DB::raw('SUM(GI.net_amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',DB::raw('"PS" AS type'),
-								'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date','PS.description AS jdesc',
+								'PIM.quantity','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date','PS.description AS jdesc',
 								DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 					
 					
-						$query9 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('salessplit_return_item AS SIM', function($join) {
-										$join->on('SIM.item_jobid','=','jobmaster.id');
-									} )
-								->join('salessplit_return AS SS', function($join) {
-										$join->on('SS.id','=','SIM.salessplit_return_id');
-									} )
-								->join('account_master AS AC', function($join) {
-									$join->on('AC.id','=','SS.customer_id');
-								} )
-								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00')
-								->where('SS.status', 1)->where('SS.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$query9->where('jobmaster.id', $job_id);
 					
-					if($date_from!='' && $date_to!='')
-						$query9->whereBetween('SS.voucher_date', array($date_from, $date_to));
-					
-					
-                    $query9->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','SIM.item_total AS amount', //DB::raw('SUM(GI.net_amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','SS.voucher_no',DB::raw('"SSR" AS type'),
-								'SIM.quantity','SIM.id AS itemid','SIM.unit_price','SIM.account_id AS item_code','SIM.item_description AS description','SS.voucher_date','SS.description AS jdesc',
-								DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
-								
-								
-					
-					$results1 = $query1->union($query2)->union($query3)->union($query4)->union($query5)->union($query6)->union($query7)->union($query8)->union($query9)->get();
+					$results1 = $query1->union($query2)->union($query3)->union($query4)->union($query5)->union($query6)->union($query7)->union($query8)->get();
 				//	echo '<pre>';print_r($results1);exit;
 				
 					//SALES INVO;
@@ -3830,7 +3998,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 								->join('itemmaster AS IM', function($join) {
 									$join->on('IM.id','=','SIM.item_id');
 								} )
-								->leftjoin('vehicle AS V', function($join) {
+								->join('vehicle AS V', function($join) {
         							$join->on('V.id','=','SI.vehicle_id');
         						} )
 								->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00');
@@ -3842,7 +4010,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry1->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','SI.subtotal AS income', //DB::raw('SUM(SI.net_total) AS income'),
 								'jobmaster.incexp AS amount','AC.account_id','AC.master_name','AC.id AS acid','SI.voucher_no',DB::raw('"SI" AS type'),
-								'SIM.quantity','SIM.id AS itemid','SIM.unit_price','IM.item_code','IM.description','SI.voucher_date','SI.description AS jdesc',
+								'SIM.quantity','SIM.unit_price','IM.item_code','IM.description','SI.voucher_date','SI.description AS jdesc',
 								'V.reg_no','V.chasis_no','V.name')
 								->groupBy('SI.id');
 					
@@ -3870,7 +4038,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry2->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','GR.net_amount AS income',//DB::raw('SUM(GR.net_amount) AS income'),
 								'jobmaster.incexp AS amount','AC.account_id','AC.master_name','AC.id AS acid','GR.voucher_no',DB::raw('"GR" AS type'),
-								'GRM.quantity','GRM.id AS itemid','GRM.unit_price','IM.item_code','IM.description','GR.voucher_date','GR.description AS jdesc',
+								'GRM.quantity','GRM.unit_price','IM.item_code','IM.description','GR.voucher_date','GR.description AS jdesc',
 								DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'))
 								->groupBy('GR.id');
 					
@@ -3895,7 +4063,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry3->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','JE.amount AS amount',//DB::raw('SUM(JE.amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"JV" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc',
 								DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'))
 								->groupBy('J.id');
@@ -3922,7 +4090,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry4->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','RVE.amount AS amount',//DB::raw('SUM(RVE.amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','RV.voucher_no',DB::raw('"CR" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'RV.voucher_date','RVE.description AS jdesc',DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'))
 								->groupBy('RV.id');
 								
@@ -3946,7 +4114,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry5->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','RVE.amount AS amount',//DB::raw('SUM(RVE.amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','RV.voucher_no',DB::raw('"PC" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'RV.voucher_date','RVE.description AS jdesc',DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'))
 								->groupBy('RV.id');
 						
@@ -3974,7 +4142,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry6->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','JE.amount AS amount',//DB::raw('SUM(JE.amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"PIN" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc',DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 							//	->groupBy('J.id');
 								
@@ -3999,7 +4167,7 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
 					$qry7->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','JE.amount AS amount',//DB::raw('SUM(JE.amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','J.voucher_no',DB::raw('"SIN" AS type'),
-								DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
+								DB::raw('"0" AS quantity'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
 								'J.voucher_date','JE.description AS jdesc',DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 								//->groupBy('J.id');	
 								
@@ -4025,464 +4193,13 @@ if(!empty( array_filter($attributes['account_id']))) {
 					
                     $qry8->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','SIM.item_total AS amount', //DB::raw('SUM(GI.net_amount) AS amount'),
 								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','SS.voucher_no',DB::raw('"SS" AS type'),
-								'SIM.quantity','SIM.id AS itemid','SIM.unit_price','SIM.account_id AS item_code','SIM.item_description AS description','SS.voucher_date','SS.description AS jdesc',
+								'SIM.quantity','SIM.unit_price','SIM.account_id AS item_code','SIM.item_description AS description','SS.voucher_date','SS.description AS jdesc',
 								DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
 								
 								
-				$qry9 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('purchasesplit_return_item AS PIM', function($join) {
-										$join->on('PIM.item_jobid','=','jobmaster.id');
-									} )
-								->join('purchasesplit_return AS PS', function($join) {
-										$join->on('PS.id','=','PIM.purchasesplit_return_id');
-									} )
-								->join('account_master AS AC', function($join) {
-									$join->on('AC.id','=','PS.supplier_id');
-								} )
-								->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-								->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$qry9->where('jobmaster.id', $job_id);
-					
-					if($date_from!='' && $date_to!='')
-						$qry9->whereBetween('PS.voucher_date', array($date_from, $date_to));
-					
-					
-   $qry9->select('jobmaster.id','jobmaster.code','jobmaster.code AS code','jobmaster.name AS jobname','PIM.item_total AS amount', //DB::raw('SUM(GI.net_amount) AS amount'),
-								'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',DB::raw('"PSR" AS type'),
-								'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date','PS.description AS jdesc',
-								DB::raw('"" AS reg_no'),DB::raw('"" AS chasis_no'), DB::raw('"" AS name'));
-					
-					
-				
 								
-					$results2 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry6)->union($qry7)->union($qry8)->union($qry9)->get();
+					$results2 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry6)->union($qry7)->union($qry8)->get();
 					
 					return array_merge($results1,$results2);
 	}
-	
-	
-	//JAN25...
-	public function getVehicleJobReportVoucherwise($attributes) {
-	
-		$date_from = ($attributes['date_from']!='')?date('Y-m-d', strtotime($attributes['date_from'])):'';
-		$date_to = ($attributes['date_to']!='')?date('Y-m-d', strtotime($attributes['date_to'])):'';
-		$job_id = isset($attributes['job_id'])?$attributes['job_id']:''; 
-		$customer_id = isset($attributes['customer_id'])?$attributes['customer_id']:''; 
-		$search_val = isset($attributes['search_val'])?$attributes['search_val']:''; 
-		
-		$qry1 = DB::table('jobmaster')->where('jobmaster.status', 1)
-							->leftjoin('purchase_split AS PS', function($join) {
-								$join->on('PS.job_id','=','jobmaster.id');
-							})
-							->join('purchase_split_item AS PIM', function($join) {
-								$join->on('PIM.purchase_split_id','=','PS.id');
-							})
-							->join('account_master AS AC', function($join) {
-								$join->on('AC.id','=','PIM.account_id');
-							} )
-							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
-				if($job_id)
-					$qry1->where('jobmaster.id', $job_id);
-				
-				if($date_from!='' && $date_to!='')
-					$qry1->whereBetween('PS.voucher_date', array($date_from, $date_to));
-				
-				$qry1->select('jobmaster.code','jobmaster.name AS jobname', //DB::raw('SUM(PI.net_amount) AS amount'),type
-							'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',
-							'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
-							'PS.description AS jdesc','AM.master_name AS customer',DB::raw('"PS" AS vtype '),
-							DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-							DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PIM.id AS rowid',DB::raw('"0" AS type'),
-							DB::raw('SUM(PIM.item_total) AS amount'))->groupBy('PS.voucher_no');
-							
-		$qry2 = DB::table('jobmaster')->where('jobmaster.status', 1)
-							->join('salessplit_return AS PS', function($join) {
-									$join->on('PS.job_id','=','jobmaster.id');
-								} )
-							->join('salessplit_return_item AS PIM', function($join) {
-									$join->on('PIM.salessplit_return_id','=','PS.id');
-								} )
-							->join('account_master AS AC', function($join) {
-								$join->on('AC.id','=','PIM.account_id');
-							} )
-							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
-				if($job_id)
-					$qry2->where('jobmaster.id', $job_id);
-				
-				if($date_from!='' && $date_to!='')
-					$qry2->whereBetween('PS.voucher_date', array($date_from, $date_to));
-				
-				$qry2->select('jobmaster.code','jobmaster.name AS jobname',DB::raw('"0" AS amount'), //DB::raw('SUM(PI.net_amount) AS amount'),
-							'AC.account_id','AC.master_name','AC.id AS acid','PS.voucher_no',
-							'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.account_id AS item_code','PIM.item_description AS description','PS.voucher_date',
-							'PS.description AS jdesc','AM.master_name AS customer',DB::raw('"PSR" AS vtype '),
-							DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-							DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PS.id AS rowid',DB::raw('"1" AS type'),
-							DB::raw('SUM(PIM.item_total) AS income'))->groupBy('PS.voucher_no');
-							
-				
-		$qry3 = DB::table('jobmaster')->where('jobmaster.status', 1)
-					->join('payment_voucher_entry AS PVE', function($join) {
-							$join->on('PVE.job_id','=','jobmaster.id');
-						} )
-					->join('payment_voucher AS PV', function($join) {
-							$join->on('PV.id','=','PVE.payment_voucher_id');
-						} )
-					->join('account_master AS AC', function($join) {
-						$join->on('AC.id','=','PVE.account_id');
-						} )
-					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-					->where('PVE.status', 1)
-					->where('PVE.entry_type','Dr')
-					->where('PVE.deleted_at', '0000-00-00 00:00:00');
-		if($job_id)
-			$qry3->where('jobmaster.id', $job_id);
-		
-		if($date_from!='' && $date_to!='')
-			$qry3->whereBetween('PV.voucher_date', array($date_from, $date_to));
-		
-		$qry3->select('jobmaster.code','jobmaster.name AS jobname',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
-					'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',
-					DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
-					'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer',DB::raw('"PV" AS vtype '),
-					DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PVE.id AS rowid',DB::raw('"0" AS type'))
-					->groupBy('PV.voucher_no');
-					
-		$qry4 = DB::table('jobmaster')->where('jobmaster.status', 1)
-					->join('petty_cash_entry AS PVE', function($join) {
-							$join->on('PVE.job_id','=','jobmaster.id');
-						} )
-					->join('petty_cash AS PV', function($join) {
-							$join->on('PV.id','=','PVE.petty_cash_id');
-						} )
-					->join('account_master AS AC', function($join) {
-						$join->on('AC.id','=','PVE.account_id');
-						})
-					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-					->where('PVE.status', 1)
-					->where('PVE.entry_type','Dr')
-					->where('PVE.deleted_at', '0000-00-00 00:00:00');
-		if($job_id)
-			$qry4->where('jobmaster.id', $job_id);
-		
-		if($date_from!='' && $date_to!='')
-			$qry4->whereBetween('PV.voucher_date', array($date_from, $date_to));
-		
-		$qry4->select('jobmaster.code','jobmaster.name AS jobname',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', //,
-					'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',
-					DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
-					'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer',DB::raw('"PC" AS vtype '),
-					DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PVE.id AS rowid',DB::raw('"0" AS type'))
-					->groupBy('PV.voucher_no');
-					
-		$qry5 = DB::table('jobmaster')->where('jobmaster.status', 1)
-					->join('journal_entry AS PVE', function($join) {
-							$join->on('PVE.job_id','=','jobmaster.id');
-						} )
-					->join('journal AS PV', function($join) {
-							$join->on('PV.id','=','PVE.journal_id');
-						} )
-					->join('account_master AS AC', function($join) {
-						$join->on('AC.id','=','PVE.account_id');
-						} )
-					->join('account_category', 'account_category.id', '=', 'AC.account_category_id')
-					->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-					->where('PVE.status', 1)->where('PVE.entry_type','Dr')->where('PVE.deleted_at', '0000-00-00 00:00:00');
-					//->where('account_category.parent_id',4);
-		if($job_id)
-			$qry5->where('jobmaster.id', $job_id);
-		
-		if($date_from!='' && $date_to!='')
-			$qry5->whereBetween('PV.voucher_date', array($date_from, $date_to));
-		
-		$qry5->select('jobmaster.code','jobmaster.name AS jobname',DB::raw('SUM(PVE.amount) AS amount'),//'PVE.amount AS amount',//'jobmaster.code','jobmaster.name', 
-					'jobmaster.incexp AS income','AC.account_id','AC.master_name','AC.id AS acid','PV.voucher_no',
-					DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),DB::raw('"" AS item_code'),DB::raw('"" AS description'),
-					'PV.voucher_date','PVE.description AS jdesc','AM.master_name AS customer',DB::raw('"JV" AS vtype '),
-					DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PVE.id AS rowid',DB::raw('"0" AS type'))
-					->groupBy('PV.voucher_no');
-					
-		$qry6 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('purchase_invoice AS PI', function($join) {
-										$join->on('PI.job_id','=','jobmaster.id');
-									} )
-								->join('purchase_invoice_item AS PIM', function($join) {
-										$join->on('PIM.purchase_invoice_id','=','PI.id');
-									} )
-								->join('account_master AS AC', function($join) {
-										$join->on('AC.id','=','PI.account_master_id');
-									} )
-								->join('itemmaster AS IM', function($join) {
-									$join->on('IM.id','=','PIM.item_id');
-								} )
-								->where('PI.status', 1)->where('PI.deleted_at', '0000-00-00 00:00:00')
-								->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$qry6->where('jobmaster.id', $job_id);
-					
-					if($date_from!='' && $date_to!='')
-						$qry6->whereBetween('PI.voucher_date', array($date_from, $date_to));
-					
-					$qry6->select('jobmaster.code','jobmaster.name AS jobname','PIM.total_price AS amount', //DB::raw('SUM(PI.net_amount) AS amount'),
-								'AC.account_id','AC.master_name','AC.id AS acid','PI.voucher_no',
-								'PIM.quantity','PIM.id AS itemid','PIM.unit_price','IM.item_code','IM.description','PI.voucher_date','PI.description AS jdesc',
-								'AC.master_name AS customer',
-								DB::raw('"PI" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'PIM.id AS rowid',DB::raw('"0" AS type'),
-					DB::raw('SUM(PIM.total_price) AS income'))->groupBy('PI.voucher_no');
-							
-		
-		$qry7 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('goods_issued AS GI', function($join) {
-										$join->on('GI.job_id','=','jobmaster.id');
-									} )
-								->join('goods_issued_item AS GIM', function($join) {
-										$join->on('GIM.goods_issued_id','=','GI.id');
-									} )
-								->join('account_master AS AC', function($join) {
-										$join->on('AC.id','=','GI.job_account_id');
-									} )
-								->join('itemmaster AS IM', function($join) {
-									$join->on('IM.id','=','GIM.item_id');
-								} )
-								->where('GI.status', 1)->where('GI.deleted_at', '0000-00-00 00:00:00')
-								->where('GIM.status', 1)->where('GIM.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$qry7->where('jobmaster.id', $job_id);
-					
-					if($date_from!='' && $date_to!='')
-						$qry7->whereBetween('GI.voucher_date', array($date_from, $date_to));
-					
-					$qry7->select('jobmaster.code','jobmaster.name AS jobname','GIM.total_price AS amount', 
-								'AC.account_id','AC.master_name','AC.id AS acid','GI.voucher_no',
-								'GIM.quantity','GIM.id AS itemid','GIM.unit_price','IM.item_code','IM.description','GI.voucher_date','GI.description AS jdesc',
-								'AC.master_name AS customer',
-								DB::raw('"GI" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), DB::raw('"" AS model'),'GIM.id AS rowid',DB::raw('"0" AS type'),
-					DB::raw('SUM(GIM.total_price) AS income'))->groupBy('GI.voucher_no');
-					
-		$results1 = $qry1->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry6)->union($qry7)->orderBy('voucher_date','ASC')->get();	//echo '<pre>';print_r($results1);exit;
-								
-		//GETTING JOB INVOICE.....		
-		$qry = DB::table('jobmaster')->where('jobmaster.status', 1)
-					->join('sales_invoice AS SI', function($join) {
-							$join->on('SI.job_id','=','jobmaster.id');
-						} )
-					->join('sales_invoice_item AS SIM', function($join) {
-							$join->on('SIM.sales_invoice_id','=','SI.id');
-						} )
-					->join('itemmaster AS IM', function($join) {
-							$join->on('IM.id','=','SIM.item_id');
-						} )
-					->join('account_master AS AC', function($join) {
-							$join->on('AC.id','=','SI.cr_account_id');//customer_id
-						} )
-					->leftjoin('vehicle AS V', function($join) {
-							$join->on('V.id','=','SI.vehicle_id');
-						} )
-					->leftjoin('sales_order AS JO', function($join) {
-							$join->on('JO.id','=','SI.document_id')->where('SI.document_type','=','SO');
-						} )
-					->where('SI.status', 1)->where('SI.deleted_at', '0000-00-00 00:00:00')//
-					->where('SIM.status', 1)->where('SIM.deleted_at', '0000-00-00 00:00:00');
-				
-		if($job_id)
-			$qry = $qry->where('jobmaster.id', $job_id);
-		
-		if($customer_id)
-			$qry = $qry->where('SI.customer_id', $customer_id);
-
-		if($date_from!='' && $date_to!='')
-			$qry = $qry->whereBetween('SI.voucher_date', array($date_from, $date_to));
-		
-		if($attributes['type']=='workshop') {
-		    
-		    $qry->where('SI.is_rental', 2);
-		    
-    		$qry->where(function($qry1) use($search_val) {
-    			$qry1->where('V.reg_no','LIKE',"%{$search_val}%")
-    				->orWhere('V.engine_no', 'LIKE',"%{$search_val}%")
-    				->orWhere('V.chasis_no','LIKE',"%{$search_val}%");
-    		});
-		}
-		
-		$qry->select('jobmaster.name AS jobname','SI.voucher_date','SI.voucher_no','IM.description','SIM.quantity','SIM.id AS itemid','SIM.unit_price','jobmaster.code','V.reg_no','V.engine_no','AC.id AS acid',
-					 DB::raw('"SI" AS vtype '),'V.chasis_no','AC.account_id','AC.master_name','V.name','V.model','jobmaster.incexp AS amount',
-									'JO.next_due','JO.present_km','JO.next_km',DB::raw('"1" AS type'),DB::raw('SUM(SIM.line_total) AS income'))->groupBy('SI.voucher_no');
-							 
-		
-		$qry2 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('goods_return AS GR', function($join) {
-										$join->on('GR.job_id','=','jobmaster.id');
-									} )
-								->join('goods_return_item AS GRM', function($join) {
-										$join->on('GRM.goods_return_id','=','GR.id');
-									} )
-								->join('account_master AS AC', function($join) {
-										$join->on('AC.id','=','GR.account_master_id');
-									} )
-								->join('itemmaster AS IM', function($join) {
-									$join->on('IM.id','=','GRM.item_id');
-								} )
-								->where('GRM.status', 1)->where('GRM.deleted_at', '0000-00-00 00:00:00')
-								->where('GR.status', 1)->where('GR.deleted_at', '0000-00-00 00:00:00');
-			if($job_id)
-				$qry2->where('jobmaster.id', $job_id);
-			
-			if($date_from!='' && $date_to!='')
-				$qry2->whereBetween('GR.voucher_date', array($date_from, $date_to));
-								
-		$qry2->select('jobmaster.name AS jobname','GR.voucher_date','GR.voucher_no','IM.description','GRM.quantity','GRM.id AS itemid','GRM.unit_price','jobmaster.code','GR.net_amount AS income',
-					  'AC.master_name','jobmaster.incexp AS amount','AC.id AS acid','AC.account_id',
-					  DB::raw('"GR" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
-					  DB::raw('"" AS model'),DB::raw('"1" AS type'))->groupBy('GR.id');
-									
-									
-		$qry3 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('journal_entry AS JE', function($join) {
-										$join->on('JE.job_id','=','jobmaster.id');
-									} )
-								->join('journal AS J', function($join) {
-										$join->on('J.id','=','JE.journal_id');
-									} )
-								->join('account_master AS AC', function($join) {
-										$join->on('AC.id','=','JE.account_id');
-									} )
-								->where('JE.status', 1)->where('J.voucher_type','JV')->where('JE.entry_type','Cr')->where('JE.deleted_at', '0000-00-00 00:00:00');
-			if($job_id)
-				$qry3->where('jobmaster.id', $job_id);
-			
-			if($date_from!='' && $date_to!='')
-				$qry3->whereBetween('J.voucher_date', array($date_from, $date_to));
-								
-			$qry3->select('jobmaster.name AS jobname','J.voucher_date','J.voucher_no','JE.description',DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'),DB::raw('"0" AS unit_price'),'jobmaster.code',
-						'jobmaster.incexp AS income','AC.master_name','JE.amount AS amount','AC.id AS acid','AC.account_id',
-					  DB::raw('"JV" AS vtype'),DB::raw('"" AS next_due'),DB::raw('"" AS next_km'),DB::raw('"" AS present_km'),
-					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
-					  DB::raw('"" AS model'),DB::raw('"1" AS type'))->groupBy('J.id');
-								
-		$qry4 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('receipt_voucher_entry AS RVE', function($join) {
-										$join->on('RVE.job_id','=','jobmaster.id');
-									} )
-								->join('receipt_voucher AS RV', function($join) {
-										$join->on('RV.id','=','RVE.receipt_voucher_id');
-									} )
-								->join('account_master AS AC', function($join) {
-										$join->on('AC.id','=','RVE.account_id');
-									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
-			if($job_id)
-				$qry4->where('jobmaster.id', $job_id);
-			
-			if($date_from!='' && $date_to!='')
-				$qry4->whereBetween('RV.voucher_date', array($date_from, $date_to));
-		
-			$qry4->select('jobmaster.name AS jobname','RV.voucher_date','RV.voucher_no','jobmaster.code','jobmaster.incexp AS income',
-						DB::raw('"0" AS quantity'),DB::raw('"" AS itemid'), DB::raw('"0" AS unit_price'),'RVE.description',
-					  'AC.master_name','RVE.amount AS amount','AC.id AS acid','AC.account_id',
-					  DB::raw('"RV" AS vtype '),DB::raw('"" AS next_due'),DB::raw('"" AS next_km'),DB::raw('"" AS present_km'),
-					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
-					  DB::raw('"" AS model'),DB::raw('"1" AS type'))->groupBy('RV.id');
-					  
-		$qry5 = DB::table('jobmaster')->where('jobmaster.status', 1)
-								->join('petty_cash_entry AS RVE', function($join) {
-										$join->on('RVE.job_id','=','jobmaster.id');
-									} )
-								->join('petty_cash AS RV', function($join) {
-										$join->on('RV.id','=','RVE.petty_cash_id');
-									} )
-								->join('account_master AS AC', function($join) {
-										$join->on('AC.id','=','RVE.account_id');
-									} )
-								->where('RVE.status', 1)->where('RVE.entry_type','Cr')->where('RVE.deleted_at', '0000-00-00 00:00:00');
-					if($job_id)
-						$qry5->where('jobmaster.id', $job_id);
-					
-					if($date_from!='' && $date_to!='')
-						$qry5->whereBetween('RV.voucher_date', array($date_from, $date_to));
-				
-								
-				$qry5->select('jobmaster.name AS jobname','RV.voucher_date','RV.voucher_no','jobmaster.code','jobmaster.incexp AS income',
-						DB::raw('"0" AS quantity'), DB::raw('"" AS itemid'),
-						DB::raw('"0" AS unit_price'),'RVE.description','AC.account_id',
-					  'AC.master_name','RVE.amount AS amount','AC.id AS acid',
-					  DB::raw('"PC" AS vtype '),DB::raw('"" AS next_due '),DB::raw('"" AS next_km '),DB::raw('"" AS present_km '),
-					  DB::raw('"" AS reg_no'), DB::raw('"" AS engine_no'), DB::raw('"" AS chasis_no'), DB::raw('"" AS name'), 
-					  DB::raw('"" AS model'),DB::raw('"0" AS type'))->groupBy('RV.id');
-					  
-			
-				$qry6 = DB::table('jobmaster')->where('jobmaster.status', 1)
-							->join('sales_split AS PS', function($join) {
-									$join->on('PS.job_id','=','jobmaster.id');
-								} )
-							->join('sales_split_item AS PIM', function($join) {
-									$join->on('PIM.sales_split_id','=','PS.id');
-								} )
-							->join('account_master AS AC', function($join) {
-								$join->on('AC.id','=','PIM.account_id');
-							} )
-							->leftjoin('vehicle AS V', function($join) {
-							       $join->on('V.id','=','PS.vehicle_id');
-							} )
-							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
-				if($job_id)
-					$qry6->where('jobmaster.id', $job_id);
-				
-				if($date_from!='' && $date_to!='')
-					$qry6->whereBetween('PS.voucher_date', array($date_from, $date_to));
-					
-					
-				$qry6->select('jobmaster.name AS jobname','PS.voucher_date','PS.voucher_no','jobmaster.code',DB::raw('SUM(PIM.item_total) AS income'), 
-							'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.item_description AS description','AC.account_id','AC.master_name','jobmaster.incexp AS amount','AC.id AS acid',
-							DB::raw('"SS" AS vtype'),DB::raw('"" AS next_due'),DB::raw('"" AS next_km'),DB::raw('"" AS present_km'),'V.reg_no',
-							 'V.engine_no','V.chasis_no', 'V.name','V.model',DB::raw('"1" AS type'))->groupBy('PS.voucher_no');
-							
-			$qry7= DB::table('jobmaster')->where('jobmaster.status', 1)
-							->join('purchasesplit_return AS PS', function($join) {
-									$join->on('PS.job_id','=','jobmaster.id');
-								} )
-							->join('purchasesplit_return_item AS PIM', function($join) {
-									$join->on('PIM.purchasesplit_return_id','=','PS.id');
-								} )
-							->join('account_master AS AC', function($join) {
-								$join->on('AC.id','=','PIM.account_id');
-							} )
-							
-							->leftJoin('account_master AS AM','AM.id', '=', 'jobmaster.customer_id' )
-							->where('PIM.status', 1)->where('PIM.deleted_at', '0000-00-00 00:00:00')
-							->where('PS.status', 1)->where('PS.deleted_at', '0000-00-00 00:00:00');
-				if($job_id)
-					$qry6->where('jobmaster.id', $job_id);
-				
-				if($date_from!='' && $date_to!='')
-					$qry6->whereBetween('PS.voucher_date', array($date_from, $date_to));
-					
-					
-				$qry6->select('jobmaster.name AS jobname','PS.voucher_date','PS.voucher_no','jobmaster.code',DB::raw('SUM(PIM.item_total) AS income'), 
-							'PIM.quantity','PIM.id AS itemid','PIM.unit_price','PIM.item_description AS description','AC.account_id','AC.master_name','jobmaster.incexp AS amount','AC.id AS acid',
-							DB::raw('"PSR" AS vtype'),DB::raw('"" AS next_due'),DB::raw('"" AS next_km'),DB::raw('"" AS present_km'),DB::raw('"" AS reg_no'),DB::raw('"" AS engine_no'),
-							 DB::raw('"" AS chasis_no'), DB::raw('"" AS name'),DB::raw('"" AS model'),DB::raw('"1" AS type'))->groupBy('PS.voucher_no');
-							
-			
-		$jobResults = $qry->union($qry2)->union($qry3)->union($qry4)->union($qry5)->union($qry6)->get();
-		
-		return array_merge($jobResults, $results1);
-		//echo '<pre>';print_r($ar);exit;
-		//return $jobResults;
-	}
-	
 }
-

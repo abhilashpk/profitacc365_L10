@@ -20,8 +20,8 @@
                                     <tbody>
 									@foreach($vehicles as $vehicle)
                                     <tr>
-                                        <td><a href="" class="vclRow" data-id="{{$vehicle->id}}" data-name="{{$vehicle->name}}" data-custid="{{$vehicle->cust_id}}" data-custname="{{$vehicle->master_name}}" data-regno="{{$vehicle->reg_no}}" data-issue="{{$vehicle->issue_plate}}" data-code="{{$vehicle->code_plate}}" data-chasis="{{$vehicle->chasis_no}}" data-make="{{$vehicle->make}}" data-model="{{$vehicle->model}}" data-dismiss="modal">{{$vehicle->reg_no}}</a></td>
-                                        <td><a href="" class="vclRow" data-id="{{$vehicle->id}}" data-name="{{$vehicle->name}}" data-custid="{{$vehicle->cust_id}}" data-custname="{{$vehicle->master_name}}" data-regno="{{$vehicle->reg_no}}" data-issue="{{$vehicle->issue_plate}}" data-code="{{$vehicle->code_plate}}" data-chasis="{{$vehicle->chasis_no}}" data-make="{{$vehicle->make}}" data-model="{{$vehicle->model}}" data-dismiss="modal">{{$vehicle->name}}</a></td>
+                                        <td><a href="" class="vclRow" data-id="{{$vehicle->id}}" data-name="{{$vehicle->name}}" data-regno="{{$vehicle->reg_no}}" data-plate="{{$vehicle->plate_type}}" data-color="{{$vehicle->color}}" data-chasis="{{$vehicle->chasis_no}}" data-engineno="{{$vehicle->engine_no}}" data-model="{{$vehicle->model}}" data-odometer="{{$vehicle->km_done}}" data-kmupdate="{{$vehicle->km_update}}" data-assignid="{{$vehicle->assign_id}}" data-year="{{$vehicle->year}}" data-acmeter="{{$vehicle->color_code}}" data-dismiss="modal">{{$vehicle->reg_no}}</a></td>
+                                        <td><a href="" class="vclRow" data-id="{{$vehicle->id}}" data-name="{{$vehicle->name}}" data-regno="{{$vehicle->reg_no}}" data-plate="{{$vehicle->plate_type}}" data-color="{{$vehicle->color}}" data-chasis="{{$vehicle->chasis_no}}" data-engineno="{{$vehicle->engine_no}}" data-model="{{$vehicle->model}}" data-odometer="{{$vehicle->km_done}}" data-kmupdate="{{$vehicle->km_update}}" data-assignid="{{$vehicle->assign_id}}" data-year="{{$vehicle->year}}" data-acmeter="{{$vehicle->color_code}}" data-dismiss="modal">{{$vehicle->name}}</a></td>
                                         <td>{{ $vehicle->issue_plate }}</td>
 										<td>{{ $vehicle->code_plate }}</td>
 										<td>{{ $vehicle->make }}</td>
@@ -81,7 +81,7 @@
 									<div class="form-group">
 										<label for="input-text" class="col-sm-5 control-label">Vehicle Name</label>
 										<div class="col-sm-7">
-											<input type="text" class="form-control" id="vehicle_name" name="vehicle_name" autocomplete="off" placeholder="Vehicle Name">
+											<input type="text" class="form-control" id="vehicle_name" name="vehicle_name" required autocomplete="off" placeholder="Vehicle Name">
 										</div>
 									</div>
 									
@@ -213,7 +213,12 @@ $(function() {
 				type: 'get',
 				data: 'customer_id='+ci+'&name='+vn+'&reg_no='+rn+'&make='+mk+'&engine_no='+en+'&chasis_no='+cn+'&owner='+ow+'&km_done='+km+'&model='+md+'&issue_plate='+ip+'&code_plate='+cp+'&color_code='+cc+'&plate_type='+ty,
 				success: function(data) { console.log(data);
-					if(data > 0) {
+				if(typeof data == 'object' && data.status == 'exists'){
+						$('#vehicleDtls').toggle();
+						  alert('Chasis No. already exists with customer: ' + data.customer);
+						  return false;
+					}
+					else if(data > 0) {
 						$('#sucessmsgV').toggle( function() {
 							$('#vehi').attr("data-id",data);
 							$('#vehi').attr("data-name",vn);
@@ -224,11 +229,7 @@ $(function() {
 							$('#vehi').attr("data-code",cp);
 							$('#vehi').attr("data-chasis",cn);
 						});
-					} else if(data == 0){
-						$('#vehicleDtls').toggle();
-						alert('Chasis No. already exist!');
-						return false;
-					} else {
+					}  else {
 						$('#vehicleDtls').toggle();
 						alert('Something went wrong, Vehicle failed to add!');
 						return false;

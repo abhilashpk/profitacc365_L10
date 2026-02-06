@@ -190,31 +190,31 @@ class ContractExpiryController extends Controller
 		
 	 	return $childs;
 	 }
-	public function getSearch()
+	public function getSearch(Request $request)
 	{
 		$data = array();
 		$voucher_head  = '';
 		$total=$spstotal=$dstotal=$cstotal=$pstotal=0;
 		$txtotal  = 0;
-		if(Input::get('search_type')=="expiry")
+		if($request->get('search_type')=="expiry")
 		{
 			$voucher_head = 'Expiry ';
-            $report = $this->getReport(Input::all());
+            $report = $this->getReport($request->all());
 			//$reports = $this->makeTreeexp($report);
 		    $titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 
 
 		}
-		else if(Input::get('search_type')=="buildingwise") {
+		else if($request->get('search_type')=="buildingwise") {
 			$voucher_head = 'Vacant Flats';
-			$reports = $this->getReportvacant(Input::all());
+			$reports = $this->getReportvacant($request->all());
 			//$reports = $this->getBuildingwise($reports);
 			$titles = ['main_head' => 'Account Enquiry','subhead' => $voucher_head ];
 
 
-		}else if(Input::get('search_type')=='tenantwise') {
+		}else if($request->get('search_type')=='tenantwise') {
 	        $voucher_head = 'DETAIL';
-			$report = $this->getReportrent(Input::all());
+			$report = $this->getReportrent($request->all());
 			$reports = $this->makeTreeSup($report);
 			// foreach($reports as $k => $row) {
 				
@@ -236,9 +236,9 @@ class ContractExpiryController extends Controller
 		return view('body.contractbuilding.expirylist')
 					->withReports($report)
 					->withVoucherhead($voucher_head)
-					->withType(Input::get('search_type'))
-					->withFromdate(Input::get('date_from'))
-					->withTodate(Input::get('date_to'))
+					->withType($request->get('search_type'))
+					->withFromdate($request->get('date_from'))
+					->withTodate($request->get('date_to'))
 					->withI(0)
 				//	->withTotal(($total='')?$total:'' )
 					//->withTxtotal($txtotal)

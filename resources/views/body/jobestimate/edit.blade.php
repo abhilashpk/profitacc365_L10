@@ -483,7 +483,7 @@
 									</tr>
 									</thead>
 								</table>
-								{{--*/ $i = 0; $num = count($orditems); /*--}}
+								@php $i = 0; $num = count($orditems); @endphp
 								<!-- ROWCHNG -->
 								
 								<input type="hidden" id="rowNum" value="{{($num==0)?$num+1:$num}}">
@@ -590,7 +590,7 @@
 								<?php $i++; } } else { $total=$vat_amount_net=$net_total='';?>
 								@if(count($orditems) > 0)
 								@foreach($orditems as $item)
-								{{--*/ $i++; /*--}}
+								@php $i++; @endphp
 									<?php if($orderrow->is_fc==1) {
 										 $unit_price = $item->unit_price / $orderrow->currency_rate;
 										 $line_total = $item->line_total / $orderrow->currency_rate;

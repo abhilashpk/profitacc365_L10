@@ -147,7 +147,7 @@ class AccountEnquiryController extends Controller
 				$nestedData['department'] = $row->department;
 				$nestedData['cl_balance'] = $row->cl_balance;
 				$nestedData['op_balance'] = $row->op_balance;
-				$nestedData['issued_qty'] = $row->issued_qty;
+				//$nestedData['issued_qty'] = $row->issued_qty;
 				$nestedData['view'] = "<p><button class='btn btn-primary btn-xs' onClick='location.href={$view}'>
 												<span class='glyphicon glyphicon-eye-open'></span></button></p>";
 												
@@ -1696,9 +1696,24 @@ class AccountEnquiryController extends Controller
 					$resultrow[$key] = $dat = $this->accountmaster->findDetails($transaction[0]['account_master_id']);
 					
 					if($dat->category=='PDCR' || $dat->category=='PDCI') {
-						$resultPdc[$key] = $this->accountmaster->getPDCs($dat);
+						 $osdat = $this->accountmaster->getPDCs($dat, $request->all());
+						 $resdat = null;
+						 foreach($osdat as $os) {
+
+							if($os->status==0) {
+								$resdat[] = $os;
+							} 
+
+							if($os->invoice_date > date('Y-m-d', strtotime($request->get('date_to')))) {
+								$resdat[] = $os;
+							} 
+						 }
+
+						 $resultPdc[$key] = $resdat;
 					}
+					
 				}
+
 				//echo '<pre>';print_r($resultPdc);exit;
 				/* $results = $this->accountmaster->getPrintViewByAccount($request->all());  
 				$transactions = $this->makeSummary($this->makeTree($results));
@@ -1733,8 +1748,22 @@ class AccountEnquiryController extends Controller
 					$resultrow[$key] = $dat = $this->accountmaster->findDetails($transaction[0]['account_master_id']);
 					
 					if($dat->category=='PDCR' || $dat->category=='PDCI') {
-						$resultPdc[$key] = $this->accountmaster->getPDCs($dat);
+						 $osdat = $this->accountmaster->getPDCs($dat, $request->all());
+						 $resdat = null;
+						 foreach($osdat as $os) {
+
+							if($os->status==0) {
+								$resdat[] = $os;
+							} 
+
+							if($os->invoice_date > date('Y-m-d', strtotime($request->get('date_to')))) {
+								$resdat[] = $os;
+							} 
+						 }
+
+						 $resultPdc[$key] = $resdat;
 					}
+					
 				}
 				
 			} else if($request->get('type')=='ageing_summary'){ //AGEING......	
@@ -1773,7 +1802,7 @@ class AccountEnquiryController extends Controller
 			//exit;
 			
 			//echo '<pre>';print_r($headarr);exit; 
-			//echo '<pre>';print_r($resultrow); 
+			//echo '<pre>';print_r($resultrow); exit;
 			//echo '<pre>';print_r($transactions);exit;
 			//echo '<pre>';print_r($opn_balnce);exit;
 			//echo '<pre>';print_r(Session::get('company'));exit;
@@ -2224,7 +2253,20 @@ class AccountEnquiryController extends Controller
 						$resultrow[$key] = $dat = $this->accountmaster->findDetails($report[0]['account_master_id']);
 						
 						if($dat->category=='PDCR' || $dat->category=='PDCI') {
-							$resultPdc[$key] = $this->accountmaster->getPDCs($dat);
+							$osdat = $this->accountmaster->getPDCs($dat, $request->all());
+							$resdat = null;
+							foreach($osdat as $os) {
+
+								if($os->status==0) {
+									$resdat[] = $os;
+								} 
+
+								if($os->invoice_date > date('Y-m-d', strtotime($request->get('date_to')))) {
+									$resdat[] = $os;
+								} 
+							}
+
+							$resultPdc[$key] = $resdat;
 						}
 					}
 					
@@ -4166,7 +4208,20 @@ public function dataSend(Request $request)
 						$resultrow[$key] = $dat = $this->accountmaster->findDetails($report[0]['account_master_id']);
 						
 						if($dat->category=='PDCR' || $dat->category=='PDCI') {
-							$resultPdc[$key] = $this->accountmaster->getPDCs($dat);
+							$osdat = $this->accountmaster->getPDCs($dat, $request->all());
+							$resdat = null;
+							foreach($osdat as $os) {
+
+								if($os->status==0) {
+									$resdat[] = $os;
+								} 
+
+								if($os->invoice_date > date('Y-m-d', strtotime($request->get('date_to')))) {
+									$resdat[] = $os;
+								} 
+							}
+
+							$resultPdc[$key] = $resdat;
 						}
 					}
 					//echo '<pre>';print_r($resultrow);exit;

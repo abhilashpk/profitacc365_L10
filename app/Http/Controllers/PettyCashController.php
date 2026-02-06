@@ -706,8 +706,8 @@ class PettyCashController extends Controller
 		}
 
 		
-		$cashac = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CASH')->select('id','master_name','category')->first();
-		$cash = DB::table('account_master')->where('status',1)->where('deleted_at','0000-00-00 00:00:00')->where('category','CASH')->select('id','account_id','master_name')->get();
+		$cashac = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CASH')->select('id','master_name','category')->first();
+		$cash = DB::table('account_master')->where('status',1)->whereNull('deleted_at')->where('category','CASH')->select('id','account_id','master_name')->get();
 		$banks = $this->bank->activeBankList();
 		
 		$prints = DB::table('report_view_detail')

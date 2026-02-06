@@ -155,8 +155,8 @@ class JobmasterController extends Controller
 					->withData($data);
 	}
 	
-	public function save() {
-		$document=  $this->jobmaster->create(Input::all());
+	public function save(Request $request) {
+		$document=  $this->jobmaster->create($request->all());
 		$jid=$document["id"];
 
 		if ($document["document_type"]=="0") {
@@ -205,10 +205,10 @@ class JobmasterController extends Controller
 		->withJobs($jobs)
 		->withData($data);
 	}
-	public function budgetsave() {
+	public function budgetsave(Request $request) {
                   
-	//	echo '<pre>';print_r(Input::all());exit;
-		$budget_document=  $this->jobmaster->budgetcreate(Input::all());
+	//	echo '<pre>';print_r($request->all());exit;
+		$budget_document=  $this->jobmaster->budgetcreate($request->all());
 		
 		
 		Session::flash('message', 'Project Budgeting added successfully.');
@@ -259,9 +259,9 @@ $prints = DB::table('report_view_detail')
 	}
 	
 		
-		public function updatebudget($id)
+		public function updatebudget(Request $request, $id)
 	{
-		$document= $this->jobmaster->updatebudget($id, Input::all());//print_r(Input::all());exit;
+		$document= $this->jobmaster->updatebudget($id, $request->all());//print_r($request->all());exit;
 		
 	
 		Session::flash('message', 'budget updated successfully.');
@@ -430,9 +430,9 @@ $prints = DB::table('report_view_detail')
 					
 					->withData($data);
 	}
-	public function update($id)
+	public function update(Request $request, $id)
 	{
-		$document= $this->jobmaster->update($id, Input::all());//print_r(Input::all());exit;
+		$document= $this->jobmaster->update($id, $request->all());//print_r($request->all());exit;
 		
 		$jid=$document["id"];
 		$cid=$document["cid"];
@@ -477,34 +477,38 @@ $prints = DB::table('report_view_detail')
 	 {
 		
 			
-		
+		$status = $this->jobmaster->check_job($id);
+		if($status) {
 	 	$this->jobmaster->delete($id);
 	// 	//check jobmaster name is already in use.........
 	// 	// code here ********************************
 	 	Session::flash('message', 'Jobmaster deleted successfully.');
+		}
+		else
+		Session::flash('message', 'Jobmaster is already in use, you can\'t delete this!');
 	 	return redirect('jobmaster');
 	 }
-	public function checkjobcode($id) {
+	public function checkjobcode(Request $request, $id) {
 
-		$check = $this->jobmaster->check_jobmaster_code(Input::get('code'), Input::get('id')); //
+		$check = $this->jobmaster->check_jobmaster_code($request->get('code'), $request->get('id')); //
 		echo '<pre>';print_r($check);
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
 						));
 	}
-	public function checkcode() {
+	public function checkcode(Request $request) {
 
-		$check = $this->jobmaster->check_jobmaster_code(Input::get('code'), Input::get('id')); //echo '<pre>';print_r($check);
+		$check = $this->jobmaster->check_jobmaster_code($request->get('code'), $request->get('id')); //echo '<pre>';print_r($check);
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
 						));
 	}
 	
-	public function checkname() {
+	public function checkname(Request $request) {
 
-		$check = $this->jobmaster->check_jobmaster_name(Input::get('jobname'), Input::get('id'));
+		$check = $this->jobmaster->check_jobmaster_name($request->get('jobname'), $request->get('id'));
 		$isAvailable = ($check) ? false : true;
 		echo json_encode(array(
 							'valid' => $isAvailable,
@@ -515,12 +519,9 @@ $prints = DB::table('report_view_detail')
 	{
 		$data = array();
 		$jobs = $this->jobmaster->activeJobmasterList();//echo '<pre>';print_r($jobs);exit;
-		 
-		$customers = $this->accountmaster->getCustomerList();
 		return view('body.jobmaster.jobs')
 					->withJobs($jobs)
 					->withNum($num)
-					->withCustomers($customers)
 					->withData($data);
 	}
 	
@@ -528,8 +529,8 @@ $prints = DB::table('report_view_detail')
 	{
 		$data = array();
 		
-	 
-			$customers = $this->accountmaster->getCustomerList();
+		$customers =DB::table('account_master')->where('account_master.status',1)->where('account_master.category','CUSTOMER')->select('account_master.id','account_master.master_name')->get(); 
+		
 		$jobs = $this->jobmaster->activeJobmasterList();//echo '<pre>';print_r($customer);exit;
 		return view('body.jobmaster.jobbs')
 					->withJobs($jobs)
@@ -547,11 +548,10 @@ $prints = DB::table('report_view_detail')
 					->withNo($no)
 					->withData($data);
 	}
-	public function ajaxSave() {
+	public function ajaxSave(Request $request) {
 		
-		$as = $this->jobmaster->ajaxCreate(Input::all());
+		$as = $this->jobmaster->ajaxCreate($request->all());
 		return $as;
 			
 	}
 }
-

@@ -261,45 +261,45 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-2 control-label">{{($heads['prepaid_income']!='')?$heads['prepaid_income']:'Prepaid Income A/c.'}}</label>
 												<div class="col-sm-6">
-													<input type="text" class="form-control preincome" id="acname_1" name="acname[]" value="{{($acrow[0])?$acrow[0]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
-													<input type="hidden" id="acid_1" name="acid[]" value="{{($acrow[0])?$acrow[0]->account_id:''}}">
+													<input type="text" class="form-control preincome" id="acname_1" name="acname[]" value="{{ isset($acrow[0]) ? $acrow[0]->acname : '' }}" data-toggle="modal" data-target="#ac_modal" readonly>
+													<input type="hidden" id="acid_1" name="acid[]" value="{{ isset($acrow[0]) ? $acrow[0]->account_id : '' }}">
 												</div>
 												<div class="col-sm-2">
-													<input type="number" class="form-control txtAmt" id="acamt_1" step="any" name="acamount[]" value="{{($acrow[0])?$acrow[0]->amount:''}}" placeholder="Amount">
+													<input type="number" class="form-control txtAmt" id="acamt_1" step="any" name="acamount[]" value="{{ isset($acrow[0]) ? $acrow[0]->amount : '' }}" placeholder="Amount">
 												</div>
 												<div class="col-sm-2">
-													<input type="number" class="form-control txtPer" id="actax_1" step="any" name="actax[]" value="{{($acrow[0])?$acrow[0]->tax_amount:''}}" placeholder="Tax">
-													<input type="hidden" id="istx_1" value="{{($acrow[0])?$acrow[0]->pi_tax:''}}">
+													<input type="number" class="form-control txtPer" id="actax_1" step="any" name="actax[]" value="{{ isset($acrow[0]) ? $acrow[0]->tax_amount : '' }}" placeholder="Tax">
+													<input type="hidden" id="istx_1" value="{{ isset($acrow[0]) ? $acrow[0]->pi_tax : '' }}">
 												</div>
 											</div>
 											
 											<div class="form-group">
 												<label for="input-text" class="col-sm-2 control-label">{{($heads['deposit']!='')?$heads['deposit']:'>Deposit A/c'}}</label>
 												<div class="col-sm-6">
-													<input type="text" class="form-control" id="acname_2" name="acname[]" value="{{($acrow[1])?$acrow[1]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
-													<input type="hidden" id="acid_2" name="acid[]" value="{{($acrow[1])?$acrow[1]->account_id:''}}">
+													<input type="text" class="form-control" id="acname_2" name="acname[]" value="{{ isset($acrow[1]) ? $acrow[1]->acname : '' }}" data-toggle="modal" data-target="#ac_modal" readonly>
+													<input type="hidden" id="acid_2" name="acid[]" value="{{ isset($acrow[1]) ? $acrow[1]->account_id : '' }}">
 												</div>
 												<div class="col-sm-2">
-													<input type="number" class="form-control txtAmt" step="any" id="acamt_2" name="acamount[]" value="{{($acrow[1])?$acrow[1]->amount:''}}" placeholder="Amount">
+													<input type="number" class="form-control txtAmt" step="any" id="acamt_2" name="acamount[]" value="{{ isset($acrow[1]) ? $acrow[1]->amount : '' }}" placeholder="Amount">
 												</div>
 												<div class="col-sm-2">
-													<input type="number" class="form-control txtPer" step="any" id="actax_2" name="actax[]" value="{{($acrow[1])?$acrow[1]->tax_amount:''}}" placeholder="Tax">
-													<input type="hidden" id="istx_2" value="{{($acrow[1])?$acrow[1]->d_tax:''}}">
+													<input type="number" class="form-control txtPer" step="any" id="actax_2" name="actax[]" value="{{ isset($acrow[1]) ? $acrow[1]->tax_amount : '' }}" placeholder="Tax">
+													<input type="hidden" id="istx_2" value="{{ isset($acrow[1]) ? $acrow[1]->d_tax : '' }}">
 												</div>
 											</div>
 											
 											<div class="form-group">
 												<label for="input-text" class="col-sm-2 control-label">{{($heads['water_ecty']!='')?$heads['water_ecty']:'>Security Deposit A/c'}}</label>
 												<div class="col-sm-6">
-													<input type="text" class="form-control" id="acname_3" name="acname[]" value="{{($acrow[2])?$acrow[2]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
-													<input type="hidden" id="acid_3" name="acid[]" value="{{($acrow[2])?$acrow[2]->account_id:''}}">
+													<input type="text" class="form-control" id="acname_3" name="acname[]" value="{{ isset($acrow[2]) ? $acrow[2]->acname : '' }}" data-toggle="modal" data-target="#ac_modal" readonly>
+													<input type="hidden" id="acid_3" name="acid[]" value="{{ isset($acrow[2]) ? $acrow[2]->account_id : '' }}">
 												</div>
 												<div class="col-sm-2">
-													<input type="number" class="form-control txtAmt" step="any" id="acamt_3" name="acamount[]" value="{{($acrow[2])?$acrow[2]->amount:''}}" placeholder="Amount">
+													<input type="number" class="form-control txtAmt" step="any" id="acamt_3" name="acamount[]" value="{{ isset($acrow[2]) ? $acrow[2]->amount : '' }}" placeholder="Amount">
 												</div>
 												<div class="col-sm-2">
-													<input type="number" class="form-control txtPer" step="any" id="actax_3" name="actax[]" value="{{($acrow[2])?$acrow[2]->tax_amount:''}}" placeholder="Tax">
-													<input type="hidden" id="istx_3" value="{{($acrow[2])?$acrow[2]->we_tax:''}}">
+													<input type="number" class="form-control txtPer" step="any" id="actax_3" name="actax[]" value="{{ isset($acrow[2]) ? $acrow[2]->tax_amount : '' }}" placeholder="Tax">
+													<input type="hidden" id="istx_3" value="{{ isset($acrow[2]) ? $acrow[2]->we_tax : '' }}">
 												</div>
 											</div>
 											
@@ -599,7 +599,7 @@
 											</div>
 											<label for="input-text" class="col-sm-2 control-label">Installment</label>
 											<div class="col-sm-2">
-												<input type="number" class="form-control" id="installment" step="any" value="{{($rvs)?count($rvs)-1:''}}" name="installment">
+												<input type="number" class="form-control" id="installment" step="any" value="{{($rvs)?count($rvs)+1:''}}" name="installment">
 											</div>
 											<label for="input-text" class="col-sm-1 control-label"></label>
 											<div class="col-sm-3"><button type="button" class="btn btn-primary rvadd">Add</button></div>
@@ -972,7 +972,7 @@
 														</select>
 													</div>
 													<div class="col-xs-2" style="width:10%;">
-														<span class="small">Amount</span> <input type="number" id="drdamount_1" {{$rly}} placeholder="Amount" autocomplete="off" step="any" name="Damount[]" class="form-control">
+														<span class="small">Amount</span> <input type="number" id="drdamount_1" required {{$rly}} placeholder="Amount" autocomplete="off" step="any" name="Damount[]" class="form-control">
 													</div>
 													
 													<div class="col-xs-3" style="width:10%;">

@@ -295,6 +295,7 @@ Route::get('/dashboard/advsetting_delete/{id}', [DashboardController::class, 'ad
 Route::get('/dashboard/get_contract_expiry', [DashboardController::class, 'getContractExpiry']);
 Route::get('/dashboard/pv_approve/{id}', [DashboardController::class, 'pvApprove']);
 Route::get('/dashboard/approval_alert', [DashboardController::class, 'approvalAlert']);
+Route::get('/dashboard/get_building/{id}', [DashboardController::class, 'getBuilding']);
 		
 Route::get('/home', [HomeController::class, 'index']);
 		
@@ -2362,6 +2363,7 @@ Route::get('/contractbuilding/add', [ContractBuildingController::class, 'add']);
 Route::get('/contractbuilding/add/{id}', [ContractBuildingController::class, 'add']);
 Route::post('/contractbuilding/save', [ContractBuildingController::class, 'save']);
 
+Route::get('/contractbuilding/print-voucher/{id}/{rid}', [ContractBuildingController::class, 'print_voucher']);
 
 Route::get('/contractbuilding/oreceipt_add', [ContractBuildingController::class, 'ajaxoReceiptAdd']);
 Route::post('/contractbuilding/save_rentallo', [ContractBuildingController::class, 'saveRentAllocation']);
@@ -2433,6 +2435,7 @@ Route::get('/contractbuilding/getmessage/{id}', [ContractExpiryController::class
 Route::get('/manual_journal',[ManualJournalController::class, 'index']);
 Route::get('/manual_journal/add', [ManualJournalController::class, 'add']);
 Route::post('/manual_journal/save', [ManualJournalController::class, 'save']);
+Route::post('/manual_journal/paging', [ManualJournalController::class, 'ajaxPaging']);
 Route::get('/manual_journal/getvoucher/{id}',[ManualJournalController::class, 'getVoucher']);
 Route::get('/manual_journal/delete/{id}/{n}', [ManualJournalController::class, 'destroy']);
 Route::get('/manual_journal/getvouchertype/{id}', [ManualJournalController::class, 'getVoucherType']);
@@ -2442,8 +2445,9 @@ Route::get('/manual_journal/checkvchrno', [ManualJournalController::class, 'chec
 Route::get('/manual_journal/printgrp/{id}', [ManualJournalController::class, 'getPrintgrp']);
 Route::get('/manual_journal/print/{id}/{rid}', [ManualJournalController::class, 'getPrint']);
 Route::post('/manual_journal/add/{id}/{rid}/{vouchertype}', [ManualJournalController::class, 'add']);
-Route::post('/manual_journal/getvoucherprint}', [ManualJournalController::class, 'getVoucherprint']);
+Route::post('/manual_journal/getvoucherprint', [ManualJournalController::class, 'getVoucherprint']);
 Route::get('/manual_journal/set_transactions/{type}/{id}/{n}', [ManualJournalController::class, 'setTransactions']);
+
 
 
 

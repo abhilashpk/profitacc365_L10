@@ -170,7 +170,7 @@ class CustomerReceiptController extends Controller
 				}
 				$opts .= "<li role='presentation'><a href='{$printgrp}' target='_blank' role='menuitem'>Print Group</a></li>";
 				
-				if(in_array($row->doc_status, $apr))	 {							
+				/*if(in_array($row->doc_status, $apr))	 {							
 					if($row->is_fc==1) {
 						$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
 											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
@@ -182,9 +182,8 @@ class CustomerReceiptController extends Controller
 											</ul>
 										</div><a href='{}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a>";
 										
-						/* $nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a>
-												<a href='{$printfc}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a></p>"; */
-					} else {
+						
+					} else {*/
 						$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
 											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
 													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
@@ -195,11 +194,11 @@ class CustomerReceiptController extends Controller
 											</ul>
 										</div>";
 						//$nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";
-					}
+				/*	}
 					
 				} else {
 					$nestedData['print'] = '';
-				}
+				}*/
 						
                 $data[] = $nestedData;
 
@@ -367,7 +366,7 @@ class CustomerReceiptController extends Controller
 	
 	public function save(Request $request) { //echo '<pre>';print_r($request->all());exit;
 		
-		if( $this->validate(
+		$this->validate(
 			$request, 
 			['amount' => 'required',
 			 'customer_account' => 'required','customer_id' => 'required',
@@ -387,10 +386,7 @@ class CustomerReceiptController extends Controller
 			 //'line_amount.*' => 'Invoice assign amount is required.',
 			 'credit.same' => 'Debit and Credit amount should be equal.'
 			]
-		)) {
-
-			return redirect('customer_receipt/add')->withInput()->withErrors();
-		}
+		);
 		
 		/* $validator = Validator::make($request->all(), [
             'voucher_no' => 'required|max:255',
@@ -698,7 +694,7 @@ class CustomerReceiptController extends Controller
         $dir = 'desc';//$request->input('order.0.dir');
 		$search = (empty($request->input('search.value')))?null:$request->input('search.value');
         
-		$invoices = $this->receipt_voucher->CustomerReceiptList('get', $start, $limit, $order, $dir, $search);
+		$invoices = $this->receipt_voucher->CustomerReceiptList('get', $start, $limit, $order, $dir, $search);//echo '<pre>';print_r($invoices);exit;
 		
 		if($search)
 			$totalFiltered =  $this->receipt_voucher->CustomerReceiptList('count', $start, $limit, $order, $dir, $search);
@@ -753,7 +749,7 @@ class CustomerReceiptController extends Controller
 				}
 				$opts .= "<li role='presentation'><a href='{$printgrp}' target='_blank' role='menuitem'>Print Group</a></li>";
 				
-				if(in_array($row->doc_status, $apr))	 {							
+				/*if(in_array($row->doc_status, $apr))	 {							
 					if($row->is_fc==1) {
 						$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
 											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
@@ -765,9 +761,8 @@ class CustomerReceiptController extends Controller
 											</ul>
 										</div><a href='{}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a>";
 										
-						/* $nestedData['print'] = "<p><a href='{$print}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a>
-												<a href='{$printfc}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span>FC</a></p>"; */
-					} else {
+						
+					} else {*/
 						$nestedData['print'] = "<div class='btn-group drop_btn' role='group'>
 											<button type='button' class='btn btn-primary btn-xs dropdown-toggle m-r-50'
 													id='exampleIconDropdown1' data-toggle='dropdown' aria-expanded='false'>
@@ -777,12 +772,11 @@ class CustomerReceiptController extends Controller
 												".$opts."
 											</ul>
 										</div>";
-						/*$nestedData['print'] = "<p><a href='{$printgrp}' target='_blank' class='btn btn-primary btn-xs'><span class='fa fa-fw fa-print'></span></a></p>";*/
-					}
+				//	}
 					
-				} else {
+				/*} else {
 					$nestedData['print'] = '';
-				}
+				}*/
 						
                 $data[] = $nestedData;
 
@@ -867,7 +861,7 @@ class CustomerReceiptController extends Controller
 	
 	public function saverv(Request $request) {
 
-		echo '<pre>';print_r($request->all());exit;
+		/*echo '<pre>';print_r($request->all());exit;
 
 		// --- Validation Rules ---
        $rules = [
@@ -932,7 +926,7 @@ class CustomerReceiptController extends Controller
             return Redirect::back()
                 ->withErrors($validator)
                 ->withInput();
-        }
+        } */
 
 		//echo '<pre>';print_r($request->all());exit;
 

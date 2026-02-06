@@ -88,7 +88,7 @@
 										<th>Vehicle</th>
 										<th>Reg. No.</th>
 										<th>Chasis No.</th>
-										<th></th><th></th><th></th><th></th>
+										<th></th><th></th><th></th>
                                     </tr>
                                     </thead>
                                    
@@ -117,24 +117,19 @@
 										<input type="text" name="date_from" data-language='en' autocomplete="off" id="date_from" class="form-control input-sm">
 										<span>Date To:</span>
 										<input type="text" name="date_to" data-language='en' autocomplete="off" id="date_to" class="form-control input-sm">
-											<span>Job No:</span>
-										<select id="select21" class="form-control select2" multiple style="width:100%" name="job_id[]">
-											<option value="">Select Job No...</option>
-											@foreach($jobs as $job)
-												<option value="{{$job['id']}}">{{$job['code']}}</option>
-											@endforeach
-										</select>
 									</div>
 									<div class="col-xs-6">
 										<span>Search By:</span>
 										<select id="search_type" class="form-control select2" style="width:100%" name="search_type">
 											<option value="summary">Summary</option>
+											<option value="summary_pending">Summary(Pending Estimate)</option>
 											<option value="detail">Detail</option>
-											<!--<option value="summary_pending">Summary(Pending Estimate)</option>
-											
 											<option value="detail_pending">Detail(Pending Estimate)</option>
-											<option value="qty_report">Quantity Report</option>-->
+											<option value="qty_report">Quantity Report</option>
 										</select>
+										<span>Vehicle No:</span>
+										<input type="text" name="vehicle_no" autocomplete="off" id="vehicle_no" class="form-control" data-toggle="modal" data-target="#vehicle_modal">
+									<div class="col-xs-4" style="border:0px solid red;">	
 										<span>Technician</span>
 										<select id="select22" class="form-control select2" style="width:100%" name="salesman">
 											<option value="">--Select Technician--</option>
@@ -142,6 +137,8 @@
 											<option value="{{$row->id}}">{{$row->name}}</option>
 											@endforeach
 										</select>
+										</div>
+										<div class="col-xs-4" style="border:0px solid red;">
 										<span>Customer</span>
 										<select id="select23" class="form-control select2"  style="width:100%" name="customer_id">
 											<option value="">Select customer...</option>
@@ -149,8 +146,8 @@
 												<option value="{{$row->id}}">{{$row->master_name}}</option>
 											@endforeach
 										</select>
+										</div>
 										<br/>
-										<input type="checkbox" name="pending" value="1"> Pending
 										<div class="col-xs-12" align="right"> <button type="submit" class="btn btn-primary">Search</button></div>
 									</div>
 								</div>
@@ -159,6 +156,22 @@
 			</div>
 			</div>
 			</form>
+				<div id="vehicle_modal" class="modal fade animated" role="dialog">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<button type="button" class="close" data-dismiss="modal">&times;</button>
+							<h4 class="modal-title">Select Vehicle</h4>
+						</div> <input type="hidden" id="cust_id">
+						<div class="modal-body" id="vehicleData">
+							Please select a Customer first!
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+						</div>
+					</div>
+				</div>
+			</div>
 		</section>
 @stop
 
@@ -167,7 +180,16 @@
 
     <!-- begining of page level js -->
 
-<script src="{{asset('assets/vendors/bootstrap-multiselect/js/bootstrap-multiselect.js')}}" type="text/javascript"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/bootstrapvalidator/js/bootstrapValidator.min.js')}}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/iCheck/js/icheck.js')}}"></script>
+<script type="text/javascript" src="{{asset('assets/vendors/bootstrap-fileinput/js/fileinput.min.js')}}"></script>
+
+<script src="{{asset('assets/vendors/mark.js/jquery.mark.js')}}" charset="UTF-8"></script>
+<script src="{{asset('assets/vendors/datatablesmark.js/js/datatables.mark.min.js')}}" charset="UTF-8"></script>
+<script src="{{asset('assets/js/custom_js/responsive_datatables.js')}}" type="text/javascript"></script>
+
+<script type="text/javascript" src="{{asset('assets/vendors/custom_js/form_elements.js')}}"></script>
+<script src="{{asset('assets/vendors/select2/js/select2.js')}}" type="text/javascript"></script>
 
 <script type="text/javascript" src="{{asset('assets/vendors/datatables/js/jquery.dataTables.js') }}"></script>
 <script type="text/javascript" src="{{asset('assets/vendors/datatables/js/dataTables.bootstrap.js') }}"></script>
@@ -184,14 +206,13 @@
 <script src="{{asset('assets/vendors/mark.js/jquery.mark.js')}}" charset="UTF-8"></script>
 <script src="{{asset('assets/vendors/datatablesmark.js/js/datatables.mark.min.js')}}" charset="UTF-8"></script>
 <script src="{{asset('assets/js/custom_js/responsive_datatables.js')}}" type="text/javascript"></script>
+<!-- end of page level js -->
 
 <script src="{{asset('assets/vendors/datetime/js/jquery.datetimepicker.full.min.js')}}" type="text/javascript"></script>
 <script src="{{asset('assets/vendors/airdatepicker/js/datepicker.min.js')}}" type="text/javascript"></script>
 <script src="{{asset('assets/vendors/airdatepicker/js/datepicker.en.js')}}" type="text/javascript"></script>
 <script src="{{asset('assets/js/custom_js/advanceddate_pickers.js')}}"></script>
-<script src="{{asset('assets/js/custom_js/custom_elements.js')}}" type="text/javascript"></script>
 
-<script src="{{asset('assets/vendors/select2/js/select2.js')}}" type="text/javascript"></script>
 
 <script>
 
@@ -208,22 +229,18 @@ $("#select23").select2({
         theme: "bootstrap",
         placeholder: "Customer"
     });
-    $("#select21").select2({
-        theme: "bootstrap",
-        placeholder: "Job No:"
-    });
 	 
 });
 
 function funDelete(id,no) {
-	if(no=='0') {
+	//if(no=='0') {
 		var con = confirm('Are you sure delete this estimate?');
 		if(con==true) {
 			var url = "{{ url('job_estimate/delete/') }}";
 			location.href = url+'/'+id;
 		}
-	} else 
-		alert('This estimate is processed, you cannot edit or delete');
+	/*} else 
+		alert('This estimate is processed, you cannot edit or delete');*/
 }
 
 $(function() {
@@ -245,27 +262,23 @@ $(function() {
 			{ "data": "vehicle" },
 			{ "data": "reg_no" },
 			{ "data": "chasis_no" },
-			@can('qs-edit'){ "data": "edit","bSortable": false },@endcan
-			@can('qs-print'){ "data": "print","bSortable": false },@endcan
-			@can('qs-view'){ "data": "view","bSortable": false },@endcan
-			@can('qs-delete'){ "data": "delete","bSortable": false },@endcan
+			@can('pi-edit'){ "data": "edit","bSortable": false },@endcan
+			@can('pi-print'){ "data": "print","bSortable": false },@endcan
+			@can('pi-delete'){ "data": "delete","bSortable": false },@endcan
 		]	
 		  
 		});
-		$('#select23').on('change', function(e){
-			     var cust_id = $('#select23').val();
-			    console.log(cust_id);
-			     if(cust_id !=''){
-			    $.get("{{ url('quotation_sales/getjob/') }}/" + cust_id, function(data) {
-				$('#select21').find('option').remove().end();
-				$.each(data, function(key, value) {   
-				$('#select21').find('option').end()
-				 .append($("<option></option>")
-							.attr("value",value.id)
-							.text(value.code)); 
-			  });
-			});
-			    }
+		
+			var vclurl = "{{ url('job_order/all_vehicle/') }}"
+		$('#vehicle_no').click(function() { 
+				$('#vehicleData').load(vclurl, function(result) {
+					$('#myModal').modal({show:true});
+				});
+		});
+		
+		$(document).on('click', '.vclRow', function(e) {
+			$('#vehicle_no').val($(this).attr("data-regno"));
+			e.preventDefault();
 		});
 });
 

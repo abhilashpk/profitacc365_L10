@@ -553,7 +553,7 @@ class QuotationSalesRepository extends AbstractValidator implements QuotationSal
 
 				$maxNumeric = $qry->select(DB::raw("MAX(CAST(REGEXP_REPLACE(voucher_no, '[^0-9]', '') AS UNSIGNED)) AS max_no"))->value('max_no');
 				
-				$attributes['voucher_no'] = $this->objUtility->generateVoucherNoDoc('QS', $maxNumeric, $dept, $attributes['voucher_no']);
+				$attributes['voucher_no'] = $this->objUtility->generateVoucherNoDoc($attributes['doctype'], $maxNumeric, $dept, $attributes['voucher_no']);
 				//VOUCHER NO LOGIC.....................
 				
 				//exit;
@@ -590,7 +590,7 @@ class QuotationSalesRepository extends AbstractValidator implements QuotationSal
 
 							$maxNumeric = $qry->select(DB::raw("MAX(CAST(REGEXP_REPLACE(voucher_no, '[^0-9]', '') AS UNSIGNED)) AS max_no"))->value('max_no');
 							
-							$attributes['voucher_no'] = $this->objUtility->generateVoucherNoDoc('QS', $maxNumeric, $dept, $attributes['voucher_no']);
+							$attributes['voucher_no'] = $this->objUtility->generateVoucherNoDoc($attributes['doctype'], $maxNumeric, $dept, $attributes['voucher_no']);
 
 							$retryCount++;
 						} else {

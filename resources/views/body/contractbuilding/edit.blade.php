@@ -145,8 +145,8 @@
 												<div class="col-sm-4">
 													<input type="text" class="form-control" id="customer_account" value="{{($crow)?$crow->master_name:''}}" name="customer_account" autocomplete="off" data-toggle="modal" data-target="#customer_modal">
 													<input type="hidden" id="customer_id" name="customer_id" value="{{$crow->customer_id}}">
-													<input type="hidden" name="je_id[]" value="{{$jerow[0]->id}}">
-													<input type="hidden" name="jid" value="{{$jerow[0]->jid}}">
+													<input type="hidden" name="je_id[]" value="{{isset($jerow[0])?$jerow[0]->id:''}}">
+													<input type="hidden" name="jid" value="{{isset($jerow[0])?$jerow[0]->jid:''}}">
 												</div>
 												
 												<label for="input-text" class="col-sm-2 control-label">Flat</label>
@@ -262,9 +262,10 @@
 											<div class="form-group">
 												<label for="input-text" class="col-sm-3 control-label">{{($heads['prepaid_income']!='')?$heads['prepaid_income']:'Prepaid Income A/c.'}}</label>
 												<div class="col-sm-5">
-													<input type="text" class="form-control preincome" id="acname_1" name="acname[]" value="{{($acrow[0])?$acrow[0]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
-													<input type="hidden" id="acid_1" name="acid[]" value="{{($acrow[0])?$acrow[0]->account_id:''}}">
-													<input type="hidden" name="je_id[]" value="{{$jerow[1]->id}}">
+													<input type="text" class="form-control preincome" id="acname_1" name="acname[]" value="{{isset($acrow[0])?$acrow[0]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
+													@php $accountId = $acrow[0]->account_id ?? null; @endphp
+													<input type="hidden" id="acid_1" name="acid[]" value="{{ $accountId }}">
+													<input type="hidden" name="je_id[]" value="{{ $accountId && isset($jvrows[$accountId]) ? $jvrows[$accountId]['id'] : '' }}">
 													<input type="hidden" id="is_day" value="{{($crow)?$crow->is_day:''}}">
 												</div>
 												<div class="col-sm-2">
@@ -272,7 +273,7 @@
 												</div>
 												<div class="col-sm-2">
 													<input type="number" class="form-control txtPer" id="actax_1" step="any" name="actax[]" value="{{($acrow[0])?$acrow[0]->tax_amount:''}}" placeholder="Tax">
-													<input type="hidden" id="istx_1" value="{{($acrow[0])?$acrow[0]->pi_tax:''}}">
+													<input type="hidden" id="istx_1" value="{{isset($acrow[0])?$acrow[0]->pi_tax:''}}">
 												</div>
 											</div>
 											
@@ -280,8 +281,9 @@
 												<label for="input-text" class="col-sm-3 control-label">{{($heads['deposit']!='')?$heads['deposit']:'>Deposit A/c'}} @if($crow && $crow->renew_id!='')<input type="checkbox" {{ (isset($payacnts[1]) && $payacnts[1]->is_add==1) ? "checked" : "" }} name="check[{{($acrow[1])?$acrow[1]->account_id:''}}]" value="1"> @endif</label>
 												<div class="col-sm-5">
 													<input type="text" class="form-control" id="acname_2" name="acname[]" value="{{($acrow[1])?$acrow[1]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
-													<input type="hidden" id="acid_2" name="acid[]" value="{{($acrow[1])?$acrow[1]->account_id:''}}">
-													<input type="hidden" name="je_id[]" value="{{isset($jerow[2])?$jerow[2]->id:''}}">
+													@php $accountId = $acrow[1]->account_id ?? null; @endphp
+													<input type="hidden" id="acid_2" name="acid[]" value="{{ $accountId }}">
+													<input type="hidden" name="je_id[]" value="{{ $accountId && isset($jvrows[$accountId]) ? $jvrows[$accountId]['id'] : '' }}">
 												</div>
 												<div class="col-sm-2">
 													<input type="number" class="form-control txtAmt" step="any" id="acamt_2" name="acamount[]" value="{{($acrow[1])?$acrow[1]->amount:''}}" placeholder="Amount">
@@ -296,8 +298,9 @@
 												<label for="input-text" class="col-sm-3 control-label">{{($heads['water_ecty']!='')?$heads['water_ecty']:'>Security Deposit A/c'}} @if($crow && $crow->renew_id!='')<input type="checkbox" {{ (isset($payacnts[2]) && $payacnts[2]->is_add==1) ? "checked" : "" }} name="check[{{($acrow[2])?$acrow[2]->account_id:''}}]" value="1"> @endif</label>
 												<div class="col-sm-5">
 													<input type="text" class="form-control" id="acname_3" name="acname[]" value="{{($acrow[2])?$acrow[2]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
-													<input type="hidden" id="acid_3" name="acid[]" value="{{($acrow[2])?$acrow[2]->account_id:''}}">
-													<input type="hidden" name="je_id[]" value="{{isset($jerow[3])?$jerow[3]->id:''}}">
+													@php $accountId = $acrow[2]->account_id ?? null; @endphp
+													<input type="hidden" id="acid_3" name="acid[]" value="{{ $accountId }}">
+													<input type="hidden" name="je_id[]" value="{{ $accountId && isset($jvrows[$accountId]) ? $jvrows[$accountId]['id'] : '' }}">
 												</div>
 												<div class="col-sm-2">
 													<input type="number" class="form-control txtAmt" step="any" id="acamt_3" name="acamount[]" value="{{($acrow[2])?$acrow[2]->amount:''}}" placeholder="Amount">
@@ -312,8 +315,9 @@
 												<label for="input-text" class="col-sm-3 control-label">{{($heads['commission']!='')?$heads['commission']:'Commission'}} @if($crow && $crow->renew_id!='')<input type="checkbox" {{ (isset($payacnts[3]) && $payacnts[3]->is_add==1) ? "checked" : "" }} name="check[{{($acrow[3])?$acrow[3]->account_id:''}}]" value="1"> @endif</label>
 												<div class="col-sm-5">
 													<input type="text" class="form-control" id="acname_4" name="acname[]" value="{{($acrow[3])?$acrow[3]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
-													<input type="hidden" id="acid_4" name="acid[]" value="{{($acrow[3])?$acrow[3]->account_id:''}}">
-													<input type="hidden" name="je_id[]" value="{{isset($jerow[4])?$jerow[4]->id:''}}">
+													@php $accountId = $acrow[3]->account_id ?? null; @endphp
+													<input type="hidden" id="acid_4" name="acid[]" value="{{ $accountId }}">
+													<input type="hidden" name="je_id[]" value="{{ $accountId && isset($jvrows[$accountId]) ? $jvrows[$accountId]['id'] : '' }}">
 												</div>
 												<div class="col-sm-2">
 													<input type="number" class="form-control txtAmt" step="any" id="acamt_4" name="acamount[]" value="{{($acrow[3])?$acrow[3]->amount:''}}" placeholder="Amount">
@@ -328,8 +332,9 @@
 												<label for="input-text" class="col-sm-3 control-label">{{($heads['other_deposit']!='')?$heads['other_deposit']:'>Other Deposit A/c'}} @if($crow && $crow->renew_id!='')<input type="checkbox" {{ (isset($payacnts[4]) && $payacnts[4]->is_add==1) ? "checked" : "" }} name="check[{{($acrow[4])?$acrow[4]->account_id:''}}]" value="1"> @endif</label>
 												<div class="col-sm-5">
 													<input type="text" class="form-control" id="acname_5" name="acname[]" value="{{($acrow[4])?$acrow[4]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
-													<input type="hidden" id="acid_5" name="acid[]" value="{{($acrow[4])?$acrow[4]->account_id:''}}">
-													<input type="hidden" name="je_id[]" value="{{isset($jerow[5])?$jerow[5]->id:''}}">
+													@php $accountId = $acrow[4]->account_id ?? null; @endphp
+													<input type="hidden" id="acid_5" name="acid[]" value="{{ $accountId }}">
+													<input type="hidden" name="je_id[]" value="{{ $accountId && isset($jvrows[$accountId]) ? $jvrows[$accountId]['id'] : '' }}">
 												</div>
 												<div class="col-sm-2">
 													<input type="number" class="form-control txtAmt" step="any" id="acamt_5" name="acamount[]" value="{{($acrow[4])?$acrow[4]->amount:''}}" placeholder="Amount">
@@ -344,8 +349,9 @@
 												<label for="input-text" class="col-sm-3 control-label">{{($heads['parking']!='')?$heads['parking']:'Parking Amount A/c.'}} @if($crow && $crow->renew_id!='')<input type="checkbox" {{ (isset($payacnts[5]) && $payacnts[5]->is_add==1) ? "checked" : "" }} name="check[{{($acrow[5])?$acrow[5]->account_id:''}}]" value="1"> @endif</label>
 												<div class="col-sm-5">
 													<input type="text" class="form-control" id="acname_6" name="acname[]" value="{{($acrow[5])?$acrow[5]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
-													<input type="hidden" id="acid_6" name="acid[]" value="{{($acrow[5])?$acrow[5]->account_id:''}}">
-													<input type="hidden" name="je_id[]" value="{{isset($jerow[6])?$jerow[6]->id:''}}">
+													@php $accountId = $acrow[5]->account_id ?? null; @endphp
+													<input type="hidden" id="acid_6" name="acid[]" value="{{ $accountId }}">
+													<input type="hidden" name="je_id[]" value="{{ $accountId && isset($jvrows[$accountId]) ? $jvrows[$accountId]['id'] : '' }}">
 												</div>
 												<div class="col-sm-2">
 													<input type="number" class="form-control txtAmt" step="any" id="acamt_6" name="acamount[]" value="{{($acrow[5])?$acrow[5]->amount:''}}" placeholder="Amount">
@@ -360,8 +366,9 @@
 												<label for="input-text" class="col-sm-3 control-label">{{($heads['ejarie_fee']!='')?$heads['ejarie_fee']:'Ejarie Fee A/c'}} @if($crow && $crow->renew_id!='')<input type="checkbox" {{ (isset($payacnts[6]) && $payacnts[6]->is_add==1) ? "checked" : "" }} name="check[{{($acrow[6])?$acrow[6]->account_id:''}}]" value="1"> @endif</label>
 												<div class="col-sm-5">
 													<input type="text" class="form-control" id="acname_7" name="acname[]" value="{{($acrow[6])?$acrow[6]->acname:''}}" data-toggle="modal" data-target="#ac_modal" readonly>
-													<input type="hidden" id="acid_7" name="acid[]" value="{{($acrow[6])?$acrow[6]->account_id:''}}">
-													<input type="hidden" name="je_id[]" value="{{isset($jerow[7])?$jerow[7]->id:''}}">
+													@php $accountId = $acrow[6]->account_id ?? null; @endphp
+													<input type="hidden" id="acid_7" name="acid[]" value="{{ $accountId }}">
+													<input type="hidden" name="je_id[]" value="{{ $accountId && isset($jvrows[$accountId]) ? $jvrows[$accountId]['id'] : '' }}">
 												</div>
 												<div class="col-sm-2">
 													<input type="number" class="form-control txtAmt" step="any" id="acamt_7" name="acamount[]" value="{{($acrow[6])?$acrow[6]->amount:''}}" placeholder="Amount">
@@ -372,13 +379,14 @@
 												</div>
 											</div>
 											<!-- NOV26 -->
+											{{--
 											<input type="hidden" name="je_id[]" value="{{isset($jerow[8])?$jerow[8]->id:''}}">
 											<input type="hidden" name="je_id[]" value="{{isset($jerow[9])?$jerow[9]->id:''}}">
 											<input type="hidden" name="je_id[]" value="{{isset($jerow[10])?$jerow[10]->id:''}}">
 											<input type="hidden" name="je_id[]" value="{{isset($jerow[11])?$jerow[11]->id:''}}">
 											<input type="hidden" name="je_id[]" value="{{isset($jerow[12])?$jerow[12]->id:''}}">
 											<input type="hidden" name="je_id[]" value="{{isset($jerow[13])?$jerow[13]->id:''}}">
-											<input type="hidden" name="je_id[]" value="{{isset($jerow[14])?$jerow[14]->id:''}}">
+											<input type="hidden" name="je_id[]" value="{{isset($jerow[14])?$jerow[14]->id:''}}">--}}
 											<div class="form-group">
 												<label for="input-text" class="col-sm-8 control-label"><b>Total</b></label>
 												<div class="col-sm-4">
@@ -562,28 +570,37 @@
 										<div class="form-group">
 											<label for="input-text" class="col-sm-1 control-label">RV No.</label>
 											<div class="col-sm-2">
-												<input type="text" class="form-control" name="rv_no" id="rv_no" readonly value="{{($rvs)?$rvs[0]->voucher_no:$rvrow->voucher_no}}" >
+												<input type="text" class="form-control" name="rv_no" id="rv_no" readonly value="{{ optional($rvs->first())->voucher_no ?? $rvrow->voucher_no }}">
+
 											</div>
 											<label for="input-text" class="col-sm-2 control-label">RV Date</label>
 											<div class="col-sm-2">
-												<input type="text" class="form-control" name="rv_date" id="rv_date" value="{{($rvs)?date('d-m-Y',strtotime($rvs[0]->voucher_date)):date('d-m-Y')}}" autocomplete="off" data-language='en' readonly />
+												<input type="text" class="form-control" name="rv_date" id="rv_date" value="{{ optional($rvs->first())->voucher_date
+    ? date('d-m-Y', strtotime($rvs->first()->voucher_date))
+    : date('d-m-Y') }}
+" autocomplete="off" data-language='en' readonly />
 											</div>
 											<label for="input-text" class="col-sm-1 control-label">Tenant(Cr)</label>
 											<div class="col-sm-3">
 												<input type="text" class="form-control" name="tenant" id="tenant" readonly value="{{($crow)?$crow->master_name:''}}">
 												<input type="hidden" name="tenant_id" id="tenant_id" readonly value="{{($crow)?$crow->customer_id:''}}">
-												<input type="hidden" name="je_id[]" value="{{($rvs)?$rvs[0]->id:''}}">
+												<input type="hidden" name="je_id[]" value="{{ optional($rvs->first())->id ?? '' }}
+">
 											</div>											
 										</div>
 										
 										<div class="form-group">
 											<label for="input-text" class="col-sm-1 control-label">Amount</label>
 											<div class="col-sm-2">
-												<input type="number" class="form-control" id="rv_amount" step="any" name="rv_amount" placeholder="Amount" value="{{($rvs)?(($rvs[0]->amount==$crow->rent_amount)?$rvs[0]->amount:$crow->rent_amount):$crow->rent_amount}}">
+												<input type="number" class="form-control" id="rv_amount" step="any" name="rv_amount" placeholder="Amount" value="{{ optional($rvs->first())->amount == $crow->rent_amount
+        ? optional($rvs->first())->amount
+        : $crow->rent_amount }}
+">
 											</div>
 											<label for="input-text" class="col-sm-2 control-label">Installment</label>
 											<div class="col-sm-2">
-												<input type="number" class="form-control" id="installment" step="any" value="{{($rvs)?$rvs[0]->installment:''}}" name="installment">
+												<input type="number" class="form-control" id="installment" step="any" value="{{ optional($rvs->first())->installment }}
+" name="installment">
 											</div>
 											<label for="input-text" class="col-sm-1 control-label"></label>
 											<div class="col-sm-3"><button type="button" class="btn btn-primary rvadd">Add</button></div>

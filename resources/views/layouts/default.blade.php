@@ -119,16 +119,7 @@
                             <span class="mm-text ">Dashboard</span> 
                         </a>
                     </li>
-				@if(auth()->user()->can('ld-create'))
-				  @can('ld-list')
-                   <li {!! ( Request::is('leads') || Request::is('leads/*') ? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
-                        <a href="{{ URL::to('leads') }}">
-                        <i class="fa fa-fw fa-briefcase"></i>
-                            <span>Leads</span>
-                        </a>
-					</li>
-					@endcan
-				@endif
+			
               
                     @if(auth()->user()->can('ac-category-list') || auth()->user()->can('ac-group-list') || auth()->user()->can('ac-master-list') || auth()->user()->can('ac-enquiry-list') )
                     <li {!! ( Request::is('account') || Request::is('accategory/*') || Request::is('accategory') || Request::is('acgroup') || Request::is('acgroup/*') || Request::is('account_master') || Request::is('account_master/*') || Request::is('account_enquiry') || Request::is('account_enquiry/reconciliation') ? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
@@ -202,6 +193,8 @@
                             <span class="fa arrow"></span>
                         </a>
                         <ul class="sub-menu">
+                            {{--
+                            
 							@can('job-list')
 							<li {!! (Request::is('jobmaster') || Request::is('jobmaster/*') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('jobmaster') }}">
@@ -252,13 +245,7 @@
                             </li>
 							@endcan
 							
-							@can('bank-list')
-                            <li {!! (Request::is('bank') || Request::is('bank/*') ? 'class="active"' : '') !!}>
-                                <a href="{{ URL::to('bank') }}">
-                                    <i class="fa fa-fw fa-credit-card"></i> Bank
-                                </a>
-                            </li>
-                            @endcan
+						
 							
 							@can('crncy-list')
 							<li {!! (Request::is('currency') || Request::is('currency/*') ? 'class="active"' : '') !!}>
@@ -316,13 +303,7 @@
                             </li>
 							@endcan
 							
-							@can('vat-list')
-							<li {!! (Request::is('vat_master') || Request::is('vat_master/*') ? 'class="active"' : '') !!}>
-                                <a href="{{ URL::to('vat_master') }}">
-                                    <i class="fa fa-fw fa-sort-alpha-desc"></i> Vat Master
-                                </a>
-                            </li>
-							@endcan
+							
 							
 							@can('vehicle-list')
 							<li {!! (Request::is('vehicle') || Request::is('vehicle/*') ? 'class="active"' : '') !!}>
@@ -339,6 +320,7 @@
                                 </a>
                             </li>
 							@endcan
+							
                             @can('ppr-list')
 							<li {!! (Request::is('paper') || Request::is('paper/*') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('paper') }}">
@@ -347,21 +329,38 @@
                             </li>
                             @endcan
                             
-                                @can('ctyp-list')
-                                <li {!! (Request::is('contract_type') || Request::is('contract_type/*') ? 'class="active"' : '') !!}>
-                                    <a href="{{ URL::to('contract_type') }}">
-                                        <i class="fa fa-fw fa-bars"></i> Contract Type
-                                    </a>
-                                </li>
-                                @endcan
+                            @can('ctyp-list')
+                            <li {!! (Request::is('contract_type') || Request::is('contract_type/*') ? 'class="active"' : '') !!}>
+                                <a href="{{ URL::to('contract_type') }}">
+                                    <i class="fa fa-fw fa-bars"></i> Contract Type
+                                </a>
+                            </li>
+                            @endcan
 							
-                                @can('pm-list')
+                            @can('pm-list')
                             <li {!! (Request::is('package_master') || Request::is('package_master/*') ? 'class="active"' : '') !!}>
                                         <a href="{{ URL::to('package_master') }}">
                                             <i class="fa fa-fw fa-truck"></i> Package Master
                                         </a>
                                     </li>
                             @endcan  
+                            --}}
+                            
+                            @can('bank-list')
+                            <li {!! (Request::is('bank') || Request::is('bank/*') ? 'class="active"' : '') !!}>
+                                <a href="{{ URL::to('bank') }}">
+                                    <i class="fa fa-fw fa-credit-card"></i> Bank
+                                </a>
+                            </li>
+                            @endcan
+                            
+							@can('vat-list')
+							<li {!! (Request::is('vat_master') || Request::is('vat_master/*') ? 'class="active"' : '') !!}>
+                                <a href="{{ URL::to('vat_master') }}">
+                                    <i class="fa fa-fw fa-sort-alpha-desc"></i> Vat Master
+                                </a>
+                            </li>
+							@endcan
                             </ul>
                         </li>
                         @endif
@@ -452,10 +451,11 @@
                   </li> 
               	@endif
 
-
-                  @if(auth()->user()->can('bd-list') || auth()->user()->can('bd-list') )
+                {{--
+                  @if(auth()->user()->can('bd-list') || auth()->user()->can('bd-list') ) 
+                  --}}
 					
-                    <li {!! ( Request::is('manual_journal') || Request::is('manual_journal/*') || Request::is('contra_type') || Request::is('contra_type/*') ||  Request::is('buildingmaster') || Request::is('buildingmaster/*') || Request::is('manual_journal') || Request::is('manual_journal/*') ||  Request::is('flatmaster') || Request::is('flatmaster/*')||  Request::is('contractbuilding') || Request::is('contractbuilding/*')? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
+                    <li {!! ( Request::is('duration') || Request::is('duration/*') || Request::is('manual_journal') || Request::is('manual_journal/*') || Request::is('contra_type') || Request::is('contra_type/*') ||  Request::is('buildingmaster') || Request::is('buildingmaster/*') || Request::is('manual_journal') || Request::is('manual_journal/*') ||  Request::is('flatmaster') || Request::is('flatmaster/*')||  Request::is('contractbuilding') || Request::is('contractbuilding/*')? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
                         <a href="#">
                         <i class="fa fa-bookmark custom"></i> 
                             <span>&nbsp Real Estate</span>
@@ -463,7 +463,7 @@
                         </a>
                          
                         <ul class="sub-menu">
-                        @can('bd-list') 
+                        {{-- @can('bd-list')  --}}
                             <li {!! (Request::is('buildingmaster') || Request::is('buildingmaster/*') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('buildingmaster') }}">
                                     <i class="fa fa-fw fa-gift"></i> Building Master
@@ -501,7 +501,7 @@
                                     <i class="fa fa-fw fa-square"></i> Enquiry
                                 </a>
                             </li>
-                            <li {!! (Request::is('contractbuilding/expiry') ? 'class="active"' : '') !!}>
+                            {{-- <li {!! (Request::is('contractbuilding/expiry') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('contractbuilding/expiry') }}">
                                     <i class="fa fa-fw fa-square"></i> Contract Expiry
                                 </a>
@@ -511,7 +511,7 @@
                                 <a href="{{ URL::to('contractbuilding/history') }}">
                                     <i class="fa fa-fw fa-square"></i> History
                                 </a>
-                            </li>
+                            </li>--}}
 							
 							<li {!! (Request::is('contractbuilding/closed') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('contractbuilding/closed') }}">
@@ -519,16 +519,16 @@
                                 </a>
                             </li>
                           
-                            <li {!! (Request::is('manual_journal') || Request::is('manual_journal/*') ? 'class="active"' : '') !!}>
+                            {{--<li {!! (Request::is('manual_journal') || Request::is('manual_journal/*') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('manual_journal') }}">
                                 <i class="fa fa-fw fa-circle"></i> Manual Journal
                                 </a>
-                            </li>
-                            @endcan
+                            </li>--}}
+                            {{-- @endcan --}}
 
                         </ul>
                         </li>
-                    	@endif
+                    	{{-- @endif --}}
 
                          @if(auth()->user()->can('cce-list') || auth()->user()->can('cce-list') )
 					
@@ -906,7 +906,7 @@
 				 </li>
 				@endif				
                
-
+{{--
 	@if(auth()->user()->can('it-group-list') || auth()->user()->can('it-subgroup-list') || auth()->user()->can('it-category-list') || auth()->user()->can('it-subcategory-list') || auth()->user()->can('unit-list') || auth()->user()->can('item-list') || auth()->user()->can('item-enquiry-list') || auth()->user()->can('po-list') || auth()->user()->can('pi-list') || auth()->user()->can('pr-list') || auth()->user()->can('qs-list') || auth()->user()->can('so-list') ||auth()->user()->can('pfi-list') || auth()->user()->can('do-list') || auth()->user()->can('si-list') || auth()->user()->can('sr-list') || auth()->user()->can('gin-list') || auth()->user()->can('gr-list') || auth()->user()->can('jbe-list') || auth()->user()->can('jbo-list') || auth()->user()->can('jbi-list') || auth()->user()->can('loc-tran-list') || auth()->user()->can('stock-trin-list') || auth()->user()->can('stock-trout-list')|| auth()->user()->can('job-order-list')||auth()->user()->can('srl-list'))
                     <li {!! (Request::is('contract') || Request::is('contract/*') || Request::is('group') || Request::is('group/*') || Request::is('subgroup') || Request::is('subgroup/*') ||Request::is('proforma_invoice') || Request::is('proforma_invoice/*') || Request::is('category') || Request::is('category/*') || Request::is('unit') || Request::is('unit/*') || Request::is('subcategory') || Request::is('subcategory/*') || Request::is('itemmaster') || Request::is('itemmaster/*') || Request::is('purchase_order') || Request::is('purchase_order/*') || Request::is('quotation') || Request::is('quotation/*') || Request::is('suppliers_do') || Request::is('suppliers_do/*') || Request::is('purchase_invoice') || Request::is('purchase_invoice/*') || Request::is('purchase_return') || Request::is('purchase_return/*') || Request::is('sales_rental/*') || Request::is('sales_rental') || Request::is('quotation_sales/*') || Request::is('quotation_sales') || Request::is('quotation_rental/*') || Request::is('quotation_rental') || Request::is('sales_order/*') || Request::is('sales_order') ||  Request::is('customers_do') || Request::is('customers_do/*') || Request::is('sales_invoice') || Request::is('sales_invoice/*') || Request::is('sales_return/*') || Request::is('sales_return') || Request::is('itemenquiry') || Request::is('itemenquiry/*') || Request::is('goods_issued') || Request::is('goods_issued/*') || Request::is('goods_return') || Request::is('goods_return/*') || Request::is('job_estimate') || Request::is('job_estimate/*') || Request::is('job_order') || Request::is('job_order/*') || Request::is('job_invoice') || Request::is('job_invoice/*') || Request::is('location_transfer') || Request::is('location_transfer/*') || Request::is('stock_transferin/*') || Request::is('stock_transferin') || Request::is('stock_transferout/*') || Request::is('stock_transferout') || Request::is('customer_enquiry') || Request::is('customer_enquiry/*') || Request::is('production') || Request::is('production/*') || Request::is('manufacture') || Request::is('manufacture/*') || Request::is('material_requisition') || Request::is('material_requisition/*') ? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
                         <a href="#">
@@ -1239,7 +1239,7 @@
                         </ul>
                     </li>
 					@endif
-					
+				--}}	
 					@if(auth()->user()->can('jv-list') || auth()->user()->can('vp-list') || auth()->user()->can('vs-list') || auth()->user()->can('rv-list') || auth()->user()->can('pv-list') || auth()->user()->can('as-list') || auth()->user()->can('pc-list'))
 					<li {!! ( Request::is('contra_voucher') || Request::is('contra_voucher/*') || Request::is('credit_note') || Request::is('credit_note/*') || Request::is('customer_receipt') || Request::is('customer_receipt/*') ||Request::is('receipt_voucher') || Request::is('receipt_voucher/*') || Request::is('supplier_payment') || Request::is('supplier_payment/*') || Request::is('payment_voucher') || Request::is('payment_voucher/*') || Request::is('other_receipt') || Request::is('other_receipt/*') || Request::is('supplier_payment') || Request::is('supplier_payment/*') || Request::is('other_payment') || Request::is('other_payment/*') || Request::is('pdc_received') || Request::is('pdc_issued') || Request::is('journal') || Request::is('journal/*') || Request::is('pettycash') || Request::is('pettycash/*') || Request::is('advance_set') || Request::is('advance_set/*') || Request::is('purchase_voucher') || Request::is('purchase_voucher/*') || Request::is('sales_voucher') || Request::is('sales_voucher/*') || Request::is('pdc_received/*') || Request::is('pdc_issued/*')|| Request::is('purchase_split') || Request::is('purchase_split/*') || Request::is('sales_split') || Request::is('sales_split/*')? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
                         <a href="#">
@@ -1255,6 +1255,7 @@
                                     <i class="fa fa-fw fa-keyboard-o"></i> Vouchers Entry <span class="fa arrow"></span>
                                 </a>
 								<ul class="sub-menu sub-submenu">
+								    {{--
 									@can('jv-list')
 									<li {!! (Request::is('journal') || Request::is('journal/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('journal') }}">
@@ -1262,6 +1263,7 @@
 										</a>
 									</li>
 									@endcan
+									--}}
 										@can('rv-list')
 									<li {!! (Request::is('receipt_voucher') || Request::is('receipt_voucher/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('receipt_voucher') }}">
@@ -1277,7 +1279,7 @@
 										</a>
 									</li>
 									@endcan
-									
+									{{--
 									@can('vp-list')
 									<li {!! (Request::is('purchase_voucher') || Request::is('purchase_voucher/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('purchase_voucher') }}">
@@ -1293,7 +1295,7 @@
 										</a>
 									</li>
 									@endcan
-									
+									--}}
 									@can('rv-list')
 									<li {!! (Request::is('customer_receipt') || Request::is('customer_receipt/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('customer_receipt') }}">
@@ -1314,6 +1316,7 @@
 										</a>
 									</li>
 									@endcan
+									{{--
                                     	@can('cv-list')
                                     <li {!! (Request::is('contra_voucher') || Request::is('contra_voucher/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('contra_voucher') }}">
@@ -1328,6 +1331,7 @@
 										</a>
 									</li>
 									@endcan
+									--}}
 									<!-- <li {!! (Request::is('cheque_details') || Request::is('cheque_details/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('cheque_details') }}">
 											<i class="fa fa-fw fa-suitcase"></i> Print Cheque
@@ -1338,6 +1342,7 @@
 											<i class="fa fa-fw fa-money"></i> Other Payment
 										</a>
 									</li>-->
+									{{--
 									@can('as-list')
 									<li {!! (Request::is('advance_set') || Request::is('advance_set/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('advance_set/add') }}">
@@ -1345,7 +1350,7 @@
 										</a>
 									</li>
 									@endcan
-									
+									--}}
 									@can('pc-list')
 									<li {!! (Request::is('pettycash') || Request::is('pettycash/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('pettycash') }}">
@@ -1353,7 +1358,7 @@
 										</a>
 									</li>
 									@endcan
-									
+									{{--
 									@can('cn-list')
 									<li {!! (Request::is('credit_note') || Request::is('credit_note/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('credit_note') }}">
@@ -1395,14 +1400,14 @@
                                 </a>
                                </li>
 							   @endcan
-
-                                    @can('mjv-list')
+                                --}}
+                                   {{-- @can('mjv-list') --}}
                                     <li {!! (Request::is('manual_journal') || Request::is('manual_journal/*') ? 'class="active"' : '') !!}>
 										<a href="{{ URL::to('manual_journal') }}">
                                             <i class="fa fa-fw fa-folder-o"></i> Manual Journal
 										</a>
 									</li>
-                                    @endcan
+                                    {{-- @endcan --}}
 								</ul>
                             </li>
                         </ul>
@@ -1770,7 +1775,7 @@
                             <span class="fa arrow"></span>
                         </a>
                         <ul class="sub-menu">
-							
+							{{--
 							@can('rolem-list')
 							<li {!! (Request::is('roles') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('roles') }}">
@@ -1778,7 +1783,7 @@
                                 </a>
                             </li>
 							@endcan
-							
+							--}}
 							 @can('company-view') 
 							<li {!! (Request::is('company') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('company') }}">
@@ -1794,7 +1799,7 @@
                                 </a>
                             </li>
 							@endcan
-							
+							{{--
 							@can('oac-setting-update')
 							<li {!! (Request::is('other_account_setting')? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('other_account_setting') }}">
@@ -1810,7 +1815,7 @@
                                     </a>
                                 </li>
                                 @endcan
-
+--}}
 							@can('voucher-number')
 							<li {!! (Request::is('voucher_numbers')? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('voucher_numbers') }}">
@@ -1826,7 +1831,7 @@
                                 </a>
                             </li>
 							@endcan
-							
+							{{--
 							@can('utility')
 							<li {!! (Request::is('utilities') ? 'class="active"' : '') !!}>
                                 <a href="{{ URL::to('utilities') }}">
@@ -1871,6 +1876,7 @@
                                 </a>
                             </li>
 							@endcan
+							--}}
 							
 							@can('design-report')
                             @php $stimulsoft_v = config('app.stimulsoft_ver'); @endphp
@@ -1901,7 +1907,7 @@
                     </li>
                     @endif
 					
-					
+					{{--
 					@if(auth()->user()->can('emp-list') || auth()->user()->can('doc-list') || auth()->user()->can('ast-list'))
 					<li {!! ( Request::is('document_master') || Request::is('document_master/*') || Request::is('employee') ||Request::is('division/*') || Request::is('employee/*') || Request::is('assets_issued') || Request::is('assets_issued/*') || Request::is('document_report/*') || Request::is('employee_document') || Request::is('employee_document/*') || Request::is('employee_report') || Request::is('employee_report/*') ? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
                         <a href="#">
@@ -1975,8 +1981,9 @@
                         </ul>
                     </li>
 					@endif
+					--}}
 					
-					
+					{{--
 					@if(auth()->user()->can('wage-list') || auth()->user()->can('pay-roll-report') || auth()->user()->can('pay-slip'))
 					<li {!! ( Request::is('wage_entry') || Request::is('wage_entry/*') || Request::is('payroll_report') || Request::is('payroll_report/*') || Request::is('emp_report') || Request::is('emp_report/*') ? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
                         <a href="#">
@@ -2071,7 +2078,9 @@
                         </ul>
                     </li>
 					@endif
+					--}}
 					
+					{{--
 					@if(auth()->user()->can('user-list'))
 					<li {!! ( Request::is('users') || Request::is('users/*') ? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
                         <a href="#">
@@ -2090,7 +2099,9 @@
                         </ul>
                     </li>
                    @endif
+				   --}}
 				   
+				   {{--
 					@if(auth()->user()->can('data-backup') || auth()->user()->can('data-remove') || auth()->user()->can('items') || auth()->user()->can('cust-sup'))
 					<li {!! ( Request::is('backup') || Request::is('data-remove') || Request::is('importdata/*') ? 'class="menu-dropdown active"' : 'class="menu-dropdown"') !!}>
                         <a href="#">
@@ -2170,7 +2181,7 @@
                         </ul>
                     </li>
                    @endif
-					
+					--}}
                 </ul>
                 <!-- / .navigation -->
             </div>

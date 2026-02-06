@@ -103,7 +103,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 		$journalEntryTr->description    		= $attributes['description'][$key];
 		$journalEntryTr->reference    		= $attributes['reference'][$key];
 		$journalEntryTr->entry_type    		= $attributes['account_type'][$key];
-		$journalEntryTr->amount    		= $attributes['line_amount'][$key];
+		$journalEntryTr->amount = (float) $attributes['line_amount'][$key]; //$journalEntryTr->amount    		= $attributes['line_amount'][$key];
 		$journalEntryTr->job_id    		= isset($attributes['job_id'][$key])?$attributes['job_id'][$key]:'';
 		$journalEntryTr->department_id    		= isset($attributes['department'][$key])?$attributes['department'][$key]:'';
 		$journalEntryTr->cheque_no    		= isset($attributes['cheque_no'][$key])?$attributes['cheque_no'][$key]:'';
@@ -140,13 +140,13 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 	private function setAccountTransaction($attributes, $journal_id, $key)
 	{
 		
-		if($this->getVoucherType($attributes['voucher_type'])=='PIN'||$this->getVoucherType($attributes['voucher_type'])=='SIN') {
+	    if($this->getVoucherType($attributes['voucher_type'])=='PIN'||$this->getVoucherType($attributes['voucher_type'])=='SIN') {
 			$department = isset($attributes['department_id'])?$attributes['department_id']:'';
 		} else {
 			$department = isset($attributes['department'][$key])?$attributes['department'][$key]:'';
 		}
 		
-		DB::table('account_transaction')
+	        DB::table('account_transaction')
 				->insert([  'voucher_type' 		=> $this->getVoucherType($attributes['voucher_type']),//'JV',//journal entry
 						    'voucher_type_id'   => $journal_id,
 							'account_master_id' => $attributes['account_id'][$key],
@@ -163,7 +163,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 							'version_no'		=> $attributes['version_no']
 							]);
 		
-		return true;
+		return true; 
 	}
 	
 	private function setAccountTransactionUpdate($attributes, $journal_id, $key)
@@ -814,13 +814,19 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 				}
 				
 
-				$hasLineAmount = !empty($attributes['line_amount']) && collect($attributes['line_amount'])
-										->filter(fn($v) => is_numeric($v) && $v != 0)->isNotEmpty();
+				$hasLineAmount = isset($attributes['line_amount']) && is_array($attributes['line_amount']) && !empty(array_filter($attributes['line_amount'], function ($v) {
+                                    return is_numeric($v) && (float) $v != 0;
+                                }));
+
 				//transactions insert
 				//if($this->journal->id && !empty( array_filter($attributes['line_amount']))) {
 				if (!empty($this->journal->id) && $hasLineAmount) { 
 					$cr_amount = 0; $dr_amount = 0;
 					foreach($attributes['line_amount'] as $key => $value) { //echo $attributes['account_id'][$key];exit;
+					
+					    if (empty($attributes['account_id'][$key]) || !is_numeric($value) || (float) $value == 0 ) {
+                            continue;
+                        }
 						
 						if($attributes['account_id'][$key] !='') {
 							
@@ -1251,20 +1257,32 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 		
 		DB::beginTransaction();
 		try {
+		    
+		    $hasLineAmount = isset($attributes['line_amount']) && is_array($attributes['line_amount']) && !empty(array_filter($attributes['line_amount'], function ($v) {
+                                    return is_numeric($v) && (float) $v != 0;
+                                }));
+
+				//transactions insert
+				//if($this->journal->id && !empty( array_filter($attributes['line_amount']))) {
+			if (!empty($this->journal->id) && $hasLineAmount) { 
 			
-			if($this->journal->id && !empty( array_filter($attributes['line_amount']))) {
+			        //if($this->journal->id && !empty( array_filter($attributes['line_amount']))) {
 				$cr_amount = 0; $dr_amount = 0;
 				foreach($attributes['line_amount'] as $key => $value) {
+				    
+				    if (empty($attributes['account_id'][$key]) || !is_numeric($value) || (float) $value == 0 ) {
+                        continue;
+                    }
 					
 					if($attributes['je_id'][$key]!='') {
 
 						//FIND CURRENT VERSION	 
-						$currentVersion = DB::table('account_transaction')->where('voucher_type', 'JV')->where('voucher_type_id', $attributes['je_id'][$key])->max('version_no');
+					   $currentVersion = DB::table('account_transaction')->where('voucher_type', 'SIN')->where('voucher_type_id', $attributes['je_id'][$key])->max('version_no');
 						$newVersion = $currentVersion + 1;
 						$attributes['version_no'] = $newVersion;
 
 						//SOFT DELETE OLD VERSION
-						DB::table('account_transaction')->where('voucher_type', 'JV')->where('voucher_type_id', $attributes['je_id'][$key])
+						DB::table('account_transaction')->where('voucher_type', 'SIN')->where('voucher_type_id', $attributes['je_id'][$key])//->get();//echo '<pre>';print_r($attributes);exit;
 									->update([
 												'status' => 0,
 												'deleted_at' => date('Y-m-d h:i:s'),
@@ -1440,6 +1458,7 @@ class JournalRepository extends AbstractValidator implements JournalInterface {
 			
 		} catch (\Exception $e) {
 			DB::rollback();
+			dd($e->getMessage(), $e->getLine());
 			return false;
 		}
 		

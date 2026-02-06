@@ -480,28 +480,33 @@
 										<div class="form-group">
 											<label for="input-text" class="col-sm-1 control-label">RV No.</label>
 											<div class="col-sm-2">
-												<input type="text" class="form-control" name="rv_no" id="rv_no" readonly value="{{($rvs)?$rvs[0]->voucher_no:$rvrow->voucher_no}}" >
+												<input type="text" class="form-control" name="rv_no" id="rv_no" readonly value="{{ isset($rvs[0]->voucher_no) ? $rvs[0]->voucher_no : $rvrow->voucher_no }}
+" >
 											</div>
 											<label for="input-text" class="col-sm-2 control-label">RV Date</label>
 											<div class="col-sm-2">
-												<input type="number" class="form-control" id="rv_date" step="any" name="rv_date" placeholder="{{($rvs)?date($rvs[0]->voucher_date):date('d-m-Y')}}">
+												<input type="number" class="form-control" id="rv_date" step="any" name="rv_date" placeholder="{{ date('d-m-Y', strtotime($rvs->first()->voucher_date ?? now())) }}
+">
 											</div>
 											<label for="input-text" class="col-sm-1 control-label">Tenant(Cr)</label>
 											<div class="col-sm-3">
 												<input type="text" class="form-control" name="tenant" id="tenant" readonly value="{{($crow)?$crow->master_name:''}}">
 												<input type="hidden" name="tenant_id" id="tenant_id" readonly value="{{($crow)?$crow->customer_id:''}}">
-												<input type="hidden" name="je_id[]" value="{{($rvs)?$rvs[0]->id:''}}">
+												<input type="hidden" name="je_id[]" value="{{ $rvs->first()->id ?? '' }}
+">
 											</div>											
 										</div>
 										
 										<div class="form-group">
 											<label for="input-text" class="col-sm-1 control-label">Amount</label>
 											<div class="col-sm-2">
-												<input type="number" class="form-control" id="rv_amount" step="any" name="rv_amount" placeholder="Amount" value="{{($rvs)?date($rvs[0]->amount):$crow->rent_amount}}">
+												<input type="number" class="form-control" id="rv_amount" step="any" name="rv_amount" placeholder="Amount" value="{{ isset($rvs[0]->amount) ? $rvs[0]->amount : $crow->rent_amount }}
+">
 											</div>
 											<label for="input-text" class="col-sm-2 control-label">Installment</label>
 											<div class="col-sm-2">
-												<input type="number" class="form-control" id="installment" step="any" value="{{($rvs)?$rvs[0]->installment:''}}" name="installment">
+												<input type="number" class="form-control" id="installment" step="any" value="{{ isset($rvs[0]->installment) ? $rvs[0]->installment : '' }}
+" name="installment">
 											</div>
 											<label for="input-text" class="col-sm-1 control-label"></label>
 											<div class="col-sm-3"></div>
@@ -579,21 +584,26 @@
 										<div class="form-group">
 											<label for="input-text" class="col-sm-1 control-label">RV No.</label>
 											<div class="col-sm-1">
-												<input type="text" class="form-control" name="rv_no" id="drv_no" readonly value="{{($drvs)?$drvs[0]->voucher_no:$rvrow->voucher_no}}">
+												<input type="text" class="form-control" name="rv_no" id="drv_no" readonly value="{{ $drvs[0]->voucher_no ?? $rvrow->voucher_no ?? '' }}">
 											</div>
 											<label for="input-text" class="col-sm-1 control-label">RV Date</label>
 											<div class="col-sm-2" style="width:12%;">
-												<input type="text" class="form-control" id="drv_date" name="rv_date" placeholder="{{($drvs)?date('d-m-Y',strtotime($drvs[0]->voucher_date)):date('d-m-Y')}}">
+												<input type="text" class="form-control" id="drv_date" name="rv_date" placeholder="{{ \Carbon\Carbon::parse($drvs[0]->voucher_date ?? now())->format('d-m-Y') }}">
 											</div>
+											@php
+												$pyamt = $payacnts[1]->amount ?? 0;
+												$drvs_amt = $drvs[0]->amount ?? $pyamt;
+												$rdoly = ($drvs_amt==0.00 || $drvs_amt=='')?'readonly':'';
+											@endphp
 											<label for="input-text" class="col-sm-1 control-label">Amount</label>
 											<div class="col-sm-2" style="width:12%;">
-												<input type="number" class="form-control" step="any" id="drv_amount" name="rv_amount" value="{{($drvs)?$drvs[0]->amount:(isset($payacnts[1])?$payacnts[1]->amount:'')}}" placeholder="Amount">
+												<input type="number" class="form-control" step="any" id="drv_amount" name="rv_amount" value="{{ $drvs[0]->amount ?? $pyamt }}" placeholder="Amount">
 											</div>
 											<label for="input-text" class="col-sm-1 control-label">Tenant(Cr)</label>
 											<div class="col-sm-4">
 												<input type="text" class="form-control" name="tenant" readonly value="{{($crow)?$crow->master_name:''}}">
 												<input type="hidden" name="tenant_id" readonly value="{{($crow)?$crow->customer_id:''}}">
-												<input type="hidden" name="je_id[]" value="{{($drvs)?$drvs[0]->id:''}}">
+												<input type="hidden" name="je_id[]" value="{{ $drvs[0]->id ?? '' }}">
 											</div>	
 										</div>
 										
@@ -715,22 +725,27 @@
 										<input type="hidden" name="pd_acid" id="pd_acid" value="{{($rvrow)?$rvrow->pdcid:''}}">
 										<input type="hidden" name="bk_ac" id="bk_ac" value="{{($rvrow)?$rvrow->bank:''}}">
 										<input type="hidden" name="bk_acid" id="bk_acid" value="{{($rvrow)?$rvrow->bankid:''}}">
-										<input type="hidden" name="rv_id" id="rv_id" value="{{($orvs)?$orvs[0]->rv_id:''}}">
+										<input type="hidden" name="rv_id" id="rv_id" value="{{ isset($orvs[0]->rv_id) ? $orvs[0]->rv_id : '' }}">
 										<input type="hidden" id="rnum" value="{{count($orvs)}}">
 										<input type="hidden" name="type" value="edit">
 										<br/>
 										<div class="form-group">
 											<label for="input-text" class="col-sm-2 control-label">RV No.</label>
 											<div class="col-sm-2">
-												<input type="text" class="form-control" name="rv_no" id="orv_no" readonly value="{{($orvs)?$orvs[0]->voucher_no:$rvrow->voucher_no}}" >
+												<input type="text" class="form-control" name="rv_no" id="orv_no" readonly value="" >
 											</div>
 											<label for="input-text" class="col-sm-2 control-label">RV Date</label>
 											<div class="col-sm-3" style="width:12%;">
-												<input type="text" class="form-control" id="orv_date" name="rv_date" value="{{($orvs)?$orvs[0]->voucher_date:date('d-m-Y')}}">
+												<input type="text" class="form-control" id="orv_date" name="rv_date" value="{{ isset($orvs[0]->voucher_date)
+    ? date('d-m-Y', strtotime($orvs[0]->voucher_date))
+    : date('d-m-Y')
+}}
+">
 											</div>
 											
 											<div class="col-sm-2" style="width:12%;">
-												<input type="hidden" id="orv_amount" name="rv_amount" value="{{($orvs)?$orvs[0]->debit:0}}" >
+												<input type="hidden" id="orv_amount" name="rv_amount" value="{{ isset($orvs[0]->debit) ? $orvs[0]->debit : 0 }}
+" >
 											</div>
 											
 											<label for="input-text" class="col-sm-1 control-label"></label>

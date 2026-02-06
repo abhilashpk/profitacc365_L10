@@ -152,7 +152,7 @@ class TrialBalanceController2 extends Controller
                         return ($item['debit'] != 0 || $item['credit'] != 0);
                     });
                 }
-
+//echo '<pre>';print_r($grouped);exit;
                 // For export
                 if ($request->has('export')) {
                     return $this->exportSearchReport($grouped, $from, $to, $search_type, $voucherhead, $settings, $trimzero);
@@ -212,7 +212,7 @@ class TrialBalanceController2 extends Controller
                 if ($request->has('export')) {
                     return $this->exportSearchReport($grouped, $from, $to, $search_type, $voucherhead, $settings, $trimzero);
                 }
-
+//echo '<pre>';print_r($grouped);exit;
         return view('body.trialbalance2.report-opening-groupwise', compact('grouped', 'from', 'to', 'voucherhead','search_type', 'trimzero'));
 
 

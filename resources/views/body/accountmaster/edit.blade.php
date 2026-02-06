@@ -348,7 +348,7 @@ input[type=number]::-webkit-outer-spin-button {
 									<div class="itemdivChld">
 											<div>
 												<div class="col-xs-12">
-													<div class="form-group col-sm-1" style="width:5% !important;"> <span class="small">Tr. Type</span>
+													<div class="form-group col-sm-1" style="width:5% !important;"> <span class="small">Type</span>
 													<select id="trtype_1" class="form-control select2 line-tr" style="width:100%;padding:0px !important;" name="tr_type[]">
 													<option value="Dr">Dr</option>
 													<option value="Cr">Cr</option>
@@ -422,7 +422,7 @@ input[type=number]::-webkit-outer-spin-button {
 										<div>
 											<div class="col-xs-12">
 												<div class="form-group col-sm-1" style="width:5% !important;"> 
-													<span class="small">Tr. Type</span>
+													<span class="small">Type</span>
 													<input type="hidden" name="tr_id[]" id="trid_{{$i}}" value="{{$row->id}}">
 													<select id="trtype_{{$i}}" class="form-control select2 line-tr" style="width:100%;padding:0px !important;" name="tr_type[]">
 													<option value="Dr" <?php if($row->tr_type=='Dr') echo 'selected';?>>Dr</option><option value="Cr" <?php if($row->tr_type=='Cr') echo 'selected';?>>Cr</option>
@@ -527,7 +527,7 @@ input[type=number]::-webkit-outer-spin-button {
 													</div>
 													
 													<div class="form-group col-sm-1" style="width:7%"> 
-														<span class="small">Tr. Type</span>
+														<span class="small">Type</span>
 														<select id="trtypech_{{$i}}" class="form-control select2 linech-tr" style="width:100%" name="tr_type[]">
 															@if($masterrow->category == 'PDCR')
 														    <option value="Dr">Dr</option>
@@ -564,31 +564,38 @@ input[type=number]::-webkit-outer-spin-button {
 											<div class="col-xs-12">
 												<input type="hidden" name="tr_id[]" id="trid_{{$i}}" value="{{$row->id}}">
 												<div class="form-group col-sm-2" style="width:13%">
-													<span class="small">Amount</span> <input type="number" autocomplete="off" id="amountch_{{$i}}" step="any" name="amount[]" value="{{$row->amount}}" autocomplete="off" class="form-control chline-amount">
+													<span class="small">Amount</span> <input type="number" {{($row->pdc_status==1) ? 'readonly' :''}} autocomplete="off" id="amountch_{{$i}}" step="any" name="amount[]" value="{{$row->amount}}" autocomplete="off" class="form-control chline-amount">
 												</div>
 												<div class="form-group col-sm-1" style="width:10%">
 													<span class="small">Bank</span> 
-													<select id="bank_{{$i}}" class="form-control select2 line-bank" style="width:100%" name="bank[]">
+													<select id="bank_{{$i}}" class="form-control select2 line-bank" style="width:100%" name="bank[]" {{ $row->pdc_status == 1 ? 'disabled' : '' }}>
 														@foreach($banks as $bank)
 														<option value="{{$bank['id']}}" <?php if($row->bank_id==$bank['id']) echo 'selected';?>>{{$bank['code']}}</option>
 														@endforeach
 													</select>
+													@if($row->pdc_status == 1)
+														<input type="hidden" name="bank[]" value="{{$row->bank_id}}">
+													@endif
 												</div>
 												<div class="form-group col-sm-2" style="width:10%">
-													<span class="small">Cheque No.</span><input type="text" id="chqno_{{$i}}"  name="cheque_no[]" class="form-control"  autocomplete="off" value="{{$row->cheque_no}}">
+													<span class="small">Cheque No.</span><input type="text" id="chqno_{{$i}}" {{($row->pdc_status==1) ? 'readonly' :''}} name="cheque_no[]" class="form-control"  autocomplete="off" value="{{$row->cheque_no}}">
+													<input type="hidden" id="chqnoOld_{{$i}}" value="{{$row->cheque_no}}" class="oldchq">
 												</div>
 												<div class="form-group col-sm-2" style="width:13%">
-													<span class="small">Cheque Date</span> <input type="text" id="chqdate_{{$i}}" autocomplete="off" value="{{($row->cheque_date!='0000-00-00')?date('d-m-Y',strtotime($row->cheque_date)):''}}" name="cheque_date[]" class="form-control chkdate" data-language='en'>
+													<span class="small">Cheque Date</span> <input type="text" id="chqdate_{{$i}}" autocomplete="off" value="{{($row->cheque_date!='0000-00-00')?date('d-m-Y',strtotime($row->cheque_date)):''}}" name="cheque_date[]" {{ $row->pdc_status == 1 ? 'disabled' : '' }} class="form-control chkdate">
+													@if($row->pdc_status == 1)
+														<input type="hidden" name="cheque_date[]" value="{{($row->cheque_date!='0000-00-00')?date('d-m-Y',strtotime($row->cheque_date)):''}}">
+													@endif
 												</div>
 												
 												<div class="form-group col-sm-1" style="width:7%"> 
-													<span class="small">Tr. Type</span>
+													<span class="small">Type</span>
 													<select id="trtypech_{{$i}}" class="form-control select2 linech-tr" style="width:100%" name="tr_type[]">
 													<option value="{{$row->tr_type}}">{{$row->tr_type}}</option>
 													</select>
 												</div>
 												<div class="form-group col-sm-2" style="width:13%">
-													<span class="small">Account Name</span> <input type="text" id="frmaccount_{{$i}}" name="frmaccount_name[]" value="{{$row->from_account}}" class="form-control" autocomplete="off" data-toggle="modal" data-target="#account_modal">
+													<span class="small">Account Name</span> <input type="text" id="frmaccount_{{$i}}" name="frmaccount_name[]" value="{{$row->from_account}}" class="form-control" autocomplete="off" {{ $row->pdc_status == 1 ? 'readonly' : 'data-toggle=modal data-target=#account_modal' }}>
 													<input type="hidden" id="frmaccountid_{{$i}}" name="frmaccount_id[]" class="form-control" value="{{$row->frmaccount_id}}">
 													<input type="hidden" id="refnoc_{{$i}}" name="reference_no[]" class="form-control">
 												</div>
@@ -596,10 +603,10 @@ input[type=number]::-webkit-outer-spin-button {
 													<span class="small">Tr. Date</span> <input type="hidden" name="tr_date[]" value="{{($row->tr_date!='0000-00-00')?date('d-m-Y',strtotime($row->tr_date)):''}}">
 												</div>
 												<div class="form-group col-sm-2" style="width:15%">
-													<span class="small">Description</span> <input type="text" id="description_{{$i}}" name="description[]" autocomplete="off" value ="{{$row->description}}"class="form-control"> 
+													<span class="small">Description</span> <input type="text" id="description_{{$i}}" {{($row->pdc_status==1) ? 'readonly' :''}} name="description[]" autocomplete="off" value ="{{$row->description}}"class="form-control"> 
 												</div>
 												<div class="col-sm-1" style="width:3%"><br/>
-													<button type="button" class="btn-success btn-danger btn-remove-itemch" data-id="rem_{{$i}}">
+													<button type="button" class="btn-success btn-danger btn-remove-itemch" data-id="rem_{{$i}}" data-status="{{$row->pdc_status}}">
 														<i class="fa fa-fw fa-minus-square"></i>
 													</button>
 													 <button type="button" class="btn-success btn-add-itemch" >
@@ -1123,18 +1130,21 @@ function checkChequeNo(curNum) {
 	var bank = $('#bank_'+curNum+' option:selected').val();
 	var ac = $('#frmaccountid_'+curNum).val();
 	var chqno = $('#chqno_'+curNum).val();
+	var oldchqno = $('#chqnoOld_'+curNum).val();
 
-	$.ajax({
-		url: "{{ url('account_master/check_chequeno/') }}",
-		type: 'get',
-		data: 'chqno='+chqno+'&bank_id='+bank+'&ac_id='+ac,
-		success: function(data) {  
-			if(data=='') {
-				alert('Cheque no is duplicate!');
-				$('#chqno_'+curNum).val('');
+	if(chqno!=oldchqno) {
+		$.ajax({
+			url: "{{ url('account_master/check_chequeno/') }}",
+			type: 'get',
+			data: 'chqno='+chqno+'&bank_id='+bank+'&ac_id='+ac,
+			success: function(data) {  
+				if(data=='') {
+					alert('Cheque no is duplicate!');
+					$('#chqno_'+curNum).val('');
+				}
 			}
-		}
-	})
+		})
+	}
 	
 	$('#frmMaster').bootstrapValidator('addField', "cheque_no[]"); 
 }
@@ -1351,6 +1361,12 @@ $(function() {
 			
     }).on('click', '.btn-remove-itemch', function(e)
     { 
+		
+		if($(this).attr('data-status')==1) {
+			alert('PDC already transfered you can\'t delete this entry!');
+			return false;
+		}
+
 		//NEW CHNG...
 		var res = $(this).attr('data-id').split('_');
 		var curNum = res[1]; var ids;
@@ -1364,14 +1380,15 @@ $(function() {
 		var clbal= parseFloat($('#cl_balance').val());
 		var res = getLineTotalChq();
 		$('#op_balance').val(res.toFixed(2));
-	if(clbal==0){		
-		$('#cl_balance').val(res.toFixed(2));
-	}
-	else{
-	    var resc=clbal-amt;
-	    
-	    $('#cl_balance').val(resc.toFixed(2));
-	}
+
+		if(clbal==0){		
+			$('#cl_balance').val(res.toFixed(2));
+		}
+		else{
+			var resc=clbal-amt;
+			
+			$('#cl_balance').val(resc.toFixed(2));
+		}
 	
 		
 		e.preventDefault();
@@ -1408,6 +1425,7 @@ $(function() {
                 }
             });
 	});
+	
 	
 	
 	$(document).on('blur', '.chline-amount', function(e) {

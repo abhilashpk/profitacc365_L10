@@ -72,11 +72,11 @@
 												<tbody>
 												@foreach($forms as $row)
 												@if($row->active==1)
-													{{--*/ $chk = "checked";
-													/*--}}
+													@php $chk = "checked";
+													@endphp
 													@else
-													{{--*/ $chk = "";
-													/*--}}	
+													@php $chk = "";
+													@endphp	
 												@endif
 												<tr>
 													<td class="table_simple">{{$row->field_name}}</td>

@@ -73,7 +73,7 @@
                             <i class="fa fa-fw fa-list-alt"></i> Petty Cash Voucher List
                         </h3>
                         <div class="pull-right">
-							@permission('pc-create')
+							@can('pc-create')
                             <!--<a href="{{ url('pettycash/quick-add') }}" class="btn btn-primary btn-sm">
 									<span class="btn-label">
 									<i class="glyphicon glyphicon-plus"></i>
@@ -85,7 +85,7 @@
 									<i class="glyphicon glyphicon-plus"></i>
 								</span> Add New
 							</a>
-							@endpermission
+							@endcan
                         </div>
                     </div>
                     <div class="panel-body">
@@ -177,9 +177,9 @@ $(function() {
             { "data": "amount" },
 		
            
-			@permission('pc-edit'){ "data": "edit","bSortable": false },@endpermission
-			@permission('pc-print'){ "data": "print","bSortable": false },@endpermission
-			@permission('pc-delete'){ "data": "delete","bSortable": false }@endpermission
+			@can('pc-edit'){ "data": "edit","bSortable": false },@endcan
+			@can('pc-print'){ "data": "print","bSortable": false },@endcan
+			@can('pc-delete'){ "data": "delete","bSortable": false }@endcan
 		]
 
 		});
