@@ -4388,35 +4388,53 @@ class ItemmasterRepository extends AbstractValidator implements ItemmasterInterf
 				$dtrow = DB::table('parameter1')->select('from_date')->first();
 				foreach ($data as $row) { //
 				//	echo $row;exit;
+				 $itemCode = trim((string)($row->item_code ?? ''));
+				 $itemDesc = trim((string)($row->description ?? ''));
+				 $groupName = trim((string)($row->group ?? ''));
+				 $subgroupName = trim((string)($row->subgroup ?? ''));
+				 $imageUrl = trim((string)($row->image ?? ''));
+				 $batchNo = trim((string)($row->batch_no ?? ''));
+				 $mfgDate = trim((string)($row->mfg_date ?? ''));
+				 $expDate = trim((string)($row->exp_date ?? ''));
+				 $quantity = ($row->quantity ?? '') === '' ? 0 : $row->quantity;
+				 $rate = ($row->rate ?? '') === '' ? 0 : $row->rate;
+				 $salesPrice = ($row->sales_price ?? '') === '' ? 0 : $row->sales_price;
+				 $wsalesPrice = ($row->wsales_price ?? '') === '' ? 0 : $row->wsales_price;
+				 $itemClass = ($row->item_class ?? '') === '' ? 1 : $row->item_class;
+				 $modelNo = $row->model ?? '';
+				 $serialNo = $row->serial_no ?? '';
+				 $weight = $row->weight ?? '';
+				 $otherInfo = $row->other_info ?? '';
+				 $unitName = trim((string)($row->unit ?? ''));
 				 
-				 if($row->item_code!='' && $row->description!='') {
+				 if($itemCode!='' && $itemDesc!='') {
 					//CHECK ITEM EXIST OR NOT
-					$item = DB::table('itemmaster')->where( function ($query) use($row) {
-														$query->where('item_code', '=', $row->item_code);
+					$item = DB::table('itemmaster')->where( function ($query) use($itemCode) {
+														$query->where('item_code', '=', $itemCode);
 															  //->orWhere('description', '=', $row->description);
-												   })->select('id')->get();
+												   })->select('id')->first();
 					if(!$item) {
 						
 						//CHECK GROUP NAME EXIST OR NOT....
 						$group_id = $subgroup_id = '';
-						if($row->group!='') {
-							$group = DB::table('groupcat')->where('group_name', $row->group)->where('status',1)
+						if($groupName!='') {
+							$group = DB::table('groupcat')->where('group_name', $groupName)->where('status',1)
 												->whereNull('deleted_at')->select('id')->first();
 							if($group)
 								$group_id = $group->id;
 							else {
-								$group_id = DB::table('groupcat')->insertGetId(['group_name' => $row->group, 'description' => $row->group, 'status'=>1]);
+								$group_id = DB::table('groupcat')->insertGetId(['group_name' => $groupName, 'description' => $groupName, 'status'=>1]);
 							}
 
 							//SUBGROUP......
-							if($row->subgroup!='') {
-								$subgroup = DB::table('groupcat')->where('group_name', $row->subgroup)->where('status',1)->where('parent_id','!=',0)
+							if($subgroupName!='') {
+								$subgroup = DB::table('groupcat')->where('group_name', $subgroupName)->where('status',1)->where('parent_id','!=',0)
 												->whereNull('deleted_at')->select('id')->first();
 
 								if($subgroup)
 									$subgroup_id = $subgroup->id;
 								else {
-									$subgroup_id = DB::table('groupcat')->insertGetId(['group_name' => $row->subgroup, 'description' => $row->subgroup, 'parent_id' => $group_id, 'status'=>1]);
+									$subgroup_id = DB::table('groupcat')->insertGetId(['group_name' => $subgroupName, 'description' => $subgroupName, 'parent_id' => $group_id, 'status'=>1]);
 								}
 							}
 						
@@ -4425,8 +4443,8 @@ class ItemmasterRepository extends AbstractValidator implements ItemmasterInterf
 						//$imgurl = 'https://urban-vision.crm.elateapps.com/assets/uploads/products/Screen_Shot_2022-12-19_at_5_18_04_PM.png';
 						$image_name = '';
 						//IMAGE UPLOAD FROM URL.............
-						if(isset($row->image) && $row->image!='') {
-							$ar1 = explode('products/',$row->image); //IF PRODUCT PATH CONTAINS 'products/' ONLY
+						if($imageUrl!='') {
+							$ar1 = explode('products/',$imageUrl); //IF PRODUCT PATH CONTAINS 'products/' ONLY
 							if(isset($ar1[1])) {
 								$ex = explode('.',$ar1[1]); //EXPLODE BY FILE EXTESION
 								$destinationPath = public_path() . $this->imgDir.'/';
@@ -4444,55 +4462,56 @@ class ItemmasterRepository extends AbstractValidator implements ItemmasterInterf
 						
 						//BATCH NO SECTION...
 						$batch_req = 0;
-						if($row->batch_no!='' && $row->mfg_date!='' && $row->exp_date!='' && $row->quantity!='') {
-						    $isbatch = DB::table('item_batch')->where('batch_no',$row->batch_no)->whereNull('deleted_at')->select('id')->first();
+						if($batchNo!='' && $mfgDate!='' && $expDate!='' && $quantity!='') {
+						    $isbatch = DB::table('item_batch')->where('batch_no',$batchNo)->whereNull('deleted_at')->select('id')->first();
 						    if(!$isbatch)
 						        $batch_req = 1;
 						}
 						// end batch
 						
-						$insert = ['item_code' => $row->item_code, 
-									 'description' => $row->description,
-									 'class_id' => ($row->item_class=='')?1:$row->item_class, 
-									 'model_no' => $row->model,
-									 'serial_no' => $row->serial_no,
+						$insert = ['item_code' => $itemCode, 
+									 'description' => $itemDesc,
+									 'class_id' => $itemClass, 
+									 'model_no' => $modelNo,
+									 'serial_no' => $serialNo,
 									 'group_id' => $group_id,
 									 'subgroup_id' => $subgroup_id,
-									 'weight'	=> $row->weight,
+									 'weight'	=> $weight,
 									 'image' => $image_name,
 									 'status'   => 1,
 									 'created_at' => date('Y-m-d H:i:s'),
-									 'other_info' => $row->other_info,
+									 'other_info' => $otherInfo,
 									 'batch_req' => $batch_req
 								  ];
 						
-						if(isset($row->unit)) {
+						if($unitName!='') {
 							//GET UNIT ID
-							$unit = DB::table('units')->where('unit_name', strtoupper($row->unit))->select('id')->first();
+							$unit = DB::table('units')->where('unit_name', strtoupper($unitName))->select('id')->first();
 							if(!$unit) { //IF UNIT NOT EXIST...
-								if($row->unit!='')
-									$unit_id = DB::table('units')->insertGetId(['unit_name' => strtoupper($row->unit),'description' => strtoupper($row->unit),'status' => 1]);
+								if($unitName!='')
+									$unit_id = DB::table('units')->insertGetId(['unit_name' => strtoupper($unitName),'description' => strtoupper($unitName),'status' => 1]);
 								else {
-									$unit_id = 2; $row->unit = 'PCS';
+									$unit_id = 2;
 								}
 							} else
 								$unit_id = $unit->id;
 						} else
 							$unit_id = 2;
+						$packing = $unitName!='' ? strtoupper($unitName) : 'PCS';
 						
 						$item_id = DB::table('itemmaster')->insertGetId($insert);
 						DB::table('item_unit')->insert(['itemmaster_id' => $item_id,
 														'unit_id' => $unit_id,
-														'packing' => strtoupper($row->unit),
-														'opn_quantity' => ($row->quantity=='')?0:$row->quantity,
-														'opn_cost' => ($row->rate=='')?0:$row->rate,
-														'sell_price' => ($row->sales_price=='')?0:$row->sales_price,
-														'wsale_price' => ($row->wsales_price=='')?0:$row->wsales_price,
+														'packing' => $packing,
+														'opn_quantity' => $quantity,
+														'opn_cost' => $rate,
+														'sell_price' => $salesPrice,
+														'wsale_price' => $wsalesPrice,
 														'vat' => $vat->percentage,
 														'status' => 1,
-														'cur_quantity' => ($row->quantity=='')?0:$row->quantity,
+														'cur_quantity' => $quantity,
 														'is_baseqty' => 1,
-														'cost_avg' => ($row->rate=='')?0:$row->rate
+														'cost_avg' => $rate
 														]);
 														
 						$log_id = DB::table('item_log')->insertGetId([
@@ -4500,12 +4519,12 @@ class ItemmasterRepository extends AbstractValidator implements ItemmasterInterf
     								'document_id' => 0,
     								'item_id' => $item_id,
     								'unit_id' => $unit_id,
-    								'quantity' => ($row->quantity=='')?0:$row->quantity,
-    								'unit_cost' => ($row->rate=='')?0:$row->rate,
+    								'quantity' => $quantity,
+    								'unit_cost' => $rate,
     								'trtype' => 1,
-    								'cur_quantity' => ($row->quantity=='')?0:$row->quantity,
-    								'cost_avg' => ($row->rate=='')?0:$row->rate,
-    								'pur_cost' => ($row->rate=='')?0:$row->rate,
+    								'cur_quantity' => $quantity,
+    								'cost_avg' => $rate,
+    								'pur_cost' => $rate,
     								'packing' => 1,
     								'status' => 1,
     								'created_at' => date('Y-m-d H:i:s'),
@@ -4519,10 +4538,10 @@ class ItemmasterRepository extends AbstractValidator implements ItemmasterInterf
     					    	$batch_id = DB::table('item_batch')
                 				                ->insertGetId([
                 				                    'item_id' => $item_id,
-                				                    'batch_no' => $row->batch_no,
-                				                    'mfg_date' => date('Y-m-d', strtotime($row->mfg_date)),
-                				                    'exp_date' => date('Y-m-d', strtotime($row->exp_date)),
-                				                    'quantity' => $row->quantity
+                				                    'batch_no' => $batchNo,
+                				                    'mfg_date' => date('Y-m-d', strtotime($mfgDate)),
+                				                    'exp_date' => date('Y-m-d', strtotime($expDate)),
+                				                    'quantity' => $quantity
                 				                ]);
                 				                
                         			if($batch_id) {
@@ -4531,7 +4550,7 @@ class ItemmasterRepository extends AbstractValidator implements ItemmasterInterf
                     				                    'batch_id' => $batch_id,
                     				                    'item_id' => $item_id,
                     				                    'document_type' => 'OQ',
-                    				                    'quantity' => $row->quantity,
+                    				                    'quantity' => $quantity,
                     				                    'trtype' => 1,
                     				                    'invoice_date' => $dtrow->from_date,
                     				                    'log_id' => $log_id,
@@ -4549,9 +4568,9 @@ class ItemmasterRepository extends AbstractValidator implements ItemmasterInterf
 									$itemLocation->location_id = $res->id;
 									$itemLocation->item_id = $item_id;
 									$itemLocation->unit_id = $unit_id;
-									$itemLocation->quantity = ($row->quantity=='')?0:$row->quantity;
+									$itemLocation->quantity = $quantity;
 									$itemLocation->status = 1;
-									$itemLocation->opn_qty = ($row->quantity=='')?0:$row->quantity;
+									$itemLocation->opn_qty = $quantity;
 									$itemLocation->save();
 								}
 							}

@@ -695,8 +695,8 @@ class PurchaseInvoiceRepository extends AbstractValidator implements PurchaseInv
 		}*/	
 		
 		//JUN25
-		$unit_cost = (isset($attributes['is_fc']))?($attributes['item_price'][$key]*$attributes['currency_rate']):($attributes['item_price'][$key]);
-		$pur_cost = (isset($attributes['is_fc']))?($attributes['item_price'][$key]*$attributes['currency_rate'])+$other_cost:($attributes['item_price'][$key])+$other_cost;
+		$unit_cost = (isset($attributes['is_fc']))?($attributes['cost'][$key]*$attributes['currency_rate']):($attributes['cost'][$key]);
+		$pur_cost = (isset($attributes['is_fc']))?($attributes['cost'][$key]*$attributes['currency_rate'])+$other_cost:($attributes['cost'][$key])+$other_cost;
 		
 		$quantity = $attributes['quantity'][$key];
 		

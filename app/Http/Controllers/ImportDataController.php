@@ -12,14 +12,13 @@ use App\Repositories\StockTransferin\StockTransferinInterface;
 use Illuminate\Http\Request;
 
 use App\Http\Requests;
-use Input;
 use Session;
 use Response;
 use DB;
-use Excel;
 use App;
 use Auth;
 use DateTime;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class ImportDataController extends Controller
 {
@@ -132,12 +131,59 @@ class ImportDataController extends Controller
 	}
 	
 	//JAN25
-	public function save() { //cost_avg
+	public function save(Request $request) { //cost_avg
 		
 		if($request->hasFile('import_file')){
 			
 			$path = $request->file('import_file')->getRealPath();
-			$data = Excel::load($path, function($reader) { })->get();
+			$sheetRows = IOFactory::load($path)->getActiveSheet()->toArray(null, true, true, true);
+			$headerKey = null;
+			$headerRow = [];
+			foreach ($sheetRows as $rowKey => $rowData) {
+				$hasAnyValue = false;
+				foreach ($rowData as $value) {
+					if ($value !== null && trim((string) $value) !== '') {
+						$hasAnyValue = true;
+						break;
+					}
+				}
+				if ($hasAnyValue) {
+					$headerKey = $rowKey;
+					$headerRow = $rowData;
+					break;
+				}
+			}
+
+			$data = collect();
+			if ($headerKey !== null) {
+				unset($sheetRows[$headerKey]);
+				$sheetRows = array_values($sheetRows);
+				$headers = [];
+				foreach ($headerRow as $column => $heading) {
+					$normalized = strtolower(trim((string) $heading));
+					$normalized = preg_replace('/[^a-z0-9]+/', '_', $normalized);
+					$normalized = trim($normalized, '_');
+					$headers[$column] = $normalized !== '' ? $normalized : 'column_'.$column;
+				}
+
+				$data = collect($sheetRows)
+					->map(function ($row) use ($headers) {
+						$mapped = [];
+						foreach ($headers as $column => $header) {
+							$mapped[$header] = $row[$column] ?? null;
+						}
+						return (object) $mapped;
+					})
+					->filter(function ($row) {
+						foreach ((array) $row as $value) {
+							if ($value !== null && $value !== '') {
+								return true;
+							}
+						}
+						return false;
+					})
+					->values();
+			}
 			//echo '<pre>';print_r($data);exit;
 			if(!empty($data) && $data->count()) {
 				
@@ -165,7 +211,7 @@ class ImportDataController extends Controller
 					$item = DB::table('itemmaster')->where( function ($query) use($row) {
 														$query->where('item_code', '=', $row->item_code);
 															  
-												   })->select('id','description')->get();
+												   })->select('id','description')->first();
 												    
 												    
 				    }
@@ -625,6 +671,3 @@ class ImportDataController extends Controller
 	}
 	
 }
-
-
-
